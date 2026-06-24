@@ -9,6 +9,7 @@ import { encodeResources } from "../../lib/resources";
 import { normalizeRollbackWindow } from "../../lib/release-retention";
 import { env } from "../../config";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
+import type { RequestContext } from "../../lib/request-context";
 import { getRepository, listBranches as listGitHubBranches } from "../github/github.service";
 import {
   deriveEnvironmentPublicEndpoints,
@@ -205,9 +206,9 @@ function buildProductionProjectInput(
     port: data.port ?? 3000,
     hasServer: data.hasServer ?? true,
     hasBuild: data.hasBuild ?? true,
-    workspaceInstallCommand:
+    workspacePrepareCommand:
       data.projectType === "monorepo"
-        ? data.monorepoWorkspace?.installCommand ?? null
+        ? data.monorepoWorkspace?.prepareCommand ?? null
         : null,
     rollbackWindow:
       data.rollbackWindow !== undefined ? normalizeRollbackWindow(data.rollbackWindow) : null,
@@ -391,7 +392,7 @@ export async function ensureProject(
     }
     if (data.hasBuild !== undefined) update.hasBuild = data.hasBuild;
     if (data.projectType === "monorepo" && data.monorepoWorkspace !== undefined) {
-      update.workspaceInstallCommand = data.monorepoWorkspace.installCommand ?? null;
+      update.workspacePrepareCommand = data.monorepoWorkspace.prepareCommand ?? null;
     }
     if (data.slug !== undefined && data.slug !== project.slug) {
       const existingProject = await repos.project.findBySlugInOrg(organizationId, data.slug);
@@ -509,13 +510,14 @@ export async function getProject(projectId: string, organizationId: string) {
 
 // ─── Create project ──────────────────────────────────────────────────────────
 
+/** @scope org — only reads organizationId as a DB key. */
 export async function createProject(
   data: TCreateProjectBody,
-  ctx: { organizationId: string },
+  organizationId: string,
 ) {
   const slug = slugify(data.name);
 
-  const { total } = await repos.projectApp.listByOrganization(ctx.organizationId, {
+  const { total } = await repos.projectApp.listByOrganization(organizationId, {
     page: 1,
     perPage: 1,
   });
@@ -523,10 +525,10 @@ export async function createProject(
     throw new ValidationError(`Project limit reached (${SYSTEM.PROJECTS.MAX_PER_USER})`);
   }
 
-  const existing = await findProjectByAppSlug(ctx.organizationId, slug);
+  const existing = await findProjectByAppSlug(organizationId, slug);
   if (existing) throw new ConflictError(`Project "${data.name}" already exists`);
 
-  const p = await createProductionProject(data, slug, ctx.organizationId);
+  const p = await createProductionProject(data, slug, organizationId);
 
   return enrichProject(p);
 }
@@ -562,6 +564,47 @@ export async function updateProject(
   if (data.rollbackWindow !== undefined) {
     update.rollbackWindow =
       data.rollbackWindow === null ? null : normalizeRollbackWindow(data.rollbackWindow);
+  }
+
+  // ── monorepoSharedPaths validation ──────────────────────────────────
+  // Reject any prefix that overlaps an existing service's rootDirectory:
+  // configuring `packages/` as a shared path when `packages/web` is a
+  // deployable service would force-rebuild every service on every push
+  // to web (defeating the point of smart per-service deploys).
+  if (data.monorepoSharedPaths !== undefined && data.monorepoSharedPaths !== null) {
+    const normalize = (s: string) =>
+      s.trim().replace(/^\/+/, "").replace(/\/+$/, "").toLowerCase();
+    const prefixes = data.monorepoSharedPaths
+      .map(normalize)
+      .filter((s) => s.length > 0);
+    if (prefixes.length > 0) {
+      const services = await repos.service.listByProject(projectId).catch(() => []);
+      const serviceRoots = services
+        .map((s) => normalize(s.rootDirectory ?? ""))
+        .filter((s) => s.length > 0);
+      const overlap = prefixes.find((prefix) =>
+        serviceRoots.some(
+          (root) => root === prefix || root.startsWith(`${prefix}/`) || prefix.startsWith(`${root}/`),
+        ),
+      );
+      if (overlap) {
+        throw new ValidationError(
+          `monorepoSharedPaths prefix "${overlap}" overlaps an existing service rootDirectory — a shared-path force would defeat smart per-service deploys`,
+        );
+      }
+    }
+    // Normalize empty → null so the change detector's null-check fires.
+    update.monorepoSharedPaths = prefixes.length > 0 ? data.monorepoSharedPaths : null;
+  }
+
+  // ── defaultRollbackStrategy ────────────────────────────────────────
+  if (data.defaultRollbackStrategy !== undefined) {
+    if (data.defaultRollbackStrategy !== "git" && data.defaultRollbackStrategy !== "snapshot") {
+      throw new ValidationError(
+        `defaultRollbackStrategy must be "git" or "snapshot"`,
+      );
+    }
+    update.defaultRollbackStrategy = data.defaultRollbackStrategy;
   }
 
   if (
@@ -627,10 +670,10 @@ export async function listProjectEnvironments(
 
 export async function createProjectEnvironment(
   projectId: string,
-  userId: string,
+  ctx: RequestContext,
   data: TCreateProjectEnvironmentBody,
-  organizationId: string,
 ) {
+  const { userId, organizationId } = ctx;
   const base = await repos.project.findById(projectId);
   assertResourceInOrg(base, "Project", organizationId, projectId);
 
@@ -659,7 +702,7 @@ export async function createProjectEnvironment(
   if (!productionBranch && environmentType === "production" && base.gitOwner && base.gitRepo) {
     // userId here is the actor who triggered the action — used to authorize
     // the GitHub call against their installation token.
-    const repository = await getRepository(userId, base.gitOwner, base.gitRepo);
+    const repository = await getRepository(ctx, base.gitOwner, base.gitRepo);
     productionBranch = repository.default_branch;
   }
 
@@ -668,7 +711,7 @@ export async function createProjectEnvironment(
     (environmentType === "production" ? (productionBranch ?? "main") : environmentSlug);
 
   if ((data.sourceMode ?? "branch") === "branch" && base.gitOwner && base.gitRepo && gitBranch) {
-    const branches = await listGitHubBranches(userId, base.gitOwner, base.gitRepo);
+    const branches = await listGitHubBranches(ctx, base.gitOwner, base.gitRepo);
     const exists = branches.some((branch) => branch.name === gitBranch);
     if (!exists) {
       throw new ValidationError(`Branch "${gitBranch}" was not found for ${base.gitOwner}/${base.gitRepo}`);
@@ -746,6 +789,7 @@ export async function getGitInfo(projectId: string, organizationId: string) {
     webhookId: p.webhookId,
     webhookDomain: p.webhookDomain,
     autoDeploy: p.autoDeploy,
+    defaultRollbackStrategy: p.defaultRollbackStrategy,
     deployTarget,
   };
 }

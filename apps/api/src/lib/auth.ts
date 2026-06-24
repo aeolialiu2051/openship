@@ -14,6 +14,10 @@ import {
   organizationInviteEmail,
 } from "./email-templates";
 import { memberAudit } from "../modules/audit/member-emitter";
+import {
+  getOrgBillingState,
+  teardownBillingForOrg,
+} from "../modules/billing/billing-org-cleanup";
 import { provisionUser } from "./provision-user";
 import { safeErrorMessage } from "@repo/core";
 
@@ -230,8 +234,9 @@ export const auth = betterAuth({
           //
           // Only fires for sessions Better Auth's internal adapter
           // creates (sign-in/sign-up/OAuth/refresh). The direct
-          // db.insert(schema.session) in createLocalSession bypasses
-          // Better Auth entirely and sets activeOrganizationId itself.
+          // db.insert(schema.session) inside `mintSession`
+          // (lib/cloud-auth-proxy.ts) bypasses Better Auth entirely
+          // and sets activeOrganizationId itself.
           if (session.activeOrganizationId) return;
           return {
             data: {
@@ -412,7 +417,118 @@ export const auth = betterAuth({
           );
         },
 
+        beforeDeleteOrganization: async ({ organization, user }) => {
+          // Pre-flight billing gate. Better Auth commits the org delete
+          // immediately after this hook returns — afterDelete only gets
+          // to fire forensic cleanup, not block. So the only place we
+          // can reject an org-delete with the billing still live is
+          // here. Throws propagate out of the plugin as the 4xx the
+          // APIError describes (crud-org.mjs awaits this hook without
+          // try/catch).
+          const billingState = await getOrgBillingState(organization.id);
+          if (billingState.blocking) {
+            // Audit FIRST so the rejection is observable even if the
+            // attacker scripts a flood of delete attempts — every one
+            // leaves a row. memberAudit.emit swallows its own errors,
+            // so we don't risk the audit-write itself blocking the
+            // rejection it's recording.
+            await memberAudit.emit(
+              { organizationId: organization.id, actorUserId: user.id },
+              {
+                eventType: "organization.deletion.blocked",
+                resourceType: "organization",
+                resourceId: organization.id,
+                after: {
+                  activeSubscriptionCount: billingState.activeSubscriptionCount,
+                  openInvoiceCount: billingState.openInvoiceCount,
+                  openInvoiceAmountCents: billingState.openInvoiceAmountCents,
+                  summary: billingState.summary,
+                },
+              },
+            );
+            throw new APIError("CONFLICT", {
+              message: `Cannot delete organization while billing is active: ${billingState.summary}. Cancel subscriptions and settle open invoices first.`,
+              code: "ORG_DELETE_BILLING_ACTIVE",
+            });
+          }
+
+          // HIGH F16: snapshot the membership BEFORE Better Auth's
+          // CASCADE wipes the member rows. The afterDelete hook needs
+          // these for the audit summary and for sanity-checking the
+          // session re-point downstream.
+          try {
+            const members = await repos.member.listByOrganization(organization.id);
+            (organization as { _orgDeleteMemberSnapshot?: unknown })._orgDeleteMemberSnapshot =
+              members.map((m) => ({
+                userId: m.userId,
+                role: m.role,
+              }));
+          } catch (err) {
+            console.warn(
+              "[organizationHooks.beforeDeleteOrganization] member snapshot failed:",
+              safeErrorMessage(err),
+            );
+          }
+        },
+
         afterDeleteOrganization: async ({ organization, user }) => {
+          // HIGH F16: cascade everything Better Auth's built-in CASCADE
+          // doesn't reach.
+          //
+          //   1. teardownBillingForOrg — cancel Stripe subs, suspend
+          //      then delete the Oblien namespace. Static import is
+          //      safe: no module under modules/billing or modules/audit
+          //      imports lib/auth, so there is no cycle to break.
+          //   2. resource_grant rows scoped to the org (the FK already
+          //      CASCADEs, but the explicit call gives us a count).
+          //   3. Session pointers — re-point any session whose
+          //      activeOrganizationId is the dead org onto the user's
+          //      personal org. The column is NOT NULL by schema.
+          //   4. Emit one audit row with the full summary.
+          const memberSnapshot =
+            (organization as { _orgDeleteMemberSnapshot?: unknown })
+              ._orgDeleteMemberSnapshot ?? null;
+
+          let billingResult: {
+            subscriptionsCancelled: number;
+            subscriptionsFailed: number;
+            namespaceDecommissioned: boolean;
+            customerDeleted: boolean;
+            errors: string[];
+          } | null = null;
+          try {
+            billingResult = await teardownBillingForOrg(organization.id);
+          } catch (err) {
+            console.error(
+              "[organizationHooks.afterDeleteOrganization] billing teardown failed:",
+              err,
+            );
+          }
+
+          let grantsDeleted = 0;
+          try {
+            grantsDeleted = await repos.resourceGrant.deleteByOrganization(
+              organization.id,
+            );
+          } catch (err) {
+            console.error(
+              "[organizationHooks.afterDeleteOrganization] grant cleanup failed:",
+              err,
+            );
+          }
+
+          let sessionsRepointed = 0;
+          try {
+            sessionsRepointed = await repos.session.clearActiveOrganizationId(
+              organization.id,
+            );
+          } catch (err) {
+            console.error(
+              "[organizationHooks.afterDeleteOrganization] session re-point failed:",
+              err,
+            );
+          }
+
           await memberAudit.emit(
             { organizationId: organization.id, actorUserId: user.id },
             {
@@ -422,6 +538,17 @@ export const auth = betterAuth({
               before: {
                 name: organization.name,
                 slug: organization.slug,
+                members: memberSnapshot,
+              },
+              after: {
+                subscriptionsCancelled: billingResult?.subscriptionsCancelled ?? 0,
+                subscriptionsFailed: billingResult?.subscriptionsFailed ?? 0,
+                namespaceDecommissioned:
+                  billingResult?.namespaceDecommissioned ?? false,
+                customerDeleted: billingResult?.customerDeleted ?? false,
+                billingErrors: billingResult?.errors ?? [],
+                grantsDeleted,
+                sessionsRepointed,
               },
             },
           );

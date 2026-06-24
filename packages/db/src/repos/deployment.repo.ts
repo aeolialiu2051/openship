@@ -98,6 +98,23 @@ export function createDeploymentRepo(db: Database) {
         .where(eq(deployment.id, id));
     },
 
+    /**
+     * Persist the smart-deploy changed-files snapshot onto an existing
+     * deployment row. Called by the GitHub webhook after the deployment
+     * is created — the path set + truncation flag are forensic data,
+     * not deploy-gating, so they're written post-hoc.
+     */
+    async setChangedPaths(
+      id: string,
+      changedPaths: string[] | null,
+      changedPathsTruncated: boolean,
+    ) {
+      await db
+        .update(deployment)
+        .set({ changedPaths, changedPathsTruncated, updatedAt: new Date() })
+        .where(eq(deployment.id, id));
+    },
+
     /** Find the most recent deployment for a project (any status) */
     async findLatestByProject(projectId: string) {
       return db.query.deployment.findFirst({
@@ -147,6 +164,26 @@ export function createDeploymentRepo(db: Database) {
           eq(deployment.projectId, projectId),
           eq(deployment.environment, environment),
           eq(deployment.status, "ready"),
+        ),
+        orderBy: [desc(deployment.createdAt)],
+      });
+    },
+
+    /**
+     * Find the most recent successful deployment for a specific
+     * branch on a project. Used by the smart-deploy create path to
+     * populate `commit_sha_before` and by the git-strategy rollback
+     * to locate the previous good commit. `"ready"` and
+     * `"partial_failure"` both count as success — a partial-failure
+     * deploy is still an active, restorable target for the services
+     * that did come up.
+     */
+    async getLatestSuccessfulForBranch(projectId: string, branch: string) {
+      return db.query.deployment.findFirst({
+        where: and(
+          eq(deployment.projectId, projectId),
+          eq(deployment.branch, branch),
+          inArray(deployment.status, ["ready", "partial_failure"]),
         ),
         orderBy: [desc(deployment.createdAt)],
       });

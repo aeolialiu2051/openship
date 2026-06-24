@@ -6,6 +6,7 @@
  */
 
 import * as githubService from "../github/github.service";
+import type { RequestContext } from "../../lib/request-context";
 import { MANIFEST_FILES, type RepoFile, type StackResult } from "../../lib/stack-detector";
 import { parseComposeEnvFile, parseComposeFile, type ComposeService } from "../../lib/compose-parser";
 import {
@@ -46,7 +47,18 @@ interface ProjectReader {
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type Source =
-  | { source: "github"; owner: string; repo: string; userId: string; branch?: string }
+  | {
+      source: "github";
+      owner: string;
+      repo: string;
+      userId: string;
+      branch?: string;
+      /** Request-scoped context — required when source === "github" so
+       *  getRepository can resolve org-scoped install + cache keys.
+       *  Optional in the type for back-compat with old callers; the
+       *  github resolver throws when it's missing. */
+      ctx?: RequestContext;
+    }
   | { source: "local"; path: string };
 
 export interface ProjectInfo {
@@ -174,7 +186,7 @@ async function selectProjectSnapshot(
 }
 
 function createGitHubReader(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   branch: string,
@@ -183,7 +195,7 @@ function createGitHubReader(
 
   const readText = async (path: string) => {
     try {
-      const file = await githubService.getFileContent(userId, owner, repo, path, { branch });
+      const file = await githubService.getFileContent(ctx, owner, repo, path, { branch });
       return file?.content;
     } catch {
       return undefined;
@@ -193,7 +205,7 @@ function createGitHubReader(
   return {
     listDirectory: async (path: string) => {
       try {
-        const contents = await githubService.listFiles(userId, owner, repo, {
+        const contents = await githubService.listFiles(ctx, owner, repo, {
           branch,
           ...(path ? { path } : {}),
         });
@@ -220,7 +232,7 @@ function createGitHubReader(
     },
     listTree: async () => {
       if (!treePromise) {
-        treePromise = githubService.listRepositoryTree(userId, owner, repo, { branch });
+        treePromise = githubService.listRepositoryTree(ctx, owner, repo, { branch });
       }
       return treePromise;
     },
@@ -325,7 +337,10 @@ async function readComposeText(
  */
 export async function resolveProjectInfo(input: Source): Promise<ProjectInfo> {
   if (input.source === "github") {
-    return resolveFromGitHub(input.userId, input.owner, input.repo, input.branch);
+    if (!input.ctx) {
+      throw new Error("resolveProjectInfo(github): ctx is required");
+    }
+    return resolveFromGitHub(input.ctx, input.owner, input.repo, input.branch);
   }
 
   if (env.CLOUD_MODE) {
@@ -361,26 +376,26 @@ async function resolveFromReader(
 // ─── GitHub ──────────────────────────────────────────────────────────────────
 
 async function resolveFromGitHub(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   branch?: string,
 ): Promise<ProjectInfo> {
-  const repository = await githubService.getRepository(userId, owner, repo, {
+  const repository = await githubService.getRepository(ctx, owner, repo, {
     withBranches: true,
   });
   const requestedBranch = branch?.trim();
   const selectedBranch = requestedBranch || repository.default_branch;
 
   if (requestedBranch) {
-    const head = await githubService.getLatestCommit(userId, owner, repo, selectedBranch);
+    const head = await githubService.getLatestCommit(ctx, owner, repo, selectedBranch);
     if (!head) {
       throw new Error(`Branch "${selectedBranch}" was not found for ${owner}/${repo}`);
     }
   }
 
   return resolveFromReader(
-    createGitHubReader(userId, owner, repo, selectedBranch),
+    createGitHubReader(ctx, owner, repo, selectedBranch),
     repository,
     selectedBranch,
   );

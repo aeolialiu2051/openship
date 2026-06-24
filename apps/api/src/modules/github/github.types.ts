@@ -113,6 +113,17 @@ export interface GitHubPushCommit {
 export interface GitHubPushPayload {
   ref: string;
   deleted?: boolean;
+  forced?: boolean;
+  /** Commit SHA the ref pointed at before the push. */
+  before?: string;
+  /** Commit SHA the ref points at after the push. */
+  after?: string;
+  /**
+   * GitHub clamps this list to 20 commits per push event. When a single
+   * push contained more than 20 commits the caller must use
+   * `repos.compareCommits(before, after)` to enumerate every change.
+   */
+  commits?: GitHubPushCommit[];
   head_commit: GitHubPushCommit | null;
   repository: {
     name: string;
@@ -122,6 +133,27 @@ export interface GitHubPushPayload {
   };
   sender: { id: number; login: string };
   hook_id?: number;
+}
+
+// ─── Check run webhook payload ───────────────────────────────────────────────
+
+export interface GitHubCheckRunPayload {
+  action: "created" | "completed" | "rerequested" | "requested_action";
+  check_run: {
+    id: number;
+    name: string;
+    head_sha: string;
+    status: string;
+    conclusion: string | null;
+    html_url?: string;
+  };
+  repository: {
+    name: string;
+    full_name: string;
+    default_branch?: string;
+    owner: { login: string; id: number };
+  };
+  sender: { id: number; login: string };
 }
 
 // ─── Installation webhook payload ────────────────────────────────────────────

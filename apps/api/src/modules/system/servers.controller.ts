@@ -10,19 +10,10 @@ import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
 import { env } from "../../config";
 import { sshManager } from "../../lib/ssh-manager";
 import { encryptSecretField } from "@/lib/credential-encryption";
-import { getUserId, getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
-
-/** Guard - returns 404 in cloud mode (defense-in-depth) */
-function assertNotCloud(c: Context): boolean {
-  if (env.CLOUD_MODE) {
-    c.status(404);
-    c.body(null);
-    return false;
-  }
-  return true;
-}
+import { assertNotCloud } from "../../lib/controller-helpers";
 
 /** Public shape - what the controller returns to clients (no SSH secrets). */
 function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
@@ -43,24 +34,24 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
 
 /** GET /servers - list servers in the caller's active organization. */
 export async function listServers(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   // Org-scoped: only the caller's org's servers.
-  const organizationId = getActiveOrganizationId(c);
-  const all = await repos.server.listByOrganization(organizationId);
+  const ctx = getRequestContext(c);
+  const all = await repos.server.listByOrganization(ctx.organizationId);
   return c.json(all.map(serializeServer));
 }
 
 /** GET /servers/:id - get a single server. */
 export async function getServer(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver (404 on deny, IDOR-safe).
-  await permission.assert(c, { resourceType: "server", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "read" });
   // Org-scoped: out-of-org server ids 404 indistinguishably from missing.
-  const organizationId = getActiveOrganizationId(c);
-  const server = await repos.server.getInOrganization(id, organizationId);
+  const ctx = getRequestContext(c);
+  const server = await repos.server.getInOrganization(id, ctx.organizationId);
   if (!server) return c.json({ error: "Server not found" }, 404);
 
   return c.json(serializeServer(server));
@@ -68,17 +59,16 @@ export async function getServer(c: Context) {
 
 /** POST /servers - create a new server */
 export async function createServer(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const body = await c.req.json();
 
   const host = (body.sshHost as string)?.trim();
   if (!host) return c.json({ error: "SSH host is required" }, 400);
 
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const server = await repos.server.create({
-    organizationId,
+    organizationId: ctx.organizationId,
     name: body.name?.trim() || null,
     sshHost: host,
     sshPort: body.sshPort ?? 22,
@@ -98,7 +88,7 @@ export async function createServer(c: Context) {
 
   // Names + non-secret connection details only. SSH passwords & key
   // passphrases are encrypted at rest; never include them in the audit.
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "server.added",
     resourceType: "server",
     resourceId: server.id,
@@ -117,15 +107,14 @@ export async function createServer(c: Context) {
 
 /** PATCH /servers/:id - update a server */
 export async function updateServer(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver. Updating server config is a write.
-  await permission.assert(c, { resourceType: "server", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "write" });
   // Org-scoped: refuse to update a server outside the caller's org.
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
-  const existing = await repos.server.getInOrganization(id, organizationId);
+  const ctx = getRequestContext(c);
+  const existing = await repos.server.getInOrganization(id, ctx.organizationId);
   if (!existing) return c.json({ error: "Server not found" }, 404);
 
   const body = await c.req.json();
@@ -165,7 +154,7 @@ export async function updateServer(c: Context) {
   if (body.sshPassword !== undefined) auditAfter.sshPasswordChanged = true;
   if (body.sshKeyPassphrase !== undefined) auditAfter.sshKeyPassphraseChanged = true;
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "server.updated",
     resourceType: "server",
     resourceId: id,
@@ -177,15 +166,14 @@ export async function updateServer(c: Context) {
 
 /** DELETE /servers/:id - delete a server */
 export async function deleteServer(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: deleting a server is admin-tier (destructive).
-  await permission.assert(c, { resourceType: "server", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "admin" });
   // Org-scoped: refuse to delete a server outside the caller's org.
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
-  const existing = await repos.server.getInOrganization(id, organizationId);
+  const ctx = getRequestContext(c);
+  const existing = await repos.server.getInOrganization(id, ctx.organizationId);
   if (!existing) return c.json({ error: "Server not found" }, 404);
 
   await repos.server.delete(id);
@@ -193,19 +181,19 @@ export async function deleteServer(c: Context) {
   // they don't linger as orphan rows. Mail-server grants on the same
   // id need cleanup too since they share the server's id.
   await repos.resourceGrant
-    .deleteForResource(organizationId, "server", id)
+    .deleteForResource(ctx.organizationId, "server", id)
     .catch((err: unknown) =>
       console.error("[server.delete] grant cleanup failed:", err),
     );
   await repos.resourceGrant
-    .deleteForResource(organizationId, "mail_server", id)
+    .deleteForResource(ctx.organizationId, "mail_server", id)
     .catch((err: unknown) =>
       console.error("[server.delete] mail_server grant cleanup failed:", err),
     );
   sshManager.invalidate(id);
   await invalidateOpenRestyPaths(id);
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "server.removed",
     resourceType: "server",
     resourceId: id,

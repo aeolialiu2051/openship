@@ -116,6 +116,18 @@ export const getStatusConfig = (status: string) => {
         borderColor: "border-border/50",
         label: "Canceled",
       };
+    case "partial_failure":
+      // Some services succeeded, others failed. Treated as a
+      // deployed-with-warnings state — dashboard still shows the
+      // deploy as live, but the chip surfaces that the build wasn't
+      // wholly green.
+      return {
+        icon: 'circle%20clock-39-1658435834.png',
+        color: "var(--color-amber-500)",
+        bgColor: "bg-amber-500/10",
+        borderColor: "border-amber-500/20",
+        label: "Partial",
+      };
     default:
       return {
         icon: 'circle%20clock-39-1658435834.png',

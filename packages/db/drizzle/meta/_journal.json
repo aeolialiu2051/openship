@@ -85,6 +85,62 @@
       "when": 1781901497385,
       "tag": "0011_remove_credit_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1781902497385,
+      "tag": "0012_smart_deploys_and_git_rollback",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1781903497385,
+      "tag": "0013_fix_check_run_rollup_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1781904497385,
+      "tag": "0014_default_rollback_git",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1781905497385,
+      "tag": "0015_billing_idempotency_grants",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1782087544711,
+      "tag": "0016_github_auth_high_findings",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1782089730425,
+      "tag": "0017_spooky_rumiko_fujikawa",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1782158815087,
+      "tag": "0018_calm_shatterstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1782200000000,
+      "tag": "0019_rename_workspace_install_to_prepare",
+      "breakpoints": true
     }
   ]
 }

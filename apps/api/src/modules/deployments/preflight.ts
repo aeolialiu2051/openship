@@ -30,6 +30,7 @@ import {
 } from "../github/github.auth";
 import { canResolveTokenFor } from "../github/github.token";
 import { resolveRecords, lookupAddresses } from "../../lib/dns-resolver";
+import { buildBackgroundContext, type RequestContext } from "../../lib/request-context";
 
 export interface PreflightCheck {
   id: string;
@@ -64,6 +65,13 @@ export interface PreflightResult {
 export interface PreflightOptions {
   customDomain?: string;
   slug?: string;
+  /** Foreground/background request context for GitHub-auth checks. Preferred
+   *  over passing `userId`+`organizationId` separately — callers that already
+   *  have a ctx should pass it through so we don't synthesize a fresh
+   *  background ctx inside this leaf. */
+  ctx?: RequestContext;
+  /** @deprecated Pass `ctx` instead. Retained because checkRemoteCloneToken
+   *  and checkPublicEndpoints still use this as a positional primitive. */
   userId?: string;
   publicEndpoints?: Array<{
     port?: number;
@@ -104,15 +112,14 @@ export interface PreflightOptions {
  * sees an actionable message + the install URL.
  */
 async function checkGitHubAppInstallation(
-  userId: string | undefined,
+  ctx: RequestContext | null,
   owner: string | null | undefined,
-  organizationId?: string,
 ): Promise<PreflightCheck> {
   const baseCheck = {
     id: "github-app-installation",
     label: "GitHub App access",
   };
-  if (!userId) {
+  if (!ctx) {
     return { ...baseCheck, status: "warn", message: "User session missing - skipping check." };
   }
   if (!owner) {
@@ -122,18 +129,18 @@ async function checkGitHubAppInstallation(
   // cloud-connected. Both App-scoped modes need an installation on
   // the owner; cli / oauth / token modes don't (they use the user's
   // own credentials, not installation-scoped tokens).
-  const mode = await resolveGitHubAuthMode(userId);
+  const mode = await resolveGitHubAuthMode(ctx);
   if (mode !== "app" && mode !== "cloud-app") {
     return { ...baseCheck, status: "pass" };
   }
   // Mirror tokenFor: prefer org-scoped installation row, fall back to
   // the per-user row.
   let installationId: number | null = null;
-  if (organizationId) {
-    installationId = await getInstallationIdByOrg(organizationId, owner).catch(() => null);
+  if (ctx.organizationId) {
+    installationId = await getInstallationIdByOrg(ctx.organizationId, owner).catch(() => null);
   }
   if (!installationId) {
-    installationId = await getInstallationId(userId, owner).catch(() => null);
+    installationId = await getInstallationId(ctx, owner).catch(() => null);
   }
   if (installationId) {
     return { ...baseCheck, status: "pass" };
@@ -167,7 +174,7 @@ async function checkGitHubAppInstallation(
  * switching to `buildStrategy=local` (which is already safe).
  */
 async function checkRemoteBuildTokenLeak(
-  userId: string | undefined,
+  ctx: RequestContext | null,
   effectiveTarget: string,
   buildStrategy: "local" | "server" | undefined,
 ): Promise<PreflightCheck> {
@@ -177,8 +184,8 @@ async function checkRemoteBuildTokenLeak(
   };
   // Per-user resolution so cloud-app (self-hosted + cloud-connected)
   // gets recognised as App-scoped. Fall back to sync resolution when
-  // no userId is available (e.g. preflight invoked from a CLI tool).
-  const mode = userId ? await resolveGitHubAuthMode(userId) : getGitHubAuthMode();
+  // no ctx is available (e.g. preflight invoked from a CLI tool).
+  const mode = ctx ? await resolveGitHubAuthMode(ctx) : getGitHubAuthMode();
   // App-scoped modes (local-signed or cloud-proxied) already use
   // short-lived installation tokens — safe to ship to a remote build.
   if (mode === "app" || mode === "cloud-app") return { ...baseCheck, status: "pass" };
@@ -231,27 +238,25 @@ async function checkRemoteBuildTokenLeak(
  * for clearer error copy when the App is configured but uninstalled.
  */
 async function checkRemoteCloneToken(
-  userId: string | undefined,
+  ctx: RequestContext | null,
   owner: string | null | undefined,
   projectId: string | undefined,
   effectiveTarget: string,
   buildStrategy: "local" | "server" | undefined,
-  organizationId?: string,
 ): Promise<PreflightCheck> {
   const baseCheck = {
     id: "remote-clone-token",
     label: "Remote clone credential",
   };
-  if (!userId || !owner) return { ...baseCheck, status: "pass" };
+  if (!ctx || !owner) return { ...baseCheck, status: "pass" };
   if (buildStrategy === "local") return { ...baseCheck, status: "pass" };
   if (effectiveTarget === "local") return { ...baseCheck, status: "pass" };
 
   // Existence check only — no mint. The real mint happens later in the
   // build pipeline when we actually need to clone.
-  const source = await canResolveTokenFor(userId, "remote", {
+  const source = await canResolveTokenFor(ctx, "remote", {
     projectId,
     owner,
-    organizationId,
   }).catch(() => null);
   if (source) return { ...baseCheck, status: "pass" };
 
@@ -377,7 +382,7 @@ async function checkPublicEndpoints(
 
       seenHostnames.add(hostname);
       const endpointCloud = cloud?.runtime.ok && userId
-        ? await requestCloudPreflight(snapshot, userId, { customDomain: hostname })
+        ? await requestCloudPreflight(snapshot, { customDomain: hostname })
         : cloud;
       const result = await checkCustomDomain(hostname, endpointCloud, snapshot);
       checks.push({
@@ -420,7 +425,7 @@ async function checkPublicEndpoints(
     seenHostnames.add(hostname);
 
     if (cloud?.runtime.ok && userId) {
-      const endpointCloud = await requestCloudPreflight(snapshot, userId, { slug });
+      const endpointCloud = await requestCloudPreflight(snapshot, { slug });
       const availability = await checkSlug(slug, endpointCloud);
       checks.push({
         ...availability,
@@ -510,25 +515,29 @@ async function checkComposeServiceDomains(
   return checks;
 }
 
+// TODO: is the preflight with orgid doenst need userid or userid access already coverd in the middleware check
+
 async function requestCloudPreflight(
   snapshot: DeploymentConfigSnapshot,
-  userId: string,
   input: { slug?: string; customDomain?: string },
 ): Promise<CloudPreflightData | null> {
   const plat = platform();
-  const effectiveTarget =
-    plat.target === "desktop" ? (snapshot.deployTarget ?? "cloud") : plat.target;
+  if (!snapshot.organizationId) return null;
 
+  // On the SaaS itself, run preflight in-process — no bridge needed.
+  // `runCloudPreflight` keys EVERYTHING off the organization id
+  // (namespace slug, quota, token mint) — passing userId here used
+  // to mint the wrong namespace on SaaS.
   if (plat.target === "cloud") {
-    return runCloudPreflight(userId, input);
+    return runCloudPreflight(snapshot.organizationId, input);
   }
 
-  if (effectiveTarget === "cloud" || plat.target === "desktop") {
-    if (!snapshot.organizationId) return null;
-    return cloudClient({ organizationId: snapshot.organizationId }).preflight(input);
-  }
-
-  return null;
+  // Everywhere else (selfhosted, desktop): bridge to SaaS via the
+  // stored bearer. The token IS the source of truth — if it's valid
+  // SaaS answers, if not the bridge returns null and the outer code
+  // surfaces "connect your account". No second-guessing at this
+  // layer.
+  return cloudClient({ organizationId: snapshot.organizationId }).preflight(input);
 }
 
 async function resolveCloudPreflight(
@@ -536,17 +545,24 @@ async function resolveCloudPreflight(
   opts?: PreflightOptions,
 ): Promise<CloudPreflightData | null> {
   const plat = platform();
-  const effectiveTarget =
-    plat.target === "desktop" ? (snapshot.deployTarget ?? "cloud") : plat.target;
+  // The deploy target. On SaaS we ARE the cloud, so cloud is implicit.
+  // Everywhere else read it from the snapshot (which buildConfigSnapshot
+  // derives from `project.cloudWorkspaceId`, the canonical "is this a
+  // cloud project" test per packages/db/src/schema/project.ts:231).
+  // Desktop falls back to "cloud" since that's the only managed target
+  // it can deploy to today.
+  const effectiveTarget: string =
+    plat.target === "cloud"
+      ? "cloud"
+      : (snapshot.deployTarget ?? (plat.target === "desktop" ? "cloud" : "server"));
 
-  // MUST match deployment-runtime.ts:usesManagedRouting. If these two
-  // calculations drift, the preflight gate (CLOUD_REQUIRED_MANAGED_PROJECT_DOMAIN)
-  // becomes meaningless: a project that would crash at deploy time inside
-  // ensureManagedEdgeProxy (because no cloud account is linked) sails
-  // through preflight and dies AFTER the build runs.
+  // Managed routing = "the deploy lands on the operator's own server,
+  // but the public hostname is a free .openship.io slug served by
+  // cloud edge". That's the only reason a server-target deploy needs
+  // to ping cloud preflight. Cloud-target deploys obviously need it
+  // too (cloud IS doing the deploy).
   const usesManagedRouting =
-    plat.target === "selfhosted" ||
-    (plat.target === "desktop" && (effectiveTarget === "server" || effectiveTarget === "local"));
+    effectiveTarget === "server" || effectiveTarget === "local";
   const hasManagedPublicEndpoints =
     opts?.publicEndpoints?.some((endpoint) => endpoint.domainType !== "custom") ?? false;
   const needsManagedProjectDomain =
@@ -564,11 +580,14 @@ async function resolveCloudPreflight(
         customDomain: opts?.customDomain,
       };
 
+  // userId gate is kept so preflight only runs in an authenticated
+  // request context (anonymous callers can't bridge to SaaS). The
+  // bridge itself keys off snapshot.organizationId, not userId.
   if (!needsCloudPreflight || !opts?.userId) {
     return null;
   }
 
-  return requestCloudPreflight(snapshot, opts.userId, requestInput);
+  return requestCloudPreflight(snapshot, requestInput);
 }
 
 function checkConfig(snapshot: DeploymentConfigSnapshot, opts?: PreflightOptions): PreflightCheck {
@@ -991,6 +1010,22 @@ export async function runPreflightChecks(
           ? "managed-compose-domains"
           : "none";
 
+  // Build a single background ctx for the github-auth checks below.
+  // The 3 helpers (checkGitHubAppInstallation, checkRemoteBuildTokenLeak,
+  // checkRemoteCloneToken) used to each construct their own — that was
+  // the leaf-synthesis pattern the migration is removing. Prefer the ctx
+  // the caller passed in; only fall back to synthesizing one from the
+  // deprecated `userId` field when nothing was supplied.
+  const githubCtx: RequestContext | null =
+    opts?.ctx ??
+    (opts?.userId
+      ? buildBackgroundContext({
+          userId: opts.userId,
+          organizationId: opts.organizationId ?? "",
+          label: "preflight:github",
+        })
+      : null);
+
   const checks: PreflightCheck[] = [
     checkConfig(snapshot, opts),
     opts?.multiService
@@ -1013,7 +1048,7 @@ export async function runPreflightChecks(
   // on <owner>" error instead of a 403 deep in the build pipeline.
   if (getGitHubAuthMode() === "app") {
     checks.push(
-      await checkGitHubAppInstallation(opts?.userId, opts?.gitOwner, opts?.organizationId),
+      await checkGitHubAppInstallation(githubCtx, opts?.gitOwner),
     );
   }
 
@@ -1022,7 +1057,7 @@ export async function runPreflightChecks(
   // backend's clone-auth refusal). For oauth/token + remote: warn only.
   checks.push(
     await checkRemoteBuildTokenLeak(
-      opts?.userId,
+      githubCtx,
       effectiveTarget,
       opts?.buildStrategy ?? (snapshot.buildStrategy as "local" | "server" | undefined),
     ),
@@ -1034,12 +1069,11 @@ export async function runPreflightChecks(
   // here means the deploy would have failed downstream.
   checks.push(
     await checkRemoteCloneToken(
-      opts?.userId,
+      githubCtx,
       opts?.gitOwner,
       opts?.projectId,
       effectiveTarget,
       opts?.buildStrategy ?? (snapshot.buildStrategy as "local" | "server" | undefined),
-      opts?.organizationId,
     ),
   );
 

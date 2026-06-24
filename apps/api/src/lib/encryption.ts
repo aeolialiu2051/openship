@@ -87,21 +87,6 @@ export function decrypt(sealed: string): string {
 }
 
 /**
- * Encrypt a JSON-serialisable value.
- * Convenience wrapper for structured data like env var arrays.
- */
-export function encryptJson<T>(value: T): string {
-  return encrypt(JSON.stringify(value));
-}
-
-/**
- * Decrypt a value produced by `encryptJson()`.
- */
-export function decryptJson<T = unknown>(sealed: string): T {
-  return JSON.parse(decrypt(sealed)) as T;
-}
-
-/**
  * Decrypt a Record<string, encryptedValue> → Record<string, plaintext>.
  * On decryption failure for a key, that key is omitted (not silently passed through).
  */

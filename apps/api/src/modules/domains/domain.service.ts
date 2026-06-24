@@ -16,8 +16,9 @@
 
 import { createHmac } from "node:crypto";
 import { repos, type Domain, type Project } from "@repo/db";
-import { NotFoundError, ConflictError, ForbiddenError, ValidationError, safeErrorMessage } from "@repo/core";
+import { NotFoundError, ConflictError, ValidationError, safeErrorMessage } from "@repo/core";
 import { platform, assertResourceInOrg } from "../../lib/controller-helpers";
+import { buildBackgroundContext, type RequestContext } from "../../lib/request-context";
 import { manageDomainSsl } from "../../lib/domain-ssl";
 import { getRoutingBaseDomain } from "../../lib/routing-domains";
 import { resolveRecords } from "../../lib/dns-resolver";
@@ -42,17 +43,17 @@ function generateToken(hostname: string): string {
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
-export async function listDomains(projectId: string, organizationId: string) {
+export async function listDomains(ctx: RequestContext, projectId: string) {
   const project = await repos.project.findById(projectId);
-  assertResourceInOrg(project, "Project", organizationId, projectId);
+  assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
   return repos.domain.listByProject(projectId);
 }
 
 // ─── Add ─────────────────────────────────────────────────────────────────────
 
-export async function addDomain(organizationId: string, data: TAddDomainBody) {
+export async function addDomain(ctx: RequestContext, data: TAddDomainBody) {
   const project = await repos.project.findById(data.projectId);
-  assertResourceInOrg(project, "Project", organizationId, data.projectId);
+  assertResourceInOrg(project, "Project", ctx.organizationId, data.projectId);
 
   // Normalize: strip whitespace + protocol + trailing slash, lowercase.
   // Reject obviously-bogus shapes before they ever reach the DB.
@@ -130,8 +131,8 @@ export async function previewRecords(hostname: string) {
 
 // ─── Get DNS records (existing domain) ───────────────────────────────────────
 
-export async function getDomainRecords(domainId: string, organizationId: string) {
-  const { domain, project } = await getDomainWithAuth(domainId, organizationId);
+export async function getDomainRecords(ctx: RequestContext, domainId: string) {
+  const { domain, project } = await getDomainWithAuth(domainId, ctx.organizationId);
   const token = domain.verificationToken ?? generateToken(domain.hostname);
   return buildRecords(domain.hostname, token, project);
 }
@@ -143,8 +144,8 @@ export async function getDomainRecords(domainId: string, organizationId: string)
 // provisioning in the background. The SSL provider re-registers the
 // route with TLS internally, so no explicit route reconciler is needed.
 
-export async function verifyDomain(domainId: string, organizationId: string) {
-  const { domain, project } = await getDomainWithAuth(domainId, organizationId);
+export async function verifyDomain(ctx: RequestContext, domainId: string) {
+  const { domain, project } = await getDomainWithAuth(domainId, ctx.organizationId);
 
   if (domain.verified) {
     return {
@@ -218,8 +219,8 @@ export async function verifyDomain(domainId: string, organizationId: string) {
 
 // ─── Remove ──────────────────────────────────────────────────────────────────
 
-export async function removeDomain(domainId: string, organizationId: string) {
-  const { domain } = await getDomainWithAuth(domainId, organizationId);
+export async function removeDomain(ctx: RequestContext, domainId: string) {
+  const { domain } = await getDomainWithAuth(domainId, ctx.organizationId);
 
   try {
     const { routing } = platform();
@@ -233,8 +234,8 @@ export async function removeDomain(domainId: string, organizationId: string) {
 
 // ─── SSL ─────────────────────────────────────────────────────────────────────
 
-export async function renewDomainSsl(domainId: string, organizationId: string) {
-  const { domain } = await getDomainWithAuth(domainId, organizationId);
+export async function renewDomainSsl(ctx: RequestContext, domainId: string) {
+  const { domain } = await getDomainWithAuth(domainId, ctx.organizationId);
 
   const result = await manageDomainSsl(domain.hostname, {
     action: "renew",
@@ -247,8 +248,6 @@ export async function renewDomainSsl(domainId: string, organizationId: string) {
     issuer: result.issuer,
   };
 }
-
-export { renewExpiringCerts } from "../../lib/ssl-scheduler";
 
 // ─── Batch pending verification ──────────────────────────────────────────────
 //
@@ -316,8 +315,12 @@ export async function verifyPendingDomains(opts?: {
       // organization satisfies the auth check in getDomainWithAuth without
       // the cron needing a session.
       const verifyResult = await verifyDomain(
+        buildBackgroundContext({
+          userId: "",
+          organizationId: project.organizationId,
+          label: "domains:verify-pending",
+        }),
         domain.id,
-        project.organizationId,
       );
       if (verifyResult.verified) {
         result.verified++;
@@ -344,8 +347,8 @@ export async function verifyPendingDomains(opts?: {
   return result;
 }
 
-export async function renewOrgCerts(organizationId: string) {
-  const projects = await repos.project.listByOrganization(organizationId, { page: 1, perPage: 1000 });
+export async function renewOrgCerts(ctx: RequestContext) {
+  const projects = await repos.project.listByOrganization(ctx.organizationId, { page: 1, perPage: 1000 });
   const results: Array<{ domain: string; status: string; error?: string }> = [];
 
   for (const p of projects.rows) {
@@ -355,7 +358,7 @@ export async function renewOrgCerts(organizationId: string) {
       const daysLeft = (new Date(d.sslExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
       if (daysLeft > 14) continue;
       try {
-        await renewDomainSsl(d.id, organizationId);
+        await renewDomainSsl(ctx, d.id);
         results.push({ domain: d.hostname, status: "renewed" });
       } catch (err) {
         results.push({ domain: d.hostname, status: "failed", error: safeErrorMessage(err) });
@@ -484,4 +487,3 @@ function verifyMessage(
 
   return parts.join(". ");
 }
-

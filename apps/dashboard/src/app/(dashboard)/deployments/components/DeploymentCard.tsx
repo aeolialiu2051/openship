@@ -14,6 +14,63 @@ interface DeploymentCardProps {
   onStatusChange?: () => void;
 }
 
+/**
+ * Pill colors + label for a per-service deploy status. Kept inline here
+ * because the only consumer is the deployment card's service-fan-out
+ * row; promoting to utils would invite scope creep.
+ */
+function getServiceStatusChipConfig(
+  status: NonNullable<Deployment["serviceDeployments"]>[number]["status"],
+) {
+  switch (status) {
+    case "success":
+      return {
+        label: "Deployed",
+        bgClass: "bg-emerald-500/10",
+        textClass: "text-emerald-600 dark:text-emerald-400",
+        dotClass: "bg-emerald-500",
+      };
+    case "failure":
+      return {
+        label: "Failed",
+        bgClass: "bg-red-500/10",
+        textClass: "text-red-600 dark:text-red-400",
+        dotClass: "bg-red-500",
+      };
+    case "cancelled":
+      return {
+        label: "Cancelled",
+        bgClass: "bg-muted/60",
+        textClass: "text-muted-foreground",
+        dotClass: "bg-muted-foreground",
+      };
+    case "skipped":
+      return {
+        label: "Skipped",
+        bgClass: "bg-muted/40",
+        textClass: "text-muted-foreground",
+        dotClass: "bg-muted-foreground",
+      };
+    case "building":
+    case "deploying":
+    case "in_progress":
+      return {
+        label: status === "building" ? "Building" : status === "deploying" ? "Deploying" : "Running",
+        bgClass: "bg-blue-500/10",
+        textClass: "text-blue-600 dark:text-blue-400",
+        dotClass: "bg-blue-500",
+      };
+    case "pending":
+    default:
+      return {
+        label: "Pending",
+        bgClass: "bg-amber-500/10",
+        textClass: "text-amber-600 dark:text-amber-400",
+        dotClass: "bg-amber-500",
+      };
+  }
+}
+
 export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onStatusChange }) => {
   const router = useRouter();
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
@@ -83,6 +140,29 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
             </span>
           )}
         </div>
+
+        {/* Per-service status badges. Surfaced from the
+            service_deployment fan-out when the orchestrator-aware
+            listing endpoint returns rows for this deployment. */}
+        {deployment.serviceDeployments && deployment.serviceDeployments.length > 0 && (
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {deployment.serviceDeployments.map((sd) => {
+              const cfg = getServiceStatusChipConfig(sd.status);
+              return (
+                <span
+                  key={sd.id}
+                  className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${cfg.bgClass} ${cfg.textClass}`}
+                  title={`${sd.serviceName}: ${cfg.label}${sd.reason ? ` (${sd.reason})` : ""}`}
+                >
+                  <span className={`size-1.5 rounded-full ${cfg.dotClass}`} />
+                  {sd.serviceName}
+                  <span className="opacity-60">·</span>
+                  {cfg.label}
+                </span>
+              );
+            })}
+          </div>
+        )}
         <div className="flex items-center gap-2 mt-0.5">
           <p className="max-w-[320px] truncate text-xs text-muted-foreground">
             {hasCommitMessage ? deployment.commit.message : "Manual deploy"}

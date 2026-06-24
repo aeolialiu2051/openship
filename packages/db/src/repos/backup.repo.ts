@@ -61,7 +61,7 @@ export type BackupRestoreStatus =
   | "cancelled"
   | "server_error";
 
-const IN_FLIGHT_RUN_STATUSES: BackupRunStatus[] = [
+export const IN_FLIGHT_RUN_STATUSES: BackupRunStatus[] = [
   "queued",
   "preparing",
   "snapshotting",
@@ -69,7 +69,7 @@ const IN_FLIGHT_RUN_STATUSES: BackupRunStatus[] = [
   "verifying",
 ];
 
-const IN_FLIGHT_RESTORE_STATUSES: BackupRestoreStatus[] = [
+export const IN_FLIGHT_RESTORE_STATUSES: BackupRestoreStatus[] = [
   "queued",
   "preparing",
   "applying",
@@ -389,6 +389,18 @@ export function createBackupRunRepo(db: Database) {
       });
     },
 
+    /** Every run for a project still in a non-terminal state. Used by the
+     *  atomic project-teardown gate to decide whether to reject or force. */
+    async listInFlightByProject(projectId: string): Promise<BackupRun[]> {
+      return db.query.backupRun.findMany({
+        where: and(
+          eq(backupRun.projectId, projectId),
+          inArray(backupRun.status, IN_FLIGHT_RUN_STATUSES),
+          isNull(backupRun.deletedAt),
+        ),
+      });
+    },
+
     /** Queued runs awaiting a worker. Used by the in-process runner's
      *  boot requeue + periodic poll, both of which sweep work that a
      *  prior process left orphaned. Ordered oldest-first so we work
@@ -504,6 +516,17 @@ export function createBackupRestoreRepo(db: Database) {
     async findById(id: string): Promise<BackupRestore | undefined> {
       return db.query.backupRestore.findFirst({
         where: eq(backupRestore.id, id),
+      });
+    },
+
+    /** Every in-flight restore for a project. Used by atomic teardown to
+     *  gate / force-cancel restore work before the project row is dropped. */
+    async listInFlightByProject(projectId: string): Promise<BackupRestore[]> {
+      return db.query.backupRestore.findMany({
+        where: and(
+          eq(backupRestore.projectId, projectId),
+          inArray(backupRestore.status, IN_FLIGHT_RESTORE_STATUSES),
+        ),
       });
     },
 

@@ -5,30 +5,34 @@
  *
  *   1. Verifies the Stripe signature against STRIPE_WEBHOOK_SECRET. A
  *      malformed/forged payload throws before any DB or Oblien write.
- *   2. Checks `stripe_webhook_event` for an existing row with
- *      `processed_at IS NOT NULL` — if found, returns silently (already
- *      fully processed).
- *   3. Claims the slot via INSERT ... ON CONFLICT DO NOTHING. A conflict
- *      with an unprocessed row means a concurrent retry or a stale crash
- *      claim — either way safe to proceed (handlers are internally
- *      idempotent and the final UPDATE collapses races).
+ *   2. Opens a transaction and acquires `pg_try_advisory_xact_lock`
+ *      keyed on hash(event.id). The lock is released automatically at
+ *      commit/rollback — a concurrent delivery of the same event will
+ *      fail to acquire and return silently (the in-flight worker owns
+ *      the processing).
+ *   3. Inside the lock, checks `stripe_webhook_event.processed_at` —
+ *      if set, returns silently (already fully processed). Otherwise
+ *      inserts the claim row (no conflict possible — the lock
+ *      serializes us with any other writer for this event).
  *   4. Dispatches to a per-type handler. Each handler translates the
  *      event into Oblien quota calls (`setQuota` / `resetQuota` /
  *      `activate`) — Oblien is the single source of truth for credit
  *      allowance + consumption. Local DB writes are limited to the
  *      subscription mapping rows the dashboard / portal need.
  *   5. On success: stamps `processed_at` so the next delivery
- *      short-circuits at step 2.
- *   6. On throw: DELETEs the unprocessed claim so Stripe's redelivery can
- *      retry from scratch, then re-throws so Hono's onError returns 5xx
+ *      short-circuits at step 3 (and the lock release is moot).
+ *   6. On throw: the transaction rolls back, removing the claim row
+ *      AND releasing the lock so Stripe's redelivery can re-acquire
+ *      and fully retry. Re-throws so Hono's onError returns 5xx
  *      (Stripe retries on any non-2xx for the first 3 days).
  *
  * Quota-as-allowance model:
  *   - Tier purchase / renewal → `setQuota({quotaLimit: tier.monthlyCredits})`
  *     overwrites the ceiling. Oblien preserves `quota_used` independently
  *     so swapping the ceiling mid-period is correct (clamps high or low).
- *   - Top-up pack → `setQuota({quotaLimit: current + pack.credits})` — read
- *     the current ceiling via `getDetails`, add the pack on top.
+ *   - Top-up pack → claim `stripe_topup_grant` THEN `setQuota`
+ *     ({quotaLimit: current + pack.credits}). The claim row is what
+ *     guarantees no double-credit on Stripe webhook retries.
  *   - Tier downgrade / cancellation → `setQuotaForTier(orgId, 'free')`.
  *     Oblien clamps any over-consumed amount against the new ceiling.
  *   - Recurring renewal (`invoice.paid`) → `resetQuota` zeroes `quota_used`,
@@ -39,7 +43,7 @@
  * mounts the webhook route under CLOUD_MODE.
  */
 
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import {
   AppError,
   PLANS,
@@ -47,9 +51,11 @@ import {
   safeErrorMessage,
   type PlanTierId,
 } from "@repo/core";
-import { db, schema, repos, eq, and, isNull, sql } from "@repo/db";
+import { db, schema, repos, eq, sql } from "@repo/db";
 import { env } from "../../config/env";
 import { sendMail } from "../../lib/mail";
+import { resolveOrgOwner } from "../../lib/org-actor";
+import { stripe } from "../../lib/stripe-client";
 import {
   upsertSubscription,
   upsertCustomer,
@@ -60,18 +66,61 @@ import {
   resetAndRegrant,
 } from "./billing-oblien-quota";
 
-/* ───────── Stripe client (lazy) ─────────────────────────────────────────── */
+/* ───────── Canonical subscription status enum ───────────────────────────── */
 
-let _stripe: Stripe | null = null;
+/**
+ * Compact, downstream-safe status surfaced on org.subscription_status
+ * AND billing_subscription.status. Replaces the raw Stripe enum, which
+ * carries `trialing`, `incomplete`, `incomplete_expired`, `paused`, and
+ * `unpaid` — values gating middleware doesn't know how to interpret.
+ */
+export type CanonicalSubscriptionStatus =
+  | "active"
+  | "past_due"
+  | "canceled"
+  | "credit_exhausted";
 
-function getStripe(): Stripe {
-  if (!_stripe) {
-    if (!env.STRIPE_SECRET_KEY) {
-      throw new Error("Stripe is not configured (STRIPE_SECRET_KEY missing)");
-    }
-    _stripe = new Stripe(env.STRIPE_SECRET_KEY);
+/**
+ * Collapse a Stripe subscription status into the canonical enum used by
+ * gating middleware. Trial-in-progress counts as `active` (the user has
+ * a paid-tier ceiling), dunning failures route to `past_due`, terminal
+ * states to `canceled`, and the awkward "subscription created but
+ * payment not yet collected" states map to `past_due` (treat as
+ * suspended-pending so middleware shows the same banner).
+ *
+ * Centralizing this mapping prevents drift: every status write in this
+ * module routes through here.
+ */
+export function mapStripeStatusToCanonical(
+  s: Stripe.Subscription.Status,
+): CanonicalSubscriptionStatus {
+  if (s === "active" || s === "trialing") return "active";
+  if (s === "past_due" || s === "unpaid") return "past_due";
+  if (s === "canceled" || s === "incomplete_expired") return "canceled";
+  if (s === "incomplete" || s === "paused") return "past_due";
+  return "canceled";
+}
+
+/* ───────── Advisory-lock key derivation ─────────────────────────────────── */
+
+/**
+ * 31-bit signed-positive int hash for `pg_try_advisory_xact_lock`. The
+ * Postgres function takes a `bigint`; we hash the Stripe event id down
+ * to one so an event's exclusive lock is keyed by string identity, not
+ * by row presence. Collisions are tolerated (two unrelated events
+ * sharing a lock just serialize; correctness is preserved) but the 31
+ * bits give us ~2 billion buckets — collision risk is negligible at
+ * Stripe's event volume.
+ */
+function hashStringToInt(input: string): number {
+  // FNV-1a 32-bit, masked to 31 bits so the result fits a signed int4
+  // and stays consistent across drivers that don't auto-cast unsigned.
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
   }
-  return _stripe;
+  return h & 0x7fffffff;
 }
 
 /* ───────── Event type allowlist ─────────────────────────────────────────── */
@@ -127,158 +176,153 @@ export async function handleStripeEvent(
   rawBody: string,
   signature?: string,
 ): Promise<void> {
-  const stripe = getStripe();
-
   if (!env.STRIPE_WEBHOOK_SECRET || !signature) {
     throw new Error("Webhook signature verification failed");
   }
 
-  const event = stripe.webhooks.constructEvent(
+  const event = stripe().webhooks.constructEvent(
     rawBody,
     signature,
     env.STRIPE_WEBHOOK_SECRET,
   );
 
-  // Idempotency lifecycle, two phases:
-  //
-  //   "received" = row exists, processed_at = null
-  //   "processed" = row exists, processed_at = <timestamp>
-  //
-  // 1. If the event is already fully processed → silent 2xx (skip).
-  // 2. Otherwise claim the slot via INSERT ON CONFLICT DO NOTHING. A
-  //    conflict here means another worker is mid-flight OR a prior crash
-  //    left a stale "received" row. Either way we proceed — handlers are
-  //    internally idempotent and the final UPDATE collapses concurrent
-  //    runs into a single processed_at write.
-  // 3. Handler runs (below).
-  // 4. On success: stamp processed_at so the next delivery short-circuits
-  //    at step 1.
-  // 5. On throw: DELETE our (unprocessed) claim so Stripe's redelivery can
-  //    fully retry from scratch. Without this, the dedupe row from a
-  //    failed mid-handler crash blocks Stripe forever even though Oblien
-  //    quota state may be half-applied (e.g. sub row written but
-  //    namespaces.setQuota 5xx'd before stamping).
-  const [alreadyProcessed] = await db
-    .select({ stripeEventId: schema.stripeWebhookEvent.stripeEventId })
-    .from(schema.stripeWebhookEvent)
-    .where(
-      and(
-        eq(schema.stripeWebhookEvent.stripeEventId, event.id),
-        sql`${schema.stripeWebhookEvent.processedAt} IS NOT NULL`,
-      ),
-    )
-    .limit(1);
-  if (alreadyProcessed) {
-    return;
-  }
+  // pg_try_advisory_xact_lock serializes processing across replicas
+  // WITHOUT requiring a separate "claim" row, eliminating the
+  // INSERT-then-clear race that the previous two-phase shape suffered.
+  // The lock is released at commit/rollback automatically — a crashed
+  // handler frees the lock for the next delivery without operator
+  // intervention.
+  const lockKey = hashStringToInt(`stripe:event:${event.id}`);
 
-  await db
-    .insert(schema.stripeWebhookEvent)
-    .values({
-      stripeEventId: event.id,
-      eventType: event.type,
-    })
-    .onConflictDoNothing({ target: schema.stripeWebhookEvent.stripeEventId });
-
-  if (!HANDLED_EVENT_TYPES.has(event.type)) {
-    if (FINANCIAL_EVENT_TYPES.has(event.type)) {
-      if (process.env.BILLING_WEBHOOK_DISCARD_UNHANDLED === "true") {
-        console.warn(
-          `[billing] discarding unhandled financial event ${event.id} (${event.type}) — BILLING_WEBHOOK_DISCARD_UNHANDLED=true`,
-        );
-        await markProcessed(event.id);
-        return;
-      }
-      // Stripe must retry — clear our claim so the redelivery isn't dedupe'd
-      // out, then bubble a 5xx via Hono's onError.
-      await clearUnprocessedClaim(event.id);
-      throw new AppError(
-        `Billing webhook handler for ${event.type} is not implemented. Stripe will retry. ` +
-          `Set BILLING_WEBHOOK_DISCARD_UNHANDLED=true to accept-and-drop in pre-launch environments.`,
-        501,
-        "BILLING_WEBHOOK_UNIMPLEMENTED",
-      );
-    }
-    // Non-financial unhandled event (e.g. customer.created notification) — accept.
-    await markProcessed(event.id);
-    return;
-  }
-
-  try {
-    switch (event.type) {
-      case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(
-          event.data.object as Stripe.Checkout.Session,
-        );
-        break;
-      case "customer.subscription.created":
-        await handleSubscriptionCreated(
-          event.data.object as Stripe.Subscription,
-        );
-        break;
-      case "customer.subscription.updated":
-        await handleSubscriptionUpdated(
-          event.data.object as Stripe.Subscription,
-        );
-        break;
-      case "customer.subscription.deleted":
-        await handleSubscriptionDeleted(
-          event.data.object as Stripe.Subscription,
-        );
-        break;
-      case "invoice.paid":
-        await handleInvoicePaid(event.data.object as Stripe.Invoice);
-        break;
-      case "invoice.payment_failed":
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
-        break;
-      case "customer.deleted":
-        await handleCustomerDeleted(event.data.object as Stripe.Customer);
-        break;
-    }
-    await markProcessed(event.id);
-  } catch (err) {
-    // Clear our (unprocessed) claim so Stripe's redelivery can fully retry.
-    await clearUnprocessedClaim(event.id);
-    console.error(
-      `[billing] webhook handler failed for ${event.type} (${event.id}):`,
-      safeErrorMessage(err),
+  await db.transaction(async (tx) => {
+    const lockResult = await tx.execute(
+      sql`SELECT pg_try_advisory_xact_lock(${lockKey}) AS acquired`,
     );
-    // Re-throw so Hono's onError returns 5xx and Stripe retries.
-    throw err;
-  }
-}
+    const acquired = readAcquired(lockResult);
+    if (!acquired) {
+      // Peer is processing this event; their commit will stamp
+      // processed_at, so we return silently (Stripe gets 2xx).
+      return;
+    }
 
-async function markProcessed(eventId: string): Promise<void> {
-  await db
-    .update(schema.stripeWebhookEvent)
-    .set({ processedAt: new Date() })
-    .where(eq(schema.stripeWebhookEvent.stripeEventId, eventId));
+    // Same-id event already finalized by a prior delivery (we hold
+    // the lock now, so no concurrent writer is touching this row).
+    const [existing] = await tx
+      .select({
+        processedAt: schema.stripeWebhookEvent.processedAt,
+      })
+      .from(schema.stripeWebhookEvent)
+      .where(eq(schema.stripeWebhookEvent.stripeEventId, event.id))
+      .limit(1);
+    if (existing?.processedAt) return;
+
+    if (!HANDLED_EVENT_TYPES.has(event.type)) {
+      if (FINANCIAL_EVENT_TYPES.has(event.type)) {
+        if (process.env.BILLING_WEBHOOK_DISCARD_UNHANDLED === "true") {
+          console.warn(
+            `[billing] discarding unhandled financial event ${event.id} (${event.type}) — BILLING_WEBHOOK_DISCARD_UNHANDLED=true`,
+          );
+          await upsertWebhookEventProcessed(tx, event.id, event.type);
+          return;
+        }
+        // Throwing inside the transaction rolls back any partial
+        // writes AND releases the advisory lock — Stripe's redelivery
+        // can fully retry.
+        throw new AppError(
+          `Billing webhook handler for ${event.type} is not implemented. Stripe will retry. ` +
+            `Set BILLING_WEBHOOK_DISCARD_UNHANDLED=true to accept-and-drop in pre-launch environments.`,
+          501,
+          "BILLING_WEBHOOK_UNIMPLEMENTED",
+        );
+      }
+      // Non-financial unhandled event (e.g. customer.created notification) — accept.
+      await upsertWebhookEventProcessed(tx, event.id, event.type);
+      return;
+    }
+
+    try {
+      switch (event.type) {
+        case "checkout.session.completed":
+          await handleCheckoutSessionCompleted(
+            event.data.object as Stripe.Checkout.Session,
+          );
+          break;
+        case "customer.subscription.created":
+          await handleSubscriptionCreated(
+            event.data.object as Stripe.Subscription,
+          );
+          break;
+        case "customer.subscription.updated":
+          await handleSubscriptionUpdated(
+            event.data.object as Stripe.Subscription,
+          );
+          break;
+        case "customer.subscription.deleted":
+          await handleSubscriptionDeleted(
+            event.data.object as Stripe.Subscription,
+          );
+          break;
+        case "invoice.paid":
+          await handleInvoicePaid(event.data.object as Stripe.Invoice);
+          break;
+        case "invoice.payment_failed":
+          await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice);
+          break;
+        case "customer.deleted":
+          await handleCustomerDeleted(event.data.object as Stripe.Customer);
+          break;
+      }
+      await upsertWebhookEventProcessed(tx, event.id, event.type);
+    } catch (err) {
+      console.error(
+        `[billing] webhook handler failed for ${event.type} (${event.id}):`,
+        safeErrorMessage(err),
+      );
+      // Re-throw — the surrounding transaction rolls back (including
+      // the processed-stamp upsert and any in-handler writes that ran
+      // inside this tx). Hono's onError returns 5xx and Stripe retries.
+      throw err;
+    }
+  });
 }
 
 /**
- * Delete our (unprocessed) webhook claim so Stripe's redelivery can fully
- * retry from scratch. Guarded by processed_at IS NULL so a concurrent
- * worker that already succeeded isn't undone. Delete failure is logged but
- * doesn't mask the original handler error — the worst case is Stripe gets
- * one extra silent-success and the user has to re-trigger the action.
+ * Insert OR mark-processed the webhook event row. Stamps processed_at
+ * so the next delivery of the same event short-circuits without re-
+ * acquiring the advisory lock. Idempotent against a partially-written
+ * prior attempt thanks to ON CONFLICT DO UPDATE.
  */
-async function clearUnprocessedClaim(eventId: string): Promise<void> {
-  try {
-    await db
-      .delete(schema.stripeWebhookEvent)
-      .where(
-        and(
-          eq(schema.stripeWebhookEvent.stripeEventId, eventId),
-          isNull(schema.stripeWebhookEvent.processedAt),
-        ),
-      );
-  } catch (delErr) {
-    console.error(
-      `[billing] failed to clear unprocessed webhook claim for ${eventId}:`,
-      safeErrorMessage(delErr),
-    );
-  }
+async function upsertWebhookEventProcessed(
+  tx: Parameters<Parameters<typeof db.transaction>[0]>[0],
+  eventId: string,
+  eventType: string,
+): Promise<void> {
+  await tx
+    .insert(schema.stripeWebhookEvent)
+    .values({
+      stripeEventId: eventId,
+      eventType,
+      processedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: schema.stripeWebhookEvent.stripeEventId,
+      set: { processedAt: new Date() },
+    });
+}
+
+/**
+ * Defensive read of `pg_try_advisory_xact_lock`'s result. Drizzle's
+ * `execute` wraps drivers (pg, pglite, neon) that differ on
+ * `{ rows: [...] }` vs the raw array. Probe both shapes and coerce
+ * to boolean — anything other than `true` is treated as not-acquired,
+ * so a malformed driver response fails closed (no double-process).
+ */
+function readAcquired(result: unknown): boolean {
+  const rows = Array.isArray(result)
+    ? (result as Array<{ acquired?: unknown }>)
+    : ((result as { rows?: Array<{ acquired?: unknown }> } | null)?.rows ?? []);
+  const row = rows[0];
+  return row?.acquired === true;
 }
 
 /* ───────── checkout.session.completed ───────────────────────────────────── */
@@ -339,8 +383,7 @@ async function handleCheckoutSessionCompleted(
 
     // Pull the fresh subscription so we have authoritative period dates +
     // price_id (the session object's expansions vary by API version).
-    const stripe = getStripe();
-    const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+    const sub = await stripe().subscriptions.retrieve(stripeSubscriptionId);
 
     // Customer mapping table — keeps subsequent webhooks attributable when
     // they only carry customer_id (no metadata).
@@ -356,7 +399,7 @@ async function handleCheckoutSessionCompleted(
       stripePriceId: resolvePriceIdFromSub(sub),
       planTierId,
       interval: resolveIntervalFromSub(sub),
-      status: sub.status,
+      status: mapStripeStatusToCanonical(sub.status),
       currentPeriodStart: periodStart(sub),
       currentPeriodEnd: periodEnd(sub),
       cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
@@ -389,6 +432,32 @@ async function handleCheckoutSessionCompleted(
         400,
         "BILLING_UNKNOWN_PACK",
       );
+    }
+
+    // CRITICAL idempotency: `addQuota` is read-modify-write against
+    // Oblien (current + delta). Stripe retries the same
+    // checkout.session.completed event on any non-2xx and occasionally
+    // even after a successful one. Without this claim, a retry would
+    // re-add the pack on top of the already-credited ceiling —
+    // double-crediting the org.
+    //
+    // The claim row (keyed unique on checkout_session_id) lands BEFORE
+    // the Oblien call; a conflict means a prior delivery already
+    // credited the session and we skip. This runs inside the same
+    // transaction as the rest of the webhook dispatcher, so a thrown
+    // addQuota also rolls back the claim — Stripe's redelivery gets a
+    // clean retry.
+    const claim = await repos.stripeTopupGrant.claim({
+      checkoutSessionId: session.id,
+      organizationId: orgId,
+      packId: pack.id,
+      creditsMilli: pack.credits_milli,
+    });
+    if (!claim.claimed) {
+      console.log(
+        `[stripe] topup grant already applied for session=${session.id} — skipping retry`,
+      );
+      return;
     }
 
     // Pack credits live in milli-credits. The shared wrapper in
@@ -428,7 +497,7 @@ async function handleSubscriptionCreated(sub: Stripe.Subscription): Promise<void
     stripePriceId: resolvePriceIdFromSub(sub),
     planTierId,
     interval: resolveIntervalFromSub(sub),
-    status: sub.status,
+    status: mapStripeStatusToCanonical(sub.status),
     currentPeriodStart: periodStart(sub),
     currentPeriodEnd: periodEnd(sub),
     cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
@@ -440,7 +509,7 @@ async function handleSubscriptionCreated(sub: Stripe.Subscription): Promise<void
 /* ───────── customer.subscription.updated ────────────────────────────────── */
 
 /**
- * Two distinct flows:
+ * Three distinct flows on this one webhook:
  *   1. Price changed → tier change. Overwrite the Oblien quota ceiling
  *      with the new tier's monthlyCredits via `setQuotaForTier`. No manual
  *      proration: Oblien preserves `quota_used` independently per
@@ -449,6 +518,11 @@ async function handleSubscriptionCreated(sub: Stripe.Subscription): Promise<void
  *   2. cancel_at_period_end flipped → mirror onto the local subscription
  *      row so the dashboard reflects the pending cancellation. No quota
  *      call — the user still has the period they paid for.
+ *   3. Dunning recovery (`past_due` → `active`): the user's card finally
+ *      cleared. We MUST re-apply the tier ceiling — without it the org
+ *      stays stuck in past_due forever because `setQuotaForTier` only
+ *      fires on price change above. This is the same call the tier-change
+ *      path runs, gated separately so the audit reason is explicit.
  */
 async function handleSubscriptionUpdated(sub: Stripe.Subscription): Promise<void> {
   const orgId = await resolveOrgFromSubscription(sub);
@@ -461,7 +535,8 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription): Promise<void
 
   const newPlanTierId = resolvePlanFromPriceId(sub);
 
-  // Pull the previous local row to detect price flip vs cancel_at flip.
+  // Pull the previous local row to detect price flip vs cancel_at flip
+  // AND a past_due → active recovery transition.
   const [prev] = await db
     .select()
     .from(schema.billingSubscription)
@@ -470,6 +545,16 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription): Promise<void
 
   const newPriceId = resolvePriceIdFromSub(sub);
   const priceChanged = !!prev && prev.stripePriceId !== newPriceId;
+  const newStatus = mapStripeStatusToCanonical(sub.status);
+  // Dunning recovery: prior local row was `past_due` and Stripe is now
+  // reporting active/trialing. The quota was never lowered on payment
+  // failure (Oblien suspend lives on the depleted path, not the dunning
+  // path), but the local subscription_status flip needs a paired quota
+  // refresh so any half-applied stale state is normalized — and so the
+  // restoreFromExhausted side effect inside setQuotaForTier lifts any
+  // namespace suspend the hard-cap path engaged in parallel.
+  const recoveredFromPastDue =
+    !!prev && prev.status === "past_due" && newStatus === "active";
 
   await upsertSubscription({
     organizationId: orgId,
@@ -477,15 +562,16 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription): Promise<void
     stripePriceId: newPriceId,
     planTierId: newPlanTierId,
     interval: resolveIntervalFromSub(sub),
-    status: sub.status,
+    status: newStatus,
     currentPeriodStart: periodStart(sub),
     currentPeriodEnd: periodEnd(sub),
     cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
   });
 
-  if (priceChanged) {
-    // Tier change: Oblien preserves quota_used, so a single setQuota with
-    // the new ceiling is correct — no proration, no delta computation.
+  if (priceChanged || recoveredFromPastDue) {
+    // Tier change OR dunning recovery: re-arm the Oblien ceiling. Oblien
+    // preserves quota_used, so a single setQuota with the (possibly
+    // unchanged) tier ceiling is correct — no proration, no delta.
     await setQuotaForTier(orgId, newPlanTierId);
   }
   // cancel_at_period_end change is already mirrored by upsertSubscription;
@@ -525,6 +611,8 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription): Promise<void
   });
 
   await setQuotaForTier(orgId, "free");
+  // Status already "canceled" — no canonical mapping needed; this is
+  // the terminal flush path.
 }
 
 /* ───────── invoice.paid ─────────────────────────────────────────────────── */
@@ -580,8 +668,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
   // Pull the live subscription to get the new period boundaries (the invoice
   // close usually advances current_period_*).
-  const stripe = getStripe();
-  const sub = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+  const sub = await stripe().subscriptions.retrieve(stripeSubscriptionId);
   const planTierId = localSub.planTierId as PlanTierId;
 
   await upsertSubscription({
@@ -590,7 +677,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
     stripePriceId: resolvePriceIdFromSub(sub),
     planTierId,
     interval: resolveIntervalFromSub(sub),
-    status: sub.status,
+    status: mapStripeStatusToCanonical(sub.status),
     currentPeriodStart: periodStart(sub),
     currentPeriodEnd: periodEnd(sub),
     cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
@@ -647,10 +734,17 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void
 
 /**
  * The Stripe customer was hard-deleted (admin tooling, GDPR erasure, etc.).
- * Null out the local stripe_customer_id pointer so re-subscribes mint a
- * fresh customer instead of trying to use the dead id. The Oblien
- * namespace is left untouched — a deleted Stripe customer doesn't mean
- * the org is gone, and historical usage rows on Oblien still need a home.
+ * Null out the local stripe_customer_id pointer on the org row AND drop
+ * the billing_customer mapping. The mapping is what
+ * `getOrCreateStripeCustomerId` reads first to skip Stripe round-trips —
+ * leaving the row in place would have the next checkout try to reuse
+ * the dead Stripe id and 404. Deletion is the right call (not "set
+ * stripeCustomerId = null") because the table's UNIQUE-on-org constraint
+ * makes the row meaningless without a live Stripe id.
+ *
+ * The Oblien namespace is left untouched — a deleted Stripe customer
+ * doesn't mean the org is gone, and historical usage rows on Oblien
+ * still need a home.
  */
 async function handleCustomerDeleted(customer: Stripe.Customer): Promise<void> {
   await db
@@ -659,8 +753,7 @@ async function handleCustomerDeleted(customer: Stripe.Customer): Promise<void> {
     .where(eq(schema.organization.stripeCustomerId, customer.id));
 
   await db
-    .update(schema.billingCustomer)
-    .set({ updatedAt: new Date() })
+    .delete(schema.billingCustomer)
     .where(eq(schema.billingCustomer.stripeCustomerId, customer.id));
 }
 
@@ -711,18 +804,31 @@ async function resolveOrgFromSubscription(
   return row?.organizationId ?? null;
 }
 
+/**
+ * Resolve the subscription's current period boundaries.
+ *
+ * The fields moved from `subscription.current_period_*` to
+ * `subscription.items.data[0].current_period_*` in a recent Stripe API
+ * version, and the pinned `STRIPE_API_VERSION` (lib/stripe-client.ts)
+ * targets that vintage. The types library still ships the item-level
+ * declaration; some webhook payloads (older live-mode shadows, manual
+ * fixtures) carry the root-level field — read the item path first and
+ * fall back. When you bump the API version, audit this helper alongside
+ * the rest of the webhook surface.
+ */
 function periodStart(sub: Stripe.Subscription): Date {
-  // Stripe types vary by API version on whether period dates live on the
-  // subscription or the first item — read the subscription-level fields,
-  // they're populated on every API version that supports webhooks.
-  const raw = (sub as unknown as { current_period_start?: number })
+  const itemLevel = sub.items?.data?.[0]?.current_period_start;
+  const rootLevel = (sub as unknown as { current_period_start?: number })
     .current_period_start;
+  const raw = itemLevel ?? rootLevel;
   return raw ? new Date(raw * 1000) : new Date();
 }
 
 function periodEnd(sub: Stripe.Subscription): Date {
-  const raw = (sub as unknown as { current_period_end?: number })
+  const itemLevel = sub.items?.data?.[0]?.current_period_end;
+  const rootLevel = (sub as unknown as { current_period_end?: number })
     .current_period_end;
+  const raw = itemLevel ?? rootLevel;
   return raw ? new Date(raw * 1000) : new Date();
 }
 
@@ -732,8 +838,7 @@ async function notifyPastDue(
   organizationId: string,
   invoice: Stripe.Invoice,
 ): Promise<void> {
-  const members = await repos.member.listByOrganization(organizationId);
-  const owner = members.find((m) => m.role === "owner") ?? members[0];
+  const owner = await resolveOrgOwner(organizationId, "first-member");
   if (!owner?.user?.email) return;
 
   const amount = ((invoice.amount_due ?? 0) / 100).toFixed(2);

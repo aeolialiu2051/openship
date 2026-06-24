@@ -12,7 +12,8 @@
  */
 
 import type { Context } from "hono";
-import { getActiveOrganizationId, param } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { safeErrorMessage } from "@repo/core";
 import {
   transferProjectToCloud,
@@ -68,7 +69,7 @@ function transferErrorResponse(c: Context, err: unknown, fallback: string) {
  */
 export async function transferToCloud(c: Context) {
   const projectId = param(c, "id");
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
 
   try {
     const result = await transferProjectToCloud({ projectId, organizationId });
@@ -93,7 +94,7 @@ export async function transferToCloud(c: Context) {
  */
 export async function transferToSelfHosted(c: Context) {
   const projectId = param(c, "id");
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
 
   try {
     const result = await transferProjectToSelfHosted({

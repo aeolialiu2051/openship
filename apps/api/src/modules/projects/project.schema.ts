@@ -96,7 +96,9 @@ const MonorepoAppSchema = Type.Object({
 
 const MonorepoWorkspaceSchema = Type.Object({
   packageManager: Type.String({ minLength: 1, maxLength: 32 }),
-  installCommand: Type.Optional(Type.String({ maxLength: 500 })),
+  /** Shell command run ONCE at the repo root before per-app builds.
+   *  Any prep — install, codegen, schema sync — chained with `&&`. */
+  prepareCommand: Type.Optional(Type.String({ maxLength: 500 })),
 });
 
 // ─── Route params ────────────────────────────────────────────────────────────
@@ -169,6 +171,23 @@ export const CreateProjectBody = Type.Object({
   monorepoApps: Type.Optional(Type.Array(MonorepoAppSchema, { minItems: 1, maxItems: 50 })),
   /** Shared workspace install (run once at repo root). Only used when projectType === "monorepo". */
   monorepoWorkspace: Type.Optional(MonorepoWorkspaceSchema),
+  /**
+   * Repo-root path prefixes that, when touched, force every sub-app to
+   * rebuild. Null/omitted = the shared-paths force is disabled. Pass
+   * an explicit `[]` to clear an existing list. Rejected if any prefix
+   * overlaps an existing service's `rootDirectory`.
+   */
+  monorepoSharedPaths: Type.Optional(
+    Type.Union([Type.Null(), Type.Array(Type.String({ minLength: 1, maxLength: 200 }), { maxItems: 50 })]),
+  ),
+  /**
+   * Rollback strategy applied to NEW deployments of this project.
+   *   - "git"      → no artifact archive; rollback rebuilds at prior commit_sha
+   *   - "snapshot" → archive prior artifact, rollback restores it instantly
+   */
+  defaultRollbackStrategy: Type.Optional(
+    Type.Union([Type.Literal("git"), Type.Literal("snapshot")]),
+  ),
 });
 
 export const UpdateProjectBody = Type.Partial(CreateProjectBody);

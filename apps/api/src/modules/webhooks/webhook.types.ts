@@ -25,11 +25,18 @@ export interface WebhookHandlerResult {
 /**
  * Interface every webhook provider must implement.
  *
- * `verify()` checks the cryptographic signature.
+ * `verify()` checks the cryptographic signature. Returning a Promise is
+ * allowed because some providers must resolve per-resource secrets from
+ * the DB before they can HMAC-check (e.g. github's per-project secret —
+ * see HIGH #9 in the GitHub-auth audit).
+ *
  * `handle()` parses the event and dispatches to the correct business-logic handler.
  */
 export interface WebhookProvider {
   readonly name: WebhookProviderName;
-  verify(payload: string | Buffer, headers: Record<string, string>): WebhookVerifyResult;
+  verify(
+    payload: string | Buffer,
+    headers: Record<string, string>,
+  ): WebhookVerifyResult | Promise<WebhookVerifyResult>;
   handle(payload: unknown, headers: Record<string, string>): Promise<WebhookHandlerResult>;
 }

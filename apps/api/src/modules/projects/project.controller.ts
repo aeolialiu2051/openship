@@ -9,10 +9,13 @@
 
 import type { Context } from "hono";
 import { streamSSE } from "../../lib/sse";
-import { getUserId, getActiveOrganizationId, assertResourceInOrg, param } from "../../lib/controller-helpers";
+import { assertResourceInOrg, param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
+import type { RequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import * as projectService from "./project.service";
+import * as projectTeardown from "./project-teardown";
 import { AppError, safeErrorMessage } from "@repo/core";
 import type {
   TCreateProjectBody,
@@ -82,8 +85,7 @@ function logEnsureProjectError(
 // ─── Ensure project ──────────────────────────────────────────────────────────
 
 export async function ensure(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<TCreateProjectBody & { projectId?: string }>();
 
   if (!body.name) {
@@ -91,8 +93,8 @@ export async function ensure(c: Context) {
   }
 
   try {
-    const result = await projectService.ensureProject(body, organizationId);
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+    const result = await projectService.ensureProject(body, ctx.organizationId);
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: result.created ? "project.created" : "project.updated",
       resourceType: "project",
       resourceId: result.project_id,
@@ -105,7 +107,7 @@ export async function ensure(c: Context) {
     });
     return c.json(result);
   } catch (err) {
-    logEnsureProjectError(userId, body, err);
+    logEnsureProjectError(ctx.userId, body, err);
 
     if (err instanceof AppError) {
       return c.json(
@@ -121,8 +123,8 @@ export async function ensure(c: Context) {
 // ─── Projects CRUD ───────────────────────────────────────────────────────────
 
 export async function getHome(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
 
   // Surface a structured payload that includes the user's full org list +
   // a per-org project count. The dashboard uses this to render a
@@ -250,8 +252,8 @@ export async function getHome(c: Context) {
 }
 
 export async function list(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const page = Number(c.req.query("page") ?? 1);
   const perPage = Number(c.req.query("perPage") ?? 20);
   const result = await projectService.listProjects(organizationId, { page, perPage });
@@ -267,10 +269,10 @@ export async function list(c: Context) {
 }
 
 export async function create(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const body = await c.req.json<TCreateProjectBody>();
-  const project = await projectService.createProject(body, { organizationId });
+  const project = await projectService.createProject(body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
     eventType: "project.created",
     resourceType: "project",
@@ -289,10 +291,10 @@ export async function create(c: Context) {
 }
 
 export async function getById(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const project = await projectService.getProject(id, organizationId);
   refreshProjectFaviconIfStale(project);
   return c.json({ data: project });
@@ -301,19 +303,19 @@ export async function getById(c: Context) {
 // ─── Project environments ───────────────────────────────────────────────────
 
 export async function listEnvironments(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const data = await projectService.listProjectEnvironments(id, organizationId);
   return c.json({ success: true, data });
 }
 
 export async function createEnvironment(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<TCreateProjectEnvironmentBody>();
 
   if (!body.environmentName?.trim()) {
@@ -321,7 +323,7 @@ export async function createEnvironment(c: Context) {
   }
 
   try {
-    const data = await projectService.createProjectEnvironment(id, userId, body, organizationId);
+    const data = await projectService.createProjectEnvironment(id, ctx, body);
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
       eventType: "project.updated",
       resourceType: "project",
@@ -343,10 +345,10 @@ export async function createEnvironment(c: Context) {
 }
 
 export async function update(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<TUpdateProjectBody>();
   const project = await projectService.updateProject(id, body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -364,51 +366,148 @@ export async function update(c: Context) {
   return c.json({ data: project });
 }
 
+/**
+ * Atomic project delete.
+ *
+ * Two paths:
+ *   - graceful (default):  refuse with 409 if any deployment / build /
+ *                          backup is still in flight. The dashboard
+ *                          surfaces `active` so the user can cancel
+ *                          and retry.
+ *   - force=true (query):  cancel active work, wait up to 5s for
+ *                          confirmed quiescence, then teardown.
+ *
+ * Both paths converge into `teardownProject`, which runs a named,
+ * audited step sequence and reports per-step success/failure. The DB
+ * row only drops after remote cleanup; FK CASCADE handles dependents.
+ */
 export async function remove(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "admin" });
-  const deleteApp = c.req.query("deleteApp") !== "false";
-  // Allow opting in to volume wipe via either query string or JSON body -
-  // the dashboard sends a body, but query is handy for tooling.
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "admin" });
+
+  const force = c.req.query("force") === "true";
+  // Body is still accepted for wipeVolumes (dashboard sends JSON), but
+  // optional — query overrides body when both are present.
   let bodyWipeVolumes: boolean | undefined;
   try {
     const body = await c.req.json<{ wipeVolumes?: boolean }>();
     bodyWipeVolumes = body?.wipeVolumes;
   } catch {
-    /* no body - fine */
+    /* no body — fine */
   }
-  const wipeVolumes = bodyWipeVolumes ?? c.req.query("wipeVolumes") === "true";
-  const result = await projectService.deleteProject(id, organizationId, {
-    deleteApp,
-    wipeVolumes,
-  });
+  const wipeVolumes = c.req.query("wipeVolumes") === "true" || bodyWipeVolumes === true;
 
-  // Remote cleanup failed - local DB is intact, surface a 409 so the
-  // dashboard can show the failed-resource list and offer Retry.
-  if (!result.ok) {
+  // Verify project exists in this org BEFORE the gate so we don't
+  // leak "active work" details for a project that isn't ours.
+  const proj = await repos.project.findById(id);
+  if (!proj || proj.organizationId !== organizationId) {
+    // No audit on 404 — a stale URL isn't a deletion attempt worth
+    // surfacing in the audit feed. Security teams only want failed
+    // attempts on resources the actor could actually see.
+    return c.json({ ok: false, error: "Project not found" }, 404);
+  }
+  if (proj.deletionInProgress) {
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
-      eventType: "project.deleted",
+      eventType: "project.deletion.rejected",
       resourceType: "project",
       resourceId: id,
-      after: {
-        deleteApp,
-        wipeVolumes,
-        ok: false,
-        failedCount: result.failed?.length ?? 0,
-      },
+      after: { code: "PROJECT_DELETION_IN_PROGRESS", force, wipeVolumes },
     });
     return c.json(
       {
         ok: false,
-        message: result.message,
-        failed: result.failed,
-        deletedApp: false,
-        deletedProjects: 0,
+        code: "PROJECT_DELETION_IN_PROGRESS",
+        error: "Deletion already in progress for this project",
       },
       409,
     );
+  }
+
+  // ── Graceful gate. ────────────────────────────────────────────────
+  if (!force) {
+    const active = await projectTeardown.getActiveProjectState(id);
+    if (active.blocking) {
+      audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+        eventType: "project.deletion.rejected",
+        resourceType: "project",
+        resourceId: id,
+        after: {
+          code: "PROJECT_HAS_ACTIVE_WORK",
+          force,
+          wipeVolumes,
+          active: {
+            hasActiveDeployment: active.hasActiveDeployment,
+            hasActiveBackup: active.hasActiveBackup,
+            hasActiveBackupRestore: active.hasActiveBackupRestore,
+            deploymentIds: active.activeDeploymentIds,
+            backupRunIds: active.activeBackupRunIds,
+            backupRestoreIds: active.activeBackupRestoreIds,
+          },
+        },
+      });
+      return c.json(
+        {
+          ok: false,
+          code: "PROJECT_HAS_ACTIVE_WORK",
+          error: active.summary,
+          active: {
+            hasActiveDeployment: active.hasActiveDeployment,
+            hasActiveBackup: active.hasActiveBackup,
+            hasActiveBackupRestore: active.hasActiveBackupRestore,
+            deploymentIds: active.activeDeploymentIds,
+            backupRunIds: active.activeBackupRunIds,
+            backupRestoreIds: active.activeBackupRestoreIds,
+          },
+        },
+        409,
+      );
+    }
+  }
+
+  // ── Run the atomic teardown. ──────────────────────────────────────
+  const result = await projectTeardown.teardownProject(ctx, id, {
+    force,
+    wipeVolumes,
+  });
+
+  // Typed pre-step rejections short-circuit before we record a
+  // `project.deleted` row. Each gets its own audit event + HTTP code.
+  if (result.rejection === "claim_lock_held") {
+    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+      eventType: "project.deletion.rejected",
+      resourceType: "project",
+      resourceId: id,
+      after: { code: "PROJECT_DELETION_IN_PROGRESS", force, wipeVolumes },
+    });
+    return c.json(
+      {
+        ok: false,
+        code: "PROJECT_DELETION_IN_PROGRESS",
+        error: "Deletion already in progress for this project",
+      },
+      409,
+    );
+  }
+  if (result.rejection === "already_deleted") {
+    // Idempotent: row's already gone, treat as success so the dashboard
+    // navigates the user away. No audit row for a "deletion of a thing
+    // that wasn't there" — matches the controller's 404 behavior.
+    return c.json({ ok: true, message: "already deleted", steps: result.steps });
+  }
+  if (result.rejection === "org_mismatch") {
+    // Belt-and-suspenders against a future caller skipping the
+    // controller's org check. We DO emit a rejection event because the
+    // actor was authenticated and the org check was bypassed somehow —
+    // a real security signal.
+    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+      eventType: "project.deletion.rejected",
+      resourceType: "project",
+      resourceId: id,
+      after: { code: "PROJECT_ORG_MISMATCH", force, wipeVolumes },
+    });
+    return c.json({ ok: false, code: "PROJECT_ORG_MISMATCH", error: "Project not found" }, 404);
   }
 
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -416,24 +515,57 @@ export async function remove(c: Context) {
     resourceType: "project",
     resourceId: id,
     after: {
-      deleteApp,
+      force,
       wipeVolumes,
-      deletedApp: result.deletedApp,
-      deletedProjects: result.deletedProjects,
+      ok: result.ok,
+      rowDeleted: result.rowDeleted,
+      steps: result.steps,
     },
   });
+
+  // The row is gone but a non-empty `unrecoverable` means ops needs to
+  // clean up stragglers (a leaked container, a webmail dir we couldn't
+  // wipe). 207 surfaces this so the dashboard can warn the user.
+  if (result.rowDeleted && result.unrecoverable.length > 0) {
+    return c.json(
+      {
+        ok: false,
+        message: "Project deleted, but some external cleanup failed",
+        steps: result.steps,
+        unrecoverable: result.unrecoverable,
+      },
+      207,
+    );
+  }
+
+  // Row still around — teardown couldn't complete. 409 so the caller
+  // can retry (the deletion_in_progress flag is already cleared by the
+  // teardown failure path).
+  if (!result.rowDeleted) {
+    return c.json(
+      {
+        ok: false,
+        code: "PROJECT_TEARDOWN_FAILED",
+        message: result.unrecoverable[0]?.error ?? "Teardown failed",
+        steps: result.steps,
+        unrecoverable: result.unrecoverable,
+      },
+      409,
+    );
+  }
+
   return c.json({
-    message: "deleted",
     ok: true,
-    deletedApp: result.deletedApp,
-    deletedProjects: result.deletedProjects,
+    message: "deleted",
+    steps: result.steps,
   });
 }
 
 export async function deletionPreview(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const { repos } = await import("@repo/db");
   const project = await repos.project.findById(id);
   try {
@@ -448,20 +580,20 @@ export async function deletionPreview(c: Context) {
 // ─── Environment variables ───────────────────────────────────────────────────
 
 export async function listEnvVars(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const environment = c.req.query("environment");
   const vars = await projectService.listEnvVars(id, organizationId, environment);
   return c.json({ data: vars });
 }
 
 export async function setEnvVars(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<TSetEnvVarsBody>();
   const result = await projectService.setEnvVars(id, organizationId, body);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -481,19 +613,19 @@ export async function setEnvVars(c: Context) {
 // ─── Resources ───────────────────────────────────────────────────────────────
 
 export async function getResources(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const resources = await projectService.getResources(id, organizationId);
   return c.json({ data: resources });
 }
 
 export async function updateResources(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<TUpdateResourcesBody>();
   const resources = await projectService.updateResources(id, body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -518,10 +650,10 @@ export async function updateResources(c: Context) {
  * only whether one is set and when it was set last.
  */
 export async function getCloneToken(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const project = await projectService.getProject(id, organizationId);
   return c.json({
     hasToken: !!project.cloneTokenEncrypted,
@@ -542,10 +674,10 @@ export async function getCloneToken(c: Context) {
  * tier: project token > user-global > App > mode default.
  */
 export async function updateCloneToken(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "admin" });
   const body = await c.req.json().catch(() => ({}));
   const rawToken = body?.token;
 
@@ -627,8 +759,8 @@ export async function scanLocal(c: Context) {
 export async function importLocal(c: Context) {
   if (env.CLOUD_MODE) return c.notFound();
 
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const body = await c.req.json<TCreateProjectBody & { localPath: string }>();
 
   if (!body.localPath) return c.json({ error: "localPath is required" }, 400);
@@ -646,7 +778,7 @@ export async function importLocal(c: Context) {
       ...body,
       gitProvider: "local",
     },
-    { organizationId },
+    organizationId,
   );
 
   return c.json({ data: project }, 201);
@@ -656,8 +788,8 @@ export async function importLocal(c: Context) {
 export async function listLocal(c: Context) {
   if (env.CLOUD_MODE) return c.notFound();
 
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   try {
     const result = await projectService.listProjects(organizationId, {
       page: 1,
@@ -676,10 +808,10 @@ export async function listLocal(c: Context) {
  * GET /projects/:id/logs - one-shot fetch of recent runtime logs.
  */
 export async function runtimeLogs(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const tail = c.req.query("tail") ? Number(c.req.query("tail")) : undefined;
 
   try {
@@ -695,10 +827,10 @@ export async function runtimeLogs(c: Context) {
  * GET /projects/:id/logs/stream - SSE stream of runtime logs.
  */
 export async function runtimeLogStream(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const tail = c.req.query("tail") ? Number(c.req.query("tail")) : undefined;
 
   return streamSSE(c, async (sseStream) => {
@@ -789,10 +921,10 @@ function extractCloudRequestLogs(result: unknown): unknown[] {
  * For cloud projects the dashboard connects directly to the edge SSE stream.
  */
 export async function serverLogStreamToken(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
 
   const project = await repos.project.findById(id);
   try {
@@ -838,9 +970,10 @@ export async function serverLogStreamToken(c: Context) {
  * Auto-deploys Lua scripts once per API session per server.
  */
 export async function serverLogStream(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
 
   const project = await repos.project.findById(id);
   try {
@@ -903,10 +1036,10 @@ export async function serverLogStream(c: Context) {
 // ─── Recent server logs ──────────────────────────────────────────────────────
 
 export async function recentServerLogs(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
 
   const project = await repos.project.findById(id);
   try {
@@ -951,10 +1084,11 @@ export async function recentServerLogs(c: Context) {
 // ─── Git info ────────────────────────────────────────────────────────────────
 
 export async function getGitInfo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const info = await projectService.getGitInfo(id, organizationId);
 
   // No repo linked yet
@@ -962,7 +1096,7 @@ export async function getGitInfo(c: Context) {
     return c.json({ success: false, error: "No repository connected" });
   }
 
-  const strategy = await resolveWebhookStrategy(userId, info);
+  const strategy = await resolveWebhookStrategy(info);
 
   // Cloud projects (deployTarget=cloud) need the GitHub App installed - regardless
   // of whether this server is the SaaS or a local instance connected to cloud.
@@ -989,7 +1123,7 @@ export async function getGitInfo(c: Context) {
           : false;
 
   // Get available strategies for the UI
-  const strategies = await getAvailableStrategies(userId, info);
+  const strategies = await getAvailableStrategies(ctx, info);
 
   // Get project domains for webhook domain picker
   const domains = await repos.domain.listByProject(id);
@@ -999,11 +1133,11 @@ export async function getGitInfo(c: Context) {
 
   let branch = info.gitBranch ?? "";
   if (!branch && info.gitOwner && info.gitRepo) {
-    const repository = await getRepository(userId, info.gitOwner, info.gitRepo);
+    const repository = await getRepository(ctx, info.gitOwner, info.gitRepo);
     branch = repository.default_branch;
   }
   const commits = branch
-    ? await getRecentCommits(userId, info.gitOwner, info.gitRepo, branch, 10)
+    ? await getRecentCommits(ctx, info.gitOwner, info.gitRepo, branch, 10)
     : [];
 
   return c.json({
@@ -1028,21 +1162,22 @@ export async function getGitInfo(c: Context) {
     verified_domains: verifiedDomains,
     installation_installed: installationInstalled,
     install_url: isCloudProject && !installationInstalled ? getInstallUrl() : undefined,
+    default_rollback_strategy: info.defaultRollbackStrategy ?? "git",
   });
 }
 
 export async function listBranches(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const info = await projectService.getGitInfo(id, organizationId);
 
   if (!info.gitOwner || !info.gitRepo) {
     return c.json({ success: false, error: "No repository connected" }, 400);
   }
 
-  const branches = await listGitHubBranches(userId, info.gitOwner, info.gitRepo);
+  const branches = await listGitHubBranches(ctx, info.gitOwner, info.gitRepo);
   return c.json({
     success: true,
     data: branches.map((branch) => ({
@@ -1059,10 +1194,11 @@ export async function listBranches(c: Context) {
  * Links a GitHub repo to an existing project and registers a deploy webhook.
  */
 export async function linkRepo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const { owner, repo, branch, installationId } = await c.req.json<{
     owner: string;
     repo: string;
@@ -1083,7 +1219,7 @@ export async function linkRepo(c: Context) {
 
   // Update git fields on the project
   const gitUrl = `https://github.com/${owner}/${repo}.git`;
-  const defaultBranch = branch?.trim() || (await getRepository(userId, owner, repo)).default_branch;
+  const defaultBranch = branch?.trim() || (await getRepository(ctx, owner, repo)).default_branch;
 
   const gitFields: Record<string, unknown> = {
     gitProvider: "github",
@@ -1093,7 +1229,7 @@ export async function linkRepo(c: Context) {
     gitUrl,
   };
 
-  const strategy = await resolveWebhookStrategy(userId, project);
+  const strategy = await resolveWebhookStrategy(project);
 
   if (strategy === "app") {
     // Cloud mode - verify the GitHub App is installed for this owner
@@ -1115,9 +1251,7 @@ export async function linkRepo(c: Context) {
     // User has a verified domain for webhooks → direct delivery
     const webhookUrl = `https://${project.webhookDomain}/_openship/hooks/github`;
     try {
-      const wh = await registerWebhook(userId, owner, repo, webhookUrl, {
-        organizationId,
-      });
+      const wh = await registerWebhook(ctx, owner, repo, webhookUrl);
       if (wh.hookId) gitFields.webhookId = wh.hookId;
       gitFields.autoDeploy = true;
     } catch {
@@ -1127,9 +1261,7 @@ export async function linkRepo(c: Context) {
     // Self-hosted with a public URL - create a repo-level push webhook.
     let webhookId: number | null = null;
     try {
-      const result = await registerWebhook(userId, owner, repo, undefined, {
-        organizationId,
-      });
+      const result = await registerWebhook(ctx, owner, repo);
       webhookId = result.hookId;
       gitFields.webhookId = webhookId;
       gitFields.autoDeploy = !!webhookId;
@@ -1216,7 +1348,7 @@ async function syncSharedWebhookId(organizationId: string, owner: string, repo: 
 }
 
 async function ensureSharedWebhook(
-  userId: string,
+  ctx: import("../../lib/request-context").RequestContext,
   project: Project,
   owner: string,
   repo: string,
@@ -1225,15 +1357,12 @@ async function ensureSharedWebhook(
   const existingHookId =
     project.webhookId ?? (await findSharedWebhookId(project.organizationId, owner, repo));
   const targetWebhookUrl = webhookUrl ?? `${runtimeTarget.api}/api/webhooks/github`;
-  const result = await registerWebhook(userId, owner, repo, targetWebhookUrl, {
-    organizationId: project.organizationId,
-  });
+  const result = await registerWebhook(ctx, owner, repo, targetWebhookUrl);
   if (!result.hookId) return null;
 
   if (existingHookId && existingHookId !== result.hookId) {
-    await updateWebhook(userId, owner, repo, existingHookId, {
+    await updateWebhook(ctx, owner, repo, existingHookId, {
       active: false,
-      organizationId: project.organizationId,
     }).catch(() => undefined);
   }
 
@@ -1242,7 +1371,7 @@ async function ensureSharedWebhook(
 }
 
 async function disableSharedWebhookIfUnused(
-  userId: string,
+  ctx: RequestContext,
   organizationId: string,
   owner: string,
   repo: string,
@@ -1254,18 +1383,18 @@ async function disableSharedWebhookIfUnused(
   const projects = repoProjects.filter((p) => p.organizationId === organizationId);
   const hookId = webhookId ?? projects.find((p) => typeof p.webhookId === "number")?.webhookId;
   if (hookId) {
-    await updateWebhook(userId, owner, repo, hookId, {
+    await updateWebhook(ctx, owner, repo, hookId, {
       active: false,
-      organizationId,
     });
   }
 }
 
 export async function setAutoDeploy(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const { enabled } = await c.req.json<{ enabled: boolean }>();
   const project = await repos.project.findById(id);
   try {
@@ -1281,7 +1410,7 @@ export async function setAutoDeploy(c: Context) {
     return c.json({ success: false, error: "No repository linked" }, 400);
   }
 
-  const strategy = await resolveWebhookStrategy(userId, project);
+  const strategy = await resolveWebhookStrategy(project);
 
   // In "none" mode, auto-deploy can't work - suggest options
   if (strategy === "none" && enabled) {
@@ -1304,7 +1433,7 @@ export async function setAutoDeploy(c: Context) {
       // User has a verified domain - direct webhook delivery
       if (enabled) {
         const webhookUrl = `https://${project.webhookDomain}/_openship/hooks/github`;
-        const webhookId = await ensureSharedWebhook(userId, project, owner, repo, webhookUrl);
+        const webhookId = await ensureSharedWebhook(ctx, project, owner, repo, webhookUrl);
         if (!webhookId) {
           return c.json(
             {
@@ -1317,11 +1446,11 @@ export async function setAutoDeploy(c: Context) {
         await repos.project.update(id, { autoDeploy: true });
       } else {
         await repos.project.update(id, { autoDeploy: false });
-        await disableSharedWebhookIfUnused(userId, project.organizationId, owner, repo, project.webhookId);
+        await disableSharedWebhookIfUnused(ctx, project.organizationId, owner, repo, project.webhookId);
       }
     } else if (enabled) {
       // "repo" strategy - manage repo-level webhooks
-      const webhookId = await ensureSharedWebhook(userId, project, owner, repo);
+      const webhookId = await ensureSharedWebhook(ctx, project, owner, repo);
       if (!webhookId) {
         return c.json(
           {
@@ -1335,7 +1464,7 @@ export async function setAutoDeploy(c: Context) {
     } else {
       // Disable this environment. Keep the repo webhook while sibling environments still use it.
       await repos.project.update(id, { autoDeploy: false });
-      await disableSharedWebhookIfUnused(userId, project.organizationId, owner, repo, project.webhookId);
+      await disableSharedWebhookIfUnused(ctx, project.organizationId, owner, repo, project.webhookId);
     }
   } catch (err) {
     const msg = safeErrorMessage(err);
@@ -1410,10 +1539,10 @@ export async function setAutoDeploy(c: Context) {
  * When domain is null → clears the webhook domain (falls back to edge relay or none).
  */
 export async function setWebhookDomain(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const { domain: hostname } = await c.req.json<{ domain: string | null }>();
 
   const project = await repos.project.findById(id);
@@ -1510,10 +1639,10 @@ async function reRegisterDomainRoute(
 }
 
 export async function setBranch(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const { branch } = await c.req.json<{ branch: string }>();
   if (!branch) return c.json({ error: "branch is required" }, 400);
   const result = await projectService.setBranch(id, branch, organizationId);
@@ -1529,10 +1658,10 @@ export async function setBranch(c: Context) {
 // ─── Build options ───────────────────────────────────────────────────────────
 
 export async function setOptions(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<Record<string, unknown>>();
   const result = await projectService.updateOptions(id, body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -1550,10 +1679,10 @@ export async function setOptions(c: Context) {
 // ─── Sleep mode ──────────────────────────────────────────────────────────────
 
 export async function setSleepMode(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const { sleep_mode } = await c.req.json<{ sleep_mode: string }>();
   if (!sleep_mode) return c.json({ error: "sleep_mode is required" }, 400);
   const result = await projectService.setSleepMode(id, sleep_mode, organizationId);
@@ -1569,10 +1698,10 @@ export async function setSleepMode(c: Context) {
 // ─── Enable / Disable ────────────────────────────────────────────────────────
 
 export async function enable(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   try {
     const result = await projectService.enableProject(id, organizationId);
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -1589,10 +1718,10 @@ export async function enable(c: Context) {
 }
 
 export async function disable(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   try {
     const result = await projectService.disableProject(id, organizationId);
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -1611,10 +1740,10 @@ export async function disable(c: Context) {
 // ─── Project deployments ─────────────────────────────────────────────────────
 
 export async function listDeployments(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const page = Number(c.req.query("page") ?? 1);
   const perPage = Number(c.req.query("perPage") ?? 20);
   const environment = c.req.query("environment") ?? undefined;
@@ -1634,10 +1763,10 @@ export async function listDeployments(c: Context) {
 // ─── Deployment session ──────────────────────────────────────────────────────
 
 export async function deploymentSession(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const result = await projectService.getLatestDeploymentSession(id, organizationId);
   return c.json(result);
 }
@@ -1645,10 +1774,10 @@ export async function deploymentSession(c: Context) {
 // ─── Project info (enriched) ─────────────────────────────────────────────────
 
 export async function getInfo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
   const project = await projectService.getProject(id, organizationId);
   const environments = await projectService.listProjectEnvironments(id, organizationId);
   const hasServer = project.hasServer ?? project.productionMode === "host";
@@ -1712,10 +1841,10 @@ export async function getInfo(c: Context) {
 // ─── Connect custom domain ─────────────────────────────────────────────────────
 
 export async function connectDomain(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
   const body = await c.req.json<{ domain: string; includeWww?: boolean }>();
 
   if (!body.domain?.trim()) {
@@ -1723,7 +1852,7 @@ export async function connectDomain(c: Context) {
   }
 
   try {
-    const result = await domainService.addDomain(userId, {
+    const result = await domainService.addDomain(getRequestContext(c), {
       projectId: id,
       hostname: body.domain.trim(),
       isPrimary: true,

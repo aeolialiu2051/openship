@@ -20,29 +20,28 @@
 
 import { type BuildStrategy } from "@repo/core";
 import { tokenFor, requireTokenFor, type TokenContext } from "./github.token";
+import type { RequestContext } from "../../lib/request-context";
 
 export async function resolveBuildGitToken(opts: {
-  userId: string;
+  /** Caller's request context. Carries userId + organizationId; org-scoped
+   *  App installation lookup uses ctx.organizationId. */
+  ctx: RequestContext;
   projectId: string;
   owner?: string | null;
   buildStrategy: BuildStrategy;
-  /** Active organization id — prefers org-scoped App installation lookup.
-   *  See TokenContext for details. */
-  organizationId?: string;
 }): Promise<string | null> {
-  const ctx: TokenContext = {
+  const tokenCtx: TokenContext = {
     projectId: opts.projectId,
     owner: opts.owner ?? undefined,
-    organizationId: opts.organizationId,
   };
 
   if (opts.buildStrategy === "local") {
-    const r = await tokenFor(opts.userId, "local", ctx);
+    const r = await tokenFor(opts.ctx, "local", tokenCtx);
     return r?.token ?? null;
   }
 
   // Remote — throw if nothing resolvable. requireTokenFor builds an
   // actionable error message with the right hint per purpose.
-  const r = await requireTokenFor(opts.userId, "remote", ctx);
+  const r = await requireTokenFor(opts.ctx, "remote", tokenCtx);
   return r.token;
 }

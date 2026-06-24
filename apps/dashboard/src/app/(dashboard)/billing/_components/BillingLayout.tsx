@@ -17,12 +17,16 @@ interface BillingStateEnvelope {
  */
 async function fetchBillingState(): Promise<BillingState | null> {
   try {
-    const res = await serverApi.get<BillingStateEnvelope>("/billing/state", {
+    const res = await serverApi.get<BillingStateEnvelope>("billing/state", {
       cache: "no-store",
     });
     return res?.data ?? null;
   } catch (err) {
-    if (err instanceof ServerApiError && (err.status === 404 || err.status === 501)) {
+    // 404/501 → SaaS mode, billing not enabled.
+    // 403 cloud_not_connected → local mode, no cloud session.
+    // 5xx / network → cloud reachable but errored.
+    // In all of these the sidebar has nothing to render — fall through to null.
+    if (err instanceof ServerApiError) {
       return null;
     }
     // Any other failure (auth, network) — render without sidebar rather

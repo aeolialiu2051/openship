@@ -88,9 +88,9 @@ export async function getSession(c: Context) {
     });
     if (realSession) {
       // activeOrganizationId is NOT NULL at the schema level — set by
-      // the session.create.before hook in lib/auth.ts and by
-      // createLocalSession's explicit insert. No reactive backfill
-      // needed; the migration handled any legacy rows.
+      // the session.create.before hook in lib/auth.ts and by the
+      // local-cookie mintSession path's explicit insert. No reactive
+      // backfill needed; the migration handled any legacy rows.
       return c.json(realSession);
     }
   } catch {
@@ -104,9 +104,14 @@ export async function getSession(c: Context) {
   }
 
   const { ensureLocalUser } = await import("../../lib/local-user");
-  const { createLocalSession } = await import("../../lib/cloud-auth-proxy");
+  const { mintSession } = await import("../../lib/cloud-auth-proxy");
   const user = await ensureLocalUser();
-  const session = await createLocalSession(user.id, "127.0.0.1", "desktop");
+  const session = await mintSession({
+    purpose: "local-cookie",
+    userId: user.id,
+    ipAddress: "127.0.0.1",
+    userAgent: "desktop",
+  });
 
   await setSessionCookie(c, session.token, session.expiresAt);
 
@@ -145,10 +150,15 @@ export async function desktopLogin(c: Context) {
   }
 
   const { ensureLocalUser } = await import("../../lib/local-user");
-  const { createLocalSession } = await import("../../lib/cloud-auth-proxy");
+  const { mintSession } = await import("../../lib/cloud-auth-proxy");
 
   const user = await ensureLocalUser();
-  const session = await createLocalSession(user.id, "127.0.0.1", "desktop");
+  const session = await mintSession({
+    purpose: "local-cookie",
+    userId: user.id,
+    ipAddress: "127.0.0.1",
+    userAgent: "desktop",
+  });
   await setSessionCookie(c, session.token, session.expiresAt);
 
   return c.redirect(runtimeTarget.dashboard);
@@ -179,7 +189,7 @@ export async function cloudCallback(c: Context) {
       exchangeCodeWithCloud,
       mirrorCloudUser,
       storeCloudSession,
-      createLocalSession,
+      mintSession,
       resolveDesktopAuth,
       validateDesktopState,
       failDesktopAuth,
@@ -194,7 +204,12 @@ export async function cloudCallback(c: Context) {
       const mirroredUserId = await mirrorCloudUser(data.user);
       await storeCloudSession(mirroredUserId, data.sessionToken);
 
-      const session = await createLocalSession(mirroredUserId, "127.0.0.1", "desktop");
+      const session = await mintSession({
+        purpose: "local-cookie",
+        userId: mirroredUserId,
+        ipAddress: "127.0.0.1",
+        userAgent: "desktop",
+      });
       await setSessionCookie(c, session.token, session.expiresAt);
 
       return c.redirect(runtimeTarget.dashboard);
@@ -219,7 +234,12 @@ export async function cloudCallback(c: Context) {
     const targetUserId = validated.connectUserId || mirroredUserId;
     await storeCloudSession(targetUserId, data.sessionToken);
 
-    const session = await createLocalSession(mirroredUserId, "127.0.0.1", "desktop");
+    const session = await mintSession({
+      purpose: "local-cookie",
+      userId: mirroredUserId,
+      ipAddress: "127.0.0.1",
+      userAgent: "desktop",
+    });
 
     // Resolve the pending nonce so Electron's polling loop can pick
     // up the session via /desktop-auth-poll.

@@ -26,7 +26,6 @@ interface BillingOverviewProps {
   state: BillingState;
 }
 
-/** One bucket of the `/billing/usage` response. */
 interface UsageBucket {
   timestamp: string;
   credits: number;
@@ -37,9 +36,7 @@ interface UsageResponse {
     from: string;
     to: string;
     groupBy: "hour" | "day";
-    usage: {
-      buckets: UsageBucket[];
-    } | null;
+    usage: { buckets: UsageBucket[] } | null;
   };
 }
 
@@ -64,12 +61,6 @@ interface TopupCheckoutResponse {
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-/**
- * Credits are stored in milli-credits server-side; flatten to whole
- * credits with commas for display. Numbers below 1 credit are rendered
- * as "0" rather than a fractional value — the overview reads as a coarse
- * balance, not an accountant's ledger.
- */
 function formatCredits(milliCredits: number): string {
   const credits = Math.floor(milliCredits / 1000);
   return credits.toLocaleString();
@@ -84,17 +75,12 @@ function pctUsed(used: number, limit: number): number {
   return Math.min(100, Math.max(0, (used / limit) * 100));
 }
 
-function barColor(pct: number): string {
-  if (pct >= 90) return "bg-red-500";
-  if (pct >= 75) return "bg-amber-500";
-  return "bg-primary";
+function ringStrokeClass(pct: number): string {
+  if (pct >= 90) return "text-red-500";
+  if (pct >= 75) return "text-amber-500";
+  return "text-primary";
 }
 
-/**
- * Days remaining until the current billing period ends. Returns `null`
- * when the period end is missing or already in the past — the caller
- * renders a neutral chip in that case rather than "Resets in -3 days".
- */
 function daysUntil(end: Date | string | null): number | null {
   if (!end) return null;
   const endMs = typeof end === "string" ? Date.parse(end) : end.getTime();
@@ -110,6 +96,67 @@ function statusPillClass(status: string): string {
   if (s === "past_due" || s === "unpaid") return "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20";
   if (s === "canceled" || s === "cancelled") return "bg-muted text-muted-foreground border-border";
   return "bg-muted text-muted-foreground border-border";
+}
+
+/* ------------------------------------------------------------------ */
+/*  Ring gauge                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Circular usage indicator. Built with SVG so it scales cleanly and
+ * doesn't pull in a chart library for one shape. Stroke color comes
+ * from the parent via `currentColor`; pass the right text-color class
+ * (text-primary / text-amber-500 / text-red-500) based on threshold.
+ */
+function RingGauge({
+  pct,
+  size = 168,
+  stroke = 14,
+  children,
+}: {
+  pct: number;
+  size?: number;
+  stroke?: number;
+  children?: React.ReactNode;
+}) {
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - Math.min(100, Math.max(0, pct)) / 100);
+  return (
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Track */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          className="stroke-muted"
+          strokeWidth={stroke}
+        />
+        {/* Progress */}
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={stroke}
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          strokeLinecap="round"
+          transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          style={{ transition: "stroke-dashoffset 600ms ease" }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+        {children}
+      </div>
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -134,56 +181,89 @@ export function UpgradeButton({ children, onClick, className = "" }: {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Sub-components                                                    */
+/*  Hero — ring on left, plan summary on right                        */
 /* ------------------------------------------------------------------ */
 
 function BalanceHero({ state }: { state: BillingState }) {
   const { quotaLimit, quotaUsed, quotaRemaining } = state.balance;
   const pct = pctUsed(quotaUsed, quotaLimit);
   const days = daysUntil(state.currentPeriod.end);
+  const plan = PLANS[state.tier];
+  const planName = plan?.name ?? state.tier;
+  const ringTone = ringStrokeClass(pct);
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-6">
-      <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Credit balance
-          </p>
-          <div className="mt-2 flex items-baseline gap-2">
-            <span className="text-4xl font-semibold tabular-nums tracking-tight text-foreground sm:text-5xl">
+      <div className="flex flex-col items-center gap-7 sm:flex-row sm:items-center sm:gap-8">
+        {/* Ring */}
+        <div className={ringTone}>
+          <RingGauge pct={pct}>
+            <span className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">
               {formatCredits(quotaRemaining)}
             </span>
-            <span className="text-base text-muted-foreground">credits</span>
+            <span className="mt-0.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              credits left
+            </span>
+          </RingGauge>
+        </div>
+
+        {/* Summary */}
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-lg font-semibold text-foreground">{planName} plan</h2>
+            <span
+              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${statusPillClass(state.status)}`}
+            >
+              {state.status.replace(/_/g, " ")}
+            </span>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">
-            of {formatCredits(quotaLimit)} total
-          </p>
-        </div>
 
-        <div className="flex shrink-0 items-center">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs font-medium text-muted-foreground">
-            {days !== null
-              ? `Resets in ${days} day${days === 1 ? "" : "s"}`
-              : "No reset scheduled"}
-          </span>
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-4 sm:max-w-md">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Used this period
+              </p>
+              <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">
+                {formatCredits(quotaUsed)}
+                <span className="ml-1 text-xs font-normal text-muted-foreground">
+                  / {formatCredits(quotaLimit)}
+                </span>
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Resets
+              </p>
+              <p className="mt-1 text-sm font-semibold text-foreground">
+                {days !== null
+                  ? `In ${days} day${days === 1 ? "" : "s"}`
+                  : "—"}
+              </p>
+            </div>
+          </div>
 
-      <div className="mt-5">
-        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-          <div
-            className={`h-full ${barColor(pct)} transition-all duration-500`}
-            style={{ width: `${pct}%` }}
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-xs text-muted-foreground tabular-nums">
-          <span>{formatCredits(quotaUsed)} used</span>
-          <span>{Math.round(pct)}%</span>
+          {state.tier === "free" && (
+            <Link
+              href="/billing/plans"
+              className="relative inline-flex w-fit items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground"
+            >
+              <span className="pointer-events-none absolute -inset-[1px] rounded-xl bg-gradient-to-r from-primary via-blue-500 to-violet-500 opacity-40 blur-[1px] transition-opacity hover:opacity-60" />
+              <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-primary/90" />
+              <span className="relative flex items-center gap-1.5">
+                <Sparkles className="size-3.5" />
+                Upgrade to Pro
+              </span>
+            </Link>
+          )}
         </div>
       </div>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/*  Recent-activity sparkline                                          */
+/* ------------------------------------------------------------------ */
 
 function RecentActivityCard() {
   const [buckets, setBuckets] = useState<UsageBucket[] | null>(null);
@@ -216,10 +296,6 @@ function RecentActivityCard() {
     };
   }, []);
 
-  // Convert milli-credits to whole credits so the sparkline reads in the
-  // same unit as the balance hero. Empty arrays still render a flat axis
-  // (recharts handles a length-0 dataset, but the visual is the same as
-  // the loading state — explicit empty copy is clearer).
   const data = (buckets ?? []).map((b) => ({
     timestamp: b.timestamp,
     credits: Math.max(0, b.credits / 1000),
@@ -279,47 +355,9 @@ function RecentActivityCard() {
   );
 }
 
-function PlanSummaryCard({ state }: { state: BillingState }) {
-  const plan = PLANS[state.tier];
-  const planName = plan?.name ?? state.tier;
-
-  return (
-    <div className="rounded-2xl border border-border/50 bg-card p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Current plan
-          </p>
-          <div className="mt-1 flex items-center gap-2">
-            <h3 className="text-lg font-semibold text-foreground">{planName}</h3>
-            <span
-              className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium capitalize ${statusPillClass(state.status)}`}
-            >
-              {state.status.replace(/_/g, " ")}
-            </span>
-          </div>
-          {plan?.description && (
-            <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
-          )}
-        </div>
-
-        {state.tier === "free" && (
-          <Link
-            href="/billing/plans"
-            className="relative inline-flex shrink-0 items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-medium text-primary-foreground"
-          >
-            <span className="pointer-events-none absolute -inset-[1px] rounded-xl bg-gradient-to-r from-primary via-blue-500 to-violet-500 opacity-40 blur-[1px] transition-opacity hover:opacity-60" />
-            <span className="absolute inset-0 rounded-xl bg-gradient-to-r from-primary to-primary/90" />
-            <span className="relative flex items-center gap-1.5">
-              <Sparkles className="size-3.5" />
-              Upgrade to Pro
-            </span>
-          </Link>
-        )}
-      </div>
-    </div>
-  );
-}
+/* ------------------------------------------------------------------ */
+/*  Quick-buy credit packs                                            */
+/* ------------------------------------------------------------------ */
 
 function BuyCreditsCard() {
   const [packs, setPacks] = useState<TopupPack[] | null>(null);
@@ -333,9 +371,6 @@ function BuyCreditsCard() {
       try {
         const res = await api.get<TopupPacksResponse>("billing/topup-packs");
         if (cancelled) return;
-        // Show the cheapest options first regardless of the server's
-        // configured ordering — the overview is "quick buy", deeper
-        // selection lives on /billing/topups.
         const sorted = [...res.data].sort((a, b) => a.sortOrder - b.sortOrder);
         setPacks(sorted.slice(0, 2));
       } catch {
@@ -434,7 +469,6 @@ export const BillingOverview: React.FC<BillingOverviewProps> = ({ state }) => {
     <div className="flex flex-col gap-5">
       <BalanceHero state={state} />
       <RecentActivityCard />
-      <PlanSummaryCard state={state} />
       <BuyCreditsCard />
     </div>
   );

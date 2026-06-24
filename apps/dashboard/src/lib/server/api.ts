@@ -10,7 +10,14 @@ import { getApiOrigin, getRequestOriginFromHeaders } from "@/lib/api/urls";
  *
  * Usage:
  *   import { serverApi } from "@/lib/server/api";
- *   const projects = await serverApi.get<Project[]>("/projects");
+ *   const projects = await serverApi.get<Project[]>("projects");
+ *   const state   = await serverApi.get<BillingState>("billing/state");
+ *
+ * Path convention: bare resource paths, no leading `/api/`. The base
+ * URL ends in `/api/` and the request builder resolves your path
+ * relative to it. This matches the browser-side client at
+ * `lib/api/client.ts` so the two clients are interchangeable from a
+ * caller's perspective — only their fetch transport differs.
  */
 
 const DEFAULT_TIMEOUT = 10_000;
@@ -94,20 +101,37 @@ type ServerRequestOptions = {
 /* ------------------------------------------------------------------ */
 
 /**
- * Server-side API base URL.
+ * Server-side API base URL — ALWAYS ends in `/api/` so callers pass
+ * bare paths (`"billing/state"`, `"projects/home"`) without worrying
+ * about prefix consistency. Matches the browser-side client's
+ * `getRestApiBaseUrl()` convention exactly so both clients accept the
+ * same call shape.
  *
  * When proxy mode is on (NEXT_PUBLIC_API_PROXY=true), the SSR layer
  * could route via `/api/proxy/*` on its own origin — but that's a
  * pointless self-fetch hop. Short-circuit to INTERNAL_API_URL when it
  * exists; the server has direct access. Falls through to the normal
  * getApiOrigin() (runtime-config table) otherwise.
+ *
+ * Returns a string guaranteed to end with `/api/` (trailing slash).
  */
 function getServerApiBaseUrl(requestHeaders: Headers): string {
+  let origin: string;
   if (process.env.NEXT_PUBLIC_API_PROXY === "true") {
     const internal = process.env.INTERNAL_API_URL;
-    if (internal) return internal.replace(/\/+$/, "");
+    if (internal) {
+      origin = internal.replace(/\/+$/, "");
+    } else {
+      origin = getApiOrigin(getRequestOriginFromHeaders(requestHeaders));
+    }
+  } else {
+    origin = getApiOrigin(getRequestOriginFromHeaders(requestHeaders));
   }
-  return getApiOrigin(getRequestOriginFromHeaders(requestHeaders));
+  // Trailing slash matters: `new URL("billing/state", ".../api/")`
+  // resolves correctly; `new URL("billing/state", ".../api")` (no slash)
+  // would strip `/api` because URL spec treats `/api` as a file, not a
+  // directory.
+  return origin.endsWith("/api/") ? origin : `${origin}/api/`;
 }
 
 async function request<T = unknown>(
@@ -119,8 +143,14 @@ async function request<T = unknown>(
   const requestHeaders = await headers();
   const baseUrl = getServerApiBaseUrl(requestHeaders);
 
-  /* --- Build URL -------------------------------------------------- */
-  const url = new URL(path.startsWith("/") ? path : `/${path}`, baseUrl);
+  /* --- Build URL --------------------------------------------------
+   * Strip the caller's leading slash so the path resolves RELATIVE to
+   * the `/api/` base (URL spec: an absolute path in the first arg
+   * replaces the base's path, dropping our /api prefix). Mirrors the
+   * browser client at lib/api/client.ts.
+   */
+  const cleanPath = path.startsWith("/") ? path.slice(1) : path;
+  const url = new URL(cleanPath, baseUrl);
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       if (v !== undefined) url.searchParams.set(k, String(v));

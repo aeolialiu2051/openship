@@ -38,8 +38,11 @@ export interface MonorepoAppConfig {
 
 export interface MonorepoWorkspaceConfig {
   packageManager: string;
-  /** Shared install command run once at the repo root before per-app builds. */
-  installCommand: string;
+  /**
+   * Shell command run ONCE at the repo root before per-app builds.
+   * Any prep work — install, codegen, schema sync — chained with `&&`.
+   */
+  prepareCommand: string;
 }
 
 const GENERIC_MULTI_BUILD_IMAGE = "ubuntu:22.04";

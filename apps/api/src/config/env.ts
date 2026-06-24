@@ -119,6 +119,18 @@ const envSchema = z.object({
   SMTP_FROM: z.string().default("Openship <noreply@openship.io>"),
 
   /* ---------- Network (self-hosted) ---------- */
+  /**
+   * Operator-controlled toggle gating trust of `x-real-ip` /
+   * `x-forwarded-for` headers (MEDIUM cleanup). When the API is behind
+   * a reverse proxy (openresty, nginx, traefik) that strips/rewrites
+   * these headers, set true. When the API is the edge listener,
+   * leave false — otherwise a malicious client can lie about its IP
+   * and bypass per-IP rate limiting / audit attribution.
+   *
+   * Defaults false. Loopback peers ALWAYS keep header trust (local
+   * dev) regardless of this flag.
+   */
+  TRUST_PROXY: envBool("false"),
   /** Public IP of the server - used for A record instructions in self-hosted mode. */
   SERVER_IP: z.string().optional(),
   /**
@@ -272,6 +284,87 @@ if (
   throw new Error(
     `BETTER_AUTH_SECRET must be set to a secure value when OPENSHIP_TARGET="${runtimeTargetId}".`,
   );
+}
+
+// ─── INTERNAL_TOKEN required outside desktop (CRITICAL #5) ─────────────────
+//
+// The internal-auth middleware fronts trusted Electron↔API endpoints
+// (/setup, /desktop-auth-start). If INTERNAL_TOKEN is unset on a
+// non-desktop deployment, every one of those routes silently becomes
+// open. Refuse to boot.
+if (env.DEPLOY_MODE !== "desktop" && !env.INTERNAL_TOKEN) {
+  throw new Error(
+    `INTERNAL_TOKEN is required when DEPLOY_MODE="${env.DEPLOY_MODE}". ` +
+      `Set a 32+ byte random secret in the environment, or run the API in desktop mode.`,
+  );
+}
+
+// ─── OPENSHIP_ALLOW_ZERO_AUTH wiring (CRITICAL #4) ─────────────────────────
+//
+// `getAuthMode()` already gates the SETTINGS write on this flag. The
+// runtime guard in authMiddleware ALSO refuses the zero-auth fallback
+// unless the flag is true (desktop is exempt — zero-auth is default
+// there). Logging here surfaces the misconfiguration in the boot
+// banner so the operator sees it.
+if (
+  env.DEPLOY_MODE !== "desktop" &&
+  !env.OPENSHIP_ALLOW_ZERO_AUTH &&
+  env.NODE_ENV !== "test"
+) {
+  console.log(
+    `[env] OPENSHIP_ALLOW_ZERO_AUTH=false (default) — zero-auth fallback disabled on this non-desktop instance.`,
+  );
+}
+
+// ─── BETTER_AUTH_COOKIE_DOMAIN validation (HIGH F25) ──────────────────────
+//
+// A misconfigured cookie domain leaks the session cookie to every
+// host that shares the suffix. Reject anything that doesn't look
+// like ".example.com" with ≥2 labels AND end with the runtime
+// target's eTLD+1.
+if (env.BETTER_AUTH_COOKIE_DOMAIN) {
+  validateCookieDomain(env.BETTER_AUTH_COOKIE_DOMAIN);
+}
+
+function validateCookieDomain(raw: string): void {
+  const value = raw.trim();
+  if (!value.startsWith(".")) {
+    throw new Error(
+      `BETTER_AUTH_COOKIE_DOMAIN must start with "." (got "${raw}").`,
+    );
+  }
+  const labels = value.slice(1).split(".").filter(Boolean);
+  if (labels.length < 2) {
+    throw new Error(
+      `BETTER_AUTH_COOKIE_DOMAIN must have at least 2 labels (got "${raw}"). ` +
+        `Single-label domains (e.g. ".com") would leak cookies to every site under that TLD.`,
+    );
+  }
+
+  // Compute the runtime target's eTLD+1 (rightmost 2 labels) and
+  // require the cookie domain ends with it. Avoids cross-product
+  // leaks (".openship.io" on an instance whose API runs at
+  // "api.example.com").
+  let apiHostname: string;
+  try {
+    apiHostname = new URL(runtimeTarget.api).hostname;
+  } catch {
+    throw new Error(
+      `runtimeTarget.api ("${runtimeTarget.api}") is not a valid URL — cannot validate BETTER_AUTH_COOKIE_DOMAIN.`,
+    );
+  }
+  const apiLabels = apiHostname.split(".").filter(Boolean);
+  if (apiLabels.length < 2) {
+    // Localhost / single-label hosts (dev mode) — skip the suffix check.
+    return;
+  }
+  const apiSuffix = "." + apiLabels.slice(-2).join(".");
+  if (!value.endsWith(apiSuffix)) {
+    throw new Error(
+      `BETTER_AUTH_COOKIE_DOMAIN "${raw}" does not end with the API's eTLD+1 "${apiSuffix}". ` +
+        `The cookie domain must be a parent of the API hostname.`,
+    );
+  }
 }
 
 // ─── Self-hosted GitHub App creds are deprecated ────────────────────────────

@@ -16,10 +16,7 @@
 import type { Context } from "hono";
 import { repos, type Permission, type ResourceType } from "@repo/db";
 import { generateId } from "@repo/core";
-import {
-  getActiveOrganizationId,
-  getUserId,
-} from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { auth } from "../../lib/auth";
 
@@ -93,7 +90,7 @@ async function resourceBelongsToOrg(
  * workspace vs Team org" UX in the dashboard's TeamTab.
  */
 export async function orgMeta(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
   const org = await repos.organization.findById(organizationId);
   const members = await repos.member
     .listByOrganization(organizationId)
@@ -115,7 +112,7 @@ export async function orgMeta(c: Context) {
  * it as a synthetic top-of-list entry.
  */
 export async function listResources(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
   const type = c.req.query("type") as ResourceType | undefined;
 
   if (!type || !ALLOWED_RESOURCE_TYPES.includes(type)) {
@@ -197,7 +194,7 @@ export async function listResources(c: Context) {
  * personal account + zero or more team accounts.
  */
 export async function createTeamOrg(c: Context) {
-  const userId = getUserId(c);
+  const userId = getRequestContext(c).userId;
   type CreateBody = { name?: string; slug?: string };
   const body: CreateBody = await c.req
     .json<CreateBody>()
@@ -267,7 +264,7 @@ export async function createTeamOrg(c: Context) {
  * be in `accepted` status (i.e., Better Auth's accept ran first).
  */
 export async function materializeInvitation(c: Context) {
-  const userId = getUserId(c);
+  const userId = getRequestContext(c).userId;
   const invitationId = c.req.param("id");
   if (!invitationId) return c.json({ error: "invitation id required" }, 400);
 
@@ -347,7 +344,7 @@ export async function materializeInvitation(c: Context) {
  * All grants for the given member in the active org.
  */
 export async function listGrants(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
   const targetUserId = c.req.query("userId");
   if (!targetUserId) {
     return c.json({ error: "userId query param required" }, 400);
@@ -375,8 +372,9 @@ export async function listGrants(c: Context) {
  * zero-perm placeholder rows around).
  */
 export async function upsertGrant(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const actorUserId = getUserId(c);
+  const ctx = getRequestContext(c);
+  const organizationId = ctx.organizationId;
+  const actorUserId = ctx.userId;
   const body = await c.req.json<{
     userId?: string;
     resourceType?: string;
@@ -465,8 +463,9 @@ export async function upsertGrant(c: Context) {
  * cannot delete a grant in another org even if they guess the id.
  */
 export async function deleteGrant(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const actorUserId = getUserId(c);
+  const ctx = getRequestContext(c);
+  const organizationId = ctx.organizationId;
+  const actorUserId = ctx.userId;
   const id = c.req.param("id");
   if (!id) return c.json({ error: "id required" }, 400);
 
@@ -504,7 +503,7 @@ export async function deleteGrant(c: Context) {
  * the moment they accept.
  */
 export async function listInvitations(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
   const invites = await repos.invitation.listPendingByOrg(organizationId);
   const out = await Promise.all(
     invites.map(async (inv) => {
@@ -549,8 +548,9 @@ export async function listInvitations(c: Context) {
  * but the server enforces the rule too.
  */
 export async function inviteWithGrants(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const actorUserId = getUserId(c);
+  const ctx = getRequestContext(c);
+  const organizationId = ctx.organizationId;
+  const actorUserId = ctx.userId;
 
   const isTeam = await repos.organization.isTeam(organizationId);
   if (!isTeam) {

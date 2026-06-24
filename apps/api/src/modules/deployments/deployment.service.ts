@@ -11,6 +11,7 @@ import type { LogEntry } from "@repo/adapters";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
 import { collectDeploymentManifest, executeCleanup } from "../projects/project-cleanup.service";
+import { rollback, setPin } from "./rollback";
 
 async function listServiceContainerIds(deploymentId: string): Promise<string[]> {
   const rows = await repos.service.listByDeployment(deploymentId);
@@ -136,7 +137,6 @@ export async function rollbackDeployment(
 ) {
   // Existence + org-scope check (throws if deployment isn't in this org).
   const dep = await getDeployment(deploymentId, organizationId);
-  const { rollback } = await import("./rollback");
   await rollback(deploymentId);
   // Return the post-rollback deployment row (now with any updated container id).
   return (await repos.deployment.findById(dep.id)) ?? dep;
@@ -150,7 +150,6 @@ export async function setDeploymentPin(
   pinned: boolean,
 ) {
   const dep = await getDeployment(deploymentId, organizationId);
-  const { setPin } = await import("./rollback");
   await setPin(deploymentId, pinned);
   return (await repos.deployment.findById(dep.id)) ?? dep;
 }

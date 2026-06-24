@@ -169,17 +169,3 @@ export const billingApi = {
   },
 };
 
-/* ------------------------------------------------------------------ */
-/*  Standalone re-exports                                              */
-/* ------------------------------------------------------------------ */
-//
-// Some callers (server components, hooks) prefer named function imports
-// over the namespaced object. Mirror every method here so both styles
-// resolve to the same implementation.
-
-export const getBillingState = billingApi.getBillingState;
-export const getUsage = billingApi.getUsage;
-export const getTopupPacks = billingApi.getTopupPacks;
-export const createSubscriptionCheckout = billingApi.createSubscriptionCheckout;
-export const createTopupCheckout = billingApi.createTopupCheckout;
-export const getPortalUrl = billingApi.getPortalUrl;

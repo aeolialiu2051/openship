@@ -17,25 +17,9 @@ import { audit, auditContextFrom } from "../../lib/audit";
 import * as githubAuth from "./github.auth";
 import * as localAuth from "./github.local-auth";
 import * as githubService from "./github.service";
+import { getRequestContext } from "../../lib/request-context";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-/** Extract authenticated user ID from Hono context (set by authMiddleware). */
-function getUserId(c: Context): string {
-  const user = c.get("user");
-  return user?.id;
-}
-
-/**
- * Active org id from context (set by `authMiddleware`). Threaded into
- * every `githubService.*` call so the operator-only gh-cli gate in
- * `tokenFor` knows whether the caller has `owner` role. Defensive
- * undefined return — never 500 if a route forgot the middleware.
- */
-function orgId(c: Context): string | undefined {
-  const v = c.get("activeOrganizationId");
-  return typeof v === "string" ? v : undefined;
-}
 
 /** Safely extract a required route param. */
 function param(c: Context, name: string): string {
@@ -70,8 +54,8 @@ function getSetCookieHeaders(headers: Headers): string[] {
  * GitHub-specific state.
  */
 export async function getStatus(c: Context) {
-  const userId = getUserId(c);
-  const state = await githubAuth.getGitHubConnectionState(userId);
+  const ctx = getRequestContext(c);
+  const state = await githubAuth.getGitHubConnectionState(ctx);
   return c.json({ state });
 }
 
@@ -82,13 +66,13 @@ export async function getStatus(c: Context) {
  * install URL so the dashboard can prompt "install on this org").
  */
 export async function getHome(c: Context) {
-  const userId = getUserId(c);
-  const data = await githubService.getUserHome(userId);
-  // Per-user resolution — in cloud-app mode this round-trips through
+  const ctx = getRequestContext(c);
+  const data = await githubService.getUserHome(ctx);
+  // Per-request resolution — in cloud-app mode this round-trips through
   // api.openship.io for a state-bound URL so the install can be
-  // attributed back to this user; otherwise returns the static GitHub
-  // install URL.
-  const { url: installUrl } = await githubAuth.resolveInstallUrl(userId);
+  // attributed back to ctx.organizationId; otherwise returns the static
+  // GitHub install URL.
+  const { url: installUrl } = await githubAuth.resolveInstallUrl(ctx);
   return c.json({
     ...data,
     installUrl,
@@ -114,11 +98,12 @@ export async function getHome(c: Context) {
  *  The frontend is mode-agnostic - it just reacts to `flow`.
  */
 export async function connect(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
   // Per-user resolution — picks "cloud-app" when self-hosted + cloud-
   // connected, otherwise falls back to the static mode. Every branch
   // below sees the actual mode this user should use.
-  const mode = await githubAuth.resolveGitHubAuthMode(userId);
+  const mode = await githubAuth.resolveGitHubAuthMode(ctx);
 
   // Optional `source` discriminator from the dashboard's dual-source
   // (Openship App vs gh CLI) settings panel. When the user explicitly
@@ -195,14 +180,14 @@ export async function connect(c: Context) {
 
     // Step 2: OAuth done. Check if installations already exist.
     if (status.connected) {
-      const installations = await githubAuth.getUserInstallations(userId, status);
+      const installations = await githubAuth.getUserInstallations(ctx, status);
       if (installations.length > 0 && source !== "oauth") {
         return c.json({ connected: true });
       }
     }
 
     // Step 2 continued: no installations yet → return install URL.
-    const { url, state } = await githubAuth.resolveInstallUrl(userId);
+    const { url, state } = await githubAuth.resolveInstallUrl(ctx);
     return c.json({
       connected: false,
       flow: "redirect" as const,
@@ -238,11 +223,11 @@ export async function connect(c: Context) {
         flow: "redirect" as const,
       });
     }
-    const installations = await githubAuth.getUserInstallations(userId, status);
+    const installations = await githubAuth.getUserInstallations(ctx, status);
     if (installations.length > 0) {
       return c.json({ connected: true });
     }
-    const { url } = await githubAuth.resolveInstallUrl(userId);
+    const { url } = await githubAuth.resolveInstallUrl(ctx);
     return c.json({
       connected: false,
       flow: "redirect" as const,
@@ -266,12 +251,12 @@ export async function connect(c: Context) {
   }
 
   if (mode === "app" && status.connected) {
-    const installations = await githubAuth.getUserInstallations(userId, status);
+    const installations = await githubAuth.getUserInstallations(ctx, status);
     if (installations.length > 0) {
       return c.json({ connected: true });
     }
 
-    const { url } = await githubAuth.resolveInstallUrl(userId);
+    const { url } = await githubAuth.resolveInstallUrl(ctx);
     return c.json({
       connected: false,
       flow: "redirect" as const,
@@ -330,9 +315,31 @@ export async function connect(c: Context) {
  *  it's available when GitHub redirects back to the callback URL.
  */
 export async function connectRedirect(c: Context) {
-  const mode = githubAuth.getGitHubAuthMode();
+  // HIGH #8 — connectRedirect runs per-user (the redirect is initiated
+  // from a popup that carries the user's session cookies). The sync
+  // `getGitHubAuthMode()` returns the LOCAL-only mode and reports "cli"
+  // for a self-hosted instance that's actually cloud-connected, which
+  // would send the OAuth callback to `/auth/callback/close` instead of
+  // the `/auth/callback/install` path the App-installation flow needs.
+  // Resolve per-user so each caller routes through the right callback.
+  // connectRedirect may run before authMiddleware has run in some
+  // failure modes (no session cookie yet) — fall back to the sync mode
+  // when ctx isn't present rather than throwing.
+  let mode: githubAuth.GitHubAuthMode;
+  try {
+    const ctx = getRequestContext(c);
+    mode = await githubAuth.resolveGitHubAuthMode(ctx);
+  } catch {
+    mode = githubAuth.getGitHubAuthMode();
+  }
 
-  const callbackURL = mode === "app" ? "/auth/callback/install" : "/auth/callback/close";
+  // Both "app" (this is the SaaS) and "cloud-app" (self-hosted + cloud-
+  // connected) install the GitHub App, so both want the install
+  // callback URL. CLI / OAuth-only paths just close the popup.
+  const callbackURL =
+    mode === "app" || mode === "cloud-app"
+      ? "/auth/callback/install"
+      : "/auth/callback/close";
 
   try {
     // Use linkSocialAccount (not signInSocial) because the user is already
@@ -398,8 +405,8 @@ export async function getLocalStatus(c: Context) {
  *  Gated by `localOnly` middleware.
  */
 export async function pollConnect(c: Context) {
-  const userId = getUserId(c);
-  const status = localAuth.getDeviceFlowStatus(userId);
+  const ctx = getRequestContext(c);
+  const status = localAuth.getDeviceFlowStatus(ctx.userId);
   if (!status) {
     return c.json({ status: "none" as const }, 404);
   }
@@ -414,16 +421,15 @@ export async function pollConnect(c: Context) {
  * Doesn't uninstall the GitHub App - that happens via webhook only.
  */
 export async function disconnect(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({}));
   const queryParam = c.req.query("source");
   const rawSource = (body?.source ?? queryParam) as string | undefined;
   const source: "oauth" | "cli" | "all" =
     rawSource === "oauth" || rawSource === "cli" || rawSource === "all" ? rawSource : "all";
-  await githubAuth.disconnectUser(userId, source);
-  if (organizationId) {
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  await githubAuth.disconnectUser(ctx.userId, source);
+  if (ctx.organizationId) {
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: "github.disconnect",
       resourceType: "github",
       resourceId: "*",
@@ -448,20 +454,24 @@ export async function disconnect(c: Context) {
 
 /** GET /github/repos - List repos (mode-aware) */
 export async function listRepos(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const owner = c.req.query("owner");
-  const mode = githubAuth.getGitHubAuthMode();
+  // HIGH #8 — per-user mode resolution. Sync getGitHubAuthMode returns
+  // "cli" on self-hosted instances even when the user is cloud-connected,
+  // which silently skipped the App-installation listing path. Use the
+  // async resolver so cloud-app users get the correct branch.
+  const mode = await githubAuth.resolveGitHubAuthMode(ctx);
 
-  if (mode !== "app") {
+  if (mode !== "app" && mode !== "cloud-app") {
     // If the owner matches the authenticated user, fetch their own repos
     // (not /orgs/{owner}/repos which would 404 for a user account)
     const status = await githubAuth.getUserStatus(userId);
     const isOwnAccount = owner && status.connected && owner === status.login;
     const repos = await githubService.listUserOwnedRepos(
-      userId,
+      ctx,
       isOwnAccount ? undefined : (owner || undefined),
-      { organizationId },
     );
     return c.json({ data: repos });
   }
@@ -473,34 +483,35 @@ export async function listRepos(c: Context) {
   }
 
   if (!owner) {
-    const installations = await githubAuth.getUserInstallations(userId, status);
+    const installations = await githubAuth.getUserInstallations(ctx, status);
     if (installations.length === 0) {
       return c.json({ error: "Not connected to GitHub" }, 400);
     }
     const repos = await githubService.listInstallationRepos(
-      userId,
+      ctx,
       installations[0].account.login,
       installations[0].id,
-      { organizationId },
     );
     return c.json({ data: repos });
   }
 
-  const repos = await githubService.listInstallationRepos(userId, owner, undefined, {
-    organizationId,
-  });
+  const repos = await githubService.listInstallationRepos(ctx, owner, undefined);
   return c.json({ data: repos });
 }
 
 /** GET /github/orgs/:org/repos - List repos for an organisation */
 export async function listOrgRepos(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const org = param(c, "org");
-  const mode = githubAuth.getGitHubAuthMode();
+  // HIGH #8 — see listRepos. Resolve per-user so cloud-app callers
+  // pick the App-installation branch instead of falling through to
+  // the OAuth /user/repos path.
+  const mode = await githubAuth.resolveGitHubAuthMode(ctx);
 
-  if (mode !== "app") {
-    const repos = await githubService.listUserOwnedRepos(userId, org, { organizationId });
+  if (mode !== "app" && mode !== "cloud-app") {
+    const repos = await githubService.listUserOwnedRepos(ctx, org);
     return c.json({ data: repos });
   }
 
@@ -509,42 +520,36 @@ export async function listOrgRepos(c: Context) {
     return c.json({ error: "Not connected to GitHub" }, 400);
   }
 
-  const repos = await githubService.listInstallationRepos(userId, org, undefined, {
-    organizationId,
-  });
+  const repos = await githubService.listInstallationRepos(ctx, org, undefined);
   return c.json({ data: repos });
 }
 
 /** GET /github/repos/:owner/:repo - Get a single repository */
 export async function getRepo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
   const withBranches = c.req.query("branches") === "true";
 
-  const data = await githubService.getRepository(userId, owner, repo, {
+  const data = await githubService.getRepository(ctx, owner, repo, {
     withBranches,
-    organizationId,
   });
   return c.json({ data });
 }
 
 /** POST /github/repos - Create a new repository */
 export async function createRepo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
 
-  const data = await githubService.createRepository(userId, body.name, {
+  const data = await githubService.createRepository(ctx, body.name, {
     description: body.description,
     private: body.private,
     owner: body.owner,
-    organizationId,
-  });
+      });
 
-  if (organizationId) {
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  if (ctx.organizationId) {
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: "github.repo.create",
       resourceType: "github",
       resourceId: (data as { full_name?: string })?.full_name ?? body.name,
@@ -557,15 +562,14 @@ export async function createRepo(c: Context) {
 
 /** DELETE /github/repos/:owner/:repo - Delete a repository */
 export async function deleteRepo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
 
-  await githubService.deleteRepository(userId, owner, repo, { organizationId });
+  await githubService.deleteRepository(ctx, owner, repo);
 
-  if (organizationId) {
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  if (ctx.organizationId) {
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: "github.repo.delete",
       resourceType: "github",
       resourceId: `${owner}/${repo}`,
@@ -580,12 +584,11 @@ export async function deleteRepo(c: Context) {
 
 /** GET /github/repos/:owner/:repo/branches - List branches */
 export async function listBranches(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
 
-  const data = await githubService.listBranches(userId, owner, repo, { organizationId });
+  const data = await githubService.listBranches(ctx, owner, repo);
   return c.json({ data });
 }
 
@@ -593,35 +596,31 @@ export async function listBranches(c: Context) {
 
 /** GET /github/repos/:owner/:repo/files - List files in a directory */
 export async function listFiles(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
   const branch = c.req.query("branch");
   const path = c.req.query("path");
 
-  const data = await githubService.listFiles(userId, owner, repo, {
+  const data = await githubService.listFiles(ctx, owner, repo, {
     branch: branch ?? undefined,
     path: path ?? undefined,
-    organizationId,
-  });
+      });
   return c.json({ data });
 }
 
 /** GET /github/repos/:owner/:repo/file - Get a single file's content */
 export async function getFile(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
   const file = c.req.query("file") ?? "package.json";
   const branch = c.req.query("branch");
 
-  const data = await githubService.getFileContent(userId, owner, repo, file, {
+  const data = await githubService.getFileContent(ctx, owner, repo, file, {
     branch: branch ?? undefined,
     json: file.endsWith(".json"),
-    organizationId,
-  });
+      });
   return c.json({ data });
 }
 
@@ -629,25 +628,23 @@ export async function getFile(c: Context) {
 
 /** GET /github/repos/:owner/:repo/webhooks - List repo webhooks */
 export async function listWebhooks(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
 
-  const data = await githubService.listWebhooks(userId, owner, repo, { organizationId });
+  const data = await githubService.listWebhooks(ctx, owner, repo);
   return c.json({ data });
 }
 
 /** POST /github/repos/:owner/:repo/webhooks - Register a webhook (create or find existing) */
 export async function registerWebhook(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId;
   const owner = param(c, "owner");
   const repo = param(c, "repo");
 
-  const data = await githubService.registerWebhook(userId, owner, repo, undefined, {
-    organizationId,
-  });
+  const data = await githubService.registerWebhook(ctx, owner, repo);
 
   if (organizationId) {
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -667,8 +664,7 @@ export async function registerWebhook(c: Context) {
 
 /** DELETE /github/repos/:owner/:repo/webhooks - Delete a webhook */
 export async function deleteWebhook(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = orgId(c);
+  const ctx = getRequestContext(c);
   const owner = param(c, "owner");
   const repo = param(c, "repo");
   const body = await c.req.json();
@@ -677,10 +673,10 @@ export async function deleteWebhook(c: Context) {
     return c.json({ error: "hookId is required" }, 400);
   }
 
-  await githubService.deleteWebhook(userId, owner, repo, body.hookId, { organizationId });
+  await githubService.deleteWebhook(ctx, owner, repo, body.hookId);
 
-  if (organizationId) {
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  if (ctx.organizationId) {
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: "github.webhook.delete",
       resourceType: "github",
       resourceId: `${owner}/${repo}`,

@@ -90,28 +90,58 @@ async function storeCloudSession(userId: string, cloudSessionToken: string): Pro
  *
  * Returns the session token (to be set as a cookie).
  */
-async function createLocalSession(
-  userId: string,
-  ipAddress?: string,
-  userAgent?: string,
-): Promise<{ id: string; token: string; expiresAt: Date }> {
-  const id = randomUUID();
+/**
+ * Mint a session row directly via Drizzle. Bypasses Better Auth's
+ * `session.create.before` hook because the caller has already done
+ * the equivalent work (user provisioning, org resolution).
+ *
+ * Two `purpose` values exist:
+ *   - `"local-cookie"` — the row backing the browser cookie session
+ *     created by desktop / cloud-callback / upgrade-to-auth flows.
+ *     `id` is a UUID, no prefix. `activeOrganizationId` defaults to
+ *     the user's deterministic personal org `org_<userId>`.
+ *   - `"linked-instance"` — the bearer-only row created at
+ *     connect-authorize for a remote local instance. `id` is prefixed
+ *     `sess_link_` so audit / forensics can tell linked-instance
+ *     sessions apart from browser sessions. Caller MUST pass
+ *     `activeOrganizationId` (the linked org context).
+ *
+ * Distinguishing the two purposes by id-prefix means
+ * `POST /api/cloud/disconnect` deletes ONLY the linked row by its
+ * session.id, never touching the cookie row even though both live in
+ * the same `session` table.
+ */
+export async function mintSession(opts: {
+  purpose: "local-cookie" | "linked-instance";
+  userId: string;
+  activeOrganizationId?: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+  ttlSeconds?: number;
+}): Promise<{ id: string; token: string; expiresAt: Date }> {
+  const id =
+    opts.purpose === "linked-instance"
+      ? `sess_link_${randomBytes(12).toString("hex")}`
+      : randomUUID();
   const token = randomBytes(32).toString("hex");
-  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+  const now = new Date();
+  const expiresAt = new Date(
+    now.getTime() + (opts.ttlSeconds ?? 60 * 60 * 24 * 30) * 1000,
+  );
+  const defaultUserAgent =
+    opts.purpose === "linked-instance" ? "openship-local-link" : null;
 
   await db.insert(schema.session).values({
     id,
     token,
-    userId,
+    userId: opts.userId,
     expiresAt,
-    ipAddress: ipAddress ?? null,
-    userAgent: userAgent ?? null,
-    // Bypasses Better Auth's session.create.before hook (direct insert),
-    // so we set activeOrganizationId explicitly to the user's
-    // deterministic personal org. provisionUser is idempotently invoked
-    // by every caller (mirrorCloudUser, ensureLocalUser, upgradeToAuth's
-    // localUser creation), so the FK target always exists by this point.
-    activeOrganizationId: `org_${userId}`,
+    ipAddress: opts.ipAddress ?? null,
+    userAgent: opts.userAgent ?? defaultUserAgent,
+    activeOrganizationId:
+      opts.activeOrganizationId ?? `org_${opts.userId}`,
+    createdAt: now,
+    updatedAt: now,
   });
 
   return { id, token, expiresAt };
@@ -558,7 +588,6 @@ export async function buildAuthHandoff(opts: {
 export {
   mirrorCloudUser,
   storeCloudSession,
-  createLocalSession,
   generateHandoffCode,
   exchangeHandoffCode,
   exchangeCodeWithCloud,

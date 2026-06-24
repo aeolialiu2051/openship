@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { getSession, getDeploymentInfo } from "@/lib/server/session";
-import { getCloudConnectHandoffUrl, buildAuthPageHref, DESKTOP_CLOUD_FLOW } from "@/lib/cloud-auth";
+import {
+  getCloudConnectHandoffUrl,
+  buildAuthPageHref,
+  validateReturnTo,
+  DESKTOP_CLOUD_FLOW,
+} from "@/lib/cloud-auth";
 import { AuthProviders } from "./providers";
 
 /**
@@ -46,6 +51,15 @@ export default async function AuthLayout({
       : "";
     const params = new URLSearchParams(query);
     const callback = params.get("callback");
+
+    // returnTo wins over callback when both are present — it's the
+    // explicit "come back to this page after login" signal used by
+    // /cloud-authorize. validateReturnTo enforces the safe-path allowlist
+    // server-side so a tampered URL can't redirect to an attacker domain.
+    const returnTo = validateReturnTo(params.get("returnTo"));
+    if (returnTo) {
+      redirect(returnTo);
+    }
 
     if (callback) {
       if (params.get("flow") === DESKTOP_CLOUD_FLOW) {

@@ -5,6 +5,7 @@
  * keeping this module focused on data transformation and business rules.
  */
 
+import { randomBytes } from "crypto";
 import {
   githubFetch,
   getGitHubConnectionState,
@@ -15,7 +16,9 @@ import {
 } from "./github.auth";
 import { listLocalGhRepos } from "./github.local-auth";
 import { isIgnoredRepoPath } from "../../lib/project-root-detector";
+import type { RequestContext } from "../../lib/request-context";
 import { repos as dbRepos } from "@repo/db";
+import { encrypt, decrypt } from "../../lib/encryption";
 import type {
   GitHubRepository,
   GitHubBranch,
@@ -32,8 +35,137 @@ import { env, runtimeTarget } from "../../config/env";
 export const GITHUB_DEPLOY_WEBHOOK_EVENTS = ["push"] as const;
 const MAX_FALLBACK_TREE_ENTRIES = 5000;
 
+/**
+ * Length in bytes of a per-project webhook signing secret. 32 raw bytes
+ * (64 hex chars) is well over GitHub's documented minimum and matches
+ * the entropy of the existing env.GITHUB_WEBHOOK_SECRET we generate
+ * elsewhere. Keep this exported so the rotate helper and any future
+ * callers don't redefine it.
+ */
+export const WEBHOOK_SECRET_BYTES = 32;
+
+/**
+ * OAuth scopes that strictly exceed Openship's needs and should warn a
+ * user when present on a saved PAT. These are the broad, account- or
+ * org-administrative scopes; possessing them does not break Openship,
+ * but the dashboard's PAT save handler should surface a clear warning
+ * so the user understands they handed us more access than necessary.
+ *
+ * Source: https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps
+ */
+export const PAT_SCOPE_WARN_PATTERNS: readonly RegExp[] = [
+  /^admin:/i,        // admin:org, admin:repo_hook, admin:public_key, …
+  /^delete_repo$/i,
+  /^write:packages$/i,
+  /^write:org$/i,
+];
+
+/**
+ * Scopes that are REQUIRED — at least one of these MUST be present on a
+ * saved PAT. `repo` grants full private-repo read/write; `public_repo`
+ * is the public-only subset. Without either we cannot clone or list any
+ * non-public repo, so the dashboard's PAT save handler should hard-fail.
+ */
+export const PAT_SCOPE_REQUIRED: readonly string[] = ["repo", "public_repo"];
+
+/**
+ * Result of `inspectPatScope`.
+ *
+ *   - `scopes` is the validated list of OAuth scopes returned by GitHub
+ *     (from the `x-oauth-scopes` response header). Empty when the token
+ *     is a fine-grained PAT that doesn't expose classic scopes.
+ *   - `user` is the GitHub login the token belongs to — useful for
+ *     attribution and downstream "this PAT belongs to @x" UX.
+ */
+export interface PatScopeReport {
+  scopes: string[];
+  user: string;
+}
+
+/**
+ * HIGH #10 — inspect a PAT before we accept and store it. Calls
+ * `GET /user` with the proposed token and reads `x-oauth-scopes` from
+ * the response header (the canonical place GitHub publishes the scope
+ * set of a classic OAuth/PAT token; absent or empty for fine-grained
+ * PATs, where scope is set via the repo permission model instead).
+ *
+ * Throws on any non-2xx — callers should map that to a clean "invalid
+ * token" response. The returned `scopes` array is whitespace-split and
+ * lowercased; the controller decides whether to:
+ *   - REJECT outright (missing every PAT_SCOPE_REQUIRED entry),
+ *   - WARN (any PAT_SCOPE_WARN_PATTERNS match), or
+ *   - persist alongside `user_settings.patScope` for later re-validation.
+ *
+ * Lives in github.service.ts (not in lib/) because PAT inspection is
+ * GitHub-specific and the constants above belong with it.
+ */
+export async function inspectPatScope(token: string): Promise<PatScopeReport> {
+  const res = await fetch("https://api.github.com/user", {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+    },
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(
+      `Could not validate PAT (GitHub returned ${res.status}). ${body.slice(0, 200)}`,
+    );
+  }
+  const scopeHeader = res.headers.get("x-oauth-scopes") ?? "";
+  const scopes = scopeHeader
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const json = (await res.json()) as { login?: string };
+  return { scopes, user: json.login ?? "" };
+}
+
+/**
+ * Convenience classifier for the inspectPatScope report. Centralizes
+ * the policy so callers don't reimplement the rules independently.
+ *
+ * Returns:
+ *   - `{ ok: false, reason }`  — token lacks every required scope; the
+ *     caller MUST refuse to save it.
+ *   - `{ ok: true, warning }`  — token includes a broader-than-needed
+ *     scope; the caller SHOULD surface this back in the response body.
+ *   - `{ ok: true }`           — token is fine.
+ */
+export function classifyPatScope(
+  report: PatScopeReport,
+):
+  | { ok: false; reason: string }
+  | { ok: true; warning?: string } {
+  const scopeSet = new Set(report.scopes);
+
+  // Fine-grained PATs report no classic scopes — pass without warning.
+  // The GitHub API still gates each request by the repo permission grid,
+  // so the token can't escalate beyond what the user explicitly granted.
+  if (report.scopes.length === 0) return { ok: true };
+
+  if (!PAT_SCOPE_REQUIRED.some((s) => scopeSet.has(s))) {
+    return {
+      ok: false,
+      reason: `PAT is missing required scope (need one of: ${PAT_SCOPE_REQUIRED.join(", ")}). Got: ${report.scopes.join(", ") || "none"}.`,
+    };
+  }
+
+  const broad = report.scopes.filter((s) =>
+    PAT_SCOPE_WARN_PATTERNS.some((re) => re.test(s)),
+  );
+  if (broad.length > 0) {
+    return {
+      ok: true,
+      warning: `PAT has broader scope than needed: ${broad.join(", ")}. Consider regenerating with only \`repo\` (or \`public_repo\`).`,
+    };
+  }
+  return { ok: true };
+}
+
 async function listRepositoryTreeViaContents(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   opts: { branch?: string } = {},
@@ -49,7 +181,7 @@ async function listRepositoryTreeViaContents(
     }
 
     visited.add(currentPath);
-    const entries = await listFiles(userId, owner, repo, {
+    const entries = await listFiles(ctx, owner, repo, {
       ...opts,
       ...(currentPath ? { path: currentPath } : {}),
     }).catch(() => [] as GitHubFileContent[]);
@@ -110,15 +242,13 @@ export function mapRepositories(repos: GitHubRepository[]): MappedRepository[] {
  * Works without a GitHub App installation.
  */
 export async function listUserOwnedRepos(
-  userId: string,
+  ctx: RequestContext,
   owner?: string,
-  opts: { organizationId?: string } = {},
 ): Promise<MappedRepository[]> {
   if (!owner) {
     // User's own repos
     const data = await githubFetch<GitHubRepository[]>({
-      userId,
-      organizationId: opts.organizationId,
+      ctx,
       url: "https://api.github.com/user/repos",
       params: { per_page: 100, sort: "updated", affiliation: "owner,collaborator,organization_member" },
     });
@@ -127,8 +257,7 @@ export async function listUserOwnedRepos(
 
   // Org repos
   const data = await githubFetch<GitHubRepository[]>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     url: `https://api.github.com/orgs/${encodeURIComponent(owner)}/repos`,
     params: { type: "all", per_page: 100 },
   });
@@ -157,15 +286,13 @@ export async function listUserOwnedRepos(
  *     after an installation-token mint fails on edge cases.
  */
 export async function listInstallationRepos(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
-  installationId?: number,
-  opts: { organizationId?: string } = {},
+  installationId?: number
 ): Promise<MappedRepository[]> {
   if (!installationId) return [];
   const data = await githubFetch<{ repositories: GitHubRepository[] }>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     url: `https://api.github.com/user/installations/${installationId}/repositories`,
     params: { per_page: 100 },
   });
@@ -180,13 +307,11 @@ export async function listInstallationRepos(
  * Fetch repositories for a specific org.
  */
 export async function listOrgRepos(
-  userId: string,
-  org: string,
-  opts: { organizationId?: string } = {},
+  ctx: RequestContext,
+  org: string
 ): Promise<MappedRepository[]> {
   const data = await githubFetch<GitHubRepository[]>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     url: `https://api.github.com/orgs/${encodeURIComponent(org)}/repos`,
     params: { type: "all", per_page: 100 },
     owner: org,
@@ -198,21 +323,20 @@ export async function listOrgRepos(
  * Get a single repository, optionally with branches.
  */
 export async function getRepository(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
-  opts: { withBranches?: boolean; organizationId?: string } = {},
+  opts: { withBranches?: boolean } = {},
 ): Promise<RepositoryDetail> {
   const data = await githubFetch<GitHubRepository>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
   });
 
   let branches: GitHubBranch[] | undefined;
   if (opts.withBranches) {
-    branches = await listBranches(userId, owner, repo, { organizationId: opts.organizationId });
+    branches = await listBranches(ctx, owner, repo);
   }
 
   return {
@@ -233,17 +357,16 @@ export async function getRepository(
  * Create a new repository (user or org).
  */
 export async function createRepository(
-  userId: string,
+  ctx: RequestContext,
   name: string,
-  opts: { description?: string; private?: boolean; owner?: string; organizationId?: string } = {},
+  opts: { description?: string; private?: boolean; owner?: string; } = {},
 ): Promise<GitHubRepository> {
   const url = opts.owner
     ? `https://api.github.com/orgs/${encodeURIComponent(opts.owner)}/repos`
     : "https://api.github.com/user/repos";
 
   return githubFetch<GitHubRepository>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     url,
     method: "POST",
     owner: opts.owner,
@@ -259,14 +382,12 @@ export async function createRepository(
  * Delete a repository (requires admin permissions).
  */
 export async function deleteRepository(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
-  repo: string,
-  opts: { organizationId?: string } = {},
+  repo: string
 ): Promise<void> {
   await githubFetch({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`,
     method: "DELETE",
@@ -279,14 +400,12 @@ export async function deleteRepository(
  * List branches for a repository.
  */
 export async function listBranches(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
-  repo: string,
-  opts: { organizationId?: string } = {},
+  repo: string
 ): Promise<GitHubBranch[]> {
   return githubFetch<GitHubBranch[]>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`,
     params: { per_page: 100 },
@@ -297,14 +416,14 @@ export async function listBranches(
  * Get the latest commit on a branch.
  */
 export async function getLatestCommit(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   branch: string,
 ): Promise<{ sha: string; message: string } | null> {
   try {
     const data = await githubFetch<{ sha: string; commit: { message: string } }>({
-      userId,
+      ctx,
       owner,
       url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits/${encodeURIComponent(branch)}`,
     });
@@ -318,7 +437,7 @@ export async function getLatestCommit(
  * Fetch recent commits from a branch via the GitHub API.
  */
 export async function getRecentCommits(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   branch: string,
@@ -341,7 +460,7 @@ export async function getRecentCommits(
       };
       author: { login: string; avatar_url: string } | null;
     }>>({
-      userId,
+      ctx,
       owner,
       url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/commits`,
       params: { sha: branch, per_page: String(perPage) },
@@ -360,21 +479,57 @@ export async function getRecentCommits(
   }
 }
 
+/**
+ * Compare two commits and return the unioned list of changed file paths.
+ *
+ * Webhook callers fall back to this when a push event lists exactly 20
+ * commits (GitHub truncates `commits[]` to 20 per push, so anything ≥ 20
+ * may have omitted some) and they need the FULL changed-files set for
+ * smart per-service routing.
+ *
+ * Returns `null` on any API error so callers can degrade to the truncated
+ * commits[] list rather than failing the deploy.
+ */
+export async function compareCommits(
+  ctx: RequestContext,
+  owner: string,
+  repo: string,
+  base: string,
+  head: string
+): Promise<{ files: string[] } | null> {
+  try {
+    const data = await githubFetch<{
+      files?: Array<{ filename: string; previous_filename?: string }>;
+    }>({
+      ctx,
+      owner,
+      url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/compare/${encodeURIComponent(base)}...${encodeURIComponent(head)}`,
+    });
+    const out = new Set<string>();
+    for (const f of data.files ?? []) {
+      if (f.filename) out.add(f.filename);
+      if (f.previous_filename) out.add(f.previous_filename);
+    }
+    return { files: Array.from(out) };
+  } catch {
+    return null;
+  }
+}
+
 // ─── Files ───────────────────────────────────────────────────────────────────
 
 /**
  * List files in a repository directory.
  */
 export async function listFiles(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
-  opts: { branch?: string; path?: string; organizationId?: string } = {},
+  opts: { branch?: string; path?: string; } = {},
 ): Promise<GitHubFileContent[]> {
   const filePath = opts.path ?? "";
   return githubFetch<GitHubFileContent[]>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${filePath}`,
     params: opts.branch ? { ref: opts.branch } : undefined,
@@ -385,14 +540,14 @@ export async function listFiles(
  * List the full repository tree recursively.
  */
 export async function listRepositoryTree(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   opts: { branch?: string } = {},
 ): Promise<Array<{ path: string; type: "file" | "dir" }>> {
   const ref = opts.branch?.trim() || "HEAD";
   const data = await githubFetch<GitHubTreeResponse>({
-    userId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees/${encodeURIComponent(ref)}`,
     params: { recursive: 1 },
@@ -409,7 +564,7 @@ export async function listRepositoryTree(
     return tree;
   }
 
-  const fallbackTree = await listRepositoryTreeViaContents(userId, owner, repo, opts).catch(() => tree);
+  const fallbackTree = await listRepositoryTreeViaContents(ctx, owner, repo, opts).catch(() => tree);
   return fallbackTree.length > 0 ? fallbackTree : tree;
 }
 
@@ -417,11 +572,11 @@ export async function listRepositoryTree(
  * Get a single file's content (decoded from base64).
  */
 export async function getFileContent(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   file: string,
-  opts: { branch?: string; json?: boolean; organizationId?: string } = {},
+  opts: { branch?: string; json?: boolean; } = {},
 ): Promise<{
   sha: string;
   size: number;
@@ -429,8 +584,7 @@ export async function getFileContent(
   download_url: string | null;
 }> {
   const data = await githubFetch<GitHubFileContent>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${file}`,
     params: opts.branch ? { ref: opts.branch } : undefined,
@@ -460,14 +614,12 @@ export async function getFileContent(
  * List webhooks for a repository.
  */
 export async function listWebhooks(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
-  repo: string,
-  opts: { organizationId?: string } = {},
+  repo: string
 ): Promise<GitHubWebhook[]> {
   return githubFetch<GitHubWebhook[]>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/hooks`,
   });
@@ -481,12 +633,11 @@ function normalizeWebhookUrl(url?: string | null): string {
  * Create a deploy webhook for a repository.
  */
 export async function createWebhook(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   webhookUrl: string,
   secret?: string,
-  opts: { organizationId?: string } = {},
 ): Promise<{ hookId: number; events: string[]; active: boolean }> {
   const config: Record<string, unknown> = {
     url: webhookUrl,
@@ -495,8 +646,7 @@ export async function createWebhook(
   if (secret) config.secret = secret;
 
   const data = await githubFetch<GitHubWebhook>({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/hooks`,
     method: "POST",
@@ -515,7 +665,7 @@ export async function createWebhook(
  * Update a webhook (e.g. toggle active state).
  */
 export async function updateWebhook(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   hookId: number,
@@ -526,14 +676,12 @@ export async function updateWebhook(
     organizationId?: string;
   },
 ): Promise<{ id: number; active: boolean; events: string[] }> {
-  const { organizationId, ...restPatch } = patch;
   const data = await githubFetch<GitHubWebhook>({
-    userId,
-    organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/hooks/${hookId}`,
     method: "PATCH",
-    params: restPatch,
+    params: patch,
   });
   return { id: data.id, active: data.active, events: data.events };
 }
@@ -542,15 +690,13 @@ export async function updateWebhook(
  * Delete a webhook from a repository.
  */
 export async function deleteWebhook(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
-  hookId: number,
-  opts: { organizationId?: string } = {},
+  hookId: number
 ): Promise<void> {
   await githubFetch({
-    userId,
-    organizationId: opts.organizationId,
+    ctx,
     owner,
     url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/hooks/${hookId}`,
     method: "DELETE",
@@ -563,20 +709,22 @@ export async function deleteWebhook(
  * Create a GitHub check run (used to report deployment status).
  */
 export async function createCheckRun(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   opts: {
     name: string;
     headSha: string;
     status: "queued" | "in_progress" | "completed";
+    /** Conclusion is only valid when status === "completed". */
+    conclusion?: "success" | "failure" | "cancelled" | "neutral" | "skipped";
     detailsUrl?: string;
     output?: { title: string; summary: string; text?: string };
   },
-): Promise<number | null> {
+): Promise<{ id: number; htmlUrl?: string } | null> {
   try {
-    const data = await githubFetch<{ id: number }>({
-      userId,
+    const data = await githubFetch<{ id: number; html_url?: string }>({
+      ctx,
       owner,
       url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/check-runs`,
       method: "POST",
@@ -585,11 +733,14 @@ export async function createCheckRun(
         head_sha: opts.headSha,
         status: opts.status,
         started_at: new Date().toISOString(),
+        ...(opts.status === "completed"
+          ? { completed_at: new Date().toISOString(), conclusion: opts.conclusion }
+          : {}),
         details_url: opts.detailsUrl,
         output: opts.output,
       },
     });
-    return data.id;
+    return { id: data.id, htmlUrl: data.html_url };
   } catch {
     return null;
   }
@@ -599,18 +750,19 @@ export async function createCheckRun(
  * Update an existing check run (e.g. mark as completed).
  */
 export async function updateCheckRun(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   checkRunId: number,
   opts: {
     status: "completed";
-    conclusion: "success" | "failure" | "cancelled";
+    conclusion: "success" | "failure" | "cancelled" | "neutral" | "skipped";
+    output?: { title: string; summary: string; text?: string };
   },
 ): Promise<void> {
   try {
     await githubFetch({
-      userId,
+      ctx,
       owner,
       url: `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/check-runs/${checkRunId}`,
       method: "PATCH",
@@ -618,6 +770,7 @@ export async function updateCheckRun(
         status: opts.status,
         completed_at: new Date().toISOString(),
         conclusion: opts.conclusion,
+        ...(opts.output ? { output: opts.output } : {}),
       },
     });
   } catch {
@@ -689,13 +842,14 @@ function shouldTagLocalOnly(args: {
  *   - "gh-cli"       → /user/repos + /user/orgs via the CLI token.
  *   - null           → empty arrays.
  */
-export async function getUserHome(userId: string): Promise<{
+export async function getUserHome(ctx: RequestContext): Promise<{
   state: GitHubConnectionState;
   accounts: MappedAccount[];
   repos: MappedRepository[];
   errors?: Record<string, string>;
 }> {
-  const state = await getGitHubConnectionState(userId);
+  const userId = ctx.userId;
+  const state = await getGitHubConnectionState(ctx);
   const errors: Record<string, string> = {};
 
   // Nothing connected → return the empty shell. The dashboard renders
@@ -727,10 +881,20 @@ export async function getUserHome(userId: string): Promise<{
      * on every page load.
      */
     const appInstalledOwners = new Set<string>();
+    // HIGH #1: track whether the App lookup itself succeeded. The previous
+    // code passed a hardcoded `appConnected: true` to shouldTagLocalOnly
+    // for every CLI-side repo even when getUserInstallations threw — the
+    // owners set stayed empty AND the rule was told "App is connected",
+    // so every CLI repo got falsely badged "Local only". Set this to
+    // false when the App lookup fails: shouldTagLocalOnly short-circuits
+    // to false (no badge), which matches the page-level "Install App"
+    // CTA the dashboard surfaces in that exact state.
+    let appAvailable = false;
 
     try {
       const status = await getUserStatus(userId);
-      const installations = await getUserInstallations(userId, status);
+      const installations = await getUserInstallations(ctx, status);
+      appAvailable = true;
       // Tag every App installation account with source: "app" so the
       // dashboard can distinguish them from any CLI-side accounts that
       // get merged in later. Without this tag the settings card would
@@ -751,7 +915,7 @@ export async function getUserHome(userId: string): Promise<{
         // initial visible list. Other accounts load their repos when
         // the user clicks them in the picker via fetchReposForOwner.
         repos = await listInstallationRepos(
-          userId,
+          ctx,
           primaryInstall.account.login,
           primaryInstall.id,
         );
@@ -759,8 +923,28 @@ export async function getUserHome(userId: string): Promise<{
       }
     } catch (err) {
       const message = (err as Error).message;
-      console.warn("[GitHub] App path failed:", message);
-      errors.app = message;
+      // The most common case here is a fresh user whose OAuth token
+      // doesn't yet have access to any installation repos — GitHub
+      // responds 403 "must authenticate with an access token …". That
+      // is the EXPECTED state when the user hasn't completed the App
+      // install on any account yet; the dashboard renders the "Install
+      // GitHub App" CTA via the install-url fallback below.
+      //
+      // DO NOT surface this as a server-side error to the dashboard —
+      // the client iterates `errors` and toasts each entry, which would
+      // spam "App path: 403 …" on every page load for an un-installed
+      // user. Only put GENUINE failures (network, App auth, unknown
+      // GitHub error) in the errors envelope.
+      const isExpectedNoInstall =
+        /403/.test(message) && /must authenticate with an access token/i.test(message);
+      if (isExpectedNoInstall) {
+        console.log("[GitHub] App path skipped: no installation visible to user yet (will show install CTA)");
+      } else {
+        console.warn("[GitHub] App path failed:", message);
+        errors.app = message;
+      }
+      // appAvailable stays false — downstream rules must not assume
+      // App coverage when we couldn't even read the install list.
     }
 
     // Merge gh CLI repos when available (self-hosted + cloud-connected
@@ -791,7 +975,10 @@ export async function getUserHome(userId: string): Promise<{
               repo: r,
               appInstalledOwners,
               hasUserCloneToken,
-              appConnected: true, // we're in the App-primary branch
+              // HIGH #1: honor the real App-availability signal. Pre-fix
+              // this was hardcoded `true`, so even when the App lookup
+              // threw we badged every CLI-only repo as "Local only".
+              appConnected: appAvailable,
             })
           ) {
             // CLI-only but the rules say "don't badge" — covered by some
@@ -819,7 +1006,7 @@ export async function getUserHome(userId: string): Promise<{
 
   // ── gh CLI path ────────────────────────────────────────────────────
   // state.primary === "gh-cli". The App isn't connected; listings flow
-  // through the user OAuth token (which resolveToken resolves to the
+  // through the user OAuth token (which tokenFor resolves to the
   // gh CLI fallback in this case).
   //
   // Per the source-of-truth rule in shouldTagLocalOnly(): when the App
@@ -830,7 +1017,7 @@ export async function getUserHome(userId: string): Promise<{
   let repos: MappedRepository[] = [];
   try {
     const data = await githubFetch<GitHubRepository[]>({
-      userId,
+      ctx,
       url: "https://api.github.com/user/repos",
       params: {
         per_page: 100,
@@ -863,7 +1050,7 @@ export async function getUserHome(userId: string): Promise<{
     const orgs = await githubFetch<
       Array<{ login: string; id: number; avatar_url: string }>
     >({
-      userId,
+      ctx,
       url: "https://api.github.com/user/orgs",
     });
     for (const org of orgs) {
@@ -919,7 +1106,6 @@ export function getWebhookStrategy(): WebhookStrategy {
  *   4. "none"   - no way to receive webhooks
  */
 export async function resolveWebhookStrategy(
-  _userId: string,
   project?: { webhookDomain?: string | null },
 ): Promise<WebhookStrategy> {
   const base = getWebhookStrategy();
@@ -939,10 +1125,10 @@ export async function resolveWebhookStrategy(
  * Used by the dashboard to show options to the user.
  */
 export async function getAvailableStrategies(
-  userId: string,
+  ctx: RequestContext,
   project?: { webhookDomain?: string | null },
 ): Promise<{ current: WebhookStrategy; available: WebhookStrategy[] }> {
-  const current = await resolveWebhookStrategy(userId, project);
+  const current = await resolveWebhookStrategy(project);
   const available: WebhookStrategy[] = [];
 
   if (getGitHubAuthMode() === "app") {
@@ -1028,58 +1214,163 @@ function isLocalUrl(url: string): boolean {
 // ─── Webhook registration ────────────────────────────────────────────────────
 
 /**
+ * Mint a fresh webhook signing secret for a project. Single source of
+ * truth so registration and rotation pick the same generator. Returns
+ * the raw secret (which goes to GitHub) — the caller MUST encrypt
+ * before persisting to the project row.
+ */
+export function mintWebhookSecret(): string {
+  return randomBytes(WEBHOOK_SECRET_BYTES).toString("hex");
+}
+
+/**
+ * Persist a freshly-minted webhook secret on the project row, encrypted
+ * via the standard lib/encryption helper. Used by both registerWebhook
+ * (first-time registration) and rotateProjectWebhookSecret (operator-
+ * initiated rotation).
+ */
+async function persistProjectWebhookSecret(
+  projectId: string,
+  secret: string,
+): Promise<void> {
+  await dbRepos.project.update(projectId, {
+    webhookSecret: encrypt(secret),
+  });
+}
+
+/**
+ * Resolve the signing secret for a project. Decrypts the per-project
+ * value when present; falls back to env.GITHUB_WEBHOOK_SECRET for
+ * legacy webhooks registered before per-project secrets existed.
+ *
+ * Returns null when neither is configured — the caller (webhook
+ * verifier) is then on the self-hosted "unsigned webhooks allowed
+ * during setup" path.
+ */
+export function resolveProjectWebhookSecret(
+  project: { webhookSecret?: string | null } | null | undefined,
+): string | null {
+  if (project?.webhookSecret) {
+    try {
+      return decrypt(project.webhookSecret);
+    } catch {
+      // Encryption key rotation / corrupted row — fall through to env
+      // rather than silently rejecting every webhook for this project.
+      console.warn(
+        "[GitHub Webhook] project.webhookSecret failed to decrypt; falling back to env.GITHUB_WEBHOOK_SECRET",
+      );
+    }
+  }
+  return env.GITHUB_WEBHOOK_SECRET || null;
+}
+
+/**
  * Register a deploy webhook on a repo.
  * If creation returns 422 (already exists), finds the existing hook.
  *
  * Callers should check `getWebhookStrategy()` before calling - this will
  * throw if the URL is unreachable (localhost).
+ *
+ * HIGH #9 — when a `projectId` is supplied, this generates a FRESH
+ * webhook secret, sends it to GitHub in the hook config, and persists
+ * the encrypted value on the project row. Each project gets its own
+ * secret so a leak (or rotation of one) doesn't compromise others.
+ * Without `projectId` we fall back to env.GITHUB_WEBHOOK_SECRET — used
+ * by the legacy /github/repos/:owner/:repo/webhooks endpoint that
+ * isn't tied to a project.
  */
 export async function registerWebhook(
-  userId: string,
+  ctx: RequestContext,
   owner: string,
   repo: string,
   webhookUrl = `${runtimeTarget.api}/api/webhooks/github`,
-  opts: { organizationId?: string } = {},
+  opts: { projectId?: string } = {},
 ): Promise<{ hookId: number | null; events: string[] }> {
+  // Per-project secret takes precedence; env stays the back-compat
+  // fallback for callers without a project context.
+  const secret = opts.projectId
+    ? mintWebhookSecret()
+    : env.GITHUB_WEBHOOK_SECRET || undefined;
+
   try {
     const result = await createWebhook(
-      userId,
+      ctx,
       owner,
       repo,
       webhookUrl,
-      env.GITHUB_WEBHOOK_SECRET || undefined,
-      { organizationId: opts.organizationId },
+      secret || undefined,
     );
+    if (opts.projectId && secret) {
+      await persistProjectWebhookSecret(opts.projectId, secret);
+    }
     return { hookId: result.hookId, events: result.events };
   } catch (err) {
     /* 422 = webhook already exists - find it */
     if (err instanceof Error && err.message.includes("422")) {
-      const existing = await listWebhooks(userId, owner, repo, {
-        organizationId: opts.organizationId,
-      });
+      const existing = await listWebhooks(ctx, owner, repo);
       const targetUrl = normalizeWebhookUrl(webhookUrl);
       const match = existing.find((h) =>
         normalizeWebhookUrl(h.config?.url) === targetUrl,
       );
       if (!match) return { hookId: null, events: [] };
 
-      const config = env.GITHUB_WEBHOOK_SECRET
+      const config = secret
         ? {
             url: webhookUrl,
             content_type: "json",
-            secret: env.GITHUB_WEBHOOK_SECRET,
+            secret,
           }
         : undefined;
-      const updated = await updateWebhook(userId, owner, repo, match.id, {
+      const updated = await updateWebhook(ctx, owner, repo, match.id, {
         active: true,
         events: [...GITHUB_DEPLOY_WEBHOOK_EVENTS],
         config,
-        organizationId: opts.organizationId,
       });
+      // We sent a new secret to GitHub on the update path — persist it
+      // locally so the verifier matches. (If we kept the OLD GitHub-
+      // side secret and only stored the new one locally, every future
+      // delivery would fail HMAC verify until GitHub re-rotated.)
+      if (opts.projectId && secret) {
+        await persistProjectWebhookSecret(opts.projectId, secret);
+      }
       return { hookId: updated.id, events: updated.events };
     }
     throw err;
   }
+}
+
+/**
+ * Rotate the webhook signing secret for a project. Mints a new secret,
+ * pushes it to GitHub via PATCH /repos/:owner/:repo/hooks/:hookId, and
+ * persists the encrypted value on the project row. Idempotent at the
+ * GitHub side — the hook keeps its id, only the secret changes.
+ *
+ * Throws if the project row can't be found or doesn't have a registered
+ * webhook yet (caller should run registerWebhook first).
+ */
+export async function rotateProjectWebhookSecret(
+  ctx: RequestContext,
+  projectId: string,
+): Promise<{ rotated: true; hookId: number }> {
+  const project = await dbRepos.project.findById(projectId);
+  if (!project) {
+    throw new Error(`Project ${projectId} not found`);
+  }
+  if (!project.webhookId || !project.gitOwner || !project.gitRepo) {
+    throw new Error(
+      `Project ${projectId} has no registered webhook to rotate — register one first.`,
+    );
+  }
+
+  const fresh = mintWebhookSecret();
+  const webhookUrl = `${runtimeTarget.api}/api/webhooks/github`;
+  await updateWebhook(ctx, project.gitOwner, project.gitRepo, project.webhookId, {
+    active: true,
+    events: [...GITHUB_DEPLOY_WEBHOOK_EVENTS],
+    config: { url: webhookUrl, content_type: "json", secret: fresh },
+  });
+  await persistProjectWebhookSecret(projectId, fresh);
+  return { rotated: true, hookId: project.webhookId };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

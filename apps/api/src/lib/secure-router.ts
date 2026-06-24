@@ -46,6 +46,7 @@ import {
   isPublicSpec,
 } from "./route-permission";
 import { authMiddleware } from "../middleware/auth";
+import { rateLimiterFor } from "../middleware/rate-limiter";
 
 export interface SecureRouterOptions {
   /**
@@ -86,11 +87,15 @@ export interface SecureRouter<T extends Hono = Hono> {
    * Convenience for explicitly-public routes. Same as passing
    * `{ public: true, reason }` to .get/.post/etc., but reads clearer.
    * The HTTP method is required as the first argument.
+   *
+   * `rateLimit` is optional and works the same as on PermissionSpec —
+   * pass a policy id to override the global `default-anon` default
+   * (e.g. `webhook-ingress` for inbound webhooks).
    */
   public(
     method: MethodName,
     path: string,
-    spec: { reason: string },
+    spec: Omit<PublicSpec, "public">,
     ...handlers: (MiddlewareHandler | Handler)[]
   ): void;
 }
@@ -125,15 +130,26 @@ export function secureRouter<T extends Hono>(
       spec: mergedSpec,
     });
 
-    // Order is load-bearing: auth must run BEFORE the permission check
-    // so `c.get("user")` is set by the time `permission.assert` calls
-    // `getUserId(c)`. Permission-tagged routes get authMiddleware
+    // Order is load-bearing: authMiddleware must run BEFORE the permission
+    // check so `c.var.ctx` (the RequestContext) is set by the time
+    // `permission.assert(getRequestContext(c), ...)` reads userId from it.
+    // Permission-tagged routes get authMiddleware
     // auto-injected unless they explicitly opt out via `skipAuth: true`
     // (e.g. routes that handle their own auth via internalAuth or
     // similar). Public routes don't auto-inject anything.
+    //
+    // Rate-limit ordering: when a per-route `rateLimit` is set, the
+    // limiter runs AFTER authMiddleware (so ctx is available for
+    // per-user/per-org subject keys) but BEFORE the permission check
+    // (so we reject ratelimited callers before doing a DB load). Public
+    // routes mount the limiter first (no auth to wait for).
     const chain: (MiddlewareHandler | Handler)[] = [];
     if (!isPublicSpec(mergedSpec) && !(mergedSpec as PermissionSpec).skipAuth) {
       chain.push(authMiddleware);
+    }
+    const rateLimitPolicy = mergedSpec.rateLimit;
+    if (rateLimitPolicy) {
+      chain.push(rateLimiterFor(rateLimitPolicy));
     }
     chain.push(
       isPublicSpec(mergedSpec)
@@ -169,7 +185,7 @@ export function secureRouter<T extends Hono>(
       mount("delete", path, spec, handlers);
     },
     public(method, path, spec, ...handlers) {
-      const publicSpec: PublicSpec = { public: true, reason: spec.reason };
+      const publicSpec: PublicSpec = { public: true, ...spec };
       mount(method, path, publicSpec, handlers);
     },
   };

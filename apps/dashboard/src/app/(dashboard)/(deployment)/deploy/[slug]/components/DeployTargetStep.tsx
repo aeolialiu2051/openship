@@ -808,12 +808,15 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     }
   }, [ready, hasChoice, hasServers, hasCloudOption, servers, updateConfig]);
 
-  // When switching TO cloud, default the build strategy to "server" (cloud
-  // build is the recommended path). But don't force-override on every render
-  // - that would prevent the user from picking "local build → cloud deploy"
-  // as a cost-saving option for stacks that support it (Next.js, Vite, etc.).
-  // Static-app stacks (no hasBuild) have nothing to transfer, so we still
-  // force them to server-build.
+  // When switching TO cloud, AUTO-PRESELECT "server" as the build strategy.
+  // Cloud builds belong in the cloud runtime — they get the right toolchain
+  // automatically and don't burn the host's CPU/RAM. We fire this ONLY on the
+  // deployTarget transition into cloud (not on every render) so a user who
+  // explicitly switches to "This Machine" via the visible card AFTER the
+  // switch is respected — `cloudSupportsLocalBuild` keeps that override card
+  // available for stacks that produce a transferable artifact (Next.js .next,
+  // Vite dist, etc.). Static-app stacks (no `hasBuild`) have nothing to
+  // transfer, so the second clause force-corrects an invalid local pick.
   const prevDeployTargetRef = useRef(config.deployTarget);
   useEffect(() => {
     const justSwitchedToCloud =

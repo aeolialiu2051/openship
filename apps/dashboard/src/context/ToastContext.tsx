@@ -9,12 +9,28 @@ interface ToastContextProps {
 
 const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 
-export const useToast = () => {
+/**
+ * Toast accessor. Throwing on missing provider used to crash whole
+ * routes (a 500 instead of "no toast") when render ordering put a
+ * consumer above the provider — especially during HMR. Toasts are
+ * NEVER load-bearing UI, so degrade gracefully: log once, return a
+ * no-op `showToast`, and let the page render.
+ */
+let warnedMissingProvider = false;
+const NOOP_TOAST: ToastContextProps = {
+  showToast: () => {
+    if (!warnedMissingProvider) {
+      warnedMissingProvider = true;
+      console.warn(
+        '[useToast] No ToastProvider in tree — toasts will be no-ops. ' +
+        'Wrap the affected subtree in <ToastProvider> from @/context/ToastContext.',
+      );
+    }
+  },
+};
+export const useToast = (): ToastContextProps => {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error('useToast must be used within a ToastProvider');
-  }
-  return context;
+  return context ?? NOOP_TOAST;
 };
 
 interface ToastProviderProps {

@@ -124,12 +124,24 @@ export function buildAuthPageHref(route: "/login" | "/register" | "/authorize", 
     const value = searchParams.get(key);
     if (value) params.set(key, value);
   }
+  // Preserve `returnTo` through the login ↔ register link bounce. The
+  // allowlist-based `validateReturnTo` re-checks the value at the next
+  // consumer, so a hostile value carried through here is still rejected
+  // before any redirect happens.
+  const returnTo = validateReturnTo(searchParams.get("returnTo"));
+  if (returnTo) params.set("returnTo", returnTo);
 
   const query = params.toString();
   return query ? `${route}?${query}` : route;
 }
 
 export function getPostAuthRedirect(searchParams: SearchParamsLike) {
+  // `returnTo` is the post-auth target used by the consent-flow chain
+  // (e.g. /cloud-authorize → /login?returnTo=… → back to /cloud-authorize).
+  // Take precedence over the older `callback` flow when both are present.
+  const returnTo = validateReturnTo(searchParams.get("returnTo"));
+  if (returnTo) return returnTo;
+
   const callback = searchParams.get("callback");
   if (!callback) return null;
 
@@ -138,6 +150,50 @@ export function getPostAuthRedirect(searchParams: SearchParamsLike) {
   }
 
   return getCloudConnectHandoffUrl(callback);
+}
+
+/**
+ * Allowlist for `?returnTo=` post-auth redirects.
+ *
+ * Open redirects via `returnTo` are the classic phishing vector — an
+ * attacker sends a link like `/login?returnTo=https://evil.example/`
+ * and the user lands on the attacker's site after entering creds.
+ *
+ * Rules:
+ *   - Must be a relative path starting with a single `/`.
+ *   - Must NOT start with `//` (protocol-relative URLs).
+ *   - Path must match an allowlisted prefix. Currently only
+ *     `/cloud-authorize` (the consent page that minted the link) and
+ *     `/` (root) are accepted; widen this list intentionally as new
+ *     pages need it.
+ *
+ * Returns the validated path, or `null` when the input is unsafe or
+ * missing. Callers should treat `null` as "no returnTo" and fall back
+ * to whatever default they had before.
+ */
+export function validateReturnTo(input: string | null): string | null {
+  if (!input) return null;
+  if (typeof input !== "string") return null;
+  if (input.length > 512) return null;
+  // Must start with exactly one slash — `//evil.example` is a
+  // protocol-relative URL that browsers resolve cross-origin.
+  if (!input.startsWith("/")) return null;
+  if (input.startsWith("//")) return null;
+  // Reject control chars / whitespace anywhere — these can be used to
+  // smuggle a CR/LF response-split or a hidden absolute URL past a naive
+  // prefix check.
+  if (/[\x00-\x1f\s]/.test(input)) return null;
+
+  // Split off any query/fragment for the prefix check, but keep them on
+  // the returned value so the consent page reloads with its params.
+  const pathOnly = input.split(/[?#]/)[0];
+  const ALLOWED_PREFIXES = ["/cloud-authorize", "/"];
+  const isAllowed = ALLOWED_PREFIXES.some((prefix) => {
+    if (prefix === "/") return pathOnly === "/";
+    return pathOnly === prefix || pathOnly.startsWith(prefix + "/");
+  });
+  if (!isAllowed) return null;
+  return input;
 }
 
 function sleep(ms: number) {

@@ -18,12 +18,16 @@ import { randomBytes } from "node:crypto";
 import { env } from "../config/env";
 import type { ShellSession } from "@repo/adapters";
 import type { TerminalExitReason } from "@repo/db";
+import type { RequestContext } from "./request-context";
 
 // ─── Tickets ────────────────────────────────────────────────────────────────
 
 interface Ticket {
   token: string;
   userId: string;
+  /** Org the user was acting in at mint time — locks the consume-time
+   *  scope to the same tenant. See sibling terminal-session-manager.ts. */
+  organizationId: string;
   serviceId: string;
   expiresAt: number;
   used: boolean;
@@ -36,7 +40,7 @@ function newToken(): string {
 }
 
 export function issueServiceTerminalTicket(
-  userId: string,
+  ctx: RequestContext,
   serviceId: string,
 ): { token: string; expiresIn: number } {
   cleanupExpiredTickets();
@@ -44,7 +48,8 @@ export function issueServiceTerminalTicket(
   const token = newToken();
   tickets.set(token, {
     token,
-    userId,
+    userId: ctx.userId,
+    organizationId: ctx.organizationId,
     serviceId,
     expiresAt: Date.now() + ttl,
     used: false,
@@ -54,14 +59,18 @@ export function issueServiceTerminalTicket(
 
 export function consumeServiceTerminalTicket(
   token: string,
-): { userId: string; serviceId: string } | null {
+): { userId: string; organizationId: string; serviceId: string } | null {
   if (!token) return null;
   const ticket = tickets.get(token);
   if (!ticket) return null;
   tickets.delete(token);
   if (ticket.used) return null;
   if (ticket.expiresAt <= Date.now()) return null;
-  return { userId: ticket.userId, serviceId: ticket.serviceId };
+  return {
+    userId: ticket.userId,
+    organizationId: ticket.organizationId,
+    serviceId: ticket.serviceId,
+  };
 }
 
 function cleanupExpiredTickets(): void {

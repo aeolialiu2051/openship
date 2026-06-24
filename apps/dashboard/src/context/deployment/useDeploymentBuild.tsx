@@ -448,7 +448,7 @@ export function useDeploymentBuild(
         monorepoWorkspace: isMonorepoDeployment && config.monorepoWorkspace
           ? {
               packageManager: config.monorepoWorkspace.packageManager,
-              installCommand: config.monorepoWorkspace.installCommand,
+              prepareCommand: config.monorepoWorkspace.prepareCommand,
             }
           : undefined,
       });
@@ -610,14 +610,17 @@ export function useDeploymentBuild(
   }, [baseDomain, config, deployMode, hideModal, installUrl, requireCloud, selfHosted, setConfig, showModal, showToast]);
 
   // `startBuild` controls which SSE endpoint to hit:
-  //   - true  → POST /:id/build, which ALSO kicks off the build (used by
-  //             the initial deploy flow where `requestBuildAccess` only
-  //             queues the deployment).
-  //   - false → GET /:id/stream, attach-only (used after a redeploy,
-  //             where the server has already kicked off the build via
-  //             `redeployBuildSession` → `kickoffBuild`). Same path as
-  //             the page-refresh codepath in `loadBuildSession`.
-  // Defaults to true to preserve the initial-deploy behavior.
+  //   - true  → POST /:id/build, which ALSO kicks off the build. Now only
+  //             a defensive fallback — every server-side build-creation path
+  //             (`requestBuildAccess`, `redeployBuildSession`, etc.) calls
+  //             `kickoffBuild` before returning, so callers should prefer
+  //             `false` to avoid the empty-terminal race (see handleRedeploy
+  //             and build page initialize for the symptom).
+  //   - false → GET /:id/stream, attach-only. Used after initial deploy
+  //             (where `requestBuildAccess` already kicked off the build),
+  //             after redeploy (where `redeployBuildSession` did), and on
+  //             page refresh via `loadBuildSession`.
+  // Defaults to true for back-compat; new call sites should pass `false`.
   const connectToBuild = useCallback(async (deploymentId?: string, startBuild: boolean = true) => {
     const id = deploymentId || state.deploymentId;
     if (!id) {

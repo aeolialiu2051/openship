@@ -26,12 +26,18 @@ import { randomBytes } from "node:crypto";
 import { env } from "../config/env";
 import type { ShellSession } from "@repo/adapters";
 import type { TerminalExitReason } from "@repo/db";
+import type { RequestContext } from "./request-context";
 
 // ─── Tickets ────────────────────────────────────────────────────────────────
 
 interface Ticket {
   token: string;
   userId: string;
+  /** Org the user was acting in at mint time. The WS upgrade scopes
+   *  every downstream check (permission, server existence, audit) to
+   *  this org — NOT to whatever org the user happens to be in at
+   *  consume time. Mint and consume share the same tenant. */
+  organizationId: string;
   serverId: string;
   /** Wall-clock expiry (Date.now()). */
   expiresAt: number;
@@ -47,20 +53,26 @@ function newToken(): string {
 }
 
 /**
- * Mint a single-use ticket binding a (userId, serverId) pair. Returns the
- * token the client must echo back via `Sec-WebSocket-Protocol` on the WS
- * upgrade. Default TTL: env.TERMINAL_TICKET_TTL_MS.
+ * Mint a single-use ticket binding (userId, organizationId, serverId).
+ * The org comes from `ctx.organizationId` — that's the org the user
+ * explicitly chose / had scoped for them when they hit the mint
+ * endpoint. The WS upgrade later operates against THAT org, not
+ * whatever the user's session-active-org happens to be at consume
+ * time. Returns the token the client echoes back via
+ * `Sec-WebSocket-Protocol` on the WS upgrade. Default TTL:
+ * env.TERMINAL_TICKET_TTL_MS.
  */
-export function issueTerminalTicket(userId: string, serverId: string): {
-  token: string;
-  expiresIn: number;
-} {
+export function issueTerminalTicket(
+  ctx: RequestContext,
+  serverId: string,
+): { token: string; expiresIn: number } {
   cleanupExpiredTickets();
   const ttl = env.TERMINAL_TICKET_TTL_MS;
   const token = newToken();
   tickets.set(token, {
     token,
-    userId,
+    userId: ctx.userId,
+    organizationId: ctx.organizationId,
     serverId,
     expiresAt: Date.now() + ttl,
     used: false,
@@ -69,12 +81,14 @@ export function issueTerminalTicket(userId: string, serverId: string): {
 }
 
 /**
- * Consume a ticket. Returns the bound (userId, serverId) on success and
- * deletes the ticket. Returns null on missing / expired / already-used,
- * never revealing which failure case occurred (timing-uniform).
+ * Consume a ticket. Returns the bound (userId, organizationId, serverId)
+ * on success and deletes the ticket. Returns null on missing / expired
+ * / already-used, never revealing which failure case occurred
+ * (timing-uniform).
  */
 export function consumeTerminalTicket(token: string): {
   userId: string;
+  organizationId: string;
   serverId: string;
 } | null {
   if (!token) return null;
@@ -85,7 +99,11 @@ export function consumeTerminalTicket(token: string): {
   tickets.delete(token);
   if (ticket.used) return null;
   if (ticket.expiresAt <= Date.now()) return null;
-  return { userId: ticket.userId, serverId: ticket.serverId };
+  return {
+    userId: ticket.userId,
+    organizationId: ticket.organizationId,
+    serverId: ticket.serverId,
+  };
 }
 
 function cleanupExpiredTickets(): void {

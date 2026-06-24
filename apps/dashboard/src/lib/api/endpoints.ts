@@ -269,6 +269,8 @@ export const endpoints = {
   cloud: {
     disconnect: "cloud/disconnect",
     status: "cloud/status",
+    connectFinalize: "cloud/connect-finalize",
+    connectAuthorize: "cloud/connect-authorize",
   },
 
   /* ---------------------------------------------------------------- */

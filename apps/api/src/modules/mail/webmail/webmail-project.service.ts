@@ -31,6 +31,7 @@ import { repos, type Project } from "@repo/db";
 import { safeErrorMessage } from "@repo/core";
 import { sshManager } from "../../../lib/ssh-manager";
 import { assertResourceInOrg } from "../../../lib/controller-helpers";
+import type { RequestContext } from "../../../lib/request-context";
 import { fetchAndExtractRelease } from "../../system/migration/lib/release-download";
 import {
   buildConfigSnapshot,
@@ -562,8 +563,6 @@ export type WebmailDeployTarget =
   | { kind: "cloud" };
 
 export interface StartWebmailDeployInput {
-  userId: string;
-  organizationId: string;
   mailServerId: string;
   hostname: string;
   internalPort?: number;
@@ -599,6 +598,7 @@ export interface StartWebmailDeployResult {
  * bundled `client/` next to it as static files.
  */
 export async function startWebmailDeploy(
+  ctx: RequestContext,
   input: StartWebmailDeployInput,
 ): Promise<StartWebmailDeployResult> {
   const internalPort = input.internalPort ?? DEFAULT_INTERNAL_PORT;
@@ -614,7 +614,7 @@ export async function startWebmailDeploy(
 
   // ── 2. Project row carries localPath (the dist) + fixed config ──────
   const { project, projectId } = await ensureWebmailProject(
-    input.organizationId,
+    ctx.organizationId,
     input.mailServerId,
     releaseDistPath,
   );
@@ -766,15 +766,14 @@ export async function startWebmailDeploy(
   //       in deployments/preflight.ts branches on snapshot.deployTarget
   //       (cloud-side checks domain availability via Oblien, self-hosted
   //       checks port availability + SSH reachability). ─────────────────
-  await runDeploymentPreflight(snapshot, routeState, { userId: input.userId });
+  await runDeploymentPreflight(snapshot, routeState, { ctx });
 
   // ── 9. Encrypt + attach the env map directly to the deployment row.
   //       executeBuildAndDeploy reads dep.envVars, decrypts, and feeds
   //       them to runtime.build + runtime.deploy. ──────────────────────
   const dep = await createQueuedDeployment({
     projectId,
-    userId: input.userId,
-    organizationId: input.organizationId,
+    organizationId: ctx.organizationId,
     branch: "main",
     environment: "production",
     framework: snapshot.framework,
@@ -784,7 +783,7 @@ export async function startWebmailDeploy(
   });
 
   // Fire-and-forget - the standard pipeline owns logging, SSE, lifecycle.
-  await startBuild(dep.id, input.userId);
+  await startBuild(dep.id);
 
   return { deploymentId: dep.id, projectId };
 }

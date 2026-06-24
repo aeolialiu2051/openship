@@ -1,8 +1,22 @@
 import { Hammer, Play } from "lucide-react";
 
-const Toggle = ({ checked, onChange }) => (
-  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-    <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="sr-only peer" />
+/**
+ * @param {object} props
+ * @param {boolean} props.checked
+ * @param {(v: boolean) => void} props.onChange
+ * @param {boolean} [props.disabled]
+ * @param {string} [props["aria-label"]]
+ */
+const Toggle = ({ checked, onChange, disabled = false, "aria-label": ariaLabel }) => (
+  <label className={`relative inline-flex items-center shrink-0 ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}>
+    <input
+      type="checkbox"
+      checked={checked}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onChange={(e) => onChange(e.target.checked)}
+      className="sr-only peer"
+    />
     <div className="w-9 h-5 bg-border rounded-full peer peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-primary/20 peer-checked:after:translate-x-4 after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-muted-foreground/80 after:rounded-full after:h-4 after:w-4 after:shadow-sm after:transition-all peer-checked:bg-primary peer-checked:after:bg-primary-foreground peer-checked:after:border-transparent" />
   </label>
 );

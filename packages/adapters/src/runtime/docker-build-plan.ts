@@ -71,20 +71,33 @@ export function generateDockerfile(config: BuildConfig): string {
   );
   const multiStage = needsMultiStage(config);
   const envPrefix = buildEnvPrefix(config.envVars);
+  const workspacePrepare = config.workspacePrepareCommand?.trim();
 
   const lines: string[] = multiStage
     ? [
         `FROM ${config.buildImage} AS builder`,
         `WORKDIR /workspace`,
         `COPY . /workspace`,
-        `WORKDIR ${sourceDir}`,
       ]
     : [
         `FROM ${config.runtimeImage}`,
         `WORKDIR /workspace`,
         `COPY . /workspace`,
-        `WORKDIR ${sourceDir}`,
       ];
+
+  // Monorepo workspace prepare: runs ONCE at /workspace (repo root)
+  // before we cd into the sub-app and run the per-service install.
+  // Any workspace-level prep — install, codegen, schema sync — chained
+  // with `&&`. Wraps in its own RUN layer so docker can cache it across
+  // sub-app rebuilds (most pushes only touch one sub-app).
+  if (workspacePrepare) {
+    // envPrefix already ends with ` && ` when non-empty, so no extra
+    // separator is needed — adding one would produce a stray double
+    // space inside the Dockerfile RUN line.
+    lines.push(`RUN ${envPrefix}${workspacePrepare}`);
+  }
+
+  lines.push(`WORKDIR ${sourceDir}`);
 
   // Single RUN for install+build - avoids costly Docker layer commits between steps.
   // Each step emits markers so the UI stepper can track progress.

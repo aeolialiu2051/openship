@@ -5,7 +5,8 @@
  */
 
 import type { Context } from "hono";
-import { getUserId, getActiveOrganizationId, param } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { safeErrorMessage } from "@repo/core";
 import {
@@ -20,51 +21,50 @@ import {
 } from "./destination.service";
 
 export async function listAll(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const rows = await listDestinations(organizationId);
+  const ctx = getRequestContext(c);
+  const rows = await listDestinations(ctx);
   return c.json({ data: rows });
 }
 
 export async function getOne(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "backup_destination", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "backup_destination", resourceId: id, action: "read" });
   try {
-    return c.json({ data: await getDestination(id, organizationId) });
+    return c.json({ data: await getDestination(ctx, id) });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 404);
   }
 }
 
 export async function create(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<CreateDestinationInput>();
   try {
-    return c.json({ data: await createDestination(userId, organizationId, body) });
+    return c.json({ data: await createDestination(ctx, body) });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 400);
   }
 }
 
 export async function update(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "backup_destination", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "backup_destination", resourceId: id, action: "write" });
   const body = await c.req.json<UpdateDestinationInput>().catch(() => ({}));
   try {
-    return c.json({ data: await updateDestination(id, organizationId, body) });
+    return c.json({ data: await updateDestination(ctx, id, body) });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 400);
   }
 }
 
 export async function remove(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "backup_destination", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), { resourceType: "backup_destination", resourceId: id, action: "admin" });
   try {
-    await deleteDestination(id, organizationId);
+    await deleteDestination(ctx, id);
     return c.json({ data: { ok: true } });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 400);
@@ -72,11 +72,11 @@ export async function remove(c: Context) {
 }
 
 export async function preflight(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "backup_destination", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "backup_destination", resourceId: id, action: "write" });
   try {
-    const result = await preflightDestination(id, organizationId);
+    const result = await preflightDestination(ctx, id);
     return c.json({ data: result });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 404);

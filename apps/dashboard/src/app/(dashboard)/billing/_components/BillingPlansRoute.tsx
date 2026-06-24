@@ -3,23 +3,19 @@
 import { useEffect, useState } from "react";
 import { PricingCards, type ApiPlan } from "@/components/billing/PricingCards";
 import { api } from "@/lib/api/client";
-import type { PlanId } from "@repo/core";
+import type { PlanTierId } from "@repo/core";
 import { Loader2 } from "lucide-react";
 
 interface PlansResponse {
-  data: {
-    plans: ApiPlan[];
-    annualDiscount: number;
-  };
+  data: { plans: ApiPlan[] };
 }
 
 interface CheckoutResponse {
   data: { checkoutUrl: string };
 }
 
-export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanId }) {
+export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanTierId }) {
   const [plans, setPlans] = useState<ApiPlan[] | null>(null);
-  const [annualDiscount, setAnnualDiscount] = useState(0.2);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
@@ -29,10 +25,7 @@ export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanId }) {
     async function fetchPlans() {
       try {
         const res = await api.get<PlansResponse>("billing/plans");
-        if (!cancelled) {
-          setPlans(res.data.plans);
-          setAnnualDiscount(res.data.annualDiscount);
-        }
+        if (!cancelled) setPlans(res.data.plans);
       } catch {
         if (!cancelled) setError("Failed to load plans");
       } finally {
@@ -40,16 +33,18 @@ export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanId }) {
       }
     }
     fetchPlans();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const handleSelectPlan = async (planId: PlanId, interval: "monthly" | "annual") => {
+  const handleSelectPlan = async (planId: PlanTierId) => {
     if (planId === "free" || planId === currentPlan) return;
     setSubscribing(planId);
     try {
       const res = await api.post<CheckoutResponse>("billing/subscription", {
         planId,
-        interval,
+        interval: "monthly",
       });
       window.location.href = res.data.checkoutUrl;
     } catch (err) {
@@ -83,7 +78,6 @@ export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanId }) {
   return (
     <PricingCards
       plans={plans}
-      annualDiscount={annualDiscount}
       currentPlan={currentPlan}
       onSelectPlan={handleSelectPlan}
       subscribingPlan={subscribing}

@@ -3,19 +3,18 @@
  * security-sensitive events.
  *
  * Two entry points:
- *   - `audit.record(...)`        synchronous write, blocks the request
- *                                until the DB insert resolves. Use for
- *                                auth, member, billing, security events
- *                                where losing the audit row is a real
- *                                forensic gap.
- *   - `audit.recordAsync(...)`   queues the insert without blocking the
- *                                request. Best for high-volume events
- *                                (deployments, settings) where adding
- *                                30ms to every action isn't acceptable.
+ *   - `audit.record(ctx, event)`       awaited write. Use for security-
+ *                                       sensitive events (auth, member,
+ *                                       billing) where losing the row
+ *                                       is a real forensic gap.
+ *   - `audit.recordAsync(ctx, event)`  fire-and-forget. Use for high-
+ *                                       volume events (deployments,
+ *                                       settings) where adding latency
+ *                                       to every action isn't acceptable.
  *
- * Both paths swallow errors — a failed audit insert should never break
- * the action the user performed. Failures emit a console.error but the
- * caller's request continues.
+ * Both swallow errors — a failed audit insert never breaks the action
+ * the user performed; failures emit a console.error and the caller's
+ * request continues.
  */
 
 import type { Context } from "hono";
@@ -36,40 +35,29 @@ export interface AuditEventInput {
   after?: unknown;
 }
 
-async function write(ctx: AuditContext, event: AuditEventInput): Promise<void> {
-  try {
-    await repos.auditEvent.create({
-      organizationId: ctx.organizationId,
-      actorUserId: ctx.actorUserId ?? null,
-      eventType: event.eventType,
-      resourceType: event.resourceType ?? null,
-      resourceId: event.resourceId ?? null,
-      before: (event.before ?? null) as never,
-      after: (event.after ?? null) as never,
-      ipAddress: ctx.ipAddress ?? null,
-      userAgent: ctx.userAgent ?? null,
-    });
-  } catch (err) {
-    console.error("[audit] failed to record event", event.eventType, err);
-  }
-}
-
 export const audit = {
-  /**
-   * Synchronous write. Awaits the DB insert. Use for security-critical
-   * events where we cannot lose the row (auth, member, billing, etc.).
-   */
+  /** Awaited write. See module header. */
   async record(ctx: AuditContext, event: AuditEventInput): Promise<void> {
-    return write(ctx, event);
+    try {
+      await repos.auditEvent.create({
+        organizationId: ctx.organizationId,
+        actorUserId: ctx.actorUserId ?? null,
+        eventType: event.eventType,
+        resourceType: event.resourceType ?? null,
+        resourceId: event.resourceId ?? null,
+        before: (event.before ?? null) as never,
+        after: (event.after ?? null) as never,
+        ipAddress: ctx.ipAddress ?? null,
+        userAgent: ctx.userAgent ?? null,
+      });
+    } catch (err) {
+      console.error("[audit] failed to record event", event.eventType, err);
+    }
   },
 
-  /**
-   * Fire-and-forget. Resolves immediately; the write happens in the
-   * background. Errors are logged but never thrown to the caller. Use
-   * for high-volume events (deployments, settings, project mutations).
-   */
+  /** Fire-and-forget. Errors are swallowed by `record`. See module header. */
   recordAsync(ctx: AuditContext, event: AuditEventInput): void {
-    void write(ctx, event);
+    void this.record(ctx, event);
   },
 };
 

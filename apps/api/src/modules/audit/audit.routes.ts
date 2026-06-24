@@ -14,7 +14,7 @@ import { Hono } from "hono";
 import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { authMiddleware } from "../../middleware";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 
 export const auditRoutes = new Hono();
@@ -26,8 +26,8 @@ export const auditRoutes = new Hono();
 auditRoutes.use("*", authMiddleware);
 
 auditRoutes.get("/", async (c: Context) => {
-  await permission.assert(c, { resourceType: "audit", resourceId: "*", action: "read" });
-  const organizationId = getActiveOrganizationId(c);
+  await permission.assert(getRequestContext(c), { resourceType: "audit", resourceId: "*", action: "read" });
+  const ctx = getRequestContext(c);
   const cursor = c.req.query("cursor");
   const limit = Math.min(Number(c.req.query("limit") ?? 50), 200);
   const page = Number(c.req.query("page") ?? 1);
@@ -41,7 +41,7 @@ auditRoutes.get("/", async (c: Context) => {
   // it survives concurrent writes (no shifted rows). Page/perPage is
   // the dashboard's "Showing N of M" fallback.
   const result = cursor !== undefined
-    ? await repos.auditEvent.listByOrganization(organizationId, {
+    ? await repos.auditEvent.listByOrganization(ctx.organizationId, {
         cursor,
         limit,
         eventType: eventType || undefined,
@@ -49,7 +49,7 @@ auditRoutes.get("/", async (c: Context) => {
         resourceType: resourceType || undefined,
         resourceId: resourceId || undefined,
       })
-    : await repos.auditEvent.listByOrganization(organizationId, {
+    : await repos.auditEvent.listByOrganization(ctx.organizationId, {
         page,
         perPage,
         eventType: eventType || undefined,
@@ -58,11 +58,28 @@ auditRoutes.get("/", async (c: Context) => {
         resourceId: resourceId || undefined,
       });
 
+  // Enrich rows with actor (name/email) via a SINGLE batched user lookup.
+  // Without this, the dashboard would either show raw actorUserId strings
+  // or fan out one /api/user/:id per row — explicit N+1 we avoid here by
+  // collecting the unique ids and joining client-side in a Map.
+  const actorIds = Array.from(
+    new Set(result.rows.map((r) => r.actorUserId).filter((id): id is string => !!id)),
+  );
+  const actors = await repos.user.findManyByIds(actorIds);
+  const actorById = new Map(
+    actors.map((u) => [u.id, { id: u.id, email: u.email, name: u.name }]),
+  );
+
+  const enrichedRows = result.rows.map((row) => ({
+    ...row,
+    actor: row.actorUserId ? actorById.get(row.actorUserId) ?? null : null,
+  }));
+
   if ("pageInfo" in result) {
-    return c.json({ data: result.rows, pageInfo: result.pageInfo });
+    return c.json({ data: enrichedRows, pageInfo: result.pageInfo });
   }
   return c.json({
-    data: result.rows,
+    data: enrichedRows,
     total: result.total,
     page: result.page,
     perPage: result.perPage,

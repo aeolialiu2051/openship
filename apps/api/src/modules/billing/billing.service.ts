@@ -9,31 +9,46 @@
  * only under CLOUD_MODE (see `billing.routes.ts`).
  */
 
-import Stripe from "stripe";
 import {
   AppError,
   PLANS,
   CREDIT_PACKS,
+  isPlaceholderPriceId,
   safeErrorMessage,
   type PlanTierId,
 } from "@repo/core";
 import { db, schema, eq, asc, desc } from "@repo/db";
-import { env, runtimeTarget } from "../../config/env";
+import { runtimeTarget } from "../../config/env";
+import type { RequestContext } from "../../lib/request-context";
+import { stripe } from "../../lib/stripe-client";
 import { handleStripeEvent as handleStripeWebhook } from "./billing.webhooks";
 import * as billingRepository from "./billing.repository";
 
-/* ---------- Stripe client (lazy) ---------- */
+/* ---------- Idempotency key helpers ---------- */
 
-let _stripe: Stripe | null = null;
+/**
+ * Per-minute idempotency bucket for Stripe mutations the caller may
+ * retry on transient failures (network, our own 5xx). Within a one-
+ * minute window, retries collapse onto the same Stripe object; after
+ * the window, callers get a fresh idempotency key — appropriate for
+ * "user double-clicked Upgrade" but not for "Stripe replayed a
+ * webhook three days later" (those are guarded by other tables).
+ *
+ * Format: `<flow>:<orgId>:<resource>:<yyyymmddhhmm>` so the key is
+ * stable for retries inside the window AND visible to operators in
+ * the Stripe dashboard's idempotency log.
+ */
+function minuteBucket(now: Date = new Date()): string {
+  const y = now.getUTCFullYear();
+  const m = String(now.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(now.getUTCDate()).padStart(2, "0");
+  const h = String(now.getUTCHours()).padStart(2, "0");
+  const mi = String(now.getUTCMinutes()).padStart(2, "0");
+  return `${y}${m}${d}${h}${mi}`;
+}
 
-function getStripe(): Stripe {
-  if (!_stripe) {
-    if (!env.STRIPE_SECRET_KEY) {
-      throw new Error("Stripe is not configured (STRIPE_SECRET_KEY missing)");
-    }
-    _stripe = new Stripe(env.STRIPE_SECRET_KEY);
-  }
-  return _stripe;
+function flowKey(flow: string, orgId: string, resource: string): string {
+  return `${flow}:${orgId}:${resource}:${minuteBucket()}`;
 }
 
 /* ---------- Customer resolution ---------- */
@@ -42,10 +57,16 @@ function getStripe(): Stripe {
  * Resolve the Stripe customer id for an org, creating one if needed.
  *
  * The DB row is a cache; subsequent checkout/portal flows skip the
- * network round-trip. Idempotent: the upsert is keyed on
- * `organization_id`. The webhook handler treats Stripe as the source
- * of truth and overwrites the cache, so a manual deletion of the row
- * self-heals on the next event.
+ * network round-trip. Idempotent against concurrent first-time
+ * checkouts: `customers.create` is sent with `idempotencyKey =
+ * "customer:<orgId>"`, so two requests in the TOCTOU window between
+ * `getCustomerByOrg` and `customers.create` collapse into ONE Stripe
+ * customer instead of minting duplicates. The org gets exactly one
+ * Stripe customer for its lifetime, hence no time bucket on this key.
+ *
+ * The webhook handler treats Stripe as the source of truth and
+ * overwrites the cache, so a manual deletion of the row self-heals
+ * on the next event.
  */
 async function getOrCreateStripeCustomerId(
   organizationId: string,
@@ -54,11 +75,16 @@ async function getOrCreateStripeCustomerId(
   const existing = await billingRepository.getCustomerByOrg(organizationId);
   if (existing) return existing.stripeCustomerId;
 
-  const stripe = getStripe();
-  const customer = await stripe.customers.create({
-    email,
-    metadata: { organizationId },
-  });
+  const customer = await stripe().customers.create(
+    {
+      email,
+      metadata: { organizationId },
+    },
+    // Stable per-org key — org gets exactly ONE Stripe customer over its
+    // lifetime, no time bucket. Concurrent first-time checkouts collapse
+    // onto a single Stripe.Customer instead of minting duplicates.
+    { idempotencyKey: `customer:${organizationId}` },
+  );
   await billingRepository.upsertCustomer({
     orgId: organizationId,
     stripeCustomerId: customer.id,
@@ -83,12 +109,12 @@ async function getOrCreateStripeCustomerId(
  * carry the same attribution without re-reading the session).
  */
 export async function createCheckoutSession(
-  organizationId: string,
-  email: string | undefined,
+  ctx: RequestContext,
   planTierId: PlanTierId,
   interval: "monthly" | "annual",
 ): Promise<{ checkoutUrl: string }> {
-  const stripe = getStripe();
+  const organizationId = ctx.organizationId;
+  const email = ctx.user.email;
   const plan = PLANS[planTierId];
   const stripePriceId = plan.stripePriceId[interval];
 
@@ -100,20 +126,43 @@ export async function createCheckoutSession(
     );
   }
 
+  // Boot-time validation can't catch every misconfiguration (e.g. an
+  // operator wrote a real key for pro but left team on the placeholder
+  // default). Mirror the topup-side check at the point of use — same
+  // shape, same error code — so checkout fails closed with a user-
+  // facing 503 instead of fanning out a literal "price_..._placeholder"
+  // string to Stripe.
+  if (isPlaceholderPriceId(stripePriceId)) {
+    throw new AppError(
+      "Billing is not configured for this plan tier",
+      503,
+      "BILLING_NOT_CONFIGURED",
+    );
+  }
+
   const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    client_reference_id: organizationId,
-    metadata: { organizationId, planTierId, interval },
-    subscription_data: {
+  const session = await stripe().checkout.sessions.create(
+    {
+      mode: "subscription",
+      customer: customerId,
+      client_reference_id: organizationId,
       metadata: { organizationId, planTierId, interval },
+      subscription_data: {
+        metadata: { organizationId, planTierId, interval },
+      },
+      line_items: [{ price: stripePriceId, quantity: 1 }],
+      success_url: `${runtimeTarget.dashboard}/billing/overview?checkout=success`,
+      cancel_url: `${runtimeTarget.dashboard}/billing/plans?checkout=cancelled`,
     },
-    line_items: [{ price: stripePriceId, quantity: 1 }],
-    success_url: `${runtimeTarget.dashboard}/billing/overview?checkout=success`,
-    cancel_url: `${runtimeTarget.dashboard}/billing/plans?checkout=cancelled`,
-  });
+    {
+      idempotencyKey: flowKey(
+        "checkout-sub",
+        organizationId,
+        `${planTierId}-${interval}`,
+      ),
+    },
+  );
 
   if (!session.url) {
     throw new Error("Failed to create checkout session");
@@ -134,12 +183,11 @@ export async function createCheckoutSession(
  * side and mint the topup grant.
  */
 export async function createTopupCheckoutSession(
-  organizationId: string,
-  email: string | undefined,
+  ctx: RequestContext,
   packId: string,
 ): Promise<{ checkoutUrl: string }> {
-  const stripe = getStripe();
-
+  const organizationId = ctx.organizationId;
+  const email = ctx.user.email;
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
   if (!pack) {
     throw new AppError(
@@ -148,28 +196,31 @@ export async function createTopupCheckoutSession(
       "BILLING_PACK_NOT_FOUND",
     );
   }
-  if (!pack.stripePriceId || pack.stripePriceId.includes("placeholder")) {
+  if (!pack.stripePriceId || isPlaceholderPriceId(pack.stripePriceId)) {
     throw new AppError(
-      `Top-up pack ${packId} has no Stripe price configured`,
-      400,
-      "BILLING_PACK_NOT_PURCHASABLE",
+      "Billing is not configured for this plan tier",
+      503,
+      "BILLING_NOT_CONFIGURED",
     );
   }
 
   const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    customer: customerId,
-    client_reference_id: organizationId,
-    metadata: { organizationId, packId },
-    payment_intent_data: {
+  const session = await stripe().checkout.sessions.create(
+    {
+      mode: "payment",
+      customer: customerId,
+      client_reference_id: organizationId,
       metadata: { organizationId, packId },
+      payment_intent_data: {
+        metadata: { organizationId, packId },
+      },
+      line_items: [{ price: pack.stripePriceId, quantity: 1 }],
+      success_url: `${runtimeTarget.dashboard}/billing/overview?topup=success`,
+      cancel_url: `${runtimeTarget.dashboard}/billing/overview?topup=cancelled`,
     },
-    line_items: [{ price: pack.stripePriceId, quantity: 1 }],
-    success_url: `${runtimeTarget.dashboard}/billing/overview?topup=success`,
-    cancel_url: `${runtimeTarget.dashboard}/billing/overview?topup=cancelled`,
-  });
+    { idempotencyKey: flowKey("checkout-topup", organizationId, packId) },
+  );
 
   if (!session.url) {
     throw new Error("Failed to create top-up checkout session");
@@ -200,20 +251,15 @@ export async function createPortalSession(
     );
   }
 
-  const stripe = getStripe();
-  const session = await stripe.billingPortal.sessions.create({
-    customer: customer.stripeCustomerId,
-    return_url: `${runtimeTarget.dashboard}/billing/overview`,
-  });
+  const session = await stripe().billingPortal.sessions.create(
+    {
+      customer: customer.stripeCustomerId,
+      return_url: `${runtimeTarget.dashboard}/billing/overview`,
+    },
+    { idempotencyKey: flowKey("portal", organizationId, "session") },
+  );
 
   return { portalUrl: session.url };
-}
-
-/* ---------- Dashboard reads ---------- */
-
-/** Overview snapshot: tier + balance + period boundaries + status. */
-export async function getBillingState(organizationId: string) {
-  return billingRepository.getBillingState(organizationId);
 }
 
 /* ---------- Cancellation ---------- */
@@ -246,10 +292,17 @@ export async function cancelSubscription(
     );
   }
 
-  const stripe = getStripe();
-  const updated = await stripe.subscriptions.update(sub.stripeSubscriptionId, {
-    cancel_at_period_end: true,
-  });
+  const updated = await stripe().subscriptions.update(
+    sub.stripeSubscriptionId,
+    { cancel_at_period_end: true },
+    {
+      idempotencyKey: flowKey(
+        "sub-cancel-at-period-end",
+        organizationId,
+        sub.stripeSubscriptionId,
+      ),
+    },
+  );
 
   await billingRepository
     .upsertSubscription({

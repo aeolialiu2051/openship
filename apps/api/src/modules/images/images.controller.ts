@@ -3,11 +3,11 @@
  */
 
 import type { Context } from "hono";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import * as imagesService from "./images.service";
 
 export async function list(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const organizationId = getRequestContext(c).organizationId;
   const search = c.req.query("search")?.trim() || undefined;
   const category = c.req.query("category")?.trim() || undefined;
 

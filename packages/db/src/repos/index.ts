@@ -6,6 +6,12 @@ export {
   type GitInstallation,
   type NewGitInstallation,
 } from "./git-installation.repo";
+export {
+  createGithubInstallStateRepo,
+  type GithubInstallState,
+  type NewGithubInstallState,
+  type CreateInstallStateInput,
+} from "./github-install-state.repo";
 export { createProjectAppRepo, type ProjectApp, type NewProjectApp } from "./project-app.repo";
 export {
   createProjectRepo,
@@ -30,6 +36,10 @@ export {
   type ServiceDeployment,
   type NewServiceDeployment,
 } from "./service.repo";
+export {
+  createServiceDeploymentRepo,
+  type ServiceDeploymentStatus,
+} from "./service-deployment.repo";
 export { createSettingsRepo, type UserSettings, type NewUserSettings } from "./settings.repo";
 export {
   createInstanceSettingsRepo,
@@ -107,6 +117,16 @@ export {
   type ChannelKind,
   type DeliveryStatus,
 } from "./notification.repo";
+export {
+  createStripeTopupGrantRepo,
+  type ClaimTopupGrantInput,
+  type ClaimTopupGrantResult,
+} from "./stripe-topup-grant.repo";
+export {
+  createBillingAnniversaryGrantRepo,
+  type ClaimAnniversaryGrantInput,
+  type ClaimAnniversaryGrantResult,
+} from "./billing-anniversary-grant.repo";
 
 // ─── Convenience: pre-bound repos using the singleton db ─────────────────────
 
@@ -115,11 +135,13 @@ import { createUserRepo } from "./user.repo";
 import { createSessionRepo } from "./session.repo";
 import { createAccountRepo } from "./account.repo";
 import { createGitInstallationRepo } from "./git-installation.repo";
+import { createGithubInstallStateRepo } from "./github-install-state.repo";
 import { createProjectAppRepo } from "./project-app.repo";
 import { createProjectRepo } from "./project.repo";
 import { createDeploymentRepo } from "./deployment.repo";
 import { createDomainRepo } from "./domain.repo";
 import { createServiceRepo } from "./service.repo";
+import { createServiceDeploymentRepo } from "./service-deployment.repo";
 import { createSettingsRepo } from "./settings.repo";
 import { createInstanceSettingsRepo } from "./instance-settings.repo";
 import { createServerRepo } from "./server.repo";
@@ -146,6 +168,8 @@ import {
   createNotificationDefaultRepo,
   createNotificationDeliveryRepo,
 } from "./notification.repo";
+import { createStripeTopupGrantRepo } from "./stripe-topup-grant.repo";
+import { createBillingAnniversaryGrantRepo } from "./billing-anniversary-grant.repo";
 
 /**
  * Pre-bound repository instances using the singleton `db`.
@@ -161,11 +185,13 @@ export const repos = {
   session: createSessionRepo(db),
   account: createAccountRepo(db),
   gitInstallation: createGitInstallationRepo(db),
+  githubInstallState: createGithubInstallStateRepo(db),
   projectApp: createProjectAppRepo(db),
   project: createProjectRepo(db),
   deployment: createDeploymentRepo(db),
   domain: createDomainRepo(db),
   service: createServiceRepo(db),
+  serviceDeployment: createServiceDeploymentRepo(db),
   settings: createSettingsRepo(db),
   instanceSettings: createInstanceSettingsRepo(db),
   server: createServerRepo(db),
@@ -188,4 +214,6 @@ export const repos = {
   notificationSubscription: createNotificationSubscriptionRepo(db),
   notificationDefault: createNotificationDefaultRepo(db),
   notificationDelivery: createNotificationDeliveryRepo(db),
+  stripeTopupGrant: createStripeTopupGrantRepo(db),
+  billingAnniversaryGrant: createBillingAnniversaryGrantRepo(db),
 } as const;

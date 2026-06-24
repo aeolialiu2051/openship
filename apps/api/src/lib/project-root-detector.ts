@@ -697,8 +697,13 @@ export function selectPreferredSingleAppRoot(
 export interface MonorepoWorkspace {
   /** Package manager declared at the repo root (npm/pnpm/yarn/bun). */
   packageManager: string;
-  /** Workspace-aware install command, e.g. "pnpm install" or "npm install". */
-  installCommand: string;
+  /**
+   * Initial suggested prepare command — runs ONCE at the repo root
+   * before per-sub-app builds. Detector seeds this with the workspace-
+   * aware install (e.g. "pnpm install" / "npm install"); operators can
+   * edit it to chain additional prep (codegen, schema sync) with `&&`.
+   */
+  prepareCommand: string;
 }
 
 export interface MonorepoApp {
@@ -776,7 +781,7 @@ export function discoverMonorepoApps(
     apps,
     workspace: {
       packageManager: resolvedPackageManager,
-      installCommand,
+      prepareCommand: installCommand,
     },
   };
 }

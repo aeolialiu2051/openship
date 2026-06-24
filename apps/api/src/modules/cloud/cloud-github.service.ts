@@ -24,6 +24,8 @@ import {
   peekAndConsumeInstallState,
 } from "../../lib/github-install-state";
 import { createEphemeralStore } from "../../lib/ephemeral-store";
+import { buildBackgroundContext } from "../../lib/request-context";
+import { resolveOrgOwner } from "../../lib/org-actor";
 
 // ─── OAuth bridge store (shared between handoff + bridge handlers) ──────────
 //
@@ -53,14 +55,8 @@ export const oauthBridgeStore = createEphemeralStore<OauthBridgeRow>();
 async function resolveCloudOwnerById(
   organizationId: string,
 ): Promise<{ ownerUserId: string; organizationId: string }> {
-  const members = await repos.member.listByOrganization(organizationId);
-  const owner = members.find((m) => m.role === "owner");
-  if (!owner) {
-    throw new Error(
-      `Organization ${organizationId} has no owner — cannot resolve cloud bearer`,
-    );
-  }
-  return { ownerUserId: owner.userId, organizationId };
+  const owner = await resolveOrgOwner(organizationId, "throw");
+  return { ownerUserId: owner!.userId, organizationId };
 }
 
 // ─── OAuth bridge: cookie allowlist policy ───────────────────────────────────
@@ -288,9 +284,18 @@ export async function attributeGithubInstall(input: {
       account: { login: string; id: number; avatar_url: string; type: string };
     }>(`https://api.github.com/app/installations/${installationId}`);
 
-    // Resolve organizationId via the user's first membership; fall
-    // back to their personal org (`org_<userId>` — always provisioned).
-    // gitInstallation.organizationId is NOT NULL.
+    // not ctx-scoped: install-attribution background path. This runs on
+    // the SaaS install-callback redirect, which carries the user's
+    // session cookie but not a state nonce we can verify against an
+    // org. The install_state row written by resolveInstallUrl IS
+    // org-aware — see FOLLOW-UP below.
+    //
+    // FOLLOW-UP: the install_state row has the originating org id —
+    // peek that row by installationId BEFORE falling back to
+    // memberships[0]. Today the row is consumed elsewhere
+    // (peekAndConsumeInstallState) so the linkage exists; threading
+    // organizationId from the consumed binding into here would drop
+    // the memberships[0] guess for the App-callback path.
     const memberships = await repos.member
       .listByUser(userId)
       .catch(() => [] as Array<{ organizationId: string }>);
@@ -355,7 +360,16 @@ export async function listOrgInstallations(
   organizationId: string,
 ): Promise<Array<{ id: number; login: string; avatarUrl: string; type: string }>> {
   const { ownerUserId } = await resolveCloudOwnerById(organizationId);
-  const installations = await githubAuth.getUserInstallations(ownerUserId);
+  // Background path: the org owner is the canonical attribution. Build
+  // a minimal ctx so getUserInstallations can use ctx.organizationId
+  // for its install-sync writes without re-guessing memberships[0].
+  const installations = await githubAuth.getUserInstallations(
+    buildBackgroundContext({
+      userId: ownerUserId,
+      organizationId,
+      label: "cloud:list-org-installations",
+    }),
+  );
   return installations.map((i) => ({
     id: i.id,
     login: i.account.login,
@@ -399,7 +413,15 @@ export async function mintOrgInstallationToken(
   }
 
   const token = await githubAuth
-    .getInstallationToken(ownerUserId, owner, installation.installationId)
+    .getInstallationToken(
+      buildBackgroundContext({
+        userId: ownerUserId,
+        organizationId,
+        label: "cloud:mint-installation-token",
+      }),
+      owner,
+      installation.installationId,
+    )
     .catch(() => null);
   if (!token) {
     return { kind: "not-found", owner };

@@ -20,39 +20,16 @@ const r = secureRouter(new Hono(), {
 /** 5 MB - well above typical GitHub payloads (~200 KB). */
 const MAX_WEBHOOK_BODY = 5 * 1024 * 1024;
 
-/**
- * Simple per-IP rate limiter for webhook endpoints.
- * 120 requests per minute per IP - enough for burst pushes, blocks floods.
- */
-const webhookIpCounts = new Map<string, { count: number; resetAt: number }>();
-
-r.use("*", async (c, next) => {
-  const ip = c.var.clientIp;
-  if (!ip) {
-    return c.json(
-      { error: "Missing client IP — webhook must come through the proxy" },
-      400,
-    );
-  }
-  const now = Date.now();
-  const window = 60_000;
-  const max = 120;
-  const entry = webhookIpCounts.get(ip);
-
-  if (!entry || now > entry.resetAt) {
-    webhookIpCounts.set(ip, { count: 1, resetAt: now + window });
-  } else if (entry.count >= max) {
-    return c.json({ error: "Too many requests" }, 429);
-  } else {
-    entry.count++;
-  }
-  await next();
-});
-
+// Rate-limit policy `webhook-ingress` is set in the route spec below —
+// the secureRouter wires it via `lib/rate-limit` (Redis-backed in
+// CLOUD_MODE, memory fallback otherwise). No per-file Map needed.
 r.public(
   "post",
   "/:provider",
-  { reason: "Provider webhook (GitHub/Stripe) - HMAC/signature verified in handler" },
+  {
+    reason: "Provider webhook (GitHub/Stripe) - HMAC/signature verified in handler",
+    rateLimit: "webhook-ingress",
+  },
   bodyLimit({ maxSize: MAX_WEBHOOK_BODY }),
   handleWebhook,
 );

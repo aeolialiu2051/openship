@@ -71,6 +71,18 @@ export interface BuildConfig {
   packageManager: string;
   /** Shell command to install dependencies */
   installCommand: string;
+  /**
+   * Monorepo-only: shell command run ONCE at the workspace root after
+   * the repo is cloned, before any per-service build runs. Use for any
+   * workspace-level prep — install (`pnpm install -w`), codegen
+   * (`pnpm prisma generate`), schema sync, etc. Multiple steps chain
+   * with `&&`.
+   *
+   * Optional — leave undefined for single-app builds. Runtime adapters
+   * may ignore this when they build each service in an isolated
+   * context (Docker per-service builds typically do).
+   */
+  workspacePrepareCommand?: string;
   /** Shell command to build the project */
   buildCommand: string;
   /** Output directory to collect after build */

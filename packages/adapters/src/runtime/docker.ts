@@ -682,6 +682,7 @@ export class DockerRuntime implements RuntimeAdapter {
 
       const buildContext = await createDockerBuildContext(config, {
         requireRepositoryDockerfile: config.stack === "docker",
+        onLog: log.callback,
       });
 
       // Report the size of the context so users know what they're paying

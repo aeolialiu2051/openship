@@ -18,7 +18,16 @@
  */
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { api, endpoints, projectsApi } from "@/lib/api";
+import { api, ApiError, endpoints, projectsApi } from "@/lib/api";
+
+/**
+ * Sentinel error message emitted by `fetchProjectInfo` when the API returns
+ * 404 for the project. Consumers (notably `ProjectSettingsContext`) match
+ * on this exact string to drive the cold-load "project was deleted in
+ * another tab" → /projects redirect path, separate from generic load
+ * failures (5xx, network) which should keep the user on the page.
+ */
+export const PROJECT_INFO_NOT_FOUND = "PROJECT_INFO_NOT_FOUND";
 
 // ─── Shared types ──────────────────────────────────────────────────────────
 
@@ -236,7 +245,18 @@ function useEndpoint<T>(
 // ─── Fetcher functions ─────────────────────────────────────────────────────
 
 async function fetchProjectInfo(id: string): Promise<ProjectInfoData> {
-  const response = await projectsApi.getInfo(id);
+  let response;
+  try {
+    response = await projectsApi.getInfo(id);
+  } catch (err) {
+    // 404 → the project was deleted (in another tab, by a force flow,
+    // direct DB intervention). Surface a sentinel so the context can
+    // redirect to /projects instead of rendering a half-empty layout.
+    if (err instanceof ApiError && err.status === 404) {
+      throw new Error(PROJECT_INFO_NOT_FOUND);
+    }
+    throw err;
+  }
   if (!response.success) {
     throw new Error(response.error || "Failed to load project info");
   }
@@ -275,7 +295,15 @@ async function fetchPeriods(id: string): Promise<AnalyticsPeriodResponse[]> {
  * `invalidateProjectCaches(id)` and the next mount of this hook will refetch.
  */
 export function useProjectInfo(id: string | null | undefined) {
-  return useEndpoint(id, infoCache, fetchProjectInfo);
+  const state = useEndpoint(id, infoCache, fetchProjectInfo);
+  // When the project has been deleted (404 → sentinel), keep `isLoading`
+  // true for consumers. The redirect lands within a tick — pretending
+  // we're still loading keeps the page skeleton on screen instead of
+  // flashing the "no project" empty layout in between.
+  if (state.error === PROJECT_INFO_NOT_FOUND) {
+    return { ...state, isLoading: true };
+  }
+  return state;
 }
 
 /**

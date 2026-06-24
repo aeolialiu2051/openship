@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { ArrowUpRight, Loader2 } from "lucide-react";
+import { api } from "@/lib/api/client";
 
 export function OpenStripePortalButton({ label = "Open Stripe Portal" }: { label?: string }) {
   const [pending, setPending] = useState(false);
@@ -11,14 +12,11 @@ export function OpenStripePortalButton({ label = "Open Stripe Portal" }: { label
     setPending(true);
     setError(null);
     try {
-      const res = await fetch("/api/billing/portal", {
-        method: "POST",
-        credentials: "include",
-      });
-      if (!res.ok) {
-        throw new Error(`Portal request failed (${res.status})`);
-      }
-      const body = (await res.json()) as { data?: { portalUrl?: string }; portalUrl?: string };
+      // Use the shared api client so the URL resolution respects
+      // proxy mode + the new `/api`-suffixed base URL.
+      const body = await api.post<{ data?: { portalUrl?: string }; portalUrl?: string }>(
+        "billing/portal",
+      );
       const portalUrl = body.data?.portalUrl ?? body.portalUrl;
       if (!portalUrl) {
         throw new Error("Portal URL missing from response");

@@ -10,10 +10,14 @@
  *     pushes the new absolute quota for the org's namespace.
  *
  * Tables:
- *   - billing_customer        per-org Stripe customer mapping
- *   - billing_subscription    per-org Stripe subscription history
- *   - credit_pack             catalog of one-shot top-up SKUs
- *   - stripe_webhook_event    idempotency table for Stripe webhook delivery
+ *   - billing_customer            per-org Stripe customer mapping
+ *   - billing_subscription        per-org Stripe subscription history
+ *   - credit_pack                 catalog of one-shot top-up SKUs
+ *   - stripe_webhook_event        idempotency table for Stripe webhook delivery
+ *   - stripe_topup_grant          per-checkout-session topup credit grants
+ *                                 (idempotency: Stripe retries don't double-credit)
+ *   - billing_anniversary_grant   per-period anniversary cron grants
+ *                                 (idempotency: cron crash mid-tick doesn't re-zero)
  */
 
 import {
@@ -116,3 +120,68 @@ export const stripeWebhookEvent = pgTable("stripe_webhook_event", {
   receivedAt: timestamp("received_at").notNull().defaultNow(),
   processedAt: timestamp("processed_at"),
 });
+
+// ─── oblien_webhook_event ────────────────────────────────────────────────────
+// Idempotency table for inbound Oblien webhooks. Mirrors stripe_webhook_event
+// 1:1 — Oblien's event_id is the PK so re-delivery hits a conflict and the
+// handler short-circuits. processed_at stamps when the handler ran to
+// completion. The Postgres advisory-lock pattern from billing.webhooks.ts
+// is reused on top of this table so concurrent deliveries of the same event
+// serialize cleanly.
+
+export const oblienWebhookEvent = pgTable("oblien_webhook_event", {
+  oblienEventId: text("oblien_event_id").primaryKey(),
+  eventType: text("event_type").notNull(),
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+  processedAt: timestamp("processed_at"),
+});
+
+// ─── stripe_topup_grant ──────────────────────────────────────────────────────
+// Per-checkout-session topup credit grants. Existence of a row keyed by
+// checkout_session_id PROVES the grant was already applied to Oblien quota.
+// Why: `addQuota` is read-modify-write against Oblien (current + delta), so
+// re-running it on a Stripe webhook retry would compound (double-credit).
+// We `INSERT … ON CONFLICT DO NOTHING` BEFORE the Oblien call — losing the
+// race => peer already credited, skip.
+
+export const stripeTopupGrant = pgTable(
+  "stripe_topup_grant",
+  {
+    id: text("id").primaryKey(), // "stg_..."
+    checkoutSessionId: text("checkout_session_id").notNull(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    packId: text("pack_id").notNull(),
+    creditsMilli: bigint("credits_milli", { mode: "number" }).notNull(),
+    grantedAt: timestamp("granted_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_stripe_topup_grant_session").on(table.checkoutSessionId),
+    index("idx_stripe_topup_grant_org").on(table.organizationId),
+  ],
+);
+
+// ─── billing_anniversary_grant ───────────────────────────────────────────────
+// Per-org per-period anniversary cron grants. Unique on (org, period_start)
+// so a cron crash between Oblien resetQuota + local period UPDATE doesn't
+// re-zero quota_used on the next tick — the second tick finds the claim row
+// and skips. The cron MUST claim BEFORE calling resetAndRegrant on Oblien.
+
+export const billingAnniversaryGrant = pgTable(
+  "billing_anniversary_grant",
+  {
+    id: text("id").primaryKey(), // "bag_..."
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    periodStart: timestamp("period_start").notNull(),
+    grantedAt: timestamp("granted_at").notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("uq_billing_anniversary_grant_org_period").on(
+      table.organizationId,
+      table.periodStart,
+    ),
+  ],
+);

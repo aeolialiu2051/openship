@@ -1,280 +1,184 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import {
-  Check,
-  Sparkles,
   ArrowRight,
-  Zap,
   Building2,
-  Loader2,
+  Check,
   Crown,
+  Loader2,
+  Sparkles,
+  Zap,
 } from "lucide-react";
-import type { PlanId } from "@repo/core";
+import type { PlanTierId } from "@repo/core";
 
 /* ------------------------------------------------------------------ */
-/*  Types                                                             */
+/*  Types — mirror the shape returned by GET /api/billing/plans       */
 /* ------------------------------------------------------------------ */
 
 export interface ApiPlan {
-  id: PlanId;
+  id: PlanTierId;
   name: string;
   description: string;
   popular: boolean;
-  monthlyPrice: number;
-  annualPrice: number;
-  limits: {
-    projects: number;
-    deploymentsPerMonth: number;
-    customDomains: number;
-    teamMembers: number;
-    buildMinutes: number;
-    bandwidth: number;
-  };
-  support: string;
+  /** Both fields are cents OR null. Null = "contact sales" / no Stripe price. */
+  price: { monthly: number | null; annual: number | null };
+  monthlyCredits: number | null;
   features: string[];
+  support: string;
+  contactSales?: string | null;
 }
 
 interface PricingCardsProps {
   plans: ApiPlan[];
-  annualDiscount: number;
-  currentPlan?: PlanId;
-  onSelectPlan?: (planId: PlanId, interval: "monthly" | "annual") => void;
+  currentPlan?: PlanTierId;
+  onSelectPlan?: (planId: PlanTierId) => void;
   subscribingPlan?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
-/*  Plan visual config                                                */
+/*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
 const PLAN_ICON: Record<string, React.ReactNode> = {
   free: <Zap className="size-5" />,
   pro: <Crown className="size-5" />,
   team: <Building2 className="size-5" />,
+  enterprise: <Sparkles className="size-5" />,
 };
 
+function formatPrice(cents: number | null): { dollars: string; suffix: string | null } {
+  if (cents === null) return { dollars: "Custom", suffix: null };
+  if (cents === 0) return { dollars: "$0", suffix: null };
+  const dollars = Math.round(cents / 100);
+  return { dollars: `$${dollars}`, suffix: "/mo" };
+}
+
 /* ------------------------------------------------------------------ */
-/*  Component                                                         */
+/*  Component                                                          */
 /* ------------------------------------------------------------------ */
 
 export const PricingCards: React.FC<PricingCardsProps> = ({
   plans,
-  annualDiscount,
   currentPlan = "free",
   onSelectPlan,
   subscribingPlan,
 }) => {
-  const [interval, setInterval] = useState<"monthly" | "annual">("annual");
-
-  const getPrice = (plan: ApiPlan) => {
-    return interval === "annual" ? plan.annualPrice : plan.monthlyPrice;
-  };
-
-  const savePercent = Math.round(annualDiscount * 100);
-
   return (
-    <div className="space-y-10">
-      {/* ── Interval toggle ────────────────────────────────────── */}
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative inline-flex items-center rounded-full border border-border/40 bg-muted/30 p-1">
-          <button
-            onClick={() => setInterval("monthly")}
-            className={`relative z-10 rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
-              interval === "monthly"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground/80"
+    <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-4">
+      {plans.map((plan) => {
+        const { dollars, suffix } = formatPrice(plan.price.monthly);
+        const isCurrent = currentPlan === plan.id;
+        const isPopular = plan.popular;
+        const isEnterprise = plan.id === "enterprise";
+        const isSubscribing = subscribingPlan === plan.id;
+        const icon = PLAN_ICON[plan.id] ?? <Sparkles className="size-5" />;
+
+        return (
+          <div
+            key={plan.id}
+            className={`relative flex flex-col rounded-2xl border bg-card p-6 transition-colors ${
+              isPopular
+                ? "border-primary/50 shadow-[0_0_0_1px_hsl(var(--primary)/0.25)]"
+                : "border-border/50 hover:border-border"
             }`}
           >
-            Monthly
-          </button>
-          <button
-            onClick={() => setInterval("annual")}
-            className={`relative z-10 rounded-full px-5 py-2 text-sm font-medium transition-all duration-200 ${
-              interval === "annual"
-                ? "bg-card text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground/80"
-            }`}
-          >
-            Annual
-          </button>
-        </div>
-        <p
-          className={`text-sm text-muted-foreground transition-all duration-200 ${
-            interval === "annual"
-              ? "translate-y-0 opacity-100"
-              : "pointer-events-none -translate-y-1 opacity-0"
-          }`}
-        >
-          Save {savePercent}% with annual billing
-        </p>
-      </div>
+            {isPopular && (
+              <span className="absolute -top-2.5 left-6 inline-flex items-center gap-1 rounded-full bg-primary px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary-foreground">
+                Most popular
+              </span>
+            )}
 
-      {/* ── Cards grid ─────────────────────────────────────────── */}
-      <div className="grid gap-5 md:grid-cols-3">
-        {plans.map((plan) => {
-          const price = getPrice(plan);
-          const isCurrent = currentPlan === plan.id;
-          const isPopular = plan.popular;
-          const isSubscribing = subscribingPlan === plan.id;
-          const icon = PLAN_ICON[plan.id] ?? <Sparkles className="size-5" />;
-
-          return (
-            <div
-              key={plan.id}
-              className={`group relative flex flex-col rounded-2xl transition-all duration-200 ${
-                isPopular ? "md:-mt-3 md:mb-[-12px]" : ""
-              }`}
-            >
-              {/* Subtle highlight border for popular plan */}
-              {isPopular && (
-                <div className="pointer-events-none absolute -inset-[1px] rounded-2xl bg-primary/20" />
-              )}
-
-              {/* Card body */}
+            {/* Header */}
+            <div className="mb-5 flex items-center gap-2.5">
               <div
-                className={`relative flex h-full flex-col rounded-2xl border bg-card ${
+                className={`flex size-9 items-center justify-center rounded-lg ${
                   isPopular
-                    ? "border-primary/30 shadow-sm"
-                    : "border-border/50 hover:border-border hover:shadow-sm"
-                } transition-all duration-200`}
+                    ? "bg-primary/10 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
               >
-                {/* Popular badge */}
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
-
-                <div className="flex flex-1 flex-col p-7">
-                  {/* Header */}
-                  <div className={isPopular ? "mt-2" : ""}>
-                    <div className="mb-3 flex items-center gap-3">
-                      <div
-                        className={`flex size-10 items-center justify-center rounded-xl ${
-                          isPopular
-                            ? "bg-primary/10 text-primary"
-                            : "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {icon}
-                      </div>
-                      <h3 className="text-base font-semibold text-foreground">
-                        {plan.name}
-                      </h3>
-                    </div>
-                    <p className="text-[13px] leading-relaxed text-muted-foreground">
-                      {plan.description}
-                    </p>
-                  </div>
-
-                  {/* Price */}
-                  <div className="mt-6 mb-6">
-                    <div className="flex items-baseline gap-1.5">
-                      <span className="text-4xl font-bold tracking-tight text-foreground">
-                        ${price}
-                      </span>
-                      {plan.monthlyPrice > 0 && (
-                        <span className="text-sm text-muted-foreground">
-                          /mo
-                        </span>
-                      )}
-                    </div>
-                    {plan.monthlyPrice > 0 && interval === "annual" ? (
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="text-xs text-muted-foreground line-through">
-                          ${plan.monthlyPrice}/mo
-                        </span>
-                        <span className="text-xs font-medium text-foreground">
-                          -{savePercent}%
-                        </span>
-                      </div>
-                    ) : plan.monthlyPrice === 0 ? (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Free forever
-                      </p>
-                    ) : (
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        Billed monthly
-                      </p>
-                    )}
-                  </div>
-
-                  {/* CTA */}
-                  <div className="mb-7">
-                    {isCurrent ? (
-                      <div className="flex w-full items-center justify-center rounded-xl border border-border/50 bg-muted/40 px-4 py-2.5 text-sm font-medium text-muted-foreground">
-                        Current Plan
-                      </div>
-                    ) : isPopular ? (
-                      <button
-                        onClick={() => onSelectPlan?.(plan.id, interval)}
-                        disabled={!!subscribingPlan}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
-                      >
-                        {isSubscribing ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <>
-                            Upgrade to {plan.name}
-                            <ArrowRight className="size-3.5" />
-                          </>
-                        )}
-                      </button>
-                    ) : plan.monthlyPrice === 0 ? (
-                      <div className="flex w-full items-center justify-center rounded-xl border border-border/50 bg-muted/40 px-4 py-2.5 text-sm font-medium text-muted-foreground">
-                        Free Tier
-                      </div>
-                    ) : (
-                      <button
-                        onClick={() => onSelectPlan?.(plan.id, interval)}
-                        disabled={!!subscribingPlan}
-                        className="flex w-full items-center justify-center gap-2 rounded-xl border border-border/50 bg-card px-4 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted/60 disabled:opacity-60"
-                      >
-                        {isSubscribing ? (
-                          <Loader2 className="size-4 animate-spin" />
-                        ) : (
-                          <>
-                            Upgrade to {plan.name}
-                            <ArrowRight className="size-3.5" />
-                          </>
-                        )}
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="mb-5 border-t border-border/30" />
-
-                  {/* Features */}
-                  <div className="flex-1">
-                    <p className="mb-4 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                      What&apos;s included
-                    </p>
-                    <ul className="space-y-3">
-                      {plan.features.map((feature) => (
-                        <li
-                          key={feature}
-                          className="flex items-start gap-3 text-[13px] text-foreground/80"
-                        >
-                          <Check
-                            className={`mt-0.5 size-3.5 shrink-0 ${
-                              isPopular ? "text-primary" : "text-muted-foreground"
-                            }`}
-                            strokeWidth={2.5}
-                          />
-                          {feature}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+                {icon}
               </div>
+              <h3 className="text-base font-semibold text-foreground">{plan.name}</h3>
             </div>
-          );
-        })}
-      </div>
+
+            {/* Price */}
+            <div className="mb-1 flex items-baseline gap-1">
+              <span className="text-4xl font-bold tracking-tight tabular-nums text-foreground">
+                {dollars}
+              </span>
+              {suffix && (
+                <span className="text-sm font-medium text-muted-foreground">
+                  {suffix}
+                </span>
+              )}
+            </div>
+            <p className="mb-6 min-h-[2.5rem] text-[13px] leading-snug text-muted-foreground">
+              {plan.description}
+            </p>
+
+            {/* CTA */}
+            <div className="mb-5">
+              {isCurrent ? (
+                <div className="flex h-10 w-full items-center justify-center rounded-lg border border-border/50 bg-muted/40 text-sm font-medium text-muted-foreground">
+                  Current plan
+                </div>
+              ) : isEnterprise ? (
+                <a
+                  href={plan.contactSales ?? "mailto:sales@openship.io"}
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted/60"
+                >
+                  Contact sales
+                  <ArrowRight className="size-3.5" />
+                </a>
+              ) : plan.price.monthly === 0 ? (
+                <div className="flex h-10 w-full items-center justify-center rounded-lg border border-border/50 bg-muted/40 text-sm font-medium text-muted-foreground">
+                  Free forever
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSelectPlan?.(plan.id)}
+                  disabled={!!subscribingPlan}
+                  className={`flex h-10 w-full items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 ${
+                    isPopular
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "border border-border/50 bg-card text-foreground hover:bg-muted/60"
+                  }`}
+                >
+                  {isSubscribing ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <>
+                      Upgrade
+                      <ArrowRight className="size-3.5" />
+                    </>
+                  )}
+                </button>
+              )}
+            </div>
+
+            {/* Features */}
+            <ul className="space-y-2.5 border-t border-border/30 pt-5">
+              {plan.features.map((feature) => (
+                <li
+                  key={feature}
+                  className="flex items-start gap-2 text-[13px] text-foreground/80"
+                >
+                  <Check
+                    className={`mt-0.5 size-3.5 shrink-0 ${
+                      isPopular ? "text-primary" : "text-muted-foreground"
+                    }`}
+                    strokeWidth={2.5}
+                  />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 };

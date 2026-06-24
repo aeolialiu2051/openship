@@ -4,8 +4,10 @@ import {
   timestamp,
   boolean,
   integer,
+  bigint,
   jsonb,
   index,
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 import { project } from "./project";
 import { deployment } from "./deployment";
@@ -93,6 +95,14 @@ export const service = pgTable("service", {
   packageManager: text("package_manager"),
   /** Build image / runtime base (e.g. "node:22"). Null for compose. */
   buildImage: text("build_image"),
+  /**
+   * Per-service overrides for "files that force this service to
+   * rebuild on any change" — added on top of (not replacing) the
+   * project-level `alwaysRebuildPaths` list. Globs are repo-root-
+   * relative. Honored by the smart per-service deploy change
+   * detector; null = no service-specific overrides.
+   */
+  alwaysRebuildGlobs: jsonb("always_rebuild_globs").$type<string[] | null>(),
 
   /* ── State ──────────────────────────────────────────────────────────── */
   /** Whether this service should be deployed (allows disabling individual services) */
@@ -110,29 +120,120 @@ export const service = pgTable("service", {
 // ─── Service deployments ─────────────────────────────────────────────────────
 
 /**
- * Per-service container state within a deployment.
- * A project deployment fans out into one serviceDeployment per enabled service.
+ * Per-service deployment state.
+ *
+ * A project deployment fans out into one row per enabled service.
+ * Used by the smart per-service deploy path to track which services
+ * built vs which were skipped (unchanged + not forced), and by the
+ * GitHub Checks integration to mirror per-service results back as
+ * individual check runs.
+ *
+ * Status values: `pending | building | deploying | success | failure | skipped | cancelled`.
+ * - `skipped` — service was unchanged AND `deployment.forceAll = false`.
+ * - `success` — supersedes the legacy `running` / `ready` state.
+ * Free-text column with no DB check constraint so new values can be
+ * added without a migration.
  */
-export const serviceDeployment = pgTable("service_deployment", {
-  id: text("id").primaryKey(), // "sd_..."
-  deploymentId: text("deployment_id")
-    .notNull()
-    .references(() => deployment.id, { onDelete: "cascade" }),
-  serviceId: text("service_id")
-    .notNull()
-    .references(() => service.id, { onDelete: "cascade" }),
+export const serviceDeployment = pgTable(
+  "service_deployment",
+  {
+    id: text("id").primaryKey(), // "sd_..."
+    deploymentId: text("deployment_id")
+      .notNull()
+      .references(() => deployment.id, { onDelete: "cascade" }),
+    serviceId: text("service_id")
+      .notNull()
+      .references(() => service.id, { onDelete: "cascade" }),
 
-  /** Docker container ID */
-  containerId: text("container_id"),
-  /** Container status: running | stopped | failed | building */
-  status: text("status").notNull().default("pending"),
-  /** Resolved image reference (pulled or built) */
-  imageRef: text("image_ref"),
-  /** Mapped host port */
-  hostPort: integer("host_port"),
-  /** Internal network IP */
-  ip: text("ip"),
+    /**
+     * Service name snapshotted at deploy time so historical rows
+     * remain meaningful even after the service is renamed or removed.
+     */
+    serviceName: text("service_name"),
 
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-  updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+    /** Docker container ID */
+    containerId: text("container_id"),
+    /** Per-service status — see table-level doc for allowed values. */
+    status: text("status").notNull().default("pending"),
+    /**
+     * Why this service was built (or not). Values:
+     *   - `"changed"`        — files under the service root were touched.
+     *   - `"forced"`         — `deployment.forceAll = true`.
+     *   - `"config-touched"` — a path in `alwaysRebuildPaths` was touched.
+     *   - `"shared-touched"` — a monorepo `monorepoSharedPaths` glob hit.
+     *   - `"manual"`         — single-service redeploy from the dashboard.
+     *   - `"unchanged"`      — no signals matched; service was skipped.
+     */
+    reason: text("reason"),
+    /**
+     * Mirror of `reason` when status = "skipped" — preserved for
+     * legacy callers that read `reasonSkipped` rather than `reason`.
+     * Newer callers should prefer `reason` since it also captures the
+     * "why we DID build" side of the answer.
+     */
+    reasonSkipped: text("reason_skipped"),
+    /** Resolved image reference (pulled or built) */
+    imageRef: text("image_ref"),
+    /** Mapped host port */
+    hostPort: integer("host_port"),
+    /** Internal network IP */
+    ip: text("ip"),
+    /** External URL where this service is reachable (mirrors deployment.url for the multi-service shape) */
+    url: text("url"),
+
+    /* ── Lifecycle timings ──────────────────────────────────────────── */
+    /** When the per-service build/deploy started. Null until picked up. */
+    startedAt: timestamp("started_at"),
+    /** When the per-service build/deploy finished (success OR failure). */
+    finishedAt: timestamp("finished_at"),
+    /** Wall-clock duration in ms (`finishedAt - startedAt`). Denormalized for cheap aggregations. */
+    durationMs: integer("duration_ms"),
+    /** Failure message when status = "failure". Null for non-failure states. */
+    errorMessage: text("error_message"),
+    /**
+     * Backward-compatible alias of `errorMessage`. Older callers wrote
+     * to `error`; newer ones write to `errorMessage`. Keep both
+     * columns until callers converge.
+     */
+    error: text("error"),
+
+    /* ── GitHub Checks integration ──────────────────────────────────── */
+    /**
+     * GitHub `check_run.id` mirrored from this service deployment.
+     * Null on non-PR / non-GitHub deploys. Bigint because GitHub's id
+     * space exceeds 32-bit.
+     */
+    checkRunId: bigint("check_run_id", { mode: "number" }),
+    /** Public URL of the GitHub check run (denormalized for the dashboard). */
+    checkRunUrl: text("check_run_url"),
+
+    /* ── Rollback / logs pointers ───────────────────────────────────── */
+    /**
+     * Per-service mirror of `deployment.artifactRetainedAt` — set
+     * when this service's artifact (image / workspace snapshot) is
+     * archived for rollback. Null = not retained / already purged.
+     */
+    artifactRetainedAt: timestamp("artifact_retained_at"),
+    /**
+     * Pointer into the deployment's build_session.logs structure
+     * scoping which log section belongs to this service (e.g.
+     * "section:<id>"). Free-form string; null for pre-fan-out logs.
+     */
+    logsRef: text("logs_ref"),
+
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+    updatedAt: timestamp("updated_at").notNull().defaultNow(),
+  },
+  (t) => [
+    // One row per (deployment, service). The smart deploy path needs
+    // to upsert by this pair without racing two parallel fan-outs.
+    // This also serves the "list all per-service rows belonging to a
+    // deployment" lookup — deployment_id is the leading column — so no
+    // separate `ix_service_deployment_deployment` is needed.
+    uniqueIndex("uq_service_deployment_dep_svc").on(t.deploymentId, t.serviceId),
+    // "Latest deploy per service, newest first" — used by the per-
+    // service status pill on the project page.
+    index("ix_service_deployment_service_status").on(t.serviceId, t.status),
+    index("ix_service_deployment_service_created").on(t.serviceId, t.createdAt),
+  ],
+);

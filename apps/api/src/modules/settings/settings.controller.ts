@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { getUserId, getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { repos } from "@repo/db";
 import { randomBytes } from "node:crypto";
@@ -22,11 +22,11 @@ function generateId() {
 
 /** GET / - return platform settings for the authenticated user */
 export async function get(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const [buildMode, deployDefaults, cloneCreds] = await Promise.all([
-    getBuildMode(userId),
-    getDeployDefaults(userId),
-    getCloneCredentialsState(userId),
+    getBuildMode(ctx.userId),
+    getDeployDefaults(ctx.userId),
+    getCloneCredentialsState(ctx.userId),
   ]);
   return c.json({ buildMode, ...deployDefaults, ...cloneCreds });
 }
@@ -51,8 +51,7 @@ async function getCloneCredentialsState(userId: string) {
 
 /** PUT / - create or update platform settings */
 export async function upsert(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
 
   const buildMode = body.buildMode || "auto";
@@ -62,14 +61,14 @@ export async function upsert(c: Context) {
 
   const row = await repos.settings.upsert({
     id: generateId(),
-    userId,
+    userId: ctx.userId,
     buildMode,
   });
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "settings.updated",
     resourceType: "settings",
-    resourceId: userId,
+    resourceId: ctx.userId,
     after: {
       buildMode: row.buildMode,
       defaultDeployTarget: isValidDefaultDeployTarget(row.defaultDeployTarget)
@@ -90,25 +89,24 @@ export async function upsert(c: Context) {
 
 /** PATCH /build-mode - update just the build mode preference */
 export async function updateBuildMode(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { buildMode } = await c.req.json();
 
   if (!VALID_MODES.includes(buildMode)) {
     return c.json({ error: "buildMode must be 'auto', 'server', or 'local'" }, 400);
   }
 
-  const existing = await repos.settings.findByUser(userId);
+  const existing = await repos.settings.findByUser(ctx.userId);
   if (!existing) {
-    await repos.settings.upsert({ id: generateId(), userId, buildMode });
+    await repos.settings.upsert({ id: generateId(), userId: ctx.userId, buildMode });
   } else {
-    await repos.settings.update(userId, { buildMode });
+    await repos.settings.update(ctx.userId, { buildMode });
   }
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "settings.updated",
     resourceType: "settings",
-    resourceId: userId,
+    resourceId: ctx.userId,
     after: { action: "buildMode.set", buildMode },
   });
 
@@ -127,8 +125,7 @@ export async function updateBuildMode(c: Context) {
  * the row doesn't carry a stale association.
  */
 export async function updateDeployDefaults(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({}));
 
   const rawTarget = body?.defaultDeployTarget;
@@ -155,26 +152,26 @@ export async function updateDeployDefaults(c: Context) {
     serverId = rawServerId;
   }
 
-  const existing = await repos.settings.findByUser(userId);
+  const existing = await repos.settings.findByUser(ctx.userId);
   if (!existing) {
     await repos.settings.upsert({
       id: generateId(),
-      userId,
+      userId: ctx.userId,
       buildMode: "auto",
       defaultDeployTarget: target,
       defaultServerId: serverId,
     });
   } else {
-    await repos.settings.update(userId, {
+    await repos.settings.update(ctx.userId, {
       defaultDeployTarget: target,
       defaultServerId: serverId,
     });
   }
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "settings.updated",
     resourceType: "settings",
-    resourceId: userId,
+    resourceId: ctx.userId,
     after: {
       action: "deployDefaults.set",
       defaultDeployTarget: target,
@@ -200,8 +197,7 @@ export async function updateDeployDefaults(c: Context) {
  * Returns the read-only state (never the token itself).
  */
 export async function updateCloneCredentials(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({}));
 
   const rawToken = body?.token;
@@ -213,7 +209,7 @@ export async function updateCloneCredentials(c: Context) {
 
   const asDefault = body?.asDefault === true;
 
-  const existing = await repos.settings.findByUser(userId);
+  const existing = await repos.settings.findByUser(ctx.userId);
   const updates: Partial<{
     cloneTokenEncrypted: string | null;
     cloneTokenSetAt: Date | null;
@@ -236,20 +232,20 @@ export async function updateCloneCredentials(c: Context) {
   if (!existing) {
     await repos.settings.upsert({
       id: generateId(),
-      userId,
+      userId: ctx.userId,
       buildMode: "auto",
       ...updates,
     });
   } else {
-    await repos.settings.update(userId, updates);
+    await repos.settings.update(ctx.userId, updates);
   }
 
   // Audit signal only - never include the token itself or even the
   // ciphertext. Just whether a token is now stored + the asDefault flag.
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "settings.updated",
     resourceType: "settings",
-    resourceId: userId,
+    resourceId: ctx.userId,
     after: {
       action: clearing
         ? "cloneCredentials.cleared"
@@ -260,7 +256,7 @@ export async function updateCloneCredentials(c: Context) {
     },
   });
 
-  return c.json(await getCloneCredentialsState(userId));
+  return c.json(await getCloneCredentialsState(ctx.userId));
 }
 
 /**
@@ -271,8 +267,7 @@ export async function updateCloneCredentials(c: Context) {
  * Once set to anything other than "prompt", the deploy nudge stops asking.
  */
 export async function updateCloneStrategyPreference(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({}));
   const pref = body?.preference;
   if (!VALID_CLONE_STRATEGY_PREFERENCES.includes(pref)) {
@@ -284,21 +279,21 @@ export async function updateCloneStrategyPreference(c: Context) {
     );
   }
 
-  const existing = await repos.settings.findByUser(userId);
+  const existing = await repos.settings.findByUser(ctx.userId);
   if (!existing) {
     await repos.settings.upsert({
       id: generateId(),
-      userId,
+      userId: ctx.userId,
       buildMode: "auto",
       cloneStrategyPreference: pref,
     });
   } else {
-    await repos.settings.update(userId, { cloneStrategyPreference: pref });
+    await repos.settings.update(ctx.userId, { cloneStrategyPreference: pref });
   }
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "settings.updated",
     resourceType: "settings",
-    resourceId: userId,
+    resourceId: ctx.userId,
     after: { action: "cloneStrategyPreference.set", cloneStrategyPreference: pref },
   });
   return c.json({ cloneStrategyPreference: pref });

@@ -17,19 +17,7 @@
 import { api, getApiBaseUrl } from "./client";
 import { endpoints } from "./endpoints";
 
-// IMPORTANT: protocol prefixes are SHARED with the server terminal so
-// the dashboard's hook + xterm wire layer is symmetric. The server-
-// side controllers parse identical prefixes.
-import {
-  TERMINAL_SUBPROTOCOL_PREFIX,
-  TERMINAL_RESUME_SUBPROTOCOL_PREFIX,
-  type TerminalTicketResponse,
-} from "./terminal";
-
-export {
-  TERMINAL_SUBPROTOCOL_PREFIX,
-  TERMINAL_RESUME_SUBPROTOCOL_PREFIX,
-};
+import type { TerminalTicketResponse } from "./terminal";
 
 export async function requestServiceTerminalTicket(
   serviceId: string,

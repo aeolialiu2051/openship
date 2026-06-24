@@ -18,13 +18,15 @@ import { hashPassword } from "better-auth/crypto";
 import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
 import { env } from "../../config";
 import { audit, auditContextFrom } from "../../lib/audit";
+import { getRequestContext } from "../../lib/request-context";
 import { clearAuthModeCache } from "../../lib/auth-mode";
+import { assertNotCloud } from "../../lib/controller-helpers";
 import { normalizeRollbackWindow } from "../../lib/release-retention";
 import { sshManager } from "../../lib/ssh-manager";
 import { encryptSecretField } from "@/lib/credential-encryption";
 import { ensureLocalUser, invalidateLocalUserCache } from "../../lib/local-user";
 import { COOKIE_PREFIX } from "../../lib/auth";
-import { createLocalSession } from "../../lib/cloud-auth-proxy";
+import { mintSession } from "../../lib/cloud-auth-proxy";
 import { invalidatePlatformTransportCache } from "../../lib/mail";
 
 const VALID_AUTH_MODES = ["none", "local", "cloud"] as const;
@@ -87,19 +89,14 @@ function validateAuthModeChange(body: Record<string, unknown>): AuthModeValidati
   return { ok: true, value };
 }
 
-/** Guard - returns 404 in cloud mode (defense-in-depth) */
-function assertNotCloud(c: Context): boolean {
-  if (env.CLOUD_MODE) {
-    c.status(404);
-    c.body(null);
-    return false;
-  }
-  return true;
-}
 
-/** POST /system/setup - push all instance settings from desktop app */
+/** POST /system/setup - push all instance settings from desktop app.
+ *
+ *  PRE-AUTH: runs under internalAuth (shared token), no RequestContext.
+ *  Reads activeOrganizationId off the raw Hono context when middleware
+ *  happens to have set it; otherwise treats the row as instance-global. */
 export async function setup(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const body = await c.req.json();
 
@@ -173,7 +170,7 @@ export async function setup(c: Context) {
 
 /** GET /system/setup - retrieve current instance settings */
 export async function getSetup(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const settings = await repos.instanceSettings.get();
   const servers = await repos.server.list();
@@ -194,7 +191,7 @@ export async function getSetup(c: Context) {
 
 /** PATCH /system/settings - partial update instance-level settings (non-SSH) */
 export async function updateSettings(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const body = (await c.req.json()) as Record<string, unknown>;
 
@@ -243,11 +240,8 @@ export async function updateSettings(c: Context) {
   clearAuthModeCache();
 
   if (authModeChange) {
-    const user = c.get("user") as { id?: string } | undefined;
-    const orgIdRaw = c.get("activeOrganizationId");
-    const organizationId =
-      typeof orgIdRaw === "string" && orgIdRaw.length > 0 ? orgIdRaw : "instance";
-    audit.recordAsync(auditContextFrom(c, organizationId, user?.id ?? null), {
+    const ctx = getRequestContext(c);
+    audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
       eventType: "auth-mode-changed",
       resourceType: "instance-settings",
       resourceId: "instance",
@@ -261,7 +255,7 @@ export async function updateSettings(c: Context) {
 
 /** DELETE /system/settings - remove server configuration */
 export async function deleteSettings(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   await repos.instanceSettings.delete();
 
@@ -298,7 +292,7 @@ export async function deleteSettings(c: Context) {
  * No auth required - used by CLI polling and first-run detection.
  */
 export async function onboardingStatus(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const servers = await repos.server.list();
   return c.json({ configured: servers.length > 0 });
@@ -329,7 +323,7 @@ export async function onboardingStatus(c: Context) {
  * the instance in zero-auth mode and the operator can retry.
  */
 export async function upgradeToAuth(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const settings = await repos.instanceSettings.get();
   const currentMode = settings?.authMode ?? "none";
@@ -458,7 +452,12 @@ export async function upgradeToAuth(c: Context) {
   // 6. Mint a fresh session so the browser stays signed in.
   const ipAddress = c.req.header("x-forwarded-for") ?? "127.0.0.1";
   const userAgent = c.req.header("user-agent") ?? "upgrade";
-  const session = await createLocalSession(localUser.id, ipAddress, userAgent);
+  const session = await mintSession({
+    purpose: "local-cookie",
+    userId: localUser.id,
+    ipAddress,
+    userAgent,
+  });
   await setSignedCookie(
     c,
     `${COOKIE_PREFIX}.session_token`,
@@ -490,7 +489,7 @@ export async function upgradeToAuth(c: Context) {
  * After the first server is created this endpoint returns 403.
  */
 export async function onboardingSetup(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const servers = await repos.server.list();
   if (servers.length > 0) {

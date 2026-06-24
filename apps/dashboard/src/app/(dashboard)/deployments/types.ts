@@ -1,6 +1,27 @@
+export interface ServiceDeploymentSummary {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  /** Per-service deploy state. Maps to the `service_deployment.status` column. */
+  status:
+    | "pending"
+    | "building"
+    | "deploying"
+    | "in_progress"
+    | "success"
+    | "failure"
+    | "skipped"
+    | "cancelled";
+  /** Why the row landed in its current status — "unchanged", "forced", etc. */
+  reason?: string | null;
+  errorMessage?: string | null;
+  url?: string | null;
+  checkRunUrl?: string | null;
+}
+
 export interface Deployment {
   id: string;
-  status: "success" | "failed" | "building" | "pending" | "canceled" | "cancelled";
+  status: "success" | "failed" | "building" | "pending" | "canceled" | "cancelled" | "partial_failure";
   domain: string;
   framework: string;
   commit: {
@@ -33,6 +54,12 @@ export interface Deployment {
   artifactRetainedAt?: string | null;
   pinned?: boolean;
   isActive?: boolean;
+  /**
+   * Per-service deploy fan-out for this deployment. Populated when the
+   * orchestrator-aware listing endpoint can resolve service_deployment
+   * rows; omitted for single-app projects.
+   */
+  serviceDeployments?: ServiceDeploymentSummary[];
 }
 
 export interface Project {

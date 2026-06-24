@@ -74,12 +74,22 @@ r.post("/cancel", { tag: "billing:admin" }, billingController.cancelSubscription
 
 /* ---------- One-shot top-ups ---------- */
 r.get("/topup-packs", { tag: "billing:read" }, billingController.listTopupPacks);
-r.post("/topup", { tag: "billing:write" }, billingController.createTopup);
+r.post(
+  "/topup",
+  { tag: "billing:write", rateLimit: "billing-portal" },
+  billingController.createTopup,
+);
 
 /* ---------- Stripe Portal (invoices + PM management) ---------- */
 // POST (not GET) because creating a portal session is a Stripe-side
-// mutation: each call mints a new short-lived session token.
-r.post("/portal", { tag: "billing:write" }, billingController.createPortal);
+// mutation: each call mints a new short-lived session token. Tight
+// per-org rate limit caps runaway frontend retry loops that would
+// otherwise rack up Stripe API spend.
+r.post(
+  "/portal",
+  { tag: "billing:write", rateLimit: "billing-portal" },
+  billingController.createPortal,
+);
 
 /* ---------- Webhook ---------- */
 r.public(

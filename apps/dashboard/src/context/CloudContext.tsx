@@ -11,7 +11,6 @@ import {
 } from "react";
 import { Cloud, ExternalLink, X, Rocket, Shield, Globe, Zap, Loader2 } from "lucide-react";
 import { cloudApi } from "@/lib/api";
-import { getApiOrigin } from "@/lib/api/urls";
 import {
   getCloudConnectHandoffUrl,
   generatePkceVerifier,
@@ -132,6 +131,46 @@ export function CloudProvider({ children }: { children: ReactNode }) {
     checkStatus();
   }, [checkStatus]);
 
+  // Listen for the popup's "cloud-connect-success" postMessage so we
+  // refresh status the instant the callback page reports finalize OK,
+  // rather than waiting for the popup-close poll in startBrowserConnect.
+  //
+  // First call covers 95% of cases. If that first call somehow comes
+  // back disconnected (mount-state race, propagation lag), one
+  // delayed retry covers it without spamming the API with three calls
+  // per connect.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    async function refreshOnce() {
+      try {
+        const res = await cloudApi.status();
+        const isConnected = res?.connected === true;
+        setConnected(isConnected);
+        setCloudUser(res?.user ?? null);
+        return isConnected;
+      } catch {
+        return false;
+      }
+    }
+    function onMessage(e: MessageEvent) {
+      if (e.origin !== window.location.origin) return;
+      if (e.data && typeof e.data === "object" && e.data.type === "cloud-connect-success") {
+        void refreshOnce().then((ok) => {
+          if (ok) return;
+          // First refresh said "still disconnected" — try once more
+          // after a settle window in case of a propagation race.
+          retryTimer = setTimeout(() => void refreshOnce(), 600);
+        });
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => {
+      window.removeEventListener("message", onMessage);
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, []);
+
   const isConnected = hasNativeCloudAccess || connected;
 
   const requireCloud = useCallback(
@@ -150,7 +189,16 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   // handoff post-auth via getPostAuthRedirect). Hitting /login first
   // would let (auth)/layout.tsx silently drop the callback param when
   // the SaaS already has a session.
-  const callbackUrl = `${getApiOrigin(typeof window !== "undefined" ? window.location.origin : undefined)}/api/cloud/connect-callback`;
+  //
+  // The callback URL is the DASHBOARD origin (not the API origin) because
+  // the PKCE verifier is stashed in localStorage below, on the dashboard
+  // origin. localStorage is per-origin — if the popup lands on the API
+  // origin (different port in split-port self-hosted), the verifier is
+  // invisible and the PKCE exchange fails on the SaaS side.
+  const callbackUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/cloud-connect-callback`
+      : "/cloud-connect-callback";
 
   /** Build the connect handoff URL with a fresh PKCE binding.
    *  Stashes the verifier in localStorage keyed by the flow id (which is

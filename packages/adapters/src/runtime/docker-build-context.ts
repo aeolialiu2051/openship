@@ -1,20 +1,98 @@
-import { execFile as cpExecFile } from "node:child_process";
+import { spawn } from "node:child_process";
 import { access, cp, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, relative, sep } from "node:path";
-import { promisify } from "node:util";
 
 import ignore from "ignore";
 
 import { STACKS, TRANSFER_EXCLUDES, type StackDefinition, type StackId } from "@repo/core";
 
-import type { BuildConfig } from "../types";
+import type { BuildConfig, LogCallback } from "../types";
 
 import { injectGitToken } from "./build-pipeline";
 import { generateDockerfile } from "./docker-build-plan";
 import { resolveDockerfileCandidates, resolveDockerRootDirectory } from "./docker-paths";
 
-const execFileAsync = promisify(cpExecFile);
+/**
+ * Per-clone timeout. Five minutes is generous for a depth-1 clone over
+ * normal connectivity and still bounds a hung clone (DNS hang, dead
+ * proxy, network partition) so the build fails with a clear error
+ * instead of pinning a build slot until the outer build timeout.
+ */
+const GIT_CLONE_TIMEOUT_MS = 5 * 60_000;
+const GIT_CHECKOUT_TIMEOUT_MS = 60_000;
+
+/**
+ * Run a git subcommand with stderr streamed into the build log and a
+ * hard timeout. WHY each env / flag matters:
+ *   - GIT_TERMINAL_PROMPT=0 — never prompt for credentials; fail fast.
+ *   - GIT_ASKPASS=/bin/echo — backstop for git builds that still try
+ *     the askpass path; echo returns empty so git errors out instead
+ *     of hanging on a non-existent tty.
+ *   - --progress (caller-supplied) — git silences progress when stdout
+ *     isn't a tty; we force it so the build-log stream stays alive
+ *     during long clones (visible movement, not an idle "Cloning…").
+ *   - spawn (not exec) — argv array avoids shell interpolation of the
+ *     repo URL / branch; we don't have a shell-injection vector but
+ *     also no need for one.
+ */
+function spawnGit(
+  args: string[],
+  opts: { timeoutMs: number; onLog?: LogCallback },
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn("git", args, {
+      stdio: ["ignore", "pipe", "pipe"],
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: "0",
+        GIT_ASKPASS: "/bin/echo",
+      },
+    });
+
+    let stderr = "";
+    const emit = opts.onLog;
+    const flushLine = (line: string) => {
+      const trimmed = line.trimEnd();
+      if (!trimmed) return;
+      if (emit) {
+        emit({ timestamp: new Date().toISOString(), message: trimmed, level: "info" });
+      }
+    };
+
+    child.stdout?.on("data", (buf: Buffer) => {
+      for (const ln of buf.toString().split(/\r?\n/)) flushLine(ln);
+    });
+    child.stderr?.on("data", (buf: Buffer) => {
+      const text = buf.toString();
+      stderr += text;
+      // Git emits progress on stderr — stream it the same way as stdout
+      // so the user sees activity, then surface the tail on failure.
+      for (const ln of text.split(/\r?\n/)) flushLine(ln);
+    });
+
+    const timeout = setTimeout(() => {
+      child.kill("SIGKILL");
+      reject(
+        new Error(
+          `git ${args.find((a) => !a.startsWith("-")) ?? "command"} timed out after ${Math.round(
+            opts.timeoutMs / 1000,
+          )}s`,
+        ),
+      );
+    }, opts.timeoutMs);
+
+    child.on("error", (err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
+    child.on("close", (code) => {
+      clearTimeout(timeout);
+      if (code === 0) resolve();
+      else reject(new Error(`git exited with code ${code}: ${stderr.trim().slice(-500) || "no stderr"}`));
+    });
+  });
+}
 
 const GENERATED_DOCKERFILE_NAME = "Dockerfile.openship";
 
@@ -129,14 +207,18 @@ async function copyLocalSource(
   });
 }
 
-async function cloneGitSource(config: BuildConfig, targetPath: string): Promise<void> {
+async function cloneGitSource(
+  config: BuildConfig,
+  targetPath: string,
+  onLog?: LogCallback,
+): Promise<void> {
   const cloneUrl = injectGitToken(config.repoUrl, config.gitToken);
-  await execFileAsync(
-    "git",
+  await spawnGit(
     [
       "-c",
       "credential.helper=",
       "clone",
+      "--progress",
       "--depth",
       config.commitSha ? "50" : "1",
       "--branch",
@@ -144,24 +226,21 @@ async function cloneGitSource(config: BuildConfig, targetPath: string): Promise<
       cloneUrl,
       targetPath,
     ],
-    {
-      env: {
-        ...process.env,
-        GIT_TERMINAL_PROMPT: "0",
-        GIT_ASKPASS: "true",
-      },
-    },
+    { timeoutMs: GIT_CLONE_TIMEOUT_MS, onLog },
   );
 
   if (config.commitSha) {
-    await execFileAsync("git", [
-      "-c",
-      "credential.helper=",
-      "-C",
-      targetPath,
-      "checkout",
-      config.commitSha,
-    ]);
+    await spawnGit(
+      [
+        "-c",
+        "credential.helper=",
+        "-C",
+        targetPath,
+        "checkout",
+        config.commitSha,
+      ],
+      { timeoutMs: GIT_CHECKOUT_TIMEOUT_MS, onLog },
+    );
   }
 
   await rm(join(targetPath, ".git"), { recursive: true, force: true });
@@ -178,7 +257,7 @@ export interface DockerBuildContext {
 
 export async function createDockerBuildContext(
   config: BuildConfig,
-  opts?: { requireRepositoryDockerfile?: boolean },
+  opts?: { requireRepositoryDockerfile?: boolean; onLog?: LogCallback },
 ): Promise<DockerBuildContext> {
   const contextDir = await mkdtemp(join(tmpdir(), "openship-docker-context-"));
   const excludes = getDockerContextExcludes(config);
@@ -189,7 +268,9 @@ export async function createDockerBuildContext(
       const dockerignoreMatcher = await loadDockerignoreMatcher(config.localPath);
       await copyLocalSource(config.localPath, contextDir, excludes, dockerignoreMatcher);
     } else {
-      await cloneGitSource(config, contextDir);
+      // Pass the log callback so the clone's stderr/progress lines land
+      // in the build-log stream instead of being silently buffered.
+      await cloneGitSource(config, contextDir, opts?.onLog);
       const dockerignoreMatcher = await loadDockerignoreMatcher(contextDir);
       await pruneContextDirectory(contextDir, contextDir, excludes, dockerignoreMatcher);
     }

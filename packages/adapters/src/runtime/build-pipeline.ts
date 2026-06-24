@@ -168,13 +168,49 @@ export async function runBuildPipeline(
         `Cloning ${config.repoUrl} (branch: ${config.branch})`,
         async () => {
           const cloneUrl = injectGitToken(config.repoUrl, config.gitToken);
+          // Git env preamble for every clone/fetch invocation. WHY:
+          //   GIT_TERMINAL_PROMPT=0 — don't prompt for credentials on a
+          //     missing token; fail fast with stderr instead of hanging
+          //     attached to a non-existent tty.
+          //   GIT_ASKPASS=/bin/echo — backstop for builds of git that
+          //     ignore GIT_TERMINAL_PROMPT for the askpass path. Echo
+          //     returns immediately so the prompt resolves to empty and
+          //     git errors out cleanly.
+          //   credential.helper= — disable any host-level credential
+          //     helper (osxkeychain, libsecret) from injecting stored
+          //     creds; the URL token is the only auth we want here.
+          //   --progress — git silences progress when stdout isn't a
+          //     tty (build pipes are stdout/stderr captures); forcing
+          //     it on keeps the log stream alive during long clones so
+          //     the user sees movement, not an idle "Cloning…" line.
+          const GIT_ENV =
+            "GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/echo";
           if (config.commitSha) {
-            await exec(
-              `GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone --branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(env.projectDir)} && cd ${sq(env.projectDir)} && git -c credential.helper= checkout ${sq(config.commitSha)}`,
-            );
+            // Depth 50 strikes a balance: deep enough to reach the
+            // commit for the vast majority of rollbacks, but still
+            // far cheaper than a full history fetch. Older rollback
+            // targets fall through to the unshallow fallback below.
+            try {
+              await exec(
+                `${GIT_ENV} git -c credential.helper= clone --progress --depth 50 --branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(env.projectDir)} && cd ${sq(env.projectDir)} && git -c credential.helper= -c advice.detachedHead=false checkout ${sq(config.commitSha)}`,
+              );
+            } catch (initialErr) {
+              // Fallback: SHA not in the shallow window (rollback
+              // targets more than 50 commits old). Unshallow the
+              // clone and retry the checkout. We rethrow the
+              // original error if the unshallow itself fails so the
+              // user sees the most actionable message.
+              logger.log(
+                `Checkout of ${config.commitSha} failed inside the depth-50 clone; running git fetch --unshallow and retrying.`,
+                "warn",
+              );
+              await exec(
+                `cd ${sq(env.projectDir)} && ${GIT_ENV} git -c credential.helper= fetch --progress --unshallow && git -c credential.helper= -c advice.detachedHead=false checkout ${sq(config.commitSha)}`,
+              );
+            }
           } else {
             await exec(
-              `GIT_TERMINAL_PROMPT=0 git -c credential.helper= clone --depth 1 --branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(env.projectDir)}`,
+              `${GIT_ENV} git -c credential.helper= clone --progress --depth 1 --branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(env.projectDir)}`,
             );
           }
         },

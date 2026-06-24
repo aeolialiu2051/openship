@@ -32,7 +32,8 @@ import type { ShellSession } from "@repo/adapters";
 import type { TerminalExitReason } from "@repo/db";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
 import { safeErrorMessage } from "@repo/core";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
+import { resolveActiveOrganizationId } from "../../middleware/active-organization";
 import { checkPermission } from "../../lib/permission";
 import {
   attachServiceWs,
@@ -202,8 +203,7 @@ async function resolveServiceForOrg(
 // ─── Ticket endpoint ────────────────────────────────────────────────────────
 
 export async function issueTicket(c: Context) {
-  const user = c.get("user") as { id: string } | undefined;
-  if (!user?.id) return c.json({ error: "Unauthorized" }, 401);
+  const ctx = getRequestContext(c);
 
   const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
   const serviceId = typeof (body as { serviceId?: unknown }).serviceId === "string"
@@ -217,13 +217,12 @@ export async function issueTicket(c: Context) {
   // WS open path, which can communicate a structured error frame.
   // Org-scoped + permission-gated — out-of-org / non-admin services 404
   // indistinguishably from missing.
-  const organizationId = getActiveOrganizationId(c);
-  const result = await resolveServiceForOrg(serviceId, organizationId, user.id);
+  const result = await resolveServiceForOrg(serviceId, ctx.organizationId, ctx.userId);
   if (!result.ok && (result.code === "server_not_found" || result.code === "not_deployed")) {
     return c.json({ error: result.message }, 404);
   }
 
-  const { token, expiresIn } = issueServiceTerminalTicket(user.id, serviceId);
+  const { token, expiresIn } = issueServiceTerminalTicket(ctx, serviceId);
   return c.json({ success: true, token, expiresIn });
 }
 
@@ -254,15 +253,17 @@ export const serviceTerminalWsHandler = upgradeWebSocket(async (c) => {
 
   let userId: string | null = null;
   let ticketServiceId: string | null = null;
-  // Resolve activeOrganizationId here — the WS upgrade route skips the
-  // HTTP authMiddleware (auth happens inside this factory), so the org
-  // context is not pre-set. Mirror the middleware's logic.
+  // not ctx-scoped: WebSocket upgrade path. Bypasses Hono auth
+  // middleware, so identity is re-derived from scratch.
+  //   - Ticket path: ticket carries (userId, orgId, serviceId) baked
+  //     in at mint time → WS scopes against THAT org by construction.
+  //   - Cookie path: no ticket → re-derive via session +
+  //     resolveActiveOrganizationId (same resolver authMiddleware uses).
   let activeOrgId: string | null = null;
   if (ticket) {
     userId = ticket.userId;
     ticketServiceId = ticket.serviceId;
-    const memberships = await repos.member.listByUser(userId).catch(() => []);
-    if (memberships.length > 0) activeOrgId = memberships[0].organizationId;
+    activeOrgId = ticket.organizationId;
   } else {
     try {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -271,16 +272,7 @@ export const serviceTerminalWsHandler = upgradeWebSocket(async (c) => {
         const sessOrgId =
           (session.session as { activeOrganizationId?: string | null } | null)
             ?.activeOrganizationId ?? null;
-        if (sessOrgId) {
-          const stillMember = await repos.member
-            .isMember(sessOrgId, userId)
-            .catch(() => false);
-          if (stillMember) activeOrgId = sessOrgId;
-        }
-        if (!activeOrgId) {
-          const memberships = await repos.member.listByUser(userId).catch(() => []);
-          if (memberships.length > 0) activeOrgId = memberships[0].organizationId;
-        }
+        activeOrgId = await resolveActiveOrganizationId(userId, sessOrgId).catch(() => null);
       }
     } catch {
       /* fall through */

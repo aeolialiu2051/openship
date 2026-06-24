@@ -78,34 +78,56 @@ const DeploymentProcessing: React.FC<DeploymentProcessingProps> = ({ onRedeploy 
   }, [deploymentStatus, state.projectId, config.projectName, config.repo]);
 
   const handleDeleteProject = useCallback(
-    async (deleteApp = true, wipeVolumes = false) => {
+    async (deleteApp = true, wipeVolumes = false, force = false) => {
       if (!state.projectId || isDeleting) return;
       setIsDeleting(true);
       try {
-        const response = await projectsApi.delete(state.projectId, { deleteApp, wipeVolumes });
-        if (response.success) {
+        const response = await projectsApi.delete(state.projectId, {
+          deleteApp,
+          wipeVolumes,
+          force,
+        });
+        if (response.ok) {
+          showToast(deleteApp ? "Project deleted" : "Environment deleted", "success");
+          router.push("/");
+          return;
+        }
+        // 207 — partial success. Row is gone; surface the warning + leave.
+        if (Array.isArray(response.unrecoverable) && response.unrecoverable.length > 0) {
           showToast(
-            deleteApp ? "Project deleted" : "Environment deleted",
+            `Project deleted, but ${response.unrecoverable.length} cleanup step(s) failed.`,
             "success",
+            "Partial cleanup",
           );
           router.push("/");
-        } else {
-          showToast(response.message || response.error || "Failed to delete project", "error");
-          setIsDeleting(false);
+          return;
         }
+        showToast(response.message || response.error || "Failed to delete project", "error");
+        setIsDeleting(false);
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
           const body = (err.body ?? {}) as {
-            failed?: Array<{ resource: string; reason: string }>;
+            code?: string;
+            error?: string;
             message?: string;
+            unrecoverable?: Array<{ step: string; error?: string }>;
           };
-          const failed = body.failed ?? [];
-          console.error("[delete-project] cleanup failed", failed);
-          const summary =
-            failed.length > 0
-              ? `${failed.length} resource${failed.length === 1 ? "" : "s"} couldn't be cleaned up. Retry to attempt again.`
-              : body.message || "Some resources couldn't be cleaned up. Retry to attempt again.";
-          showToast(summary, "error", "Cleanup failed - some resources remain");
+          if (body.code === "PROJECT_HAS_ACTIVE_WORK") {
+            showToast(body.error ?? "Project has active work", "error", "Cannot delete");
+          } else {
+            const reasons = (body.unrecoverable ?? []).map((u) => u.step).join(", ");
+            showToast(
+              reasons
+                ? `Teardown failed at: ${reasons}. Retry to attempt again.`
+                : body.message || body.error || "Teardown failed",
+              "error",
+              "Cleanup failed",
+            );
+          }
+        } else if (err instanceof ApiError && err.status === 404) {
+          showToast("Project already deleted", "success");
+          router.push("/");
+          return;
         } else {
           showToast(getApiErrorMessage(err, "Failed to delete project"), "error");
         }

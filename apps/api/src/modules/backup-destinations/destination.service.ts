@@ -17,6 +17,7 @@ import path from "node:path";
 import { realpath } from "node:fs/promises";
 import { encryptSecretField } from "../../lib/credential-encryption";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
+import type { RequestContext } from "../../lib/request-context";
 import { env } from "../../config/env";
 import { toAdapterRow } from "./hydrate-server";
 import { safeErrorMessage } from "@repo/core";
@@ -191,23 +192,22 @@ export function serializeDestination(row: BackupDestination): SerializedDestinat
 
 // ─── CRUD ────────────────────────────────────────────────────────────────────
 
-export async function listDestinations(organizationId: string): Promise<SerializedDestination[]> {
-  const rows = await repos.backupDestination.listByOrganization(organizationId);
+export async function listDestinations(ctx: RequestContext): Promise<SerializedDestination[]> {
+  const rows = await repos.backupDestination.listByOrganization(ctx.organizationId);
   return rows.map(serializeDestination);
 }
 
 export async function getDestination(
+  ctx: RequestContext,
   id: string,
-  organizationId: string,
 ): Promise<SerializedDestination> {
   const row = await repos.backupDestination.findById(id);
-  assertResourceInOrg(row, "Destination", organizationId, id);
+  assertResourceInOrg(row, "Destination", ctx.organizationId, id);
   return serializeDestination(row);
 }
 
 export async function createDestination(
-  userId: string,
-  organizationId: string,
+  ctx: RequestContext,
   input: CreateDestinationInput,
 ): Promise<SerializedDestination> {
   await validateInput(input);
@@ -228,7 +228,7 @@ export async function createDestination(
     if (
       "organizationId" in server &&
       (server as { organizationId?: string | null }).organizationId &&
-      (server as { organizationId?: string | null }).organizationId !== organizationId
+      (server as { organizationId?: string | null }).organizationId !== ctx.organizationId
     ) {
       throw new Error("Server not accessible");
     }
@@ -237,7 +237,7 @@ export async function createDestination(
   // Uniqueness check (DB has a partial unique index but we want a clean
   // error message before hitting the constraint).
   const existing = await repos.backupDestination.findByNameInOrganization(
-    organizationId,
+    ctx.organizationId,
     input.name,
   );
   if (existing) {
@@ -247,7 +247,7 @@ export async function createDestination(
   const id = `bkd_${crypto.randomUUID()}`;
   const row = await repos.backupDestination.create({
     id,
-    organizationId,
+    organizationId: ctx.organizationId,
     name: input.name,
     kind: input.kind,
     endpoint: input.endpoint ?? null,
@@ -269,12 +269,12 @@ export async function createDestination(
 }
 
 export async function updateDestination(
+  ctx: RequestContext,
   id: string,
-  organizationId: string,
   patch: UpdateDestinationInput,
 ): Promise<SerializedDestination> {
   const existing = await repos.backupDestination.findById(id);
-  assertResourceInOrg(existing, "Destination", organizationId, id);
+  assertResourceInOrg(existing, "Destination", ctx.organizationId, id);
 
   // Re-validate on PATCH: for the `local` kind, every endpoint change
   // must clear validateLocalEndpoint() so the path stays inside BACKUP_LOCAL_ROOT.
@@ -323,9 +323,9 @@ export async function updateDestination(
   return serializeDestination(row);
 }
 
-export async function deleteDestination(id: string, organizationId: string): Promise<void> {
+export async function deleteDestination(ctx: RequestContext, id: string): Promise<void> {
   const row = await repos.backupDestination.findById(id);
-  assertResourceInOrg(row, "Destination", organizationId, id);
+  assertResourceInOrg(row, "Destination", ctx.organizationId, id);
 
   const result = await repos.backupDestination.softDelete(id);
   if (!result.ok) {
@@ -336,11 +336,11 @@ export async function deleteDestination(id: string, organizationId: string): Pro
 // ─── Preflight ───────────────────────────────────────────────────────────────
 
 export async function preflightDestination(
+  ctx: RequestContext,
   id: string,
-  organizationId: string,
 ): Promise<{ ok: boolean; reason?: string }> {
   const row = await repos.backupDestination.findById(id);
-  assertResourceInOrg(row, "Destination", organizationId, id);
+  assertResourceInOrg(row, "Destination", ctx.organizationId, id);
 
   try {
     const adapterRow = await toAdapterRow(row);

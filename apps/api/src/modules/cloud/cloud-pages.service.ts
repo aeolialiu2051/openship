@@ -23,13 +23,14 @@
  *   thin pass-through. No master client. No namespace-membership probe.
  */
 
+import type { RequestContext } from "../../lib/request-context";
 import { getNamespaceClient } from "../../lib/openship-cloud";
 
 export async function createCloudPage(
-  organizationId: string,
+  ctx: RequestContext,
   input: { workspace_id: string; path: string; name: string; slug: string; domain?: string },
 ): Promise<unknown> {
-  const { client, namespace } = await getNamespaceClient(organizationId);
+  const { client, namespace } = await getNamespaceClient(ctx.organizationId);
   // namespace is passed explicitly so Oblien validates the resource
   // belongs to this namespace (defense in depth — the token already
   // scopes to it, but the param lets Oblien reject mismatch upfront).
@@ -46,7 +47,7 @@ export async function createCloudPage(
 export type CloudPageAction = "disable" | "enable" | "delete";
 
 export async function dispatchCloudPageAction(
-  organizationId: string,
+  ctx: RequestContext,
   slug: string,
   action: CloudPageAction,
 ): Promise<{ ok: true } | { ok: false; status: 403; error: string }> {
@@ -54,7 +55,7 @@ export async function dispatchCloudPageAction(
   // — they identify the page by slug. The namespace-scoped token is
   // the only gate; Oblien rejects with 403/404 if the slug belongs
   // to another namespace (caught by isCrossTenantError below).
-  const { client } = await getNamespaceClient(organizationId);
+  const { client } = await getNamespaceClient(ctx.organizationId);
   try {
     switch (action) {
       case "disable":

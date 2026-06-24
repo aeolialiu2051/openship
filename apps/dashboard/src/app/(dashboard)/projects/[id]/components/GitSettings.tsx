@@ -13,6 +13,7 @@ import {
   Github,
   Key,
   Loader2,
+  RotateCcw,
   Trash2,
   Webhook,
   Zap,
@@ -32,6 +33,7 @@ export const GitSettings = () => {
   const github = useGitHub();
   const { showToast } = useToast();
   const [isTogglingAutoDeploy, setIsTogglingAutoDeploy] = useState(false);
+  const [isTogglingRollback, setIsTogglingRollback] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [isSettingDomain, setIsSettingDomain] = useState(false);
@@ -122,6 +124,27 @@ export const GitSettings = () => {
       await refreshGit();
     } finally {
       setIsTogglingAutoDeploy(false);
+    }
+  };
+
+  const handleRollbackStrategyToggle = async () => {
+    setIsTogglingRollback(true);
+    try {
+      // git ⇄ snapshot. Default to git when unset.
+      const next: "git" | "snapshot" =
+        (gitData.defaultRollbackStrategy ?? "git") === "git" ? "snapshot" : "git";
+      await projectsApi.update(id, { defaultRollbackStrategy: next });
+      showToast(
+        next === "git"
+          ? "Rollback strategy: Git-driven (no snapshots)"
+          : "Rollback strategy: Snapshot (artifacts retained)",
+        "success",
+      );
+      await refreshGit();
+    } catch (error) {
+      showToast(getApiErrorMessage(error, "Failed to update rollback strategy"), "error");
+    } finally {
+      setIsTogglingRollback(false);
     }
   };
 
@@ -393,7 +416,7 @@ export const GitSettings = () => {
                 </div>
               )}
 
-              <div className="grid gap-3 sm:grid-cols-2">
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 <InfoCard
                   icon={Zap}
                   title="Auto Deploy"
@@ -442,6 +465,39 @@ export const GitSettings = () => {
                           : "Webhook has not been configured or is not responding"
                   }
                   tone={gitData.webhookActive ? "success" : "neutral"}
+                />
+                <InfoCard
+                  icon={RotateCcw}
+                  title="Rollback strategy"
+                  value={
+                    (gitData.defaultRollbackStrategy ?? "git") === "git"
+                      ? "Git-driven"
+                      : "Snapshot"
+                  }
+                  description={
+                    (gitData.defaultRollbackStrategy ?? "git") === "git"
+                      ? "Rollback re-clones at the previous commit. No disk used."
+                      : "Previous artifact archived for instant rollback. Uses disk."
+                  }
+                  action={
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={(gitData.defaultRollbackStrategy ?? "git") === "snapshot"}
+                      onClick={handleRollbackStrategyToggle}
+                      disabled={isTogglingRollback}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${(gitData.defaultRollbackStrategy ?? "git") === "snapshot" ? "bg-primary" : "bg-muted"} ${isTogglingRollback ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                      aria-label="Toggle snapshot retention"
+                    >
+                      {isTogglingRollback ? (
+                        <span className="mx-auto">
+                          <Loader2 className="size-3.5 animate-spin text-background" />
+                        </span>
+                      ) : (
+                        <span className={`inline-block h-4 w-4 transform rounded-full bg-background transition-transform ${(gitData.defaultRollbackStrategy ?? "git") === "snapshot" ? "translate-x-6" : "translate-x-1"}`} />
+                      )}
+                    </button>
+                  }
                 />
               </div>
             </>

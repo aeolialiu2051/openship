@@ -70,7 +70,7 @@ const WorkspaceCard: React.FC = () => {
           <div>
             <h3 className="text-[15px] font-semibold text-foreground">Workspace</h3>
             <p className="text-xs text-muted-foreground">
-              Shared install at the repo root, run once before each app builds.
+              Runs once at the repo root before each app builds — install, codegen, schema sync, etc.
             </p>
           </div>
         </div>
@@ -86,14 +86,17 @@ const WorkspaceCard: React.FC = () => {
             />
           </div>
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Workspace install</label>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Prepare command</label>
             <input
               type="text"
-              value={workspace.installCommand}
-              onChange={(e) => setWorkspace({ installCommand: e.target.value })}
+              value={workspace.prepareCommand}
+              onChange={(e) => setWorkspace({ prepareCommand: e.target.value })}
               placeholder="pnpm install -w"
               className="w-full px-3 py-2 bg-muted/30 border border-border/50 rounded-xl text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
+            <p className="mt-1 text-[11px] text-muted-foreground/80">
+              Chain with <code>&amp;&amp;</code> for codegen, schema sync, etc.
+            </p>
           </div>
         </div>
       </div>

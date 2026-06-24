@@ -3,7 +3,8 @@
  */
 
 import type { Context } from "hono";
-import { getUserId, getActiveOrganizationId, param } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import * as domainService from "./domain.service";
@@ -12,26 +13,24 @@ import type { TAddDomainBody } from "./domain.schema";
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
 export async function list(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const projectId = c.req.query("projectId");
   if (!projectId) {
     return c.json({ error: "projectId query parameter required" }, 400);
   }
-  await permission.assert(c, { resourceType: "project", resourceId: projectId, action: "read" });
-  const domains = await domainService.listDomains(projectId, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: projectId, action: "read" });
+  const domains = await domainService.listDomains(ctx, projectId);
   return c.json({ data: domains });
 }
 
 export async function add(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<TAddDomainBody>();
   if (body.projectId) {
-    await permission.assert(c, { resourceType: "project", resourceId: body.projectId, action: "write" });
+    await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: body.projectId, action: "write" });
   }
-  const result = await domainService.addDomain(organizationId, body);
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  const result = await domainService.addDomain(ctx, body);
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "domain.added",
     resourceType: "domain",
     resourceId: result.domain.id,
@@ -45,12 +44,11 @@ export async function add(c: Context) {
 }
 
 export async function remove(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "domain", resourceId: id, action: "admin" });
-  await domainService.removeDomain(id, organizationId);
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "admin" });
+  await domainService.removeDomain(ctx, id);
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "domain.removed",
     resourceType: "domain",
     resourceId: id,
@@ -60,18 +58,17 @@ export async function remove(c: Context) {
 }
 
 export async function verify(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "domain", resourceId: id, action: "write" });
-  const result = await domainService.verifyDomain(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
+  const result = await domainService.verifyDomain(ctx, id);
 
   // Audit verify attempts (both success and failure) so DNS verification
   // is traceable in the audit log alongside domain.added / domain.removed.
   // Useful for incident response — if a domain is hijacked via brief CNAME
   // control, the audit trail shows exactly when and from where the verify
   // ran.
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: result.verified ? "domain.verified" : "domain.verify_failed",
     resourceType: "domain",
     resourceId: id,
@@ -89,11 +86,10 @@ export async function verify(c: Context) {
 }
 
 export async function records(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "domain", resourceId: id, action: "read" });
-  const result = await domainService.getDomainRecords(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "read" });
+  const result = await domainService.getDomainRecords(ctx, id);
   return c.json({ data: result });
 }
 
@@ -109,17 +105,17 @@ export async function preview(c: Context) {
 
 /** POST /domains/:id/renew - renew SSL for a single domain */
 export async function renewSsl(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "domain", resourceId: id, action: "write" });
-  const result = await domainService.renewDomainSsl(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
+  const result = await domainService.renewDomainSsl(ctx, id);
   return c.json({ data: result });
 }
 
 /** POST /domains/renew-all - batch SSL renewal for the requesting org's domains */
 export async function renewAllSsl(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const result = await domainService.renewOrgCerts(organizationId);
+  const ctx = getRequestContext(c);
+  const result = await domainService.renewOrgCerts(ctx);
   return c.json({ data: result });
 }
 

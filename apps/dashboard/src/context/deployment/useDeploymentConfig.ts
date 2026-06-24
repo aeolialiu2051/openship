@@ -83,7 +83,7 @@ function buildMonorepoWorkspace(response: PrepareProjectResponse): MonorepoWorks
   if (!response.monorepoWorkspace) return undefined;
   return {
     packageManager: response.monorepoWorkspace.packageManager || "npm",
-    installCommand: response.monorepoWorkspace.installCommand || "",
+    prepareCommand: response.monorepoWorkspace.prepareCommand || "",
   };
 }
 

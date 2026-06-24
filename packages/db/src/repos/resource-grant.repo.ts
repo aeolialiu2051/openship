@@ -215,5 +215,21 @@ export function createResourceGrantRepo(db: Database) {
           ),
         );
     },
+
+    /**
+     * Bulk-delete every grant rows attached to an organization. Called
+     * from `afterDeleteOrganization` so the cascade reaches grants
+     * before the org row's FK CASCADE would (the FK already cascades —
+     * this is here so the auth hook gets a definitive count back for
+     * the audit row and runs even when the parent CASCADE timing
+     * surprises us).
+     */
+    async deleteByOrganization(organizationId: string): Promise<number> {
+      const rows = await db
+        .delete(resourceGrant)
+        .where(eq(resourceGrant.organizationId, organizationId))
+        .returning();
+      return rows.length;
+    },
   };
 }

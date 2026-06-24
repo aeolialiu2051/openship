@@ -4,6 +4,7 @@ import {
   timestamp,
   integer,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { user } from "./auth";
 
@@ -206,6 +207,27 @@ export const userSettings = pgTable("user_settings", {
    * flag is true the API treats gh CLI as if it isn't installed.
    */
   githubCliDisabled: boolean("github_cli_disabled").notNull().default(false),
+
+  /**
+   * Operator opt-in for the gh-CLI escape hatch. The gh CLI token is the
+   * INSTANCE OPERATOR'S long-lived PAT (whatever user ran `gh auth login`
+   * on the host). The previous "owner of any org gets to use it" gate
+   * leaked that token across every org the operator joined later. This
+   * flag is the explicit, per-user opt-in: only the user who flips it on
+   * is treated as the operator, and only when env.GITHUB_AUTH_MODE === "cli"
+   * (or auto-resolves to cli). Defaults to false so a fresh self-host
+   * install cannot transitively grant gh-CLI access to non-operator users.
+   */
+  ghCliOperatorOptedIn: boolean("gh_cli_operator_opted_in").notNull().default(false),
+
+  /**
+   * Validated GitHub scope list captured at PAT save time via
+   * `inspectPatScope`. Stored so we can re-check scope at use-time
+   * without re-issuing `GET /user`. JSON array of OAuth scope strings
+   * (e.g. ["repo", "workflow"]); null when no PAT is configured or
+   * the inspection failed (legacy / pre-validation rows).
+   */
+  patScope: jsonb("pat_scope").$type<string[] | null>(),
 
   // ── Timestamps ─────────────────────────────────────────────────────────────
 

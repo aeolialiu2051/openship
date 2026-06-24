@@ -4,7 +4,8 @@
 
 import type { Context } from "hono";
 import { streamSSE } from "../../lib/sse";
-import { getActiveOrganizationId, param } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
 import { sshManager } from "../../lib/ssh-manager";
 import { repos } from "@repo/db";
@@ -16,17 +17,17 @@ import type { TAnalyticsQuery, TUsageQuery, TUsageStreamQuery } from "./analytic
 
 /** GET /analytics - cumulative summary */
 export async function summary(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId } = c.req.query() as unknown as TAnalyticsQuery;
-  const data = await analyticsService.getAnalyticsSummary(projectId, organizationId);
+  const data = await analyticsService.getAnalyticsSummary(ctx, projectId);
   return c.json({ data });
 }
 
 /** GET /analytics/periods - time-series periods */
 export async function periods(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId, from, to } = c.req.query() as unknown as TAnalyticsQuery;
-  const data = await analyticsService.getAnalyticsPeriods(projectId, organizationId, from, to);
+  const data = await analyticsService.getAnalyticsPeriods(ctx, projectId, from, to);
   return c.json({ data });
 }
 
@@ -34,9 +35,9 @@ export async function periods(c: Context) {
 
 /** GET /analytics/deployments - deployment success/fail/avg build stats */
 export async function deploymentStats(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId } = c.req.query() as unknown as TAnalyticsQuery;
-  const data = await analyticsService.getDeploymentStats(projectId, organizationId);
+  const data = await analyticsService.getDeploymentStats(ctx, projectId);
   return c.json({ data });
 }
 
@@ -44,29 +45,29 @@ export async function deploymentStats(c: Context) {
 
 /** GET /analytics/usage - current container resource usage */
 export async function usage(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId } = c.req.query() as unknown as TUsageQuery;
-  const data = await analyticsService.getContainerUsage(projectId, organizationId);
+  const data = await analyticsService.getContainerUsage(ctx, projectId);
   return c.json({ data });
 }
 
 /** GET /analytics/container - container info (status, IP, uptime) */
 export async function containerInfo(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId } = c.req.query() as unknown as TUsageQuery;
-  const data = await analyticsService.getContainerInfo(projectId, organizationId);
+  const data = await analyticsService.getContainerInfo(ctx, projectId);
   return c.json({ data });
 }
 
 /** GET /analytics/usage/stream - SSE stream of real-time resource usage */
 export async function usageStream(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { projectId } = c.req.query() as unknown as TUsageStreamQuery;
 
   // Verify project belongs to caller's active org. Membership is already
   // confirmed by the route middleware.
   const project = await repos.project.findById(projectId);
-  if (!project || project.organizationId !== organizationId) {
+  if (!project || project.organizationId !== ctx.organizationId) {
     return c.json({ error: "Project not found" }, 404);
   }
 
@@ -119,8 +120,8 @@ export async function usageStream(c: Context) {
 
 /** GET /analytics/dashboard - overview stats for the active org's dashboard */
 export async function dashboard(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const data = await analyticsService.getDashboardStats(organizationId);
+  const ctx = getRequestContext(c);
+  const data = await analyticsService.getDashboardStats(ctx);
   return c.json({ data });
 }
 

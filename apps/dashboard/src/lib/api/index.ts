@@ -134,15 +134,7 @@ export type {
 } from "./notifications";
 
 /* --- Billing ------------------------------------------------------- */
-export {
-  billingApi,
-  getBillingState,
-  getUsage,
-  getTopupPacks,
-  createSubscriptionCheckout,
-  createTopupCheckout,
-  getPortalUrl,
-} from "./billing";
+export { billingApi } from "./billing";
 export type {
   BillingState,
   CreditPack,

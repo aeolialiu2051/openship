@@ -9,8 +9,9 @@ import React, {
   useRef,
   useMemo,
 } from "react";
+import { useRouter } from "next/navigation";
 import { projectsApi, servicesApi, type Service } from "@/lib/api";
-import { useProjectInfo } from "@/hooks/useProjectEndpoints";
+import { PROJECT_INFO_NOT_FOUND, useProjectInfo } from "@/hooks/useProjectEndpoints";
 
 interface ProjectDomain {
   domain: string;
@@ -77,6 +78,7 @@ interface GitData {
   verifiedDomains?: Array<{ hostname: string; ssl: boolean }>;
   installationInstalled?: boolean;
   installUrl?: string;
+  defaultRollbackStrategy?: "git" | "snapshot";
 }
 
 interface ProjectEnvironment {
@@ -298,6 +300,8 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
     error: projectInfoError,
   } = useProjectInfo(id);
 
+  const router = useRouter();
+
   // When the user navigates from /projects/A to /projects/B, the layout
   // (and this provider) stays mounted — Next.js just re-renders with a
   // new `id` prop. `useProjectInfo` keeps the previous project's data
@@ -313,6 +317,22 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
     );
     setEnvironments([]);
   }, [id, initialProjectData]);
+
+  // 404 cold-load: the project was deleted (other tab, force flow, direct
+  // DB). useProjectInfo surfaces the sentinel PROJECT_INFO_NOT_FOUND via
+  // `error` — we redirect to /projects rather than render the half-empty
+  // layout (no name, no right rail, "not found" body) that confused users.
+  // Guarded per-id so React re-renders during the navigation don't loop.
+  // The hook also pins isLoading=true while this sentinel is set, so the
+  // page-level skeleton covers the tick before the route change lands.
+  const redirectedForIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!id) return;
+    if (projectInfoError !== PROJECT_INFO_NOT_FOUND) return;
+    if (redirectedForIdRef.current === id) return;
+    redirectedForIdRef.current = id;
+    router.replace("/projects");
+  }, [id, projectInfoError, router]);
 
   useEffect(() => {
     if (projectInfo?.project) setProjectData(projectInfo.project);
@@ -450,6 +470,7 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
           verifiedDomains: response.verified_domains,
           installationInstalled: response.installation_installed,
           installUrl: response.install_url,
+          defaultRollbackStrategy: response.default_rollback_strategy,
         });
       } else {
         // Check if it's a repo not found error

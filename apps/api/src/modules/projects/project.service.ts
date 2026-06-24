@@ -29,7 +29,7 @@ export {
   enrichProjectsBatch,
 } from "./project-crud.service";
 
-export { deleteProject, previewProjectDeletion } from "./project-cleanup.service";
+export { previewProjectDeletion } from "./project-cleanup.service";
 export type { DeletionPreview, DeletionPreviewService } from "./project-cleanup.service";
 
 export { listEnvVars, setEnvVars } from "./project-env.service";

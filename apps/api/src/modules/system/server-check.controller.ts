@@ -29,7 +29,7 @@ import {
 import { formatDuration, systemDebug } from "@/lib/system-debug";
 import { sshManager, buildSshConfig } from "../../lib/ssh-manager";
 import { repos } from "@repo/db";
-import { getUserId, getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { safeErrorMessage } from "@repo/core";
 import {
@@ -41,10 +41,6 @@ import {
   finishSetupSession,
   subscribeSetupSession,
 } from "./setup-session";
-
-function debugSystemRequest(message: string): void {
-  systemDebug("system-check", message);
-}
 
 // ─── Allowlisted components ──────────────────────────────────────────────────
 
@@ -123,8 +119,9 @@ export async function testConnection(c: Context) {
   // simply require the caller be an org admin+ to mitigate SSRF / port-scan
   // oracles by unprivileged members. Private IPs are NOT blocked because
   // admins may legitimately test internal hosts.
-  const userId = getUserId(c);
-  const orgId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
+  const userId = ctx.userId;
+  const orgId = ctx.organizationId;
   const m = await repos.member.find(orgId, userId);
   if (!m || (m.role !== "owner" && m.role !== "admin")) {
     return c.json({ error: "Insufficient permissions" }, 403);
@@ -137,14 +134,14 @@ export async function testConnection(c: Context) {
   const executor = result;
 
   try {
-    debugSystemRequest(`test-connection:start`);
+    systemDebug("system-check", `test-connection:start`);
     const output = await executor.exec("echo ok", { timeout: 15_000 });
     const success = output.trim() === "ok";
-    debugSystemRequest(`test-connection:done ok=${success} (${formatDuration(startedAt)})`);
+    systemDebug("system-check", `test-connection:done ok=${success} (${formatDuration(startedAt)})`);
     return c.json({ ok: success, message: success ? "Connection successful" : "Unexpected response" });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to connect";
-    debugSystemRequest(`test-connection:failed ${message} (${formatDuration(startedAt)})`);
+    systemDebug("system-check", `test-connection:failed ${message} (${formatDuration(startedAt)})`);
 
     if (isSshAuthError(err)) {
       return c.json({ ok: false, message: "Authentication failed - check your credentials" }, 400);
@@ -201,11 +198,11 @@ export async function checkServer(c: Context) {
     const serverId = body.serverId as string | undefined;
     if (!serverId) return c.json({ error: "serverId is required" }, 400);
 
-    getActiveOrganizationId(c);
-    await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "admin" });
+    getRequestContext(c);
+    await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "admin" });
 
     const requestedComponents = body.components as string[] | undefined;
-    debugSystemRequest(
+    systemDebug("system-check", 
       `check:start server=${serverId} ${requestedComponents?.length ? requestedComponents.join(",") : "all"}`,
     );
 
@@ -244,7 +241,7 @@ export async function checkServer(c: Context) {
       .filter((c) => !c.healthy && !c.optional)
       .map((c) => c.name);
 
-    debugSystemRequest(
+    systemDebug("system-check", 
       `check:done ready=${missing.length === 0} missing=${missing.join(",") || "none"} (${formatDuration(startedAt)})`,
     );
     return c.json({
@@ -255,7 +252,7 @@ export async function checkServer(c: Context) {
   } catch (err) {
     const message =
       err instanceof Error ? err.message : "Failed to connect to server";
-    debugSystemRequest(`check:failed ${message} (${formatDuration(startedAt)})`);
+    systemDebug("system-check", `check:failed ${message} (${formatDuration(startedAt)})`);
     if (
       message === "No server configured" ||
       message === "Invalid SSH auth configuration"
@@ -284,8 +281,8 @@ export async function installComponent(c: Context) {
   const serverId = body.serverId as string | undefined;
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
 
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "admin" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "admin" });
 
   const componentName = body.component as string;
 
@@ -344,8 +341,8 @@ export async function removeComponent(c: Context) {
   const serverId = body.serverId as string | undefined;
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
 
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "admin" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "admin" });
 
   const componentName = body.component as string;
   if (!componentName || !REMOVABLE_COMPONENTS.has(componentName)) {
@@ -405,8 +402,8 @@ export async function installStream(c: Context) {
   const serverId = body.serverId as string | undefined;
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
 
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "admin" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "admin" });
 
   const requestedComponents = body.components as string[] | undefined;
   const config = body.config ?? {};
@@ -538,8 +535,8 @@ export async function getInstallSession(c: Context) {
   // Gate to org members with admin rights over the session's target server.
   // Sessions are server-scoped, so existence-leak protection applies via the
   // server resource (404-shape).
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: session.serverId, action: "admin" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: session.serverId, action: "admin" });
 
   return c.json({
     active: true,
@@ -571,8 +568,8 @@ export async function attachInstallStream(c: Context) {
   }
 
   // Gate by the session's underlying server before opening the SSE stream.
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: session.serverId, action: "admin" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: session.serverId, action: "admin" });
 
   return streamSSE(c, async (sseStream) => {
     let closed = false;
@@ -671,8 +668,8 @@ export async function monitorStream(c: Context) {
   const serverId = c.req.query("serverId");
   if (!serverId) return c.json({ error: "serverId query param is required" }, 400);
 
-  getActiveOrganizationId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "read" });
+  getRequestContext(c);
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "read" });
 
   const POLL_INTERVAL = 3_000;
 

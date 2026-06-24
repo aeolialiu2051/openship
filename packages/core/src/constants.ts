@@ -249,3 +249,49 @@ export const CREDIT_PACKS: readonly CreditPackDefinition[] = [
     sortOrder: 30,
   },
 ] as const;
+
+/**
+ * Returns true when `priceId` is one of the placeholder values minted
+ * by the env-default fallbacks above (e.g. `price_pro_monthly_placeholder`).
+ * Used both at boot (fail closed in CLOUD_MODE) and at checkout
+ * (defense in depth — placeholders cannot reach Stripe).
+ */
+export function isPlaceholderPriceId(priceId: string | null | undefined): boolean {
+  if (!priceId) return false;
+  return /placeholder/i.test(priceId);
+}
+
+/**
+ * Boot-time validation of plan + pack Stripe price ids. Returns a list
+ * of the "missing" labels (e.g. "pro.monthly", "team.annual",
+ * "pack_5k") that are still set to their placeholder defaults.
+ *
+ * CLOUD_MODE callers should treat a non-empty result as fatal at boot
+ * — billing flows would otherwise reach Stripe with bogus price ids
+ * and fail with cryptic Stripe-side errors. Self-hosted callers may
+ * choose to log-and-continue since billing is disabled on that path.
+ */
+export interface PlanPriceIdValidation {
+  missing: string[];
+}
+
+export function validatePlanPriceIds(): PlanPriceIdValidation {
+  const missing: string[] = [];
+
+  for (const tier of ["pro", "team"] as const) {
+    const p = PLANS[tier];
+    for (const interval of ["monthly", "annual"] as const) {
+      if (isPlaceholderPriceId(p.stripePriceId[interval])) {
+        missing.push(`${tier}.${interval}`);
+      }
+    }
+  }
+
+  for (const pack of CREDIT_PACKS) {
+    if (isPlaceholderPriceId(pack.stripePriceId)) {
+      missing.push(pack.id);
+    }
+  }
+
+  return { missing };
+}

@@ -54,7 +54,10 @@ r.public(
 /* ── Servers CRUD ───────────────────────────────────────────────── */
 r.get("/servers", { tag: "server:list" }, serversCtrl.listServers);
 r.get("/servers/:id", { tag: "server:read" }, serversCtrl.getServer);
-r.post("/servers", { tag: "server:write" }, serversCtrl.createServer);
+// Create has no :id in the URL — org scope comes from the request and the
+// row is created in the active org. collection:true keeps the permission
+// middleware from demanding a (nonexistent) :id param.
+r.post("/servers", { tag: "server:write", collection: true }, serversCtrl.createServer);
 r.patch("/servers/:id", { tag: "server:write" }, serversCtrl.updateServer);
 r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
 
@@ -62,17 +65,26 @@ r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
 r.get("/servers/:id/rate-limit", { tag: "server:read" }, rateLimit.getRateLimit);
 r.patch("/servers/:id/rate-limit", { tag: "server:write" }, rateLimit.updateRateLimit);
 
-/* ── Server check & install (dashboard setup wizard) ────────────── */
-r.post("/test-connection", { tag: "server:write" }, serverCheck.testConnection);
-r.post("/check", { tag: "server:write" }, serverCheck.checkServer);
-r.post("/install", { tag: "server:admin" }, serverCheck.installComponent);
-r.post("/remove", { tag: "server:admin" }, serverCheck.removeComponent);
-r.post("/install/stream", { tag: "server:admin" }, serverCheck.installStream);
-r.get("/install/stream", { tag: "server:read" }, serverCheck.attachInstallStream);
-r.get("/install/session", { tag: "server:read" }, serverCheck.getInstallSession);
+/* ── Server check & install (dashboard setup wizard) ─────────────
+ * These endpoints target a server identified by `serverId` in the
+ * request BODY (POST) or QUERY string (GET), not a URL :id param. The
+ * route-permission middleware only resolves ids from path params, so
+ * each is marked `collection: true` to org-scope the route-level check;
+ * every handler then runs its own
+ * `permission.assert({ resourceType: "server", resourceId: <body/query id> })`
+ * for the precise per-server authorization. Without this flag the
+ * middleware 400s with "Missing route param :id" before the handler runs.
+ */
+r.post("/test-connection", { tag: "server:write", collection: true }, serverCheck.testConnection);
+r.post("/check", { tag: "server:write", collection: true }, serverCheck.checkServer);
+r.post("/install", { tag: "server:admin", collection: true }, serverCheck.installComponent);
+r.post("/remove", { tag: "server:admin", collection: true }, serverCheck.removeComponent);
+r.post("/install/stream", { tag: "server:admin", collection: true }, serverCheck.installStream);
+r.get("/install/stream", { tag: "server:read", collection: true }, serverCheck.attachInstallStream);
+r.get("/install/session", { tag: "server:read", collection: true }, serverCheck.getInstallSession);
 
 /* ── Server monitoring (live stats via SSE) ─────────────────────── */
-r.get("/monitor/stream", { tag: "server:read" }, serverCheck.monitorStream);
+r.get("/monitor/stream", { tag: "server:read", collection: true }, serverCheck.monitorStream);
 
 /* ── Filesystem browse ──────────────────────────────────────────── */
 r.get("/browse", { tag: "settings:read" }, fs.browse);

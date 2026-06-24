@@ -11,7 +11,7 @@
 
 import type { Context } from "hono";
 import { repos } from "@repo/db";
-import { getActiveOrganizationId, getUserId } from "../../../lib/controller-helpers";
+import { getRequestContext } from "../../../lib/request-context";
 import { runPreflight, type DomainChoice } from "./preflight.service";
 import {
   migrateInstanceToServer,
@@ -99,8 +99,7 @@ export async function preflight(c: Context) {
  * follow-up step using the standard /api/deployments/:id/build SSE.
  */
 export async function start(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
 
   const settings = await repos.instanceSettings.get();
   if ((settings?.teamMode ?? "single_user") !== "single_user") {
@@ -125,9 +124,9 @@ export async function start(c: Context) {
     const result = await migrateInstanceToServer({
       serverId: body.serverId,
       domain: body.domain,
-      organizationId,
+      organizationId: ctx.organizationId,
       c,
-      userId,
+      userId: ctx.userId,
     });
     return c.json({
       ok: true,
@@ -165,8 +164,7 @@ export async function start(c: Context) {
  * points at app.openship.io.
  */
 export async function startCloud(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
 
   const settings = await repos.instanceSettings.get();
   if ((settings?.teamMode ?? "single_user") !== "single_user") {
@@ -185,8 +183,8 @@ export async function startCloud(c: Context) {
 
   try {
     const result = await migrateInstanceToCloud({
-      organizationId,
-      userId,
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
       c,
       allowNonEmptyTarget: body.allowNonEmptyTarget,
     });
@@ -232,8 +230,7 @@ export async function startCloud(c: Context) {
  * local dashboard port. No data move, no SSH.
  */
 export async function startTunnel(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
 
   const settings = await repos.instanceSettings.get();
   if ((settings?.teamMode ?? "single_user") !== "single_user") {
@@ -256,8 +253,8 @@ export async function startTunnel(c: Context) {
   try {
     const result = await migrateInstanceToTunnel({
       slug: body.slug,
-      organizationId,
-      userId,
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
       c,
     });
     return c.json({
@@ -306,8 +303,7 @@ export async function startTunnel(c: Context) {
  * change their mind.
  */
 export async function switchBack(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
 
   const body = await c.req
     .json<{ abandonRemote?: boolean }>()
@@ -315,8 +311,8 @@ export async function switchBack(c: Context) {
 
   try {
     const result = await switchBackToSingleUser({
-      organizationId,
-      userId,
+      organizationId: ctx.organizationId,
+      userId: ctx.userId,
       c,
       abandonRemote: body.abandonRemote,
     });

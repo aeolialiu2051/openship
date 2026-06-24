@@ -8,16 +8,33 @@
  *   - actor             (specific user in the org)
  *   - resource          (specific project / deployment / server)
  *   - free-text search  (client-side, on the loaded page)
+ *
+ * Rows are clickable — clicking opens a details modal with the full
+ * audit row payload (actor, resource, before/after diff, IP, UA).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Loader2, Search, Filter, User as UserIcon } from "lucide-react";
+import { Loader2, Search, Filter, User as UserIcon, Copy, Check } from "lucide-react";
 import { api } from "@/lib/api";
+import { useModal } from "@/context/ModalContext";
+import { AUDIT_EVENT_LABELS, getAuditLabel } from "@/lib/audit-labels";
+
+interface AuditActor {
+  id: string;
+  email?: string | null;
+  name?: string | null;
+}
 
 interface AuditEvent {
   id: string;
   organizationId: string;
   actorUserId: string | null;
+  /**
+   * Resolved actor — joined from the user table on the server in one
+   * batched lookup per request. Null when the actor was a system
+   * process or the user row has since been deleted.
+   */
+  actor: AuditActor | null;
   eventType: string;
   resourceType: string | null;
   resourceId: string | null;
@@ -28,24 +45,57 @@ interface AuditEvent {
   createdAt: string;
 }
 
-const EVENT_TYPE_OPTIONS = [
-  { value: "", label: "All events" },
-  { value: "deployment.succeeded", label: "Deploy succeeded" },
-  { value: "deployment.failed", label: "Deploy failed" },
-  { value: "deployment.canceled", label: "Deploy canceled" },
-  { value: "member.invited", label: "Member invited" },
-  { value: "member.joined", label: "Member joined" },
-  { value: "member.removed", label: "Member removed" },
-  { value: "project.created", label: "Project created" },
-  { value: "project.deleted", label: "Project deleted" },
-  { value: "server.added", label: "Server added" },
-  { value: "domain.added", label: "Domain added" },
-  { value: "settings.updated", label: "Settings updated" },
-];
-
-function eventLabel(type: string): string {
-  return type.replace(/\./g, " ").replace(/_/g, " ");
+/**
+ * Best-effort display name for an audit row's actor. Prefers full name,
+ * falls back to email, then to the raw user id (which is rarely seen —
+ * only when both columns are empty on the user row).
+ */
+function actorDisplay(e: AuditEvent): string {
+  if (e.actor) {
+    if (e.actor.name && e.actor.name.trim()) return e.actor.name;
+    if (e.actor.email) return e.actor.email;
+    return e.actor.id.slice(0, 8);
+  }
+  if (e.actorUserId) return `Actor ${e.actorUserId.slice(0, 8)}`;
+  return "System";
 }
+
+/**
+ * Filter dropdown — pre-populated with the most common event types
+ * from the label catalog. The full list is far too long for a
+ * dropdown; this is a curated short-list of high-signal events.
+ */
+const EVENT_TYPE_OPTIONS = (() => {
+  const curated = [
+    "deployment.succeeded",
+    "deployment.failed",
+    "deployment.canceled",
+    "member.added",
+    "member.removed",
+    "member.role_changed",
+    "invitation.created",
+    "invitation.accepted",
+    "project.created",
+    "project.updated",
+    "project.deleted",
+    "server.added",
+    "server.updated",
+    "server.removed",
+    "domain.added",
+    "domain.removed",
+    "settings.updated",
+    "grant.granted",
+    "grant.revoked",
+    "github.disconnect",
+    "billing.hard_cap_tripped",
+  ];
+  return [
+    { value: "", label: "All events" },
+    ...curated
+      .filter((t) => t in AUDIT_EVENT_LABELS)
+      .map((value) => ({ value, label: AUDIT_EVENT_LABELS[value].label })),
+  ];
+})();
 
 function relativeTime(iso: string): string {
   const date = new Date(iso);
@@ -60,6 +110,181 @@ function relativeTime(iso: string): string {
   return date.toLocaleDateString();
 }
 
+function absoluteTime(iso: string): string {
+  const date = new Date(iso);
+  return date.toLocaleString();
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  Details modal body                                                  */
+/* ──────────────────────────────────────────────────────────────────── */
+
+function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (typeof navigator !== "undefined" && navigator.clipboard) {
+          void navigator.clipboard.writeText(value).then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1200);
+          });
+        }
+      }}
+      className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
+      aria-label={copied ? "Copied" : "Copy"}
+      title={copied ? "Copied" : "Copy"}
+    >
+      {copied ? <Check className="size-3" /> : <Copy className="size-3" />}
+    </button>
+  );
+}
+
+function JsonBlock({ value, label }: { value: unknown; label: string }) {
+  // Pretty-print with stable key order and a 2-space indent.
+  const text = useMemo(() => {
+    try {
+      return JSON.stringify(value, null, 2) ?? "null";
+    } catch {
+      return String(value);
+    }
+  }, [value]);
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        <CopyButton value={text} />
+      </div>
+      <pre className="max-h-96 overflow-auto rounded-lg border border-border/50 bg-muted/30 p-3 text-xs leading-relaxed text-foreground whitespace-pre-wrap break-words font-mono">
+        {text}
+      </pre>
+    </div>
+  );
+}
+
+function DetailRow({
+  label,
+  value,
+  copyable,
+  mono,
+}: {
+  label: string;
+  value: string;
+  copyable?: boolean;
+  mono?: boolean;
+}) {
+  return (
+    <div className="flex items-start gap-3 py-1.5">
+      <span className="w-24 shrink-0 text-xs text-muted-foreground">{label}</span>
+      <span
+        className={`flex-1 text-sm text-foreground break-all ${mono ? "font-mono text-xs" : ""}`}
+      >
+        {value}
+      </span>
+      {copyable && value !== "—" && <CopyButton value={value} />}
+    </div>
+  );
+}
+
+function AuditDetailsBody({ event, onClose }: { event: AuditEvent; onClose: () => void }) {
+  const labelInfo = getAuditLabel(event.eventType);
+  const hasBefore = event.before !== null && event.before !== undefined;
+  const hasAfter = event.after !== null && event.after !== undefined;
+
+  return (
+    <div className="flex flex-col gap-5 p-6">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-semibold text-foreground">{labelInfo.label}</h2>
+          <p
+            className="mt-0.5 text-xs text-muted-foreground"
+            title={absoluteTime(event.createdAt)}
+          >
+            {relativeTime(event.createdAt)} · {absoluteTime(event.createdAt)}
+          </p>
+          {labelInfo.description && (
+            <p className="mt-2 text-sm text-muted-foreground">{labelInfo.description}</p>
+          )}
+          <p className="mt-2 inline-block rounded-md bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground">
+            {event.eventType}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+          aria-label="Close"
+        >
+          Close
+        </button>
+      </div>
+
+      {/* Actor */}
+      <section className="rounded-xl border border-border/50 bg-card p-4">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Actor
+        </h3>
+        <DetailRow label="Name" value={event.actor?.name || (event.actor ? "—" : "System")} />
+        <DetailRow label="Email" value={event.actor?.email || "—"} />
+        <DetailRow
+          label="User ID"
+          value={event.actorUserId || "—"}
+          copyable={!!event.actorUserId}
+          mono
+        />
+        <DetailRow label="IP" value={event.ipAddress || "—"} copyable={!!event.ipAddress} mono />
+        <DetailRow
+          label="User agent"
+          value={event.userAgent ? event.userAgent.slice(0, 200) : "—"}
+        />
+      </section>
+
+      {/* Resource */}
+      {(event.resourceType || event.resourceId) && (
+        <section className="rounded-xl border border-border/50 bg-card p-4">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Resource
+          </h3>
+          <DetailRow label="Type" value={event.resourceType || "—"} mono />
+          <DetailRow
+            label="ID"
+            value={event.resourceId || "—"}
+            copyable={!!event.resourceId}
+            mono
+          />
+        </section>
+      )}
+
+      {/* Changes */}
+      {(hasBefore || hasAfter) && (
+        <section className="rounded-xl border border-border/50 bg-card p-4">
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Changes
+          </h3>
+          {hasBefore && hasAfter ? (
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <JsonBlock value={event.before} label="Before" />
+              <JsonBlock value={event.after} label="After" />
+            </div>
+          ) : hasAfter ? (
+            <JsonBlock value={event.after} label="After" />
+          ) : (
+            <JsonBlock value={event.before} label="Removed" />
+          )}
+        </section>
+      )}
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────── */
+/*  Page                                                                */
+/* ──────────────────────────────────────────────────────────────────── */
+
 export function AuditTab() {
   const [events, setEvents] = useState<AuditEvent[]>([]);
   const [total, setTotal] = useState(0);
@@ -67,6 +292,7 @@ export function AuditTab() {
   const [loading, setLoading] = useState(true);
   const [eventType, setEventType] = useState("");
   const [search, setSearch] = useState("");
+  const { showModal, hideModal } = useModal();
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -96,9 +322,27 @@ export function AuditTab() {
       (e) =>
         e.eventType.toLowerCase().includes(q) ||
         e.resourceId?.toLowerCase().includes(q) ||
-        e.actorUserId?.toLowerCase().includes(q),
+        e.actorUserId?.toLowerCase().includes(q) ||
+        e.actor?.email?.toLowerCase().includes(q) ||
+        e.actor?.name?.toLowerCase().includes(q),
     );
   }, [events, search]);
+
+  const openDetails = useCallback(
+    (event: AuditEvent) => {
+      // Capture the modal id so the body's close button can dismiss
+      // this exact instance even if other modals are pushed on top.
+      let modalId = "";
+      modalId = showModal({
+        maxWidth: "720px",
+        showCloseButton: true,
+        customContent: (
+          <AuditDetailsBody event={event} onClose={() => hideModal(modalId)} />
+        ),
+      });
+    },
+    [showModal, hideModal],
+  );
 
   return (
     <div className="space-y-6">
@@ -157,32 +401,48 @@ export function AuditTab() {
           </div>
         ) : (
           <div className="divide-y divide-border/40">
-            {filtered.map((e) => (
-              <div key={e.id} className="px-5 py-3.5 flex items-center gap-4">
-                <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
-                  <UserIcon className="size-3.5 text-muted-foreground" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm font-medium text-foreground truncate">
-                      {eventLabel(e.eventType)}
-                    </span>
-                    {e.resourceId && (
-                      <span className="text-xs text-muted-foreground font-mono truncate">
-                        {e.resourceId.slice(0, 16)}
-                      </span>
-                    )}
+            {filtered.map((e) => {
+              const labelInfo = getAuditLabel(e.eventType);
+              return (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => openDetails(e)}
+                  className="w-full px-5 py-3.5 flex items-center gap-4 text-left hover:bg-muted/30 transition-colors focus:outline-none focus:bg-muted/40"
+                >
+                  <div className="w-8 h-8 rounded-full bg-muted/60 flex items-center justify-center shrink-0">
+                    <UserIcon className="size-3.5 text-muted-foreground" />
                   </div>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {e.actorUserId ? `Actor ${e.actorUserId.slice(0, 8)}` : "System"}
-                    {e.ipAddress && ` - ${e.ipAddress}`}
-                  </p>
-                </div>
-                <time className="text-xs text-muted-foreground shrink-0">
-                  {relativeTime(e.createdAt)}
-                </time>
-              </div>
-            ))}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-sm font-medium text-foreground truncate">
+                        {labelInfo.label}
+                      </span>
+                      {e.resourceId && (
+                        <span className="text-xs text-muted-foreground font-mono truncate">
+                          {e.resourceId.slice(0, 16)}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">
+                      <span className="text-foreground/80 font-medium">
+                        {actorDisplay(e)}
+                      </span>
+                      {e.actor?.name && e.actor.email && (
+                        <span className="ml-1.5">{e.actor.email}</span>
+                      )}
+                      {e.ipAddress && <span> - {e.ipAddress}</span>}
+                    </p>
+                  </div>
+                  <time
+                    className="text-xs text-muted-foreground shrink-0"
+                    title={absoluteTime(e.createdAt)}
+                  >
+                    {relativeTime(e.createdAt)}
+                  </time>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

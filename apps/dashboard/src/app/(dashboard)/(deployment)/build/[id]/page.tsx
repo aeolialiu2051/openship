@@ -63,9 +63,20 @@ const BuildPage: React.FC = () => {
     initializedDeploymentRef.current = deploymentId;
 
     const initialize = async () => {
-      // Coming from deploy page with fresh deployment
+      // Coming from deploy page with fresh deployment.
+      //
+      // `requestBuildAccess` on the server now calls `kickoffBuild` for us
+      // (mirroring the redeploy path), so the build is already running by
+      // the time we land here. We attach via GET /:id/stream
+      // (`startBuild = false`) instead of POSTing /:id/build — same path as
+      // the page-refresh codepath. The previous start-build round-trip was
+      // racy: if the POST stalled or transiently failed (common during
+      // cloud-workspace provisioning), the reconnect gate
+      // (`hasConnected || !lastStartBuild`) refused to retry and the user
+      // saw an empty terminal until they hit refresh. Same fix as
+      // handleRedeploy below.
       if (state.deploymentId === deploymentId && state.isDeploying) {
-        await connectToBuild();
+        await connectToBuild(deploymentId, false);
         return;
       }
       const result = await loadBuildSession(deploymentId);

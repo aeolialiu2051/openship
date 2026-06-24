@@ -37,6 +37,7 @@ import { decryptEnvMap } from "../../lib/encryption";
 import { resolveDeploymentPlatform } from "../../lib/deployment-runtime";
 import { safeErrorMessage } from "@repo/core";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
+import type { RequestContext } from "../../lib/request-context";
 import { toAdapterRow } from "../backup-destinations/hydrate-server";
 import { restoreRunBus } from "./restore.sse";
 
@@ -102,20 +103,19 @@ export class RestoreOrchestrator {
    * Verifies the confirmation token from beginPrepare.
    */
   async apply(
+    ctx: RequestContext,
     restoreId: string,
     confirmationToken: string,
-    userId: string,
-    organizationId: string,
   ): Promise<void> {
     const restore = await repos.backupRestore.findById(restoreId);
     try {
-      assertResourceInOrg(restore, "Restore", organizationId, restoreId);
+      assertResourceInOrg(restore, "Restore", ctx.organizationId, restoreId);
     } catch {
       throw new Error("Restore not found");
     }
     // Forensic stamp: still ensure the actor opening the destructive
     // step is the same user (defense in depth alongside org-scope).
-    void userId;
+    void ctx.userId;
     // Constant-time compare. `!==` short-circuits on the first differing
     // byte — sub-microsecond, but timing-attack-able if an attacker can
     // measure the response latency well enough. timingSafeEqual avoids
@@ -146,14 +146,14 @@ export class RestoreOrchestrator {
   }
 
   /** Cancel a prepared (or queued) restore. Cleans up staging. */
-  async cancel(restoreId: string, userId: string, organizationId: string): Promise<void> {
+  async cancel(ctx: RequestContext, restoreId: string): Promise<void> {
     const restore = await repos.backupRestore.findById(restoreId);
     try {
-      assertResourceInOrg(restore, "Restore", organizationId, restoreId);
+      assertResourceInOrg(restore, "Restore", ctx.organizationId, restoreId);
     } catch {
       throw new Error("Restore not found");
     }
-    void userId;
+    void ctx.userId;
     if (!["queued", "preparing", "prepared"].includes(restore.status)) {
       throw new Error(`Cannot cancel a ${restore.status} restore`);
     }

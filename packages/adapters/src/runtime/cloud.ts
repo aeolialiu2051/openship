@@ -624,7 +624,10 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
     }
 
     logger.log("Preparing local Dockerfile source...\n");
-    const context = await createDockerBuildContext(config, { requireRepositoryDockerfile: true });
+    const context = await createDockerBuildContext(config, {
+      requireRepositoryDockerfile: true,
+      onLog: logger.callback,
+    });
     const dockerfilePath = join(context.contextDir, ...context.dockerfileName.split("/"));
     const dockerfile = await readFile(dockerfilePath, "utf-8");
 
@@ -680,7 +683,11 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
         `cd ${sq(sourceDir)}`,
         "git init -q",
         `git remote add origin ${sq(cloneUrl)}`,
-        `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true git -c credential.helper= fetch --depth ${config.commitSha ? "50" : "1"} origin ${sq(config.branch)}`,
+        // GIT_TERMINAL_PROMPT=0 + GIT_ASKPASS=/bin/echo prevent the
+        // process from hanging on a credential prompt when a non-tty
+        // build runner has no token; --progress forces git to emit
+        // progress lines to stderr so they reach the build log stream.
+        `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/echo git -c credential.helper= fetch --progress --depth ${config.commitSha ? "50" : "1"} origin ${sq(config.branch)}`,
         `git -c credential.helper= -c advice.detachedHead=false checkout -q ${sq(checkoutRef)}`,
         'echo "Dockerfile source fetch ready."',
       ].join("\n");
@@ -958,7 +965,10 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
       "set -e",
       `rm -rf ${sq(repoRoot)} ${sq(contextRoot)}`,
       "mkdir -p /openship",
-      `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=true git -c credential.helper= clone ${depthArgs}--branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(cloneTarget)}`,
+      // See fetchCommand above for env-var rationale; --progress keeps
+      // the clone visible in the streamed log even though stdout/stderr
+      // are pipes, not a tty.
+      `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS=/bin/echo git -c credential.helper= clone --progress ${depthArgs}--branch ${sq(config.branch)} ${sq(cloneUrl)} ${sq(cloneTarget)}`,
     ].join("\n");
     const checkoutCommand = config.commitSha
       ? `cd ${sq(cloneTarget)} && git -c credential.helper= -c advice.detachedHead=false checkout ${sq(config.commitSha)}`

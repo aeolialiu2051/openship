@@ -14,7 +14,7 @@
 import cronParser from "cron-parser";
 import { repos } from "@repo/db";
 import { getJobRunner } from "../../../lib/job-runner";
-import { safeErrorMessage } from "../../../lib/safe-error";
+import { safeErrorMessage } from "@repo/core";
 import { backupOrchestrator } from "../backup.orchestrator";
 
 export interface CronValidationResult {

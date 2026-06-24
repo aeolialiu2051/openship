@@ -33,7 +33,7 @@ import type { Context } from "hono";
 import { NotFoundError } from "@repo/core";
 import { repos } from "@repo/db";
 import type { Permission, ResourceType } from "@repo/db";
-import { getUserId } from "./controller-helpers";
+import { getRequestContext, withScopedOrg, type RequestContext } from "./request-context";
 
 /** Grantable resource roots — the types that can be the target of a grant. */
 const GRANTABLE_ROOTS: ResourceType[] = [
@@ -309,12 +309,25 @@ export async function checkPermission(
  * Derives org from the resource (detail endpoints) or the request scope
  * (list/create endpoints), then runs the role check.
  *
- * SIDE EFFECT: on success, stashes the resolved org id under
- * `c.set("scopedOrganizationId", orgId)` so downstream controllers can read
- * "which org am I operating in" without re-deriving.
+ * Takes RequestContext (not raw Hono Context) so the caller's intent
+ * is explicit in the signature — the function declares it needs an
+ * authenticated user + an active org. The Hono escape hatch on ctx
+ * (`ctx.hono`) is used for the side effects below.
+ *
+ * SIDE EFFECTS on success:
+ *   - `ctx.hono.set("scopedOrganizationId", orgId)` for legacy readers
+ *     of the stash variable (read directly via `c.get`, no helper).
+ *   - Rebinds `ctx.hono.var.ctx` to the scoped-org variant so any later
+ *     `getRequestContext(c)` in the same request returns
+ *     `organizationId === scoped`, not the session-active org.
+ *
+ * The passed `ctx` local is NOT mutated — it's a value copy. Callers
+ * that want the scoped ctx after this returns must re-read it via
+ * `getRequestContext(c)`.
  */
-export async function assert(c: Context, input: PermissionInput): Promise<void> {
-  const userId = getUserId(c);
+export async function assert(ctx: RequestContext, input: PermissionInput): Promise<void> {
+  const userId = ctx.userId;
+  const c = ctx.hono;
 
   let organizationId: string | null;
 
@@ -336,28 +349,20 @@ export async function assert(c: Context, input: PermissionInput): Promise<void> 
   }
 
   c.set("scopedOrganizationId", organizationId);
-}
 
-/**
- * Helper exported for controllers that need the resolved org id directly
- * (e.g. to stamp it on a new resource at create time). Reads what
- * `assert()` stashed; falls back to deriving from the request scope.
- */
-export function getScopedOrgId(c: Context): string {
-  const stashed = c.get("scopedOrganizationId");
-  if (typeof stashed === "string" && stashed) return stashed;
-  const resolved = resolveRequestScopeOrg(c);
-  if (!resolved) {
-    throw new Error(
-      "No organization scope in context. Caller must run requirePermission() or provide X-Organization-Id header.",
-    );
+  // Rebind ctx.organizationId so service-layer code reading
+  // getRequestContext(c).organizationId automatically sees the
+  // resource-scoped tenant (not the session's stale active-org). This
+  // is the WHOLE point of routing services through ctx: a member of
+  // org A acting on a project owned by org B (via a grant or admin
+  // role) sees ctx.organizationId === B for the rest of this request.
+  if (ctx.organizationId !== organizationId) {
+    c.set("ctx" as never, withScopedOrg(ctx, organizationId));
   }
-  return resolved;
 }
 
 export const permission = {
   checkPermission,
   assert,
   resolveRequestScopeOrg,
-  getScopedOrgId,
 };

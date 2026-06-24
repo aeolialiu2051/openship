@@ -4,7 +4,7 @@
  * Every authed route below is org-scoped: the billing customer +
  * subscription rows live on the organization, not the user. The
  * dashboard's active-org context is set by `authMiddleware` and
- * surfaced here via `getActiveOrganizationId`.
+ * surfaced via `getRequestContext(c).organizationId`.
  *
  * Stub paths from the early scaffold (manual payment-method/invoice
  * CRUD, free-form usage recording) are NOT re-introduced — Stripe
@@ -16,7 +16,7 @@
 import type { Context } from "hono";
 import { z } from "zod";
 import { PLANS, PLAN_IDS, CREDIT_PACKS } from "@repo/core";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import {
   createSubscriptionSchema,
@@ -56,24 +56,22 @@ export async function listPlans(c: Context) {
 /* ---------- Billing state (dashboard overview) ---------- */
 
 export async function getState(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "read" });
-  const organizationId = getActiveOrganizationId(c);
-  const state = await billingService.getBillingState(organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "read" });
+  const ctx = getRequestContext(c);
+  const state = await billingRepository.getBillingState(ctx.organizationId);
   return c.json({ data: state });
 }
 
 /* ---------- Subscriptions ---------- */
 
 export async function createSubscription(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "write" });
-  const organizationId = getActiveOrganizationId(c);
-  const user = c.get("user");
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "write" });
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
   const { planTierId, interval } = createSubscriptionSchema.parse(body);
 
   const { checkoutUrl } = await billingService.createCheckoutSession(
-    organizationId,
-    user?.email,
+    ctx,
     planTierId,
     interval,
   );
@@ -82,24 +80,22 @@ export async function createSubscription(c: Context) {
 }
 
 export async function cancelSubscription(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "admin" });
-  const organizationId = getActiveOrganizationId(c);
-  const result = await billingService.cancelSubscription(organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "admin" });
+  const ctx = getRequestContext(c);
+  const result = await billingService.cancelSubscription(ctx.organizationId);
   return c.json({ data: result });
 }
 
 /* ---------- Top-ups ---------- */
 
 export async function createTopup(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "write" });
-  const organizationId = getActiveOrganizationId(c);
-  const user = c.get("user");
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "write" });
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
   const { packId } = createTopupSchema.parse(body);
 
   const { checkoutUrl } = await billingService.createTopupCheckoutSession(
-    organizationId,
-    user?.email,
+    ctx,
     packId,
   );
 
@@ -112,7 +108,7 @@ export async function createTopup(c: Context) {
  * constant if the sync hasn't run yet (first-boot bootstrap path).
  */
 export async function listTopupPacks(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "read" });
   const packs = await billingService.listActiveCreditPacks();
   if (packs.length > 0) return c.json({ data: packs });
   return c.json({ data: [...CREDIT_PACKS] });
@@ -121,9 +117,9 @@ export async function listTopupPacks(c: Context) {
 /* ---------- Portal ---------- */
 
 export async function createPortal(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "write" });
-  const organizationId = getActiveOrganizationId(c);
-  const { portalUrl } = await billingService.createPortalSession(organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "write" });
+  const ctx = getRequestContext(c);
+  const { portalUrl } = await billingService.createPortalSession(ctx.organizationId);
   return c.json({ data: { portalUrl } });
 }
 
@@ -144,8 +140,8 @@ export async function createPortal(c: Context) {
  * yet — the dashboard renders an empty state in that case.
  */
 export async function getUsage(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "read" });
-  const organizationId = getActiveOrganizationId(c);
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "read" });
+  const ctx = getRequestContext(c);
 
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -165,7 +161,12 @@ export async function getUsage(c: Context) {
   }
   const groupBy: "hour" | "day" = groupByParam === "hour" ? "hour" : "day";
 
-  const usage = await getNamespaceUsage({ organizationId, from, to, groupBy });
+  const usage = await getNamespaceUsage({
+    organizationId: ctx.organizationId,
+    from,
+    to,
+    groupBy,
+  });
 
   return c.json({
     data: {
@@ -185,9 +186,9 @@ export async function getUsage(c: Context) {
  * subscription row without re-fetching the credit balance.
  */
 export async function getSubscription(c: Context) {
-  await permission.assert(c, { resourceType: "billing", resourceId: "*", action: "read" });
-  const organizationId = getActiveOrganizationId(c);
-  const state = await billingRepository.getBillingState(organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "read" });
+  const ctx = getRequestContext(c);
+  const state = await billingRepository.getBillingState(ctx.organizationId);
   return c.json({
     data: {
       tier: state.tier,

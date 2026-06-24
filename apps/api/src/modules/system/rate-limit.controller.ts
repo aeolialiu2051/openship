@@ -15,33 +15,21 @@ import {
 } from "@repo/adapters";
 import { env } from "../../config";
 import { withOpenRestyRouting } from "@/lib/openresty-paths";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
+import { param, assertNotCloud } from "../../lib/controller-helpers";
 import { safeErrorMessage } from "@repo/core";
-
-function assertNotCloud(c: Context): boolean {
-  if (env.CLOUD_MODE) {
-    c.status(404);
-    c.body(null);
-    return false;
-  }
-  return true;
-}
-
-function getServerId(c: Context): string {
-  return c.req.param("id") ?? "";
-}
 
 function isValidCidr(cidr: string): boolean {
   return /^[\da-fA-F.:]+\/\d{1,3}$/.test(cidr) && cidr.length <= 50;
 }
 
 export async function getRateLimit(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
-  const organizationId = getActiveOrganizationId(c);
-  const serverId = getServerId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "read" });
+  const organizationId = getRequestContext(c).organizationId;
+  const serverId = param(c, "id");
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "read" });
 
   const server = await repos.server.getInOrganization(serverId, organizationId);
   if (!server) return c.json({ error: "Server not found" }, 404);
@@ -63,11 +51,11 @@ export async function getRateLimit(c: Context) {
 }
 
 export async function updateRateLimit(c: Context) {
-  if (!assertNotCloud(c)) return c.res;
+  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
-  const organizationId = getActiveOrganizationId(c);
-  const serverId = getServerId(c);
-  await permission.assert(c, { resourceType: "server", resourceId: serverId, action: "admin" });
+  const organizationId = getRequestContext(c).organizationId;
+  const serverId = param(c, "id");
+  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "admin" });
 
   const server = await repos.server.getInOrganization(serverId, organizationId);
   if (!server) return c.json({ error: "Server not found" }, 404);

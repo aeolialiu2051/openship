@@ -1,8 +1,12 @@
 /**
  * Local billing proxy — runs only when !CLOUD_MODE.
  *
- * Proxies subscription/payment/invoice operations to the SaaS API
- * using the user's stored cloud session token (via cloudFetch).
+ * Mirrors the SaaS billing surface (`billingSaasRoutes`) by proxying
+ * to the SaaS API using the caller's stored cloud session token (via
+ * cloudFetch). Each proxy call carries the caller's identity — there
+ * is no shared admin token. Without a stored cloud session the proxy
+ * returns 403 `{ code: "cloud_not_connected" }` so the dashboard can
+ * render an accurate empty state.
  *
  * Plan listing (GET /plans) is handled by billingPlansRoutes which
  * runs on ALL instances — no proxy needed for that.
@@ -22,24 +26,50 @@ const r = secureRouter(billingLocalRoutes, {
 // ⚠ Same prefix collision as billingSaasRoutes — billingPlansRoutes
 // shares /api/billing with a public GET /plans. Scope auth to the
 // specific sub-paths so /plans is never accidentally gated.
+//
+// The mounted set is the INTERSECTION of routes the SaaS side exposes
+// (see billing.routes.ts). PATCH /subscription, GET /payment-methods,
+// POST /payment-methods, and GET /invoices do not exist on the SaaS
+// side — invoices and payment methods are owned by Stripe's hosted
+// portal (POST /portal returns the redirect URL), and subscription
+// updates are POST /subscription (replace) or POST /cancel. Mounting
+// the orphan routes here just routed dashboard calls into 404 HTML
+// pages from the SaaS proxy, breaking dashboard error handling.
+r.use("/state", authMiddleware);
 r.use("/subscription", authMiddleware);
+r.use("/cancel", authMiddleware);
 r.use("/usage", authMiddleware);
-r.use("/payment-methods", authMiddleware);
-r.use("/invoices", authMiddleware);
+r.use("/topup", authMiddleware);
+r.use("/topup-packs", authMiddleware);
+r.use("/portal", authMiddleware);
+
+/* ---------- Dashboard state snapshot ---------- */
+r.get("/state", { tag: "billing:read" }, billingLocal.getState);
 
 /* ---------- Subscriptions ---------- */
 r.get("/subscription", { tag: "billing:read" }, billingLocal.getSubscription);
 r.post("/subscription", { tag: "billing:write" }, billingLocal.createSubscription);
-r.patch("/subscription", { tag: "billing:write" }, billingLocal.updateSubscription);
+
+/* ---------- Cancellation ---------- */
 // Destructive — admin tier per the same precedent as the SaaS sibling.
-r.delete("/subscription", { tag: "billing:admin" }, billingLocal.cancelSubscription);
+r.post("/cancel", { tag: "billing:admin" }, billingLocal.cancelSubscription);
 
 /* ---------- Usage ---------- */
 r.get("/usage", { tag: "billing:read" }, billingLocal.getUsage);
 
-/* ---------- Payment Methods ---------- */
-r.get("/payment-methods", { tag: "billing:read" }, billingLocal.listPaymentMethods);
-r.post("/payment-methods", { tag: "billing:write" }, billingLocal.addPaymentMethod);
+/* ---------- Top-ups ---------- */
+r.get("/topup-packs", { tag: "billing:read" }, billingLocal.listTopupPacks);
+r.post(
+  "/topup",
+  { tag: "billing:write", rateLimit: "billing-portal" },
+  billingLocal.createTopup,
+);
 
-/* ---------- Invoices ---------- */
-r.get("/invoices", { tag: "billing:read" }, billingLocal.listInvoices);
+/* ---------- Stripe Portal (invoices + PM management) ---------- */
+// Each call mints a Stripe portal session — tight per-org limit (20/min)
+// stops a runaway frontend retry loop from racking up Stripe API spend.
+r.post(
+  "/portal",
+  { tag: "billing:write", rateLimit: "billing-portal" },
+  billingLocal.createPortal,
+);

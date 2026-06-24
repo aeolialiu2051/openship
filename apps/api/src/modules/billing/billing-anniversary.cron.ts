@@ -257,6 +257,24 @@ export async function runAnniversaryReset(): Promise<ResetStats> {
       const newPeriodStart = org.currentPeriodEnd ?? now;
       const newPeriodEnd = addOneMonth(newPeriodStart);
 
+      // Claim BEFORE touching Oblien. If we crash between the Oblien
+      // reset + the local period UPDATE, the next tick re-selects this
+      // org as a candidate — without the claim we'd re-zero quota_used
+      // for credits the user is already consuming under the new
+      // period. The unique constraint on (org_id, period_start) makes
+      // the claim atomic; a peer that won the race => skip.
+      const grant = await repos.billingAnniversaryGrant.claim({
+        organizationId: org.id,
+        periodStart: newPeriodStart,
+      });
+      if (!grant.claimed) {
+        console.log(
+          `[billing-anniversary] org=${org.id} period_start=${newPeriodStart.toISOString()} already granted — skipping`,
+        );
+        stats.skipped += 1;
+        continue;
+      }
+
       // 1. Push the quota reset + re-arm to Oblien.
       await quotaWrapper.resetAndRegrant(
         org.id,

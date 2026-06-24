@@ -1,4 +1,4 @@
-import { eq, and, ilike, count, desc, sql } from "drizzle-orm";
+import { eq, and, ilike, count, desc, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { user } from "../schema";
 
@@ -21,6 +21,18 @@ export function createUserRepo(db: Database) {
     async findById(id: string): Promise<User | undefined> {
       return db.query.user.findFirst({
         where: eq(user.id, id),
+      });
+    },
+
+    /**
+     * Batch-fetch users by id. Used to enrich list responses (e.g. audit
+     * log rows) with actor name/email without an N+1 — one query per
+     * request, regardless of row count. Empty input short-circuits.
+     */
+    async findManyByIds(ids: string[]): Promise<User[]> {
+      if (ids.length === 0) return [];
+      return db.query.user.findMany({
+        where: inArray(user.id, ids),
       });
     },
 

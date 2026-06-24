@@ -11,20 +11,20 @@
 import { repos } from "@repo/db";
 import crypto from "node:crypto";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
+import type { RequestContext } from "../../lib/request-context";
 import { syncPolicySchedule, removePolicySchedule, validateCronExpression } from "./triggers/cron";
 import { generateWebhookToken } from "./triggers/webhook";
 
 // ─── Policy CRUD ─────────────────────────────────────────────────────────────
 
-export async function listPoliciesByProject(projectId: string, organizationId: string) {
+export async function listPoliciesByProject(ctx: RequestContext, projectId: string) {
   const project = await repos.project.findById(projectId);
-  assertResourceInOrg(project, "Project", organizationId, projectId);
+  assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
   return repos.backupPolicy.listByProject(projectId);
 }
 
 export async function createPolicy(
-  userId: string,
-  organizationId: string,
+  ctx: RequestContext,
   data: {
     projectId: string;
     serviceId: string | null;
@@ -42,9 +42,9 @@ export async function createPolicy(
   },
 ) {
   const project = await repos.project.findById(data.projectId);
-  assertResourceInOrg(project, "Project", organizationId, data.projectId);
+  assertResourceInOrg(project, "Project", ctx.organizationId, data.projectId);
   const destination = await repos.backupDestination.findById(data.destinationId);
-  assertResourceInOrg(destination, "Destination", organizationId, data.destinationId);
+  assertResourceInOrg(destination, "Destination", ctx.organizationId, data.destinationId);
 
   // Cron validation upfront — otherwise saving an invalid cron silently
   // disables the schedule when the cron-trigger reconciler skips it.
@@ -71,7 +71,7 @@ export async function createPolicy(
     payloadConfig: data.payloadConfig ?? {},
     preHook: data.preHook ?? null,
     postHook: data.postHook ?? null,
-    createdBy: userId,
+    createdBy: ctx.userId,
   });
 
   // Register the cron schedule (no-op when cronExpression is null).
@@ -107,18 +107,18 @@ export interface UpdatePolicyPatch {
 }
 
 export async function updatePolicy(
+  ctx: RequestContext,
   policyId: string,
-  organizationId: string,
   patch: UpdatePolicyPatch,
 ) {
   const policy = await repos.backupPolicy.findById(policyId);
   if (!policy) throw new Error("Policy not found");
   const project = await repos.project.findById(policy.projectId);
-  assertResourceInOrg(project, "Policy", organizationId, policyId);
+  assertResourceInOrg(project, "Policy", ctx.organizationId, policyId);
 
   if (patch.destinationId) {
     const destination = await repos.backupDestination.findById(patch.destinationId);
-    assertResourceInOrg(destination, "Destination", organizationId, patch.destinationId);
+    assertResourceInOrg(destination, "Destination", ctx.organizationId, patch.destinationId);
   }
 
   if (patch.cronExpression) {
@@ -161,11 +161,11 @@ export async function updatePolicy(
   return updated;
 }
 
-export async function deletePolicy(policyId: string, organizationId: string) {
+export async function deletePolicy(ctx: RequestContext, policyId: string) {
   const policy = await repos.backupPolicy.findById(policyId);
   if (!policy) return;
   const project = await repos.project.findById(policy.projectId);
-  assertResourceInOrg(project, "Policy", organizationId, policyId);
+  assertResourceInOrg(project, "Policy", ctx.organizationId, policyId);
   await repos.backupPolicy.softDelete(policyId);
   // Drop the BullMQ repeat schedule.
   await removePolicySchedule(policyId);
@@ -174,21 +174,21 @@ export async function deletePolicy(policyId: string, organizationId: string) {
 // ─── Runs ────────────────────────────────────────────────────────────────────
 
 export async function listRunsForProject(
+  ctx: RequestContext,
   projectId: string,
-  organizationId: string,
   opts?: { limit?: number; serviceId?: string },
 ) {
   const project = await repos.project.findById(projectId);
-  assertResourceInOrg(project, "Project", organizationId, projectId);
-  return repos.backupRun.listByOrganization(organizationId, {
+  assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
+  return repos.backupRun.listByOrganization(ctx.organizationId, {
     limit: opts?.limit,
     projectId,
     serviceId: opts?.serviceId,
   });
 }
 
-export async function getRun(runId: string, organizationId: string) {
+export async function getRun(ctx: RequestContext, runId: string) {
   const run = await repos.backupRun.findById(runId);
-  assertResourceInOrg(run, "Run", organizationId, runId);
+  assertResourceInOrg(run, "Run", ctx.organizationId, runId);
   return run;
 }

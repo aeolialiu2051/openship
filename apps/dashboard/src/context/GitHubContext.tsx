@@ -175,6 +175,13 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
   const [loadingRepos, setLoadingRepos] = useState(false);
   const [installUrl, setInstallUrl] = useState<string | null>(initialData?.installUrl || null);
   const initRef = useRef(false);
+  // In-flight refresh promise — multiple triggers (mount effect,
+  // connect-flow follow-ups, pollConnect tick, etc.) collapse to ONE
+  // network call instead of stacking 3+ /github/home requests per
+  // open. Each /github/home call fans out to 3 cloud bridge calls
+  // (user-status, installations, install-url) on the API side, so
+  // dedup is load-bearing for the SaaS request rate.
+  const inflightRefresh = useRef<Promise<void> | null>(null);
 
   // Convenience derived from state.primary — every existing call site
   // that read `connected` keeps working.
@@ -182,6 +189,8 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
 
   /* ── Fetch connection info ──────────────────────────────────── */
   const refresh = useCallback(async () => {
+    if (inflightRefresh.current) return inflightRefresh.current;
+    const work = (async () => {
     try {
       const res = await githubApi.getUserHome();
       const nextState: GitHubConnectionState = res?.state ?? EMPTY_STATE;
@@ -231,6 +240,13 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
     } finally {
       setLoading(false);
     }
+    })();
+    inflightRefresh.current = work;
+    try {
+      await work;
+    } finally {
+      if (inflightRefresh.current === work) inflightRefresh.current = null;
+    }
   }, [showToast]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── On mount ───────────────────────────────────────────────── */
@@ -250,12 +266,12 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
 
     const finishRedirectFlow = () => {
       setConnecting(false);
+      // One immediate + one short follow-up. The immediate call covers
+      // the happy path; the 1500ms follow-up covers the race where the
+      // popup closes before the SaaS-side cookie/DB write is visible.
+      // `refresh()` is in-flight-deduped so a re-entry coalesces.
       void refresh();
-
-      // The popup can close before cookies/DB writes are visible to the
-      // dashboard request, so do a couple of quiet follow-up checks.
-      window.setTimeout(() => void refresh(), 750);
-      window.setTimeout(() => void refresh(), 2000);
+      window.setTimeout(() => void refresh(), 1500);
     };
 
     try {

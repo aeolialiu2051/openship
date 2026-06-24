@@ -9,6 +9,7 @@
 import { repos } from "@repo/db";
 import { STACKS, type StackId, type StackDefinition } from "@repo/core";
 import type { BuildStrategy } from "@repo/adapters";
+import { env } from "../../config";
 
 export type BuildMode = "auto" | "server" | "local";
 export type DefaultDeployTarget = "local" | "server" | "cloud";
@@ -19,7 +20,10 @@ export function isValidDefaultDeployTarget(value: unknown): value is DefaultDepl
   return typeof value === "string" && (VALID_DEPLOY_TARGETS as string[]).includes(value);
 }
 
-/** Get the user's build mode preference (defaults to "auto" if no row exists) */
+/**
+ * Get the user's build mode preference (defaults to "auto" if no row exists)
+ * @scope user
+ */
 export async function getBuildMode(userId: string): Promise<BuildMode> {
   const settings = await repos.settings.findByUser(userId);
   return (settings?.buildMode as BuildMode) ?? "auto";
@@ -28,13 +32,17 @@ export async function getBuildMode(userId: string): Promise<BuildMode> {
 /**
  * Has the user explicitly opted out of the gh-CLI fallback?
  * Used by github.auth.getUserStatus to honor a disconnect from cli mode.
+ * @scope user
  */
 export async function isGithubCliDisabled(userId: string): Promise<boolean> {
   const settings = await repos.settings.findByUser(userId);
   return settings?.githubCliDisabled ?? false;
 }
 
-/** Flip the gh-CLI suppression flag. Inserts a row if the user has none yet. */
+/**
+ * Flip the gh-CLI suppression flag. Inserts a row if the user has none yet.
+ * @scope user
+ */
 export async function setGithubCliDisabled(userId: string, disabled: boolean): Promise<void> {
   const existing = await repos.settings.findByUser(userId);
   if (existing) {
@@ -60,6 +68,7 @@ export async function setGithubCliDisabled(userId: string, disabled: boolean): P
  * Note: server id is returned verbatim. The dashboard verifies it against the
  * current server list before honoring it - if the server has been deleted,
  * the stale default is silently ignored on the next deploy.
+ * @scope user
  */
 export async function getDeployDefaults(userId: string): Promise<{
   defaultDeployTarget: DefaultDeployTarget | null;
@@ -83,22 +92,30 @@ export async function getDeployDefaults(userId: string): Promise<{
  *
  * Priority chain:
  *   1. Explicit per-deploy value (always sent by the dashboard)
- *   2. Stack default (STACKS[framework].defaultBuildStrategy)
- *   3. Fallback: "server"
+ *   2. deployTarget==="cloud" default → "server" (cloud builds belong
+ *      in the cloud runtime so they get the right toolchain and don't
+ *      burn host resources)
+ *   3. Stack default (STACKS[framework].defaultBuildStrategy)
+ *   4. Fallback: "server"
  */
 export async function resolveStrategy(
-  _userId: string,
   framework: string | undefined,
   explicit?: BuildStrategy,
+  opts?: { deployTarget?: "local" | "server" | "cloud" },
 ): Promise<BuildStrategy> {
-  const { env } = await import("../../config");
   // In SaaS/Cloud mode, never allow building locally on the API host
   if (env.CLOUD_MODE) return "server";
 
   // 1. Per-deploy explicit value (source of truth)
   if (explicit) return explicit;
 
-  // 2. Stack default → 3. Fallback
+  // 2. Cloud deploy target with no explicit choice → build in the cloud
+  //    workspace, not on the API host. Aligns the backend default with
+  //    the dashboard's auto-flip behavior so non-UI callers (CI, API)
+  //    get the same answer as the UI's first-deploy hint.
+  if (opts?.deployTarget === "cloud") return "server";
+
+  // 3. Stack default → 4. Fallback
   const stackId = framework as StackId;
   const stackDef: StackDefinition | undefined =
     stackId && stackId in STACKS

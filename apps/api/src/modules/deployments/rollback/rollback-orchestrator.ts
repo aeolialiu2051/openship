@@ -30,6 +30,8 @@ import type { DeploymentRef } from "@repo/adapters";
 import { AppError } from "@repo/core";
 import { resolveDeploymentRuntime } from "../../../lib/deployment-runtime";
 import { resolveRollbackWindow } from "../release-retention";
+import { checkNoActiveBuild, triggerDeployment } from "../build.service";
+import { buildBackgroundContext } from "../../../lib/request-context";
 
 // ─── Error codes (surfaced to the API layer) ────────────────────────────────
 
@@ -119,16 +121,28 @@ export async function onDeploymentReady(opts: {
 /**
  * User-triggered rollback to a specific deployment.
  *
- * Validates the target is rollback-eligible, archives the currently-
- * active deployment, then makes the target active via the runtime
- * primitive.
+ * Branches on the target's `rollbackStrategy`:
+ *
+ *   - `"snapshot"` (default) — archived artifact swap via the runtime
+ *     primitive. Fast (no rebuild) but only works while the artifact
+ *     is still retained.
+ *   - `"git"`     — schedule a NEW deployment that re-clones at the
+ *     target's `commit_sha` and rebuilds from scratch. The rollback
+ *     itself is also rollback-able (the new deployment captures the
+ *     current `commit_sha` as its `commit_sha_before`).
+ *
+ * Both branches share the same eligibility checks (deployment must
+ * have ended in a success-state and not already be the active one).
  */
 export async function rollback(targetDeploymentId: string): Promise<void> {
   const target = await repos.deployment.findById(targetDeploymentId);
   if (!target) {
     throw new AppError("Deployment not found", 404, "DEPLOYMENT_NOT_FOUND");
   }
-  if (target.status !== "ready") {
+  // `ready` and `partial_failure` both count as success for rollback
+  // — a partial-failure deploy still has some services up and is a
+  // legitimate restore target.
+  if (target.status !== "ready" && target.status !== "partial_failure") {
     throw new AppError(
       "Only successful deployments can be rolled back to.",
       409,
@@ -147,6 +161,29 @@ export async function rollback(targetDeploymentId: string): Promise<void> {
       ROLLBACK_ERROR_CODES.ALREADY_ACTIVE,
     );
   }
+
+  if (target.rollbackStrategy === "git") {
+    await rollbackViaGit(target, project);
+    return;
+  }
+  await rollbackViaSnapshot(target, project);
+}
+
+/**
+ * Snapshot strategy: swap the runtime to the archived artifact.
+ *
+ * Requires the target's `artifact_retained_at` to still be set.
+ */
+async function rollbackViaSnapshot(
+  target: Deployment,
+  project: NonNullable<Awaited<ReturnType<typeof repos.project.findById>>>,
+): Promise<void> {
+  // Guard against racing an in-flight deploy. Without this, runtime.makeActive
+  // fires immediately and the still-building deploy's eventual
+  // onDeploymentReady can clobber the rollback. The git-rollback path
+  // already gets this guard for free via triggerDeployment.
+  await checkNoActiveBuild(target.projectId);
+
   if (!target.artifactRetainedAt) {
     throw new AppError(
       "Rollback artifact is no longer retained for this deployment.",
@@ -229,6 +266,71 @@ export async function rollback(targetDeploymentId: string): Promise<void> {
     }
     throw dbErr;
   }
+}
+/**
+ * Git strategy: schedule a new deployment that re-clones at
+ * `target.commit_sha` and rebuilds. The new deployment captures the
+ * CURRENT active deploy's commit as `commit_sha_before`, so the
+ * rollback is itself rollback-able.
+ *
+ * Calls `triggerDeployment` (build.service) directly — no cycle: the
+ * orchestrator already statically depends on build.service (for
+ * checkNoActiveBuild), and build.service does NOT import rollback. The
+ * only deploy↔rollback edge is build-pipeline's DYNAMIC import of this
+ * module (`onDeploymentReady`), which doesn't close a static loop.
+ */
+async function rollbackViaGit(
+  target: Deployment,
+  project: NonNullable<Awaited<ReturnType<typeof repos.project.findById>>>,
+): Promise<void> {
+  // Locate the commit the rollback is reverting FROM. Prefer the
+  // currently-active deployment's commit_sha — that's the user's
+  // intent: "go back from where we are now." Falls through to the
+  // target's stored commit_sha_before if there's no active deploy
+  // (rare; would mean rollback before any successful deploy).
+  const currentActive = project.activeDeploymentId
+    ? await repos.deployment.findById(project.activeDeploymentId)
+    : null;
+  const prevSha = currentActive?.commitSha ?? target.commitShaBefore ?? undefined;
+
+  if (!target.commitSha) {
+    throw new AppError(
+      "Rollback target has no commit_sha to check out.",
+      409,
+      ROLLBACK_ERROR_CODES.ARTIFACT_GONE,
+    );
+  }
+
+  // Pick any org member to attribute the rollback to. The triggerer
+  // is the orchestrator (system) and the audit row is written by the
+  // controller layer separately — userId here is just a token-resolver
+  // affordance for triggerDeployment.
+  const orgMembers = await repos.member
+    .listByOrganization(target.organizationId)
+    .catch(() => [] as Array<{ userId: string }>);
+  const actorUserId = orgMembers[0]?.userId ?? "";
+  const rollbackCtx = buildBackgroundContext({
+    userId: actorUserId,
+    organizationId: target.organizationId,
+    label: "rollback:trigger",
+  });
+
+  await triggerDeployment(rollbackCtx, {
+    projectId: target.projectId,
+    branch: target.branch,
+    commitSha: target.commitSha,
+    commitMessage: target.commitMessage ?? `Rollback to ${target.commitSha.slice(0, 7)}`,
+    environment: target.environment,
+    trigger: "rollback",
+    rollbackStrategy: "git",
+    // Full rebuild — git-strategy rollback does NOT honor smart-deploy
+    // targeting (we're restoring an exact past commit, every service
+    // tied to it needs to come up).
+    serviceIds: undefined,
+    // Capture where we ARE now so this rollback is itself reversible.
+    commitShaBefore: prevSha,
+    forceAll: true,
+  });
 }
 
 /**

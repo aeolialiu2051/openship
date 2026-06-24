@@ -17,7 +17,7 @@ type OrgListResponse = { data?: OrgListItem[] } | OrgListItem[] | null;
 async function fetchUserOrgs(): Promise<OrgListItem[]> {
   try {
     const res = await serverApi.get<OrgListResponse>(
-      "/api/auth/organization/list",
+      "auth/organization/list",
       { cache: "no-store" },
     );
     if (!res) return [];
@@ -59,7 +59,7 @@ async function resolveOrgChooserGate(
   }
   if (orgs.length === 1) {
     try {
-      await serverApi.post("/api/auth/organization/set-active", {
+      await serverApi.post("auth/organization/set-active", {
         organizationId: orgs[0].id,
       });
     } catch {
@@ -131,7 +131,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   const initialGithubData = await serverApi
-    .get("/api/github/home", { cache: "no-store" })
+    .get("github/home", { cache: "no-store" })
     .catch(() => null);
 
   return (

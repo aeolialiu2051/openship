@@ -16,7 +16,7 @@ import { safeErrorMessage } from "@repo/core";
 import type { CloudPreflightData } from "./cloud-preflight";
 import { cloudRuntimeTarget, cloudRuntimeTargetId } from "../config/env";
 import { decrypt } from "./encryption";
-import { cacheStore, type CacheStore } from "./cache-store";
+import { cacheStore } from "./cache-store";
 
 export interface CloudAccount {
   name: string;
@@ -45,7 +45,13 @@ const STATUS_TTL_S = 5 * 60;
  * Handles: read session → decrypt → Bearer auth → 401 session cleanup.
  * Returns the Response, or null if not connected.
  */
-export async function cloudFetch(
+/**
+ * INTERNAL primitive — use `cloudClient(scope).request(path, init)`
+ * from outside this file. The unified client picks the right scope
+ * helper (cloudFetch vs cloudFetchAsOrgOwner) and gives consumers a
+ * stable typed surface.
+ */
+async function cloudFetch(
   userId: string,
   path: string,
   init?: RequestInit,
@@ -56,7 +62,8 @@ export async function cloudFetch(
   const sessionToken = decrypt(settings.cloudSessionToken);
 
   const targetUrl = `${cloudRuntimeTarget.api}${path}`;
-  console.log(`[cloud-client] → ${targetUrl}  (cloudRuntimeTargetId=${cloudRuntimeTargetId})`);
+  const method = (init?.method ?? "GET").toUpperCase();
+  console.log(`[cloud-client] → ${method} ${targetUrl}  (cloudRuntimeTargetId=${cloudRuntimeTargetId})`);
   let res: Response;
   try {
     res = await fetch(targetUrl, {
@@ -71,11 +78,21 @@ export async function cloudFetch(
     console.warn(`[cloud-client] fetch failed ${targetUrl}: ${(err as Error).message}`);
     return null;
   }
+  console.log(`[cloud-client] ← ${method} ${targetUrl} ${res.status}`);
 
   if (res.status === 401) {
-    await repos.settings.update(userId, { cloudSessionToken: null });
-    const tokens = await cacheStore<TokenCache>("oblien-ns-tokens");
-    await tokens.delete(userId);
+    // Pass-through: do NOT mutate any local state on a 401. A single
+    // 401 from one endpoint (a permission edge case, a stale ns-token
+    // cache, anything transient) used to wipe the user's session AND
+    // the namespace-token cache, which then made every subsequent
+    // call to ANY cloud bridge return null and the dashboard showed
+    // "not connected" even though the user just authorized. The
+    // cached ns-token has its own 25-minute TTL — if it's the
+    // problem, it'll refresh on its own. Only the explicit disconnect
+    // flow (or a fresh authorize) mutates stored state.
+    console.warn(
+      `[cloud-client] 401 from SaaS for ${path} — leaving stored session intact; caller should surface the auth error.`,
+    );
   }
 
   return res;
@@ -217,6 +234,16 @@ export interface CloudClient {
   disconnect(): Promise<void>;
   token(): Promise<{ token: string; namespace: string } | null>;
   /**
+   * Raw scoped fetch. Returns `null` when the scope has no stored
+   * cloud session (no token → no bearer). Otherwise the SaaS Response
+   * is forwarded verbatim — caller owns status/body handling.
+   *
+   * For passthrough proxies (billing-local, future modules) that need
+   * to forward arbitrary SaaS paths without a typed wrapper. Prefer
+   * a named method when you're calling a fixed endpoint.
+   */
+  request(path: string, init?: RequestInit): Promise<Response | null>;
+  /**
    * Relay an organization invitation email through the SaaS's mail
    * infrastructure. Used by self-hosted instances that have opted into
    * `invitationMailSource = "cloud"`. Org-scoped — the org owner's cloud
@@ -339,6 +366,7 @@ export function cloudClient(scope: CloudClientScope): CloudClient {
   }
 
   return {
+    request: (path: string, init?: RequestInit) => fetchScoped(path, init),
     github: {
       async installUrl() {
         const res = await fetchScoped("/api/cloud/github/install-url", {
@@ -616,12 +644,16 @@ export async function invalidateCloudStatusCache(userId: string): Promise<void> 
 }
 
 /**
- * Resolve cloud connection state for the local user. The presence of
- * `cloudSessionToken` in user_settings IS the connection — no SaaS
- * round-trip needed to verify it. The /account fetch ONLY runs to
- * surface profile data (name/email/avatar); result cached for 5min
- * via the shared CacheStore. A 401 on the cached call drops the
- * cache and marks disconnected lazily.
+ * Resolve cloud connection state for the local user.
+ *
+ * Single invariant: **stored bearer token IS the source of truth**. As
+ * long as `user_settings.cloud_session_token` exists, the user is
+ * `connected: true`. The /account fetch is only for profile data
+ * (name/email/avatar) and never flips the `connected` flag — a 401
+ * just leaves `user` undefined so the UI can show "connected, profile
+ * unavailable" honestly instead of contradicting `isCloudConnected`.
+ *
+ * Profile responses cached for 5min via the shared CacheStore.
  */
 export async function getCloudConnectionStatus(
   userId: string,
@@ -639,19 +671,12 @@ export async function getCloudConnectionStatus(
   }
 
   const res = await cloudFetch(userId, "/api/cloud/account", { method: "GET" });
-  if (res?.status === 401) {
-    await store.delete(userId);
-    return { connected: false };
-  }
-
   const user = res?.ok
     ? (await readCloudJson<{ user?: CloudAccount }>(res))?.user
     : undefined;
-  // Only cache positive responses. The OLD code had no cache; caching a
-  // null/undefined user here would be indistinguishable from a cache miss
-  // on subsequent reads (store.get returns null in both cases), so we skip
-  // the write when there's nothing meaningful to cache.
   if (user) {
+    // Only cache positive responses — a null/undefined user would be
+    // indistinguishable from a cache miss on subsequent reads.
     await store.set(userId, user, STATUS_TTL_S);
   }
   return { connected: true, ...(user ? { user } : {}) };

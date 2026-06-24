@@ -30,7 +30,7 @@
 import type { Context } from "hono";
 import { sshManager } from "../../lib/ssh-manager";
 import { auth } from "../../lib/auth";
-import { env, trustedOrigins } from "../../config/env";
+import { trustedOrigins } from "../../config/env";
 import { upgradeWebSocket } from "../../lib/ws";
 import { repos } from "@repo/db";
 import type { ShellSession } from "@repo/adapters";
@@ -48,7 +48,8 @@ import {
   touchSession,
   unregisterSession,
 } from "../../lib/terminal-session-manager";
-import { getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
+import { resolveActiveOrganizationId } from "../../middleware/active-organization";
 import { permission, checkPermission } from "../../lib/permission";
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -102,8 +103,7 @@ const RESUME_SUBPROTOCOL_PREFIX = "openship.terminal.resume+";
 // ─── Ticket endpoint (POST /api/terminal/ticket) ────────────────────────────
 
 export async function issueTicket(c: Context) {
-  const user = c.get("user") as { id: string } | undefined;
-  if (!user?.id) return c.json({ error: "Unauthorized" }, 401);
+  const ctx = getRequestContext(c);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = typeof body?.serverId === "string" ? body.serverId : "";
@@ -112,7 +112,7 @@ export async function issueTicket(c: Context) {
   // Primary gate: opening a PTY is administrative. Even at ticket-mint
   // time we want to reject restricted users without an admin grant — the
   // ticket would otherwise be a "free pass" past the WS upgrade gate below.
-  await permission.assert(c, {
+  await permission.assert(getRequestContext(c), {
     resourceType: "server",
     resourceId: serverId,
     action: "admin",
@@ -122,11 +122,10 @@ export async function issueTicket(c: Context) {
   // burning an upgrade attempt. We use the org-scoped getter — out-of-org
   // (or unknown) server ids return 404 indistinguishably to prevent
   // existence leaks across tenants.
-  const organizationId = getActiveOrganizationId(c);
-  const server = await repos.server.getInOrganization(serverId, organizationId);
+  const server = await repos.server.getInOrganization(serverId, ctx.organizationId);
   if (!server) return c.json({ error: "Server not found" }, 404);
 
-  const { token, expiresIn } = issueTerminalTicket(user.id, serverId);
+  const { token, expiresIn } = issueTerminalTicket(ctx, serverId);
   return c.json({ success: true, token, expiresIn });
 }
 
@@ -178,15 +177,20 @@ export const terminalWsHandler = upgradeWebSocket(async (c) => {
   // it's not pre-set on the Hono context. We mirror the middleware's
   // logic: prefer session.activeOrganizationId, fall back to the user's
   // oldest membership.
+  // not ctx-scoped: WebSocket upgrade path. This route runs OUTSIDE
+  // the normal Hono auth middleware (Bun WS doesn't carry the same
+  // request lifecycle), so it has to re-derive the active org from
+  // scratch. Both branches funnel through resolveActiveOrganizationId
+  // (the canonical resolver from middleware/active-organization.ts) so
+  // the WS path applies the same team-org-preferred + memberships[0]
+  // fallback as every other authed request — no behavior drift.
+  // Foreground non-WS callers must NOT duplicate this pattern — they
+  // read ctx.organizationId, which authMiddleware already populated.
   let activeOrgId: string | null = null;
   if (ticket) {
     userId = ticket.userId;
     ticketServerId = ticket.serverId;
-    // Ticket-authed: resolve org from the user's memberships (the ticket
-    // doesn't carry orgId, but the issueTicket path already validated
-    // org-scoped access).
-    const memberships = await repos.member.listByUser(userId).catch(() => []);
-    if (memberships.length > 0) activeOrgId = memberships[0].organizationId;
+    activeOrgId = await resolveActiveOrganizationId(userId, null).catch(() => null);
   } else {
     try {
       const session = await auth.api.getSession({ headers: c.req.raw.headers });
@@ -195,16 +199,7 @@ export const terminalWsHandler = upgradeWebSocket(async (c) => {
         const sessOrgId =
           (session.session as { activeOrganizationId?: string | null } | null)
             ?.activeOrganizationId ?? null;
-        if (sessOrgId) {
-          const stillMember = await repos.member
-            .isMember(sessOrgId, userId)
-            .catch(() => false);
-          if (stillMember) activeOrgId = sessOrgId;
-        }
-        if (!activeOrgId) {
-          const memberships = await repos.member.listByUser(userId).catch(() => []);
-          if (memberships.length > 0) activeOrgId = memberships[0].organizationId;
-        }
+        activeOrgId = await resolveActiveOrganizationId(userId, sessOrgId).catch(() => null);
       }
     } catch {
       // fall through to reject below

@@ -3,7 +3,7 @@
  *
  * THE single source of truth for "what GitHub token do I use for this
  * action?". Every place in the codebase that needs a token reaches into
- * `tokenFor(userId, purpose, ctx)` and that's the whole answer.
+ * `tokenFor(ctx, purpose, tokenCtx)` and that's the whole answer.
  *
  * Two purposes. That's it.
  *
@@ -15,11 +15,13 @@
  *     - Local-build clones (clone runs on this API host)
  *     - Generic GitHub API calls
  *
- *   Self-hosted priority:
- *     1. Project clone token (per-project override — user explicitly set)
- *     2. User-global clone token (when marked as default)
- *     3. gh CLI                ← source of truth per the user's rule
- *     4. Openship App installation (if owner has one)
+ *   Self-hosted priority (for purpose="local" — see ordering rationale
+ *   block at the dispatcher):
+ *     1. gh CLI                ← least config: just needs the operator's
+ *                                 CLI present; opt-in gated for multi-user
+ *     2. Openship App installation (org-scoped, short-lived, repo-scoped)
+ *     3. Project clone token   (per-project user PAT override)
+ *     4. User-global clone token (user PAT, when marked as default)
  *     5. User OAuth (Better-Auth)
  *     6. null
  *
@@ -61,6 +63,7 @@ import {
   getUserToken,
 } from "./github.auth";
 import { getLocalGhToken } from "./github.local-auth";
+import type { RequestContext } from "../../lib/request-context";
 
 // ─── Public types ───────────────────────────────────────────────────────────
 
@@ -78,6 +81,11 @@ export interface TokenResult {
   source: GitHubTokenSource;
 }
 
+/**
+ * Per-token-call data — owner, installation id, project id. Identity
+ * (userId, organizationId) lives in the RequestContext passed alongside,
+ * NOT in this interface.
+ */
 export interface TokenContext {
   /** Repo owner — required for App installation token resolution. */
   owner?: string;
@@ -85,16 +93,6 @@ export interface TokenContext {
   installationId?: number;
   /** Project id — for per-project clone token lookup. */
   projectId?: string;
-  /**
-   * Active organization id — when set, App installation resolution prefers
-   * `(organizationId, owner)` over the `(userId, owner)` lookup.
-   *
-   * Multi-user safety: a teammate's clone shouldn't depend on whichever
-   * org member happened to install the App. Pass this whenever a request
-   * has an active organization in context (every authed dashboard call,
-   * every build kicked off by a project owned by an org).
-   */
-  organizationId?: string;
 }
 
 // ─── The dispatcher ─────────────────────────────────────────────────────────
@@ -106,38 +104,37 @@ export interface TokenContext {
  * whether to throw or proceed (use `requireTokenFor` for the throw).
  */
 export async function tokenFor(
-  userId: string,
+  ctx: RequestContext,
   purpose: GitHubPurpose,
-  ctx: TokenContext = {},
+  tokenCtx: TokenContext = {},
 ): Promise<TokenResult | null> {
-  // ── User overrides — same priority in every mode/purpose ──────────
-  // These are CLI tokens the user explicitly provisioned. Safe for any
-  // purpose (the user accepted the scope policy when they pasted them).
-  if (ctx.projectId) {
-    const t = await readProjectToken(ctx.projectId);
-    if (t) return { token: t, source: "project" };
-  }
-  const userPat = await readUserGlobalToken(userId);
-  if (userPat) return { token: userPat, source: "user-pat" };
-
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId || undefined;
   // ── Permission gate: restricted members can't transitively use the
   //    org's GitHub App installation unless they hold an explicit
   //    `github` resource grant. Without it, deploy/build flows fall
   //    through to the calling user's OWN OAuth token — they must
   //    connect their GitHub before they can do anything that needs it.
   //    Members/Admins/Owners always pass through.
-  const installationAllowed = await canUseOrgInstallation(userId, ctx.organizationId);
+  const installationAllowed = await canUseOrgInstallation(ctx);
 
-  // ── Backend-resolved priority ─────────────────────────────────────
-  // CLOUD_MODE = SaaS = no gh CLI on this machine ever; the App is
-  // the only auto-resolved source.
+  // ── SaaS: no gh CLI on this machine ever; the App is the only
+  //    auto-resolved source. PATs (project / user) still win at the
+  //    top — they're explicit user provisioning and the SaaS host has
+  //    no other way to access a repo the App isn't installed on.
   if (env.CLOUD_MODE) {
-    if (ctx.owner && installationAllowed) {
+    if (tokenCtx.projectId) {
+      const t = await readProjectToken(tokenCtx.projectId);
+      if (t) return { token: t, source: "project" };
+    }
+    const userPat = await readUserGlobalToken(userId);
+    if (userPat) return { token: userPat, source: "user-pat" };
+
+    if (tokenCtx.owner && installationAllowed) {
       const t = await getInstallationToken(
-        userId,
-        ctx.owner,
-        ctx.installationId,
-        ctx.organizationId,
+        ctx,
+        tokenCtx.owner,
+        tokenCtx.installationId,
       ).catch(() => null);
       if (t) return { token: t, source: "app-installation" };
     }
@@ -147,59 +144,84 @@ export async function tokenFor(
     return null;
   }
 
-  // SELF-HOSTED — purpose actually matters here.
+  // ── SELF-HOSTED — purpose actually matters here ───────────────────
   if (purpose === "local") {
-    // Per user's rule: gh CLI is the source of truth in self-hosted.
-    // If logged in, it wins over App. App + OAuth are fallbacks.
+    // ─── Ordering rationale (deliberate) ────────────────────────────
+    // For local-build clones, prefer auto-resolved credentials over
+    // explicit user-provisioned PATs because they're scoped tighter
+    // and require less ongoing maintenance:
     //
-    // BUT: gh CLI is the OPERATOR's credential (a long-lived, broad-scope
-    // PAT bound to whoever ran `gh auth login` on this host). Handing it
-    // to every authed user is a privilege escalation — a member/admin/
-    // restricted user could use it to act against any repo the operator's
-    // GitHub account can reach, well outside this org.
+    //   1. gh-cli           — least configuration: just the operator's
+    //                         CLI present (opt-in gated for multi-user
+    //                         to prevent privilege escalation, HIGH #7).
+    //   2. app-installation — short-lived, repo-scoped, org-bound.
+    //   3. project PAT      — explicit per-project user override.
+    //   4. user-pat         — explicit user-global PAT.
+    //   5. user-oauth       — last-resort fallback.
     //
-    // Only return it when the caller is the operator: in zero-auth desktop
-    // (no organizationId in context) the auto-provisioned local user IS
-    // the operator. On a multi-user self-hosted install, restrict to
-    // `owner` role in the active org.
-    if (ctx.organizationId) {
-      const m = await repos.member
-        .find(ctx.organizationId, userId)
-        .catch(() => null);
-      if (m?.role === "owner") {
+    // gh-cli is preferred over the App because the App requires the
+    // owner to have installed it on the repo; gh-cli works against any
+    // repo the operator's GitHub account can see, which is exactly
+    // what we want for a local-build clone on this host. For REMOTE
+    // builds, gh-cli is refused entirely — see the remote branch below.
+    //
+    // HIGH #7: gh CLI is the OPERATOR's long-lived broad-scope PAT.
+    // Two ways in (see `isCliOperatorAllowed`):
+    //   - env.GITHUB_AUTH_MODE === "cli" (instance-wide cli mode)
+    //   - `user_settings.ghCliOperatorOptedIn` flag flipped by the user.
+    // No org context (zero-auth desktop / internal jobs) keeps using
+    // the CLI directly — the auto-provisioned local user IS the operator.
+    if (organizationId) {
+      if (await isCliOperatorAllowed(userId)) {
         const cli = await getLocalGhToken();
         if (cli) return { token: cli, source: "gh-cli" };
       }
-      // Non-owners fall through to App / OAuth.
+      // Non-operators fall through to App / PAT / OAuth.
     } else {
-      // No org context (desktop zero-auth, internal job) — the caller is
-      // the operator, so gh CLI is safe to use.
       const cli = await getLocalGhToken();
       if (cli) return { token: cli, source: "gh-cli" };
     }
-    if (ctx.owner && installationAllowed) {
+
+    if (tokenCtx.owner && installationAllowed) {
       const t = await getInstallationToken(
-        userId,
-        ctx.owner,
-        ctx.installationId,
-        ctx.organizationId,
+        ctx,
+        tokenCtx.owner,
+        tokenCtx.installationId,
       ).catch(() => null);
       if (t) return { token: t, source: "app-installation" };
     }
+
+    // User-provisioned PATs come after auto-resolved sources for local.
+    if (tokenCtx.projectId) {
+      const t = await readProjectToken(tokenCtx.projectId);
+      if (t) return { token: t, source: "project" };
+    }
+    const userPat = await readUserGlobalToken(userId);
+    if (userPat) return { token: userPat, source: "user-pat" };
+
     const oauth = await getUserToken(userId);
     if (oauth) return { token: oauth, source: "user-oauth" };
     return null;
   }
 
-  // purpose === "remote" in self-hosted
-  // gh CLI is REFUSED. App installation is the only auto-resolved token
-  // that's safe to ship to a remote worker (short-lived, repo-scoped).
-  if (ctx.owner && installationAllowed) {
+  // ── purpose === "remote" in self-hosted ───────────────────────────
+  // gh CLI is REFUSED — it's a long-lived broad-scope user PAT and the
+  // cloud workspace doesn't have gh-cli installed anyway. App
+  // installation is the only auto-resolved token safe to ship off-host
+  // (short-lived, repo-scoped); explicit user PATs are also safe
+  // because the user opted in by pasting them.
+  if (tokenCtx.projectId) {
+    const t = await readProjectToken(tokenCtx.projectId);
+    if (t) return { token: t, source: "project" };
+  }
+  const userPat = await readUserGlobalToken(userId);
+  if (userPat) return { token: userPat, source: "user-pat" };
+
+  if (tokenCtx.owner && installationAllowed) {
     const t = await getInstallationToken(
-      userId,
-      ctx.owner,
-      ctx.installationId,
-      ctx.organizationId,
+      ctx,
+      tokenCtx.owner,
+      tokenCtx.installationId,
     ).catch(() => null);
     if (t) return { token: t, source: "app-installation" };
   }
@@ -220,69 +242,77 @@ export async function tokenFor(
  * credential type was used; an actual token value is NOT exposed.
  */
 export async function canResolveTokenFor(
-  userId: string,
+  ctx: RequestContext,
   purpose: GitHubPurpose,
-  ctx: TokenContext = {},
+  tokenCtx: TokenContext = {},
 ): Promise<GitHubTokenSource | null> {
-  // 1. Per-project clone token — DB read only, no mint.
-  if (ctx.projectId) {
-    const project = await repos.project.findById(ctx.projectId).catch(() => null);
-    if (project?.cloneTokenEncrypted) return "project";
-  }
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId || undefined;
+  // Mirror the dispatch order in `tokenFor` so preflight reports the
+  // SAME source that the real resolution will mint later.
+  // Self-hosted local: cli → app → project PAT → user PAT → oauth
+  // SaaS / self-hosted remote: project PAT → user PAT → app → (oauth in SaaS)
 
-  // 2. User-global clone token (DB read only).
-  const settings = await repos.settings.findByUser(userId).catch(() => null);
-  if (settings?.cloneTokenEncrypted && settings.cloneTokenAsDefault) return "user-pat";
+  const isSelfHostedLocal = !env.CLOUD_MODE && purpose === "local";
 
-  // 3. Self-hosted "local" purpose — gh CLI wins over App when present.
-  //    getLocalGhToken does shell out (~50–150ms) but no GitHub API.
-  //
-  //    Same operator-only guard as `tokenFor`: only surface gh-cli
-  //    existence when the caller is the org owner, or when there's no
-  //    org context (desktop zero-auth / internal job). Without this, a
-  //    member would see gh-cli as "available" and the dashboard would
-  //    offer flows that ultimately fail or, worse, succeed via another
-  //    credential while logging gh-cli as the resolved source.
-  if (!env.CLOUD_MODE && purpose === "local") {
-    let canUseCli = false;
-    if (ctx.organizationId) {
-      const m = await repos.member
-        .find(ctx.organizationId, userId)
-        .catch(() => null);
-      canUseCli = m?.role === "owner";
-    } else {
-      canUseCli = true;
-    }
-    if (canUseCli) {
-      const cli = await getLocalGhToken();
-      if (cli) return "gh-cli";
-    }
-  }
-
-  // 4. App installation — existence check only (DB row + small cache).
-  //    Both SaaS and self-hosted, both purposes. Mirrors the resolution
-  //    order in `tokenFor`: org-scoped row first, then user-scoped.
-  if (ctx.owner) {
+  // Helper closures — keep the read order auditable.
+  const checkProjectPat = async (): Promise<GitHubTokenSource | null> => {
+    if (!tokenCtx.projectId) return null;
+    const project = await repos.project.findById(tokenCtx.projectId).catch(() => null);
+    return project?.cloneTokenEncrypted ? "project" : null;
+  };
+  const checkUserPat = async (): Promise<GitHubTokenSource | null> => {
+    const settings = await repos.settings.findByUser(userId).catch(() => null);
+    return settings?.cloneTokenEncrypted && settings.cloneTokenAsDefault ? "user-pat" : null;
+  };
+  const checkAppInstallation = async (): Promise<GitHubTokenSource | null> => {
+    if (!tokenCtx.owner) return null;
     let installId: number | null = null;
-    if (ctx.organizationId) {
-      installId = await getInstallationIdByOrg(ctx.organizationId, ctx.owner).catch(
+    if (organizationId) {
+      installId = await getInstallationIdByOrg(organizationId, tokenCtx.owner).catch(
         () => null,
       );
     }
     if (!installId) {
-      installId = await getInstallationId(userId, ctx.owner).catch(() => null);
+      installId = await getInstallationId(ctx, tokenCtx.owner).catch(() => null);
     }
-    if (installId) return "app-installation";
-  }
-
-  // 5. OAuth fallback — only on the paths where tokenFor uses it.
-  //    SaaS: both purposes. Self-hosted: purpose=local only.
-  //    Note: purpose=remote in self-hosted does NOT fall through to OAuth.
-  if (env.CLOUD_MODE || purpose === "local") {
+    return installId ? "app-installation" : null;
+  };
+  const checkOauth = async (): Promise<GitHubTokenSource | null> => {
     const oauth = await getUserToken(userId).catch(() => null);
-    if (oauth) return "user-oauth";
+    return oauth ? "user-oauth" : null;
+  };
+
+  if (isSelfHostedLocal) {
+    // HIGH #7 — same operator-only opt-in guard as `tokenFor`. Only
+    // surface gh-cli existence to callers who are explicitly the
+    // operator (env-cli mode, or per-user opt-in flag), or to callers
+    // with no org context (desktop zero-auth / internal job).
+    const canUseCli = organizationId
+      ? await isCliOperatorAllowed(userId)
+      : true;
+    if (canUseCli) {
+      const cli = await getLocalGhToken();
+      if (cli) return "gh-cli";
+    }
+    const app = await checkAppInstallation();
+    if (app) return app;
+    const proj = await checkProjectPat();
+    if (proj) return proj;
+    const usr = await checkUserPat();
+    if (usr) return usr;
+    return await checkOauth();
   }
 
+  // SaaS (both purposes) and self-hosted "remote": PATs first, then App.
+  const proj = await checkProjectPat();
+  if (proj) return proj;
+  const usr = await checkUserPat();
+  if (usr) return usr;
+  const app = await checkAppInstallation();
+  if (app) return app;
+  // OAuth fallback: SaaS only. Self-hosted remote does NOT fall through.
+  if (env.CLOUD_MODE) return await checkOauth();
   return null;
 }
 
@@ -292,11 +322,11 @@ export async function canResolveTokenFor(
  * credentials are a real "do something" condition.
  */
 export async function requireTokenFor(
-  userId: string,
+  ctx: RequestContext,
   purpose: GitHubPurpose,
-  ctx: TokenContext = {},
+  tokenCtx: TokenContext = {},
 ): Promise<TokenResult> {
-  const r = await tokenFor(userId, purpose, ctx);
+  const r = await tokenFor(ctx, purpose, tokenCtx);
   if (r) return r;
 
   const hint =
@@ -305,13 +335,31 @@ export async function requireTokenFor(
       : "Run `gh auth login`, connect Openship Cloud, or set a per-project clone token in Settings.";
 
   throw new AppError(
-    `No GitHub token available for ${ctx.owner ?? "this request"} (purpose: ${purpose}). ${hint}`,
+    `No GitHub token available for ${tokenCtx.owner ?? "this request"} (purpose: ${purpose}). ${hint}`,
     403,
     purpose === "remote" ? "GITHUB_REMOTE_TOKEN_REQUIRED" : "GITHUB_TOKEN_REQUIRED",
   );
 }
 
 // ─── Internal helpers ──────────────────────────────────────────────────────
+
+/**
+ * HIGH #7 — single source of truth for "can this caller use the gh CLI
+ * operator token?". Two ways in:
+ *
+ *   1. `env.GITHUB_AUTH_MODE === "cli"` — operator explicitly chose CLI
+ *      mode for this whole instance. No further gating needed.
+ *   2. `user_settings.ghCliOperatorOptedIn === true` — the user is the
+ *      single-user instance operator and has flipped the opt-in. Any
+ *      other caller (member, admin, owner-of-other-org) is refused.
+ *
+ * Returns false on lookup failure (fail closed).
+ */
+async function isCliOperatorAllowed(userId: string): Promise<boolean> {
+  if (env.GITHUB_AUTH_MODE === "cli") return true;
+  const settings = await repos.settings.findByUser(userId).catch(() => null);
+  return settings?.ghCliOperatorOptedIn === true;
+}
 
 /**
  * Permission gate: should `userId` be allowed to mint tokens via the
@@ -332,10 +380,9 @@ export async function requireTokenFor(
  *
  * Returns false on lookup failure (fail closed).
  */
-async function canUseOrgInstallation(
-  userId: string,
-  organizationId: string | undefined,
-): Promise<boolean> {
+async function canUseOrgInstallation(ctx: RequestContext): Promise<boolean> {
+  const userId = ctx.userId;
+  const organizationId = ctx.organizationId || undefined;
   if (!organizationId) return true;
   try {
     const m = await repos.member.find(organizationId, userId);

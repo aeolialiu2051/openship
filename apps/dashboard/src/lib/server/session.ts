@@ -55,7 +55,7 @@ export const getSession = cache(async (): Promise<SessionData | null> => {
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
-      const data = await serverApi.get<SessionData>("/api/auth/get-session", {
+      const data = await serverApi.get<SessionData>("auth/get-session", {
         cache: "no-store",
       });
       return data;
@@ -141,7 +141,7 @@ export async function getDeploymentInfo(
   const requestHeaders = await headers();
 
   try {
-    _deploymentInfo = await serverApi.get<DeploymentInfo>("/api/health/env");
+    _deploymentInfo = await serverApi.get<DeploymentInfo>("health/env");
     _deploymentInfoFetchedAt = Date.now();
   } catch {
     if (_deploymentInfo) {

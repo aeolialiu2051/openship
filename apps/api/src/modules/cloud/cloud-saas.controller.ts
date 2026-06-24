@@ -6,18 +6,19 @@
  * the caller's namespace token** — Oblien enforces the namespace
  * boundary natively (no SaaS-side ledger / ownership check needed).
  *
- *   POST /api/cloud/token           - mint namespace-scoped Oblien token
- *   POST /api/cloud/analytics       - proxy Oblien analytics (namespace token)
- *   POST /api/cloud/edge-proxy      - sync Oblien edge proxy (namespace token)
- *   POST /api/cloud/pages           - proxy Oblien pages.create (namespace token)
- *   POST /api/cloud/preflight       - cloud deployment preflight check
- *   GET  /api/cloud/desktop-handoff - OAuth → one-time code → redirect to desktop
- *   GET  /api/cloud/connect-handoff - OAuth → one-time code → redirect to self-hosted
- *   POST /api/cloud/exchange-code   - exchange code for user + session (no auth)
+ *   POST /api/cloud/token             - mint namespace-scoped Oblien token
+ *   POST /api/cloud/analytics         - proxy Oblien analytics (namespace token)
+ *   POST /api/cloud/edge-proxy        - sync Oblien edge proxy (namespace token)
+ *   POST /api/cloud/pages             - proxy Oblien pages.create (namespace token)
+ *   POST /api/cloud/preflight         - cloud deployment preflight check
+ *   GET  /api/cloud/desktop-handoff   - OAuth → one-time code → redirect to desktop
+ *   GET  /api/cloud/connect-handoff   - validates params, 302s to dashboard consent page
+ *   POST /api/cloud/connect-authorize - dashboard consent page mints code with session
+ *   POST /api/cloud/exchange-code     - exchange code for user + session (no auth)
  */
 
 import type { Context } from "hono";
-import { getActiveOrganizationId, getUserId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { auth } from "../../lib/auth";
 import { issueNamespaceToken } from "../../lib/openship-cloud";
 import {
@@ -25,6 +26,8 @@ import {
   validateDesktopRedirect,
   validateConnectRedirect,
   buildAuthHandoff,
+  generateHandoffCode,
+  mintSession,
 } from "../../lib/cloud-auth-proxy";
 import { runCloudPreflight } from "../../lib/cloud-preflight";
 import { cloudRuntimeTarget } from "../../config/env";
@@ -94,7 +97,7 @@ function oblienErrorResponse(c: Context, err: unknown, fallback: string) {
  * impossible. No SaaS-side ownership check needed.
  */
 export async function analyticsProxy(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const { operation, domain, params } = await c.req.json<{
     operation: CloudAnalyticsOperation;
     domain: string;
@@ -107,7 +110,7 @@ export async function analyticsProxy(c: Context) {
     return c.json({ error: "Unknown operation" }, 400);
   }
   try {
-    const result = await proxyCloudAnalytics(organizationId, { operation, domain, params });
+    const result = await proxyCloudAnalytics(ctx.organizationId, { operation, domain, params });
     return c.json({ data: result });
   } catch (err) {
     if (err instanceof CloudAnalyticsForbiddenError) {
@@ -120,15 +123,15 @@ export async function analyticsProxy(c: Context) {
 // ─── Namespace token minting ─────────────────────────────────────────────────
 
 export async function getToken(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const result = await issueNamespaceToken(organizationId);
+  const ctx = getRequestContext(c);
+  const result = await issueNamespaceToken(ctx.organizationId);
   return c.json({ data: result });
 }
 
 export async function preflight(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ slug?: string; customDomain?: string }>();
-  const result = await runCloudPreflight(organizationId, {
+  const result = await runCloudPreflight(ctx.organizationId, {
     slug: body.slug,
     customDomain: body.customDomain,
   });
@@ -216,11 +219,24 @@ export async function desktopHandoff(c: Context) {
 // ─── Self-hosted connect handoff ─────────────────────────────────────────────
 
 /**
- * GET /api/cloud/connect-handoff?redirect=<url>
+ * GET /api/cloud/connect-handoff?redirect=<url>&state=<state>&code_challenge=<challenge>
+ *
+ * Browser entry point for the self-hosted "Connect to Cloud" flow. We
+ * intentionally do NOT mint a handoff code here — that would let any
+ * authenticated browser silently issue connect codes for arbitrary
+ * (validated) redirects. Instead we 302 the browser to a dashboard-
+ * hosted consent page, which gates the code mint behind an explicit
+ * "Authorize" click.
+ *
+ * Validates the params once on entry so the dashboard page can't be
+ * loaded with a malformed redirect. Validation errors are surfaced as
+ * 400 JSON exactly like before.
  *
  * Security:
  *   - redirect MUST be HTTPS (no downgrade to HTTP), except localhost
- *   - Codes are single-use with 60s TTL
+ *   - state + code_challenge are propagated to the dashboard page,
+ *     which re-validates and forwards them to /connect-authorize
+ *   - Code mint happens on POST /connect-authorize, not here
  */
 export async function connectHandoff(c: Context) {
   const codeChallenge = c.req.query("code_challenge");
@@ -229,15 +245,114 @@ export async function connectHandoff(c: Context) {
   }
   const validation = validateConnectRedirect(c.req.query("redirect"));
   if (!validation.ok) return c.json({ error: validation.error }, validation.status);
+  const state = c.req.query("state");
+  if (!state || typeof state !== "string" || state.length === 0 || state.length > 256) {
+    return c.json({ error: "state query parameter is required", code: "MISSING_STATE" }, 400);
+  }
+
+  // Redirect to the dashboard consent page. The dashboard handles
+  // authentication-checking (bouncing to /login with returnTo) and
+  // renders the consent UI; on Authorize click it POSTs back to
+  // /api/cloud/connect-authorize below, which is where the code mint
+  // actually happens.
+  const consentUrl = new URL("/cloud-authorize", cloudRuntimeTarget.dashboard);
+  consentUrl.searchParams.set("redirect", validation.url.toString());
+  consentUrl.searchParams.set("state", state);
+  consentUrl.searchParams.set("code_challenge", codeChallenge);
+  return c.redirect(consentUrl.toString());
+}
+
+/**
+ * POST /api/cloud/connect-authorize
+ *
+ * Called by the dashboard consent page after the user clicks
+ * "Authorize". Requires a Better-Auth session cookie (the page itself
+ * is dashboard-served, so the cookie is in scope). Mints a one-time
+ * handoff code bound to the supplied PKCE challenge and returns the
+ * final callback URL the page should navigate to.
+ *
+ * Body shape: { redirect, state, codeChallenge }
+ *
+ * Returns:
+ *   200 { callbackUrl }        — on success
+ *   400 { error, code }        — on validation failure
+ *   401 { error, code }        — on missing/expired session
+ *   500 { error, code }        — on unexpected mint failure
+ */
+export async function connectAuthorize(c: Context) {
+  let body: { redirect?: string; state?: string; codeChallenge?: string };
+  try {
+    body = await c.req.json<{ redirect?: string; state?: string; codeChallenge?: string }>();
+  } catch {
+    return c.json({ error: "Invalid JSON body", code: "INVALID_BODY" }, 400);
+  }
+
+  const codeChallenge = body.codeChallenge;
+  if (!codeChallenge || !/^[A-Za-z0-9_-]{40,128}$/.test(codeChallenge)) {
+    return c.json(
+      { error: "codeChallenge is required", code: "MISSING_CODE_CHALLENGE" },
+      400,
+    );
+  }
+  const validation = validateConnectRedirect(body.redirect);
+  if (!validation.ok) {
+    return c.json({ error: validation.error, code: "INVALID_REDIRECT" }, validation.status);
+  }
+  const state = body.state;
+  if (!state || typeof state !== "string" || state.length === 0 || state.length > 256) {
+    return c.json({ error: "state is required", code: "MISSING_STATE" }, 400);
+  }
+
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
-  const result = await buildAuthHandoff({
-    session,
-    redirect: validation.url,
-    state: c.req.query("state"),
-    codeChallenge,
-    dashboardOrigin: cloudRuntimeTarget.dashboard,
-  });
-  return c.redirect(result.url);
+  if (!session) {
+    return c.json({ error: "Authentication required", code: "UNAUTHENTICATED" }, 401);
+  }
+
+  try {
+    // CRITICAL: do NOT hand the local instance the user's current
+    // browser cookie session token. The local instance later calls
+    // POST /api/cloud/disconnect which deletes the session row by
+    // id — handing over the cookie session would mean a "disconnect
+    // local from cloud" click logs the user out of app.openship.io.
+    //
+    // Instead, mint a dedicated session row for the linked-instance
+    // bearer flow. The cookie session stays untouched; disconnect
+    // kills only the row we just created.
+    // activeOrganizationId is NOT NULL in the schema — every SaaS user
+    // gets a personal `org_<userId>` provisioned at signup, so fall
+    // back to that when the cookie session somehow has it null
+    // (Better Auth's plugin types it loosely).
+    const linked = await mintSession({
+      purpose: "linked-instance",
+      userId: session.user.id,
+      activeOrganizationId:
+        session.session.activeOrganizationId ?? `org_${session.user.id}`,
+      ipAddress: c.get("clientIp") ?? null,
+      userAgent: c.req.header("user-agent") ?? null,
+    });
+
+    const code = await generateHandoffCode(
+      {
+        id: session.user.id,
+        name: session.user.name,
+        email: session.user.email,
+        emailVerified: session.user.emailVerified,
+        image: session.user.image ?? null,
+      },
+      linked.token,
+      codeChallenge,
+    );
+    const callbackUrl = new URL(validation.url.toString());
+    callbackUrl.searchParams.set("code", code);
+    callbackUrl.searchParams.set("state", state);
+    return c.json({ callbackUrl: callbackUrl.toString() });
+  } catch (err) {
+    console.error("[connect-authorize] mint failed:", err);
+    return c.json(
+      { error: "Failed to mint handoff code", code: "MINT_FAILED" },
+      500,
+    );
+  }
 }
 
 // ─── Code exchange (no auth - code is the credential) ────────────────────────
@@ -272,13 +387,13 @@ export async function exchangeCode(c: Context) {
  * returns 409 and we forward that status.
  */
 export async function syncEdgeProxy(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ slug?: string; target?: string }>();
   if (!body.slug || !body.target) {
     return c.json({ error: "slug and target are required" }, 400);
   }
   try {
-    const result = await syncCloudEdgeProxy(organizationId, { slug: body.slug, target: body.target });
+    const result = await syncCloudEdgeProxy(ctx.organizationId, { slug: body.slug, target: body.target });
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true, hostname: result.hostname });
   } catch (err) {
@@ -300,7 +415,7 @@ export async function syncEdgeProxy(c: Context) {
  * path stays unchanged.
  */
 export async function pagesProxy(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{
     workspace_id?: string;
     path?: string;
@@ -312,7 +427,7 @@ export async function pagesProxy(c: Context) {
     return c.json({ error: "workspace_id, path, name and slug are required" }, 400);
   }
   try {
-    const result = await createCloudPage(organizationId, {
+    const result = await createCloudPage(ctx, {
       workspace_id: body.workspace_id,
       path: body.path,
       name: body.name,
@@ -334,11 +449,11 @@ export async function pagesProxy(c: Context) {
  * the namespace IS the tenant boundary, sourced from the session.
  */
 export async function pagesDisable(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ slug?: string }>();
   if (!body.slug) return c.json({ error: "slug is required" }, 400);
   try {
-    const result = await dispatchCloudPageAction(organizationId, body.slug, "disable");
+    const result = await dispatchCloudPageAction(ctx, body.slug, "disable");
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true });
   } catch (err) {
@@ -355,11 +470,11 @@ export async function pagesDisable(c: Context) {
  * the namespace IS the tenant boundary, sourced from the session.
  */
 export async function pagesEnable(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ slug?: string }>();
   if (!body.slug) return c.json({ error: "slug is required" }, 400);
   try {
-    const result = await dispatchCloudPageAction(organizationId, body.slug, "enable");
+    const result = await dispatchCloudPageAction(ctx, body.slug, "enable");
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true });
   } catch (err) {
@@ -376,11 +491,11 @@ export async function pagesEnable(c: Context) {
  * the namespace IS the tenant boundary, sourced from the session.
  */
 export async function pagesDelete(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ slug?: string }>();
   if (!body.slug) return c.json({ error: "slug is required" }, 400);
   try {
-    const result = await dispatchCloudPageAction(organizationId, body.slug, "delete");
+    const result = await dispatchCloudPageAction(ctx, body.slug, "delete");
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true });
   } catch (err) {
@@ -407,7 +522,7 @@ export async function pagesDelete(c: Context) {
  * compromised local can't spam invitations through us.
  */
 export async function sendInvitation(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{
     to?: string;
     subject?: string;
@@ -418,7 +533,7 @@ export async function sendInvitation(c: Context) {
     return c.json({ error: "to, subject, html and text are required" }, 400);
   }
   try {
-    const result = await sendCloudInvitation(organizationId, {
+    const result = await sendCloudInvitation(ctx.organizationId, {
       to: body.to,
       subject: body.subject,
       html: body.html,
@@ -441,11 +556,7 @@ export async function sendInvitation(c: Context) {
  * ingestSubgraph.
  */
 export async function ingestSubgraphHandler(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const user = c.get("user") as { id: string } | undefined;
-  if (!user) {
-    return c.json({ error: "No authenticated user" }, 401);
-  }
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{
     dump?: DatabaseDump;
     allowNonEmptyTarget?: boolean;
@@ -464,8 +575,8 @@ export async function ingestSubgraphHandler(c: Context) {
   }
   try {
     const result = await ingestSubgraph({
-      userId: user.id,
-      organizationId,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
       dump: body.dump,
       allowNonEmptyTarget: body.allowNonEmptyTarget,
     });
@@ -501,11 +612,11 @@ export async function ingestSubgraphHandler(c: Context) {
  * project == project transfer to-self-hosted). Instance scope is refused.
  */
 export async function exportSubgraphHandler(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req
     .json<{ scope?: SubgraphScope }>()
     .catch(() => ({} as { scope?: SubgraphScope }));
-  const scope: SubgraphScope = body.scope ?? { kind: "organization", organizationId };
+  const scope: SubgraphScope = body.scope ?? { kind: "organization", organizationId: ctx.organizationId };
 
   if (scope.kind === "instance") {
     return c.json(
@@ -513,7 +624,7 @@ export async function exportSubgraphHandler(c: Context) {
       403,
     );
   }
-  if (scope.kind === "organization" && scope.organizationId !== organizationId) {
+  if (scope.kind === "organization" && scope.organizationId !== ctx.organizationId) {
     return c.json(
       { error: "Cannot export another organization.", code: "EXPORT_SCOPE_DENIED" },
       403,
@@ -526,7 +637,7 @@ export async function exportSubgraphHandler(c: Context) {
       .where(
         and(
           eq(schema.project.id, scope.projectId),
-          eq(schema.project.organizationId, organizationId),
+          eq(schema.project.organizationId, ctx.organizationId),
         ),
       );
     if (owned.length === 0) {
@@ -553,7 +664,7 @@ export async function exportSubgraphHandler(c: Context) {
 // resolved data back. Local never sees the JWT, never signs anything.
 //
 // `cloudSessionAuth` middleware (applied on the routes file) resolves the
-// caller's Better-Auth user from their session token; `getUserId(c)` returns
+// caller.s Better-Auth user from their session token; `getRequestContext(c).userId` returns
 // that user's id. Each cloud user's installations / OAuth identity are
 // already managed by the existing local github code paths, so we just reuse
 // them — this controller is a thin policy/translation layer.
@@ -744,8 +855,8 @@ export async function githubOauthSuccess(c: Context) {
  * below — that handler does the attribution).
  */
 export async function githubInstallUrl(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const { url, state } = await buildOrgScopedInstallUrl(organizationId);
+  const ctx = getRequestContext(c);
+  const { url, state } = await buildOrgScopedInstallUrl(ctx.organizationId);
   return c.json({ data: { url, state } });
 }
 
@@ -867,8 +978,8 @@ function escapeHtml(s: string): string {
  * GitHub. Read-through to GitHub refreshes the DB cache.
  */
 export async function githubInstallations(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const installations = await listOrgInstallations(organizationId);
+  const ctx = getRequestContext(c);
+  const installations = await listOrgInstallations(ctx.organizationId);
   return c.json({ data: installations });
 }
 
@@ -885,10 +996,10 @@ export async function githubInstallations(c: Context) {
  * request body — see service comments.
  */
 export async function githubInstallationToken(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ owner?: string; repos?: string[] }>();
   if (!body.owner) return c.json({ error: "owner is required" }, 400);
-  const result = await mintOrgInstallationToken(organizationId, body.owner, body.repos);
+  const result = await mintOrgInstallationToken(ctx.organizationId, body.owner, body.repos);
   if (result.kind === "not-found") {
     return c.json({ error: `No GitHub App installation found for ${result.owner}` }, 404);
   }
@@ -902,11 +1013,11 @@ export async function githubInstallationToken(c: Context) {
  * lives in cloud's Better-Auth, NOT in the self-hosted instance.
  */
 export async function githubUserStatus(c: Context) {
-  const userId = getUserId(c);
-  const status = await githubAuth.getUserStatusWithDiagnostics(userId);
+  const ctx = getRequestContext(c);
+  const status = await githubAuth.getUserStatusWithDiagnostics(ctx.userId);
   if (!status.connected) {
     console.log(
-      `[cloud-saas:githubUserStatus] connected=false userId=${userId} githubAccountRowsForUser=${status.githubAccountRowsForUser}`,
+      `[cloud-saas:githubUserStatus] connected=false userId=${ctx.userId} githubAccountRowsForUser=${status.githubAccountRowsForUser}`,
     );
     return c.json({ data: { connected: false as const } });
   }

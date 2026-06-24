@@ -50,6 +50,7 @@ export function createBuildConfig(opts: BuildConfigFactoryOptions): BuildConfig 
     runtimeImage: snapshot.runtimeImage,
     packageManager: snapshot.packageManager,
     installCommand: snapshot.hasBuild ? snapshot.installCommand : "",
+    workspacePrepareCommand: project.workspacePrepareCommand?.trim() || undefined,
     buildCommand: snapshot.hasBuild ? snapshot.buildCommand : "",
     outputDirectory: snapshot.outputDirectory,
     port: snapshot.port,

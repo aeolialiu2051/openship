@@ -3,12 +3,12 @@
 import React from "react";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { DeploymentsContent } from "@/app/(dashboard)/deployments/components";
-import { projectsApi } from "@/lib/api";
+import { deployApi } from "@/lib/api";
 import { type Service } from "@/lib/api/services";
 import { useModal } from "@/context/ModalContext";
 import { useToast } from "@/context/ToastContext";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Rocket } from "lucide-react";
+import { AlertTriangle, RefreshCw, Rocket } from "lucide-react";
 import { encodeLocalSlug, encodeRepoSlug } from "@/utils/repoSlug";
 
 export const Deployments = () => {
@@ -19,6 +19,40 @@ export const Deployments = () => {
   const router = useRouter();
 
   const [isRedeploying, setIsRedeploying] = React.useState(false);
+  const [isForceRedeploying, setIsForceRedeploying] = React.useState(false);
+
+  /**
+   * Force-redeploy: bypass smart per-service routing and rebuild EVERY
+   * enabled service at the current branch HEAD. Mirrors the webhook's
+   * `forceAll: true` path. Used when smart routing is too aggressive —
+   * e.g. an external dependency changed but the service's
+   * `rootDirectory` was untouched.
+   */
+  const handleForceRedeploy = React.useCallback(async () => {
+    if (!projectData?.id || isForceRedeploying) return;
+    setIsForceRedeploying(true);
+    try {
+      await deployApi.trigger({
+        projectId: projectData.id,
+        forceAll: true,
+      });
+      showToast(
+        "Force-redeploy triggered — rebuilding all services from latest commit.",
+        "success",
+        "Deployment queued",
+      );
+      router.push(`/projects/${projectData.id}/deployments`);
+    } catch (error) {
+      console.error("Force-redeploy failed:", error);
+      showToast(
+        "Could not start force-redeploy. Check the deployment log for details.",
+        "error",
+        "Error",
+      );
+    } finally {
+      setIsForceRedeploying(false);
+    }
+  }, [projectData?.id, isForceRedeploying, router, showToast]);
 
   const startRedeploy = React.useCallback(async () => {
     if (!projectData?.id) return;
@@ -153,13 +187,29 @@ export const Deployments = () => {
             </div>
           </div>
 
-          <button
-            onClick={handleRedeploy}
-            disabled={isRedeploying}
-            className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50"
-          >
-            {isRedeploying ? "Deploying..." : "Redeploy Project"}
-          </button>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {/* Force redeploy — bypasses smart per-service routing and
+                rebuilds every enabled service. Use when smart routing
+                missed a change (e.g. an external dependency moved). */}
+            {hasMultipleServices && (
+              <button
+                onClick={handleForceRedeploy}
+                disabled={isForceRedeploying || isRedeploying}
+                title="Rebuild every enabled service at the current branch HEAD"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 bg-muted/30 px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw className={`size-4 ${isForceRedeploying ? "animate-spin" : ""}`} />
+                {isForceRedeploying ? "Forcing..." : "Force redeploy (rebuild all)"}
+              </button>
+            )}
+            <button
+              onClick={handleRedeploy}
+              disabled={isRedeploying || isForceRedeploying}
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-primary/50"
+            >
+              {isRedeploying ? "Deploying..." : "Redeploy Project"}
+            </button>
+          </div>
         </div>
       </div>
 

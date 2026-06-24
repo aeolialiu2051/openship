@@ -12,7 +12,7 @@
  *   2. Resolves the resource id from URL params (idParam map, conventional)
  *   3. For sub-resource tags: verifies the child belongs to the named parent
  *      (e.g. service.project_id === :id from the URL)
- *   4. Calls permission.assert(c, ...) — which loads the resource, reads its
+ *   4. Calls permission.assert(getRequestContext(c), ...) — which loads the resource, reads its
  *      org_id, checks member(userId, org_id), and applies role/grants
  *
  * No bypass:
@@ -25,6 +25,7 @@
 import type { Context, Next, MiddlewareHandler } from "hono";
 import { NotFoundError } from "@repo/core";
 import { permission, type CheckedResourceType } from "./permission";
+import { getRequestContext } from "./request-context";
 import type { Permission as Action } from "@repo/db";
 import { repos } from "@repo/db";
 import { audit, auditContextFrom } from "./audit";
@@ -240,18 +241,45 @@ async function assertParentChain(
     }
     return;
   }
-  // Unhandled parent/child combos default to NoOp — the leaf-resource
-  // permission check below will catch any out-of-org access, but we miss
-  // the cross-parent confusion check. Adding new pairs goes here.
+  // HIGH F8: any unenumerated (parent, child) pair MUST hard-fail.
+  // Silently no-op'ing would skip the cross-parent confusion check and
+  // let /projects/A/services/B-belonging-to-project-C slip through.
+  // Throw NotFoundError so the leaf id is the value disclosed (IDOR-
+  // safe) and so the next maintainer adding a new nested tag is forced
+  // to enumerate the pair here.
+  throw new NotFoundError(child, childId);
 }
 
 /* ------------------------------------------------------------------ */
 /*  Spec types                                                         */
 /* ------------------------------------------------------------------ */
 
+/**
+ * Rate-limit policy id — see `lib/rate-limit/policies.ts`. Routes that
+ * omit `rateLimit` fall through to the default global limiter
+ * (`default-anon` for public routes, `default-authed` for permission-
+ * tagged routes). Override when a route warrants tighter or looser
+ * limits than the default.
+ */
+export type RateLimitPolicyId =
+  | "default-anon"
+  | "default-authed"
+  | "auth-tight"
+  | "auth-loose"
+  | "read-authed"
+  | "write-authed"
+  | "webhook-ingress"
+  | "billing-portal";
+
 export interface PermissionSpec {
   /** The tag describing what action is being performed. */
   tag: PermissionTag;
+  /**
+   * Per-route rate-limit policy. When set, the rate-limit middleware
+   * uses this policy instead of `default-authed`. See
+   * `lib/rate-limit/policies.ts` for the catalog.
+   */
+  rateLimit?: RateLimitPolicyId;
   /**
    * URL param name → resource type map. Used to extract resource ids.
    * Defaults follow `DEFAULT_ID_PARAMS` per leaf resource type. Override
@@ -300,6 +328,12 @@ export interface PublicSpec {
   public: true;
   /** Free-text justification (CRON, webhook, healthcheck, etc.). */
   reason: string;
+  /**
+   * Per-route rate-limit policy. When omitted, the route gets
+   * `default-anon` (per-IP, conservative). Webhook ingress should use
+   * `"webhook-ingress"`; auth endpoints should use `"auth-tight"`.
+   */
+  rateLimit?: RateLimitPolicyId;
 }
 
 export type RouteSpec = PermissionSpec | PublicSpec;
@@ -338,7 +372,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
     if (parsed.isList) {
       // List scope — org from request (X-Organization-Id header or
       // session default). No specific resource id.
-      await permission.assert(c, {
+      await permission.assert(getRequestContext(c), {
         resourceType: parsed.leaf,
         resourceId: "*",
         action: "read",
@@ -348,7 +382,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
       // Org-singleton resources (billing, settings, analytics, etc.) —
       // no resource id in the URL. Pass "*" so the permission resolver
       // derives the org from request scope.
-      await permission.assert(c, {
+      await permission.assert(getRequestContext(c), {
         resourceType: parsed.leaf,
         resourceId: "*",
         action: parsed.action as Action,
@@ -360,7 +394,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
       // the request (X-Organization-Id header or session default).
       // Same resolution path as list reads, just with the route's
       // declared action so role/grants still apply.
-      await permission.assert(c, {
+      await permission.assert(getRequestContext(c), {
         resourceType: parsed.leaf,
         resourceId: "*",
         action: parsed.action as Action,
@@ -377,7 +411,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
       leafId = c.req.param(leafParamName);
       if (!leafId) {
         if (CONDITIONAL_SINGLETON_RESOURCES.has(parsed.leaf as string)) {
-          await permission.assert(c, {
+          await permission.assert(getRequestContext(c), {
             resourceType: parsed.leaf,
             resourceId: "*",
             action: parsed.action as Action,
@@ -415,7 +449,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
 
       // Run the permission check. Loads resource → reads its org_id →
       // checks member(userId, org_id) → applies role/grants.
-      await permission.assert(c, {
+      await permission.assert(getRequestContext(c), {
         resourceType: parsed.leaf,
         resourceId: leafId,
         action: parsed.action as Action,
@@ -447,7 +481,7 @@ export function requirePermission(spec: PermissionSpec): MiddlewareHandler {
           permission.resolveRequestScopeOrg(c);
 
         if (orgId) {
-          audit.recordAsync(auditContextFrom(c, orgId, c.get("user")?.id ?? null), {
+          audit.recordAsync(auditContextFrom(c, orgId, getRequestContext(c).userId), {
             eventType: spec.tag,
             resourceType: parsed.leaf,
             resourceId,

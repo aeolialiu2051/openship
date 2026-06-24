@@ -207,6 +207,24 @@ export function createProjectRepo(db: Database) {
         .where(eq(project.id, id));
     },
 
+    /**
+     * Atomically consume the one-shot `forceDeployNext` flag.
+     *
+     * Returns `true` if the flag was set and has now been cleared (the caller
+     * should treat this as a force-deploy). Returns `false` if it was already
+     * false. Two concurrent webhooks can both observe the flag with a naive
+     * read-then-update, so this is a single conditional UPDATE that only
+     * touches the row when the flag is true and reports back whether it won.
+     */
+    async consumeForceDeployNext(id: string): Promise<boolean> {
+      const rows = await db
+        .update(project)
+        .set({ forceDeployNext: false, updatedAt: new Date() })
+        .where(and(eq(project.id, id), eq(project.forceDeployNext, true)))
+        .returning();
+      return rows.length > 0;
+    },
+
     async updateByApp(appId: string, data: Partial<NewProject>) {
       await db
         .update(project)
@@ -238,6 +256,47 @@ export function createProjectRepo(db: Database) {
       await db
         .update(project)
         .set({ deletedAt: new Date(), updatedAt: new Date() })
+        .where(eq(project.id, id));
+    },
+
+    /**
+     * Hard-delete a project row. Lets FK ON DELETE CASCADE drop dependent
+     * rows (deployment, service, env_var, domain, backup_*). Only call from
+     * the atomic teardown flow, AFTER remote/runtime cleanup has succeeded —
+     * the soft-delete + per-table hard-delete path in project-cleanup is the
+     * legacy variant that left some dependents around.
+     */
+    async deleteHard(id: string) {
+      await db.delete(project).where(eq(project.id, id));
+    },
+
+    /**
+     * Atomically mark the project as "teardown in progress". Returns true
+     * when this caller claimed the flag, false if another teardown is
+     * already running (and the caller should reject with a 409). Uses a
+     * conditional UPDATE so the read+write is a single row-locked op.
+     */
+    async claimDeletion(id: string): Promise<boolean> {
+      const rows = await db
+        .update(project)
+        .set({ deletionInProgress: true, updatedAt: new Date() })
+        .where(
+          and(
+            eq(project.id, id),
+            eq(project.deletionInProgress, false),
+            isNull(project.deletedAt),
+          ),
+        )
+        .returning();
+      return rows.length > 0;
+    },
+
+    /** Release the deletion-in-progress flag — call on every failure path so
+     *  the row isn't stuck refusing all writes after a partial teardown. */
+    async clearDeletionInProgress(id: string) {
+      await db
+        .update(project)
+        .set({ deletionInProgress: false, updatedAt: new Date() })
         .where(eq(project.id, id));
     },
 

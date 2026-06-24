@@ -1,4 +1,4 @@
-import { api, getApiBaseUrl } from "./client";
+import { api, getApiBaseUrl, getActiveOrganizationId } from "./client";
 import { endpoints } from "./endpoints";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -352,10 +352,19 @@ export const mailApi = {
     signal?: AbortSignal,
   ): Promise<void> => {
     const url = new URL(endpoints.mail.setup, getApiBaseUrl());
+    // Direct fetch bypasses the standard api client, so we must attach
+    // X-Organization-Id ourselves — otherwise the server scopes by
+    // cookie (`activeOrganizationId`) only, which can be stale in a
+    // multi-tab session and resolve to the wrong org.
+    const orgId = getActiveOrganizationId();
+    const setupHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (orgId) setupHeaders["X-Organization-Id"] = orgId;
     const res = await fetch(url.toString(), {
       method: "POST",
       credentials: "include",
-      headers: { "Content-Type": "application/json" },
+      headers: setupHeaders,
       body: JSON.stringify({
         serverId,
         domain,

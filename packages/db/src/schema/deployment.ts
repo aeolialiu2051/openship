@@ -32,7 +32,22 @@ export const deployment = pgTable("deployment", {
   branch: text("branch").notNull(),
   commitSha: text("commit_sha"),
   commitMessage: text("commit_message"),
-  /** What triggered this deployment: manual | webhook | redeploy */
+  /**
+   * The previous successful-deploy commit_sha on this branch at the
+   * moment this deployment was created. Captured up-front so the
+   * git-strategy rollback path can `git checkout <sha>` even if a
+   * later deploy has clobbered the working tree, and so the change
+   * detector has a stable "diff from where" anchor when the webhook
+   * payload's `before` is missing or unreliable (force-push, missing
+   * compare data).
+   */
+  commitShaBefore: text("commit_sha_before"),
+  /**
+   * What triggered this deployment.
+   *
+   * Values: `manual | webhook | redeploy | rollback`. Free-text column
+   * (no DB check constraint) — keep new values lowercase + hyphenated.
+   */
   trigger: text("trigger").notNull().default("manual"),
 
   /* ── Build details ──────────────────────────────────────────────────── */
@@ -40,7 +55,16 @@ export const deployment = pgTable("deployment", {
   environment: text("environment").notNull().default("production"),
   /** Detected or configured framework */
   framework: text("framework"),
-  /** Build status */
+  /**
+   * Build status.
+   *
+   * Values: `queued | building | deploying | ready | failed | cancelled | partial_failure`.
+   * `partial_failure` is a terminal success-with-asterisk used by the
+   * smart per-service deploy path when one or more services failed
+   * but the rest came up ready — the dashboard treats it as deployed.
+   * Free-text column (no DB check constraint) so callers can extend
+   * without a migration; keep values lowercase + snake_case.
+   */
   status: text("status").notNull().default("queued"),
   /** Image/snapshot reference produced by build */
   imageRef: text("image_ref"),
@@ -60,6 +84,48 @@ export const deployment = pgTable("deployment", {
   envVars: jsonb("env_vars"),
   /** Error message if failed */
   errorMessage: text("error_message"),
+
+  /* ── Smart per-service deploy snapshot ──────────────────────────────── */
+  /**
+   * Union of file paths changed between `commitShaBefore` and
+   * `commitSha`, as reported by the webhook (or the local git diff
+   * fallback). `null` for non-webhook deploys where path-based change
+   * detection doesn't apply (manual, redeploy, rollback). The change
+   * detector reads this to decide which services to rebuild vs skip.
+   *
+   * Stored as `string[]`. May be truncated — see `changedPathsTruncated`.
+   */
+  changedPaths: jsonb("changed_paths").$type<string[] | null>(),
+  /**
+   * True when GitHub's commit-compare API capped the changed-files
+   * array (300-file limit) and `changedPaths` is therefore a partial
+   * list. The change detector treats this case as "rebuild everything"
+   * because it cannot prove a service was untouched.
+   */
+  changedPathsTruncated: boolean("changed_paths_truncated").notNull().default(false),
+  /**
+   * True if this deployment intentionally rebuilt every service
+   * regardless of whether files in their root changed. Set when:
+   * `[force]` / `[force-deploy]` / `[redeploy-all]` appears in the
+   * commit message, the dashboard's force-deploy toggle was active,
+   * a config file at the repo root was touched, or this is a manual
+   * "Deploy" trigger without a per-service target.
+   */
+  forceAll: boolean("force_all").notNull().default(false),
+  /**
+   * How the rollback artifact for THIS deployment is preserved /
+   * restored.
+   *
+   *   - `"snapshot"` → existing path: container image + workspace
+   *     snapshot are archived; rollback re-runs the same artifact.
+   *   - `"git"`     → no artifact archive; rollback checks out
+   *     `commitShaBefore` and rebuilds in place. Cheap on disk but
+   *     pays a build cost on restore. Selected per-project via
+   *     `project.defaultRollbackStrategy` and snapshotted onto the
+   *     deployment at create time so changing the project setting
+   *     later doesn't invalidate past rollback targets.
+   */
+  rollbackStrategy: text("rollback_strategy").notNull().default("snapshot"),
 
   /* ── Rollback / retention ───────────────────────────────────────────── */
   /**

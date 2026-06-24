@@ -73,7 +73,12 @@ export interface PrepareMonorepoApp {
 /** Shared workspace metadata when the repo root declares pnpm/npm/yarn workspaces. */
 export interface PrepareMonorepoWorkspace {
   packageManager: string;
-  installCommand: string;
+  /**
+   * Initial suggested prepare command — runs ONCE at the repo root
+   * before per-app builds. Detector seeds with the workspace install;
+   * user can chain codegen / schema sync with `&&`.
+   */
+  prepareCommand: string;
 }
 
 export interface PrepareProjectResponse extends PrepareAppConfig {
@@ -137,6 +142,22 @@ export const deployApi = {
    *  "redeploy" semantic. */
   redeploy: (id: string, opts?: { useExistingCommit?: boolean }) =>
     api.post<any>(`deployments/${id}/redeploy`, opts ?? {}),
+
+  /**
+   * Project-level deploy trigger. Used by the "Force redeploy (rebuild
+   * all services)" button — passing `forceAll: true` overrides the
+   * webhook's smart per-service routing and rebuilds every enabled
+   * service. The branch / commit are resolved server-side from the
+   * project's git settings.
+   */
+  trigger: (body: {
+    projectId: string;
+    branch?: string;
+    commitSha?: string;
+    environment?: string;
+    forceAll?: boolean;
+    serviceIds?: string[];
+  }) => api.post<any>("deployments", body),
 
   /** Resolve project info from GitHub repo or local path - detects stack */
   prepare: (body: PrepareProjectSource) =>

@@ -140,16 +140,21 @@ export const project = pgTable(
     hasBuild: boolean("has_build").notNull().default(true),
 
     /**
-     * Shared install command run once at the repo root before any per-app build.
-     * Only used when projectType === "monorepo" (e.g. "pnpm install -w").
+     * Shell command run ONCE at the repo root before any per-app build —
+     * any preparatory work the workspace needs before sub-app builds can
+     * proceed. Common uses: workspace install (`pnpm install -w`), code
+     * generation (`pnpm prisma generate`), schema sync, plugin setup.
+     * Multiple steps chain with `&&`.
      *
-     * TODO: currently WRITE-ONLY - project-crud persists it but the build
-     * pipeline doesn't wire it into the workspace install step yet. Either
-     * thread it through createMonorepoSourceBuildConfig as a pre-install hook
-     * or drop the column in a follow-up migration. Today the runtime falls
-     * back to project.installCommand for monorepo sub-apps.
+     * Only used when projectType === "monorepo". Optional — leave null for
+     * single-app builds or monorepos that need nothing at the workspace
+     * level.
+     *
+     * Distinct from the per-sub-app `installCommand`: this runs ONCE at
+     * /workspace before any per-service build; `installCommand` runs per
+     * sub-app inside its own root directory.
      */
-    workspaceInstallCommand: text("workspace_install_command"),
+    workspacePrepareCommand: text("workspace_prepare_command"),
 
     /* ── Resources (VM-native format) ───────────────────────────────────── */
     /** JSON: { cpuCores, memoryMb } */
@@ -160,6 +165,57 @@ export const project = pgTable(
     sleepMode: text("sleep_mode").default("auto_sleep"),
     /** Number of previous successful releases to retain for rollback (null = use instance default) */
     rollbackWindow: integer("rollback_window"),
+    /**
+     * Default rollback strategy snapshotted onto each new deployment
+     * via `deployment.rollbackStrategy`.
+     *
+     *   - `"git"`      → no archive; rollback checks out the previous
+     *     successful deploy's commit_sha and rebuilds in place. Saves
+     *     disk at the cost of build time on restore. Default for new
+     *     projects since most are GitHub-backed and commits ARE the
+     *     rollback fuel.
+     *   - `"snapshot"` → archive image/workspace, rollback restores it.
+     *     Use when build is expensive and instant rollback matters.
+     *
+     * Stored per-project so a project can opt into either mode without
+     * touching the global default.
+     */
+    defaultRollbackStrategy: text("default_rollback_strategy")
+      .notNull()
+      .default("git"),
+    /**
+     * One-shot "rebuild every service on the next deploy regardless of
+     * what changed" flag. Used by the dashboard's force-deploy toggle.
+     * The build pipeline reads it, propagates it to
+     * `deployment.forceAll`, and clears this flag in the same
+     * transaction that creates the deployment. Self-clearing — never
+     * leave it true across multiple deploys.
+     */
+    forceDeployNext: boolean("force_deploy_next").notNull().default(false),
+    /**
+     * Globs (relative to repo root) for files that, when touched in
+     * a monorepo project, force every sub-app to rebuild — packages
+     * the apps depend on. Null = no shared-paths force is applied at
+     * all (smart per-service deploy only). Explicit `[]` is treated the
+     * same as null. Operators must opt-in: in pnpm-workspace layouts
+     * `packages/web` is itself a deployable service, so a built-in
+     * default of `["packages/", "libs/"]` would force-rebuild
+     * everything on every push to a sub-app. Honored only for monorepo
+     * projects; ignored on compose / single-app deploys. Project-update
+     * validation rejects any prefix that overlaps an existing service's
+     * `rootDirectory`.
+     */
+    monorepoSharedPaths: jsonb("monorepo_shared_paths").$type<string[] | null>(),
+    /**
+     * Globs (relative to repo root) for files that force a full
+     * rebuild project-wide when touched — config / build files where
+     * skipping a service would risk silent staleness (e.g.
+     * `package.json`, `bun.lockb`, `pnpm-lock.yaml`, `Dockerfile`,
+     * `docker-compose.yml`). When null the change detector falls back
+     * to a built-in default list. Per-service overrides live on
+     * `service.alwaysRebuildGlobs`.
+     */
+    alwaysRebuildPaths: jsonb("always_rebuild_paths").$type<string[] | null>(),
     /**
      * How Cloud deployments preserve their rollback artifact:
      *   - "inplace"  → Oblien `snapshots.createArchive` + `workspace.stop`.
@@ -195,6 +251,15 @@ export const project = pgTable(
     webhookId: integer("webhook_id"),
     /** Domain hostname used for receiving GitHub webhooks (null = edge relay or none) */
     webhookDomain: text("webhook_domain"),
+    /**
+     * Per-project GitHub webhook signing secret (encrypted via lib/encryption).
+     * Generated fresh when the webhook is registered/rotated; sent to GitHub
+     * in the hook config and used by the webhook verifier to HMAC-check
+     * inbound deliveries for THIS project. Null on legacy projects that
+     * were registered before per-project secrets existed — the verifier
+     * falls back to env.GITHUB_WEBHOOK_SECRET for those.
+     */
+    webhookSecret: text("webhook_secret"),
     /** Whether pushes to the branch trigger auto-deploy */
     autoDeploy: boolean("auto_deploy").notNull().default(false),
     /** Auto-detected favicon URL from the deployed site */
@@ -203,6 +268,13 @@ export const project = pgTable(
     faviconCheckedAt: timestamp("favicon_checked_at"),
     /** Soft delete */
     deletedAt: timestamp("deleted_at"),
+    /**
+     * Set true at the start of the atomic teardown flow so concurrent
+     * requests refuse to operate on the row. The teardown either succeeds
+     * (row hard-deletes — flag disappears with it) or fails (flag is
+     * cleared so the caller can retry). NEVER stays true at rest.
+     */
+    deletionInProgress: boolean("deletion_in_progress").notNull().default(false),
 
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),

@@ -3,9 +3,10 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { env, trustedOrigins } from "./config/env";
 import { handleApiError } from "./middleware/error-handler";
-import { rateLimiter } from "./middleware/rate-limiter";
+import { rateLimiter, rateLimiterFor } from "./middleware/rate-limiter";
 import { clientIpMiddleware } from "./middleware/client-ip";
 import { betterAuthShield } from "./middleware/better-auth-shield";
+import { originGuard } from "./middleware/origin-guard";
 import { migrationGuard } from "./middleware/migration-guard";
 import { initPlatform } from "@repo/adapters";
 import { resolvePlatformConfig } from "./lib/controller-helpers";
@@ -53,6 +54,11 @@ app.use(
 );
 app.use("*", logger());
 app.use("*", clientIpMiddleware);
+// CSRF defence: reject mutating requests from untrusted origins BEFORE
+// the auth chain touches the session. Webhooks (Stripe, Oblien) don't
+// send an Origin header so they pass through; CLI/server-to-server
+// callers using Bearer also have no Origin and pass through.
+app.use("*", originGuard);
 app.use("*", migrationGuard);
 
 // Primary error path: Hono's compose() catches thrown errors at each
@@ -62,7 +68,18 @@ app.use("*", migrationGuard);
 // AppError / ZodError get serialized with their statusCode and code.
 app.onError(handleApiError);
 
-app.use("/api/auth/*", rateLimiter);
+// Global rate-limit for the entire /api surface. The middleware picks
+// `default-anon` (per-IP, 100/min) for unauthed requests and
+// `default-authed` (per-user, 600/min) for authed ones. Per-route
+// policies (set via secureRouter's `rateLimit` spec field) override
+// this default — see lib/rate-limit/policies.ts for the catalog.
+app.use("/api/*", rateLimiter);
+
+// Auth-tight bucket for POST /api/auth/* (sign-in, sign-up, password
+// reset, etc.) — 10/min/IP. Catches credential-stuffing well before the
+// default-anon limit fires. GET routes (/get-session, OAuth callbacks)
+// stay on the default-anon policy since they need to be hot.
+app.on("POST", "/api/auth/*", rateLimiterFor("auth-tight"));
 
 // Shield Better Auth's organization-plugin reads (list-members,
 // list-invitations, get-active-member-role) — they leak admin-tier
@@ -142,11 +159,11 @@ if (env.CLOUD_MODE) {
    * (admin user creation), and all their dependencies don't exist in
    * the cloud runtime - not just "protected", but fully absent.
    */
-  const { systemRoutes } = await import("./modules/system");
+  const { systemRoutes } = await import("./modules/system/system.routes");
   app.route("/api/system", systemRoutes);
 
   /** Mail server setup - self-hosted iRedMail wizard */
-  const { mailRoutes } = await import("./modules/mail");
+  const { mailRoutes } = await import("./modules/mail/mail.routes");
   app.route("/api/mail", mailRoutes);
 
   /**

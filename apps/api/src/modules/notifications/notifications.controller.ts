@@ -17,7 +17,7 @@
 
 import type { Context } from "hono";
 import { repos } from "@repo/db";
-import { getUserId, getActiveOrganizationId } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { encrypt } from "../../lib/encryption";
 import { CATEGORIES } from "../../lib/notification-categories";
@@ -36,8 +36,8 @@ export async function listCategories(c: Context) {
 
 /** GET /channels — list the calling user's channels. */
 export async function listChannels(c: Context) {
-  const userId = getUserId(c);
-  const channels = await repos.notificationChannel.listByUser(userId);
+  const ctx = getRequestContext(c);
+  const channels = await repos.notificationChannel.listByUser(ctx.userId);
   // Strip secrets from the config blob before sending to the client.
   return c.json({
     channels: channels.map((ch) => ({
@@ -49,8 +49,7 @@ export async function listChannels(c: Context) {
 
 /** POST /channels — create a new channel for the calling user. */
 export async function createChannel(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
 
   if (!VALID_CHANNEL_KINDS.has(body.kind)) {
@@ -64,7 +63,7 @@ export async function createChannel(c: Context) {
   if (!config.ok) return c.json({ error: config.error }, 400);
 
   const channel = await repos.notificationChannel.create({
-    userId,
+    userId: ctx.userId,
     kind: body.kind,
     label: body.label,
     config: config.value,
@@ -74,7 +73,7 @@ export async function createChannel(c: Context) {
     enabled: true,
   });
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_channel.created",
     resourceType: "notifications",
     resourceId: channel.id,
@@ -88,13 +87,12 @@ export async function createChannel(c: Context) {
 
 /** PATCH /channels/:id — update a channel the caller owns. */
 export async function updateChannel(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = c.req.param("id");
   if (!id) return c.json({ error: "id is required" }, 400);
 
   const existing = await repos.notificationChannel.findById(id);
-  if (!existing || existing.userId !== userId) {
+  if (!existing || existing.userId !== ctx.userId) {
     return c.json({ error: "Channel not found" }, 404);
   }
 
@@ -116,7 +114,7 @@ export async function updateChannel(c: Context) {
   const before = { label: existing.label, enabled: existing.enabled, verified: existing.verified };
   const channel = await repos.notificationChannel.update(id, updates);
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_channel.updated",
     resourceType: "notifications",
     resourceId: id,
@@ -133,19 +131,18 @@ export async function updateChannel(c: Context) {
 
 /** DELETE /channels/:id — remove a channel the caller owns. */
 export async function deleteChannel(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = c.req.param("id");
   if (!id) return c.json({ error: "id is required" }, 400);
 
   const existing = await repos.notificationChannel.findById(id);
-  if (!existing || existing.userId !== userId) {
+  if (!existing || existing.userId !== ctx.userId) {
     return c.json({ error: "Channel not found" }, 404);
   }
 
   await repos.notificationChannel.delete(id);
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_channel.deleted",
     resourceType: "notifications",
     resourceId: id,
@@ -159,16 +156,14 @@ export async function deleteChannel(c: Context) {
 
 /** GET /subscriptions — list calling user's subscriptions for the active org. */
 export async function listSubscriptions(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
-  const subs = await repos.notificationSubscription.listForUserInOrg(userId, organizationId);
+  const ctx = getRequestContext(c);
+  const subs = await repos.notificationSubscription.listForUserInOrg(ctx.userId, ctx.organizationId);
   return c.json({ subscriptions: subs });
 }
 
 /** PUT /subscriptions — idempotent upsert for one subscription toggle. */
 export async function upsertSubscription(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
 
   if (!body.category || !body.channelId || typeof body.enabled !== "boolean") {
@@ -177,19 +172,19 @@ export async function upsertSubscription(c: Context) {
 
   // Channel must belong to the calling user.
   const channel = await repos.notificationChannel.findById(body.channelId);
-  if (!channel || channel.userId !== userId) {
+  if (!channel || channel.userId !== ctx.userId) {
     return c.json({ error: "Channel not found" }, 404);
   }
 
   const sub = await repos.notificationSubscription.upsert({
-    userId,
-    organizationId,
+    userId: ctx.userId,
+    organizationId: ctx.organizationId,
     category: body.category,
     channelId: body.channelId,
     enabled: body.enabled,
   });
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_subscription.updated",
     resourceType: "notifications",
     resourceId: sub.id,
@@ -201,12 +196,11 @@ export async function upsertSubscription(c: Context) {
 
 /** DELETE /subscriptions/:id — remove a subscription. */
 export async function deleteSubscription(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = c.req.param("id");
   if (!id) return c.json({ error: "id is required" }, 400);
-  await repos.notificationSubscription.delete(id, organizationId);
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  await repos.notificationSubscription.delete(id, ctx.organizationId);
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_subscription.deleted",
     resourceType: "notifications",
     resourceId: id,
@@ -218,15 +212,14 @@ export async function deleteSubscription(c: Context) {
 
 /** GET /defaults — list org defaults. */
 export async function listDefaults(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
-  const defaults = await repos.notificationDefault.listByOrganization(organizationId);
+  const ctx = getRequestContext(c);
+  const defaults = await repos.notificationDefault.listByOrganization(ctx.organizationId);
   return c.json({ defaults });
 }
 
 /** PUT /defaults — upsert one org default. */
 export async function upsertDefault(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json();
 
   if (!body.category || typeof body.defaultEnabled !== "boolean") {
@@ -238,16 +231,16 @@ export async function upsertDefault(c: Context) {
   }
 
   const def = await repos.notificationDefault.upsert({
-    organizationId,
+    organizationId: ctx.organizationId,
     category: body.category,
     defaultEnabled: body.defaultEnabled,
     defaultChannelKind: kind,
   });
 
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "notification_default.updated",
     resourceType: "notifications",
-    resourceId: `${organizationId}:${body.category}`,
+    resourceId: `${ctx.organizationId}:${body.category}`,
     after: { category: def.category, defaultEnabled: def.defaultEnabled, defaultChannelKind: def.defaultChannelKind },
   });
 
@@ -258,13 +251,12 @@ export async function upsertDefault(c: Context) {
 
 /** GET /deliveries — calling user's recent deliveries in this org. */
 export async function listDeliveries(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const unseenOnly = c.req.query("unseen") === "true";
   const limit = Math.min(parseInt(c.req.query("limit") ?? "100", 10) || 100, 500);
   const deliveries = await repos.notificationDelivery.listForUser(
-    userId,
-    organizationId,
+    ctx.userId,
+    ctx.organizationId,
     { unseenOnly, limit },
   );
   return c.json({ deliveries });
@@ -272,19 +264,17 @@ export async function listDeliveries(c: Context) {
 
 /** GET /deliveries/unseen-count — for the bell icon badge. */
 export async function unseenCount(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
-  const count = await repos.notificationDelivery.unseenCount(userId, organizationId);
+  const ctx = getRequestContext(c);
+  const count = await repos.notificationDelivery.unseenCount(ctx.userId, ctx.organizationId);
   return c.json({ count });
 }
 
 /** POST /deliveries/:id/seen — mark one delivery seen. */
 export async function markSeen(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = c.req.param("id");
   if (!id) return c.json({ error: "id is required" }, 400);
-  await repos.notificationDelivery.markSeen(id, userId, organizationId);
+  await repos.notificationDelivery.markSeen(id, ctx.userId, ctx.organizationId);
   return c.json({ ok: true });
 }
 

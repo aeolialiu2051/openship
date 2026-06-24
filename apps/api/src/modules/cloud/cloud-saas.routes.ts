@@ -13,7 +13,13 @@ const r = secureRouter(new Hono(), {
 
 // PUBLIC handoff endpoints — arrive from browser redirects with signed tokens
 r.public("get", "/desktop-handoff", { reason: "Desktop handoff redirect - signed token in URL, no session" }, saas.desktopHandoff);
-r.public("get", "/connect-handoff", { reason: "Connect handoff redirect - signed token in URL, no session" }, saas.connectHandoff);
+r.public("get", "/connect-handoff", { reason: "Connect handoff redirect - validates params and 302s to dashboard consent page" }, saas.connectHandoff);
+// POST /connect-authorize is called from the dashboard consent page. It
+// performs the session check inline (cookie-based) and 401s if missing,
+// which the page handles by routing the user to /login?returnTo=...
+// Marked public here so the secure-router doesn't add an extra auth
+// layer — the controller is the authority on this endpoint.
+r.public("post", "/connect-authorize", { reason: "Connect authorize - cookie session checked inline by controller; 401s drive dashboard login redirect" }, saas.connectAuthorize);
 
 r.use("/exchange-code", rateLimiter);
 r.public("post", "/exchange-code", { reason: "OAuth code exchange - validated by single-use code, not session" }, saas.exchangeCode);

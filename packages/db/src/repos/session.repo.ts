@@ -78,5 +78,30 @@ export function createSessionRepo(db: Database) {
         .limit(1);
       return rows[0];
     },
+
+    /**
+     * Re-point every session whose `activeOrganizationId` referenced a
+     * now-deleted org. Called from the `afterDeleteOrganization` hook
+     * (HIGH F16) — without this, members of the dead org continue to
+     * carry a stale pointer and downstream code that trusts it (e.g.
+     * permission.resolveRequestScopeOrg) breaks in surprising ways.
+     *
+     * The session table's `active_organization_id` column is NOT NULL,
+     * so we re-point at the user's deterministic personal org
+     * (`org_${userId}`) — guaranteed to exist for every identity (see
+     * provisionUser + the session.create.before hook in lib/auth.ts).
+     *
+     * Returns the row count for the audit summary.
+     */
+    async clearActiveOrganizationId(organizationId: string): Promise<number> {
+      const result = await db
+        .update(session)
+        .set({
+          activeOrganizationId: sql`'org_' || ${session.userId}`,
+        })
+        .where(eq(session.activeOrganizationId, organizationId))
+        .returning();
+      return result.length;
+    },
   };
 }

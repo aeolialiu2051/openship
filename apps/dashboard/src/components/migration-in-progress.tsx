@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { api } from "@/lib/api/client";
 
 /**
  * Shown in place of the dashboard while a migration is mid-flight.
@@ -33,13 +34,12 @@ export function MigrationInProgress() {
     const tick = async () => {
       if (cancelled) return;
       try {
-        const res = await fetch("/api/health/env", { cache: "no-store" });
-        if (res.ok) {
-          const data = (await res.json()) as { migrationInProgress?: boolean };
-          if (data.migrationInProgress === false) {
-            window.location.reload();
-            return;
-          }
+        const data = await api.get<{ migrationInProgress?: boolean }>(
+          "health/env",
+        );
+        if (data?.migrationInProgress === false) {
+          window.location.reload();
+          return;
         }
       } catch {
         // Network blip mid-cutover is expected — just keep polling.

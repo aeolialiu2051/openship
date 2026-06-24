@@ -457,38 +457,100 @@ const ProjectSettingsContent = () => {
   const { showToast } = useToast();
   const router = useRouter();
 
-  const handleDeleteProject = async (deleteApp = true, wipeVolumes = false) => {
+  const handleDeleteProject = async (
+    deleteApp = true,
+    wipeVolumes = false,
+    force = false,
+  ) => {
     // Optimistic - immediately show "Deleting" status
     setProjectData((prev: any) => ({ ...prev, deletedAt: new Date().toISOString() }));
 
     try {
-      const response = await projectsApi.delete(projectData.id, { deleteApp, wipeVolumes });
-      // Non-2xx now throws ApiError below; this branch is the 2xx happy path.
-      if (response.success) {
-        showToast(deleteApp ? "Project deleted successfully" : "Environment deleted successfully", "success");
+      const response = await projectsApi.delete(projectData.id, {
+        deleteApp,
+        wipeVolumes,
+        force,
+      });
+      // 200: full success. 207 (partial success — row deleted but some
+      // external cleanup failed) lands here too because ApiClient only
+      // throws on >=400. Surface it as a warning toast and STILL leave
+      // the project page so the user doesn't dwell on a half-deleted
+      // resource.
+      if (response.ok) {
+        showToast(
+          deleteApp ? "Project deleted successfully" : "Environment deleted successfully",
+          "success",
+        );
         router.push("/");
         return;
       }
-      // Defensive: 2xx with success=false (rare). Treat as failure.
+      // 207: rowDeleted=true but unrecoverable steps surfaced. Toast as
+      // "success" because the row IS gone — the warning content lives in
+      // the title + body. router.push so the user doesn't see a ghost.
+      if (Array.isArray(response.unrecoverable) && response.unrecoverable.length > 0) {
+        console.warn("[delete-project] partial cleanup", response.unrecoverable);
+        showToast(
+          `Project deleted, but ${response.unrecoverable.length} cleanup step(s) failed. Ops will need to verify.`,
+          "success",
+          "Partial cleanup",
+        );
+        router.push("/");
+        return;
+      }
+      // Defensive: 2xx with ok=false but no unrecoverable list. Treat as failure.
       setProjectData((prev: any) => ({ ...prev, deletedAt: null }));
-      showToast(response.message || response.error || "Failed to delete project", "error", "Failed to delete project");
+      showToast(
+        response.message || response.error || "Failed to delete project",
+        "error",
+        "Failed to delete project",
+      );
     } catch (err) {
       // Always revert optimistic deletion on any failure - project still exists.
       setProjectData((prev: any) => ({ ...prev, deletedAt: null }));
 
       if (err instanceof ApiError && err.status === 409) {
         const body = (err.body ?? {}) as {
-          failed?: Array<{ resource: string; reason: string }>;
+          code?: string;
+          error?: string;
           message?: string;
+          active?: Record<string, unknown>;
+          unrecoverable?: Array<{ step: string; error?: string }>;
         };
-        const failed = body.failed ?? [];
-        // Log the structured payload - toast string will be visually truncated.
-        console.error("[delete-project] cleanup failed", failed);
-        const summary =
-          failed.length > 0
-            ? `${failed.length} resource${failed.length === 1 ? "" : "s"} couldn't be cleaned up. Retry to attempt again.`
-            : body.message || "Some resources couldn't be cleaned up. Retry to attempt again.";
-        showToast(summary, "error", "Cleanup failed - some resources remain");
+        // Graceful gate hit — there's active work. Show a toast that
+        // tells the user what's blocking + how to force.
+        if (body.code === "PROJECT_HAS_ACTIVE_WORK") {
+          showToast(
+            body.error ?? "Project has active work — cancel it or use force delete",
+            "error",
+            "Cannot delete",
+          );
+          return;
+        }
+        if (body.code === "PROJECT_DELETION_IN_PROGRESS") {
+          showToast(
+            "Another delete is already running for this project",
+            "error",
+            "Deletion in progress",
+          );
+          return;
+        }
+        // Teardown ran but couldn't complete (row not deleted).
+        const reasons = (body.unrecoverable ?? []).map((u) => u.step).join(", ");
+        console.error("[delete-project] teardown failed", body.unrecoverable);
+        showToast(
+          reasons
+            ? `Teardown failed at: ${reasons}. Retry to attempt again.`
+            : body.message || body.error || "Teardown failed",
+          "error",
+          "Cleanup failed",
+        );
+        return;
+      }
+
+      // 404: someone else already deleted the project in another tab.
+      if (err instanceof ApiError && err.status === 404) {
+        showToast("Project already deleted", "success");
+        router.push("/");
         return;
       }
 

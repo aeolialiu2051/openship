@@ -46,7 +46,7 @@ async function dispatchProvider(c: Context, providerName: WebhookProviderName) {
   });
 
   /* Step 1: Verify signature */
-  const verification = provider.verify(rawBody, headers);
+  const verification = await provider.verify(rawBody, headers);
   if (!verification.valid) {
     return c.json({ error: verification.error ?? "Invalid signature" }, 401);
   }

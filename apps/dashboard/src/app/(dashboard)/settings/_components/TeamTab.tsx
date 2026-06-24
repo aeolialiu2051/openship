@@ -419,8 +419,6 @@ export function TeamTab() {
 
   return (
     <div className="space-y-6">
-      {showWorkspaceMigration && <TeamWorkspaceCard canMigrate={!!isOwner} />}
-
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2
@@ -600,6 +598,11 @@ export function TeamTab() {
           )}
         </>
       )}
+
+      {/* Team workspace / migration card — last in the team tab so the
+          primary "people" UI (members + invitations) is what operators
+          see first. Owner-only, self-hosted single_user only. */}
+      {showWorkspaceMigration && <TeamWorkspaceCard canMigrate={!!isOwner} />}
 
       {/* Resource grants panel */}
       {selectedMember && (

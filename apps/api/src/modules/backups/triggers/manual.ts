@@ -10,21 +10,20 @@
 
 import { repos } from "@repo/db";
 import { assertResourceInOrg } from "../../../lib/controller-helpers";
+import type { RequestContext } from "../../../lib/request-context";
 import { backupOrchestrator } from "../backup.orchestrator";
 
-export async function triggerManualBackup(opts: {
-  policyId: string;
-  userId: string;
-  organizationId: string;
-  clientIp?: string;
-}): Promise<{ runId: string }> {
-  const policy = await repos.backupPolicy.findById(opts.policyId);
+export async function triggerManualBackup(
+  ctx: RequestContext,
+  policyId: string,
+): Promise<{ runId: string }> {
+  const policy = await repos.backupPolicy.findById(policyId);
   if (!policy) {
     throw new Error("Backup policy not found");
   }
   const project = await repos.project.findById(policy.projectId);
   try {
-    assertResourceInOrg(project, "Backup policy", opts.organizationId, opts.policyId);
+    assertResourceInOrg(project, "Backup policy", ctx.organizationId, policyId);
   } catch {
     throw new Error("Backup policy not found"); // hide existence
   }
@@ -33,7 +32,7 @@ export async function triggerManualBackup(opts: {
     assertResourceInOrg(
       destination,
       "Backup destination",
-      opts.organizationId,
+      ctx.organizationId,
       policy.destinationId,
     );
   } catch {
@@ -41,11 +40,11 @@ export async function triggerManualBackup(opts: {
   }
 
   return backupOrchestrator.enqueue({
-    policyId: opts.policyId,
+    policyId,
     trigger: {
       source: "manual",
-      userId: opts.userId,
-      clientIp: opts.clientIp,
+      userId: ctx.userId,
+      clientIp: ctx.clientIp ?? undefined,
     },
   });
 }

@@ -5,7 +5,8 @@
 import type { Context } from "hono";
 import { AppError } from "@repo/core";
 import { streamSSE } from "../../lib/sse";
-import { getUserId, getActiveOrganizationId, param } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import * as deploymentService from "./deployment.service";
 import * as buildService from "./build.service";
@@ -16,14 +17,13 @@ import { env } from "../../config";
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
 export async function list(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const projectId = c.req.query("projectId");
   const environment = c.req.query("environment");
   const page = Number(c.req.query("page") ?? 1);
   const perPage = Number(c.req.query("perPage") ?? 50);
 
-  const result = await deploymentService.listDeployments(organizationId, {
+  const result = await deploymentService.listDeployments(ctx.organizationId, {
     projectId: projectId ?? undefined,
     environment: environment ?? undefined,
     page,
@@ -40,31 +40,38 @@ export async function list(c: Context) {
 }
 
 export async function create(c: Context) {
-  const userId = getUserId(c);
-  const body = await c.req.json<{ projectId: string; branch?: string; commitSha?: string; environment?: string }>();
+  const ctx = getRequestContext(c);
+  const body = await c.req.json<{
+    projectId: string;
+    branch?: string;
+    commitSha?: string;
+    environment?: string;
+    /** Force-rebuild every enabled service. Skips smart per-service routing. */
+    forceAll?: boolean;
+    /** Smart per-service target list. Mutually exclusive with forceAll. */
+    serviceIds?: string[];
+  }>();
   if (body.projectId) {
-    await permission.assert(c, { resourceType: "project", resourceId: body.projectId, action: "write" });
+    await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: body.projectId, action: "write" });
   }
-  const result = await buildService.triggerDeployment(userId, body);
+  const result = await buildService.triggerDeployment(ctx, body);
   return c.json({ data: result }, 202);
 }
 
 export async function getById(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
-  const dep = await deploymentService.getDeployment(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
+  const dep = await deploymentService.getDeployment(id, ctx.organizationId);
   return c.json({ data: dep });
 }
 
 export async function logs(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
   const tail = c.req.query("tail") ? Number(c.req.query("tail")) : undefined;
-  const logEntries = await deploymentService.getDeploymentLogs(id, organizationId, tail);
+  const logEntries = await deploymentService.getDeploymentLogs(id, ctx.organizationId, tail);
   return c.json({ data: logEntries });
 }
 
@@ -120,44 +127,40 @@ function streamBuildSession(c: Context, deploymentId: string, initialEvent?: { e
  * GET /deployments/:id/stream
  */
 export async function stream(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
   // Verify the requesting user owns this deployment before streaming
-  await deploymentService.getDeployment(id, organizationId);
+  await deploymentService.getDeployment(id, ctx.organizationId);
   return streamBuildSession(c, id);
 }
 
 export async function rollback(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "admin" });
-  const dep = await deploymentService.rollbackDeployment(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "admin" });
+  const dep = await deploymentService.rollbackDeployment(id, ctx.organizationId);
   return c.json({ data: dep });
 }
 
 export async function pin(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "write" });
   const body = await c.req
     .json<{ pinned?: boolean }>()
     .catch(() => ({} as { pinned?: boolean }));
   const pinned = body.pinned !== false; // default true on POST
-  const dep = await deploymentService.setDeploymentPin(id, organizationId, pinned);
+  const dep = await deploymentService.setDeploymentPin(id, ctx.organizationId, pinned);
   return c.json({ data: dep });
 }
 
 export async function reject(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "write" });
   try {
-    const result = await deploymentService.rejectDeployment(id, organizationId);
+    const result = await deploymentService.rejectDeployment(id, ctx.organizationId);
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to reject deployment";
@@ -166,11 +169,11 @@ export async function reject(c: Context) {
 }
 
 export async function cancel(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "admin" });
   try {
-    const result = await buildService.cancelBuildSession(id, userId);
+    const result = await buildService.cancelBuildSession(id);
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to cancel deployment";
@@ -179,12 +182,11 @@ export async function cancel(c: Context) {
 }
 
 export async function remove(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "admin" });
   try {
-    await deploymentService.deleteDeployment(id, organizationId);
+    await deploymentService.deleteDeployment(id, ctx.organizationId);
     return c.json({ success: true, message: "Deployment deleted" });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete deployment";
@@ -193,39 +195,36 @@ export async function remove(c: Context) {
 }
 
 export async function restart(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "write" });
-  const dep = await deploymentService.restartDeployment(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "write" });
+  const dep = await deploymentService.restartDeployment(id, ctx.organizationId);
   return c.json({ data: dep });
 }
 
 export async function containerInfo(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
-  const info = await deploymentService.getContainerInfo(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
+  const info = await deploymentService.getContainerInfo(id, ctx.organizationId);
   return c.json({ data: info });
 }
 
 export async function containerUsage(c: Context) {
-  const userId = getUserId(c);
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
-  const usage = await deploymentService.getContainerUsage(id, organizationId);
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
+  const usage = await deploymentService.getContainerUsage(id, ctx.organizationId);
   return c.json({ data: usage });
 }
 
 export async function buildRespond(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "write" });
   const body = await c.req.json<{ action: string }>();
   if (!body.action) return c.json({ success: false, error: "Missing action" }, 400);
-  const result = await buildService.respondToPrompt(id, userId, body.action);
+  const result = await buildService.respondToPrompt(id, body.action);
   return c.json({ success: result });
 }
 
@@ -239,7 +238,7 @@ export async function buildRespond(c: Context) {
  * Callers may omit `source` and send { owner, repo }; treated as GitHub.
  */
 export async function prepare(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{
     source?: "github" | "local";
     owner?: string;
@@ -258,7 +257,7 @@ export async function prepare(c: Context) {
       if (!body.owner || !body.repo) {
         return c.json({ error: "owner and repo are required" }, 400);
       }
-      input = { source: "github", owner: body.owner, repo: body.repo, branch: body.branch, userId };
+      input = { source: "github", owner: body.owner, repo: body.repo, branch: body.branch, userId: ctx.userId, ctx };
     } else if (source === "local") {
       if (env.CLOUD_MODE) {
         return c.json({ error: "Local projects are not available in cloud mode" }, 403);
@@ -286,17 +285,17 @@ export async function prepare(c: Context) {
  * Requires { projectId }. Returns { success, deployment_id, project_id }.
  */
 export async function buildAccess(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<buildService.BuildAccessInput>();
 
   if (!body.projectId) {
     return c.json({ success: false, message: "projectId is required" }, 400);
   }
 
-  await permission.assert(c, { resourceType: "project", resourceId: body.projectId, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: body.projectId, action: "write" });
 
   try {
-    const result = await buildService.requestBuildAccess(userId, body);
+    const result = await buildService.requestBuildAccess(ctx, body);
     return c.json(result);
   } catch (err) {
     // Preserve AppError code so the dashboard can branch on preflight
@@ -313,12 +312,12 @@ export async function buildAccess(c: Context) {
  * GET /deployments/:id/build - get build session status and config.
  */
 export async function buildStatus(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "read" });
 
   try {
-    const result = await buildService.getBuildSessionStatus(id, userId);
+    const result = await buildService.getBuildSessionStatus(id);
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Build session not found";
@@ -342,16 +341,16 @@ export async function buildStatus(c: Context) {
  *   resolves the latest commit on the branch — the auto-redeploy semantic.
  */
 export async function buildRedeploy(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "write" });
 
   const body = await c.req
     .json<{ useExistingCommit?: boolean }>()
     .catch(() => ({} as { useExistingCommit?: boolean }));
 
   try {
-    const result = await buildService.redeployBuildSession(id, userId, {
+    const result = await buildService.redeployBuildSession(ctx, id, {
       useExistingCommit: body.useExistingCommit === true,
     });
     return c.json(result);
@@ -367,13 +366,13 @@ export async function buildRedeploy(c: Context) {
  * Client can reconnect via GET /:id/stream.
  */
 export async function buildStart(c: Context) {
-  const userId = getUserId(c);
+  const ctx = getRequestContext(c);
   const deploymentId = param(c, "id");
-  await permission.assert(c, { resourceType: "deployment", resourceId: deploymentId, action: "write" });
+  await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: deploymentId, action: "write" });
 
   let result;
   try {
-    result = await buildService.startBuild(deploymentId, userId);
+    result = await buildService.startBuild(deploymentId);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to start build";
     return c.json({ success: false, error: message }, 400);
@@ -395,7 +394,7 @@ export async function buildStart(c: Context) {
  * POST /deployments/ssl/status - check SSL status for a domain.
  */
 export async function sslStatus(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ domain: string }>();
 
   if (!body.domain) {
@@ -403,7 +402,7 @@ export async function sslStatus(c: Context) {
   }
 
   try {
-    const result = await sslService.getStatus(body.domain, organizationId);
+    const result = await sslService.getStatus(body.domain, ctx.organizationId);
     return c.json({ success: true, ...result });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to check SSL status";
@@ -415,7 +414,7 @@ export async function sslStatus(c: Context) {
  * POST /deployments/ssl/renew - renew SSL certificate for a domain.
  */
 export async function sslRenew(c: Context) {
-  const organizationId = getActiveOrganizationId(c);
+  const ctx = getRequestContext(c);
   const body = await c.req.json<{ domain: string; includeWww?: boolean }>();
 
   if (!body.domain) {
@@ -423,7 +422,7 @@ export async function sslRenew(c: Context) {
   }
 
   try {
-    const result = await sslService.renew(body.domain, organizationId, body.includeWww);
+    const result = await sslService.renew(body.domain, ctx.organizationId, body.includeWww);
     return c.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to renew SSL";

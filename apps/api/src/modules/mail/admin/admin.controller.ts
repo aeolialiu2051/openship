@@ -12,8 +12,9 @@
 import type { Context } from "hono";
 import { env } from "../../../config";
 import { repos } from "@repo/db";
-import { getActiveOrganizationId } from "../../../lib/controller-helpers";
+import { getRequestContext, type RequestContext } from "../../../lib/request-context";
 import { permission } from "../../../lib/permission";
+import { param, isServerInOrg, assertNotCloud } from "../../../lib/controller-helpers";
 import {
   countDomainDependents,
   createDomain,
@@ -53,56 +54,27 @@ import {
   listPendingDomainDns,
 } from "./domain-dns.service";
 
-function localOnlyGuard(c: Context): Response | null {
-  if (env.CLOUD_MODE) {
-    return c.json({ error: "Not available in cloud mode" }, 404);
-  }
-  return null;
-}
-
-function getActingAdmin(c: Context): string {
-  const user = c.get("user") as { email?: string; name?: string; id?: string } | undefined;
-  return user?.email || user?.name || user?.id || "unknown";
-}
-
-function requireServerId(c: Context): string {
-  const id = c.req.param("serverId");
-  if (!id) throw new Error("serverId is required");
-  return id;
-}
-
 /**
  * Org-scoped guard: confirms the path's :serverId belongs to the caller's
- * active organization. Returns null on success; returns a 404 Response on
- * failure that handlers should pass straight back to the client. Both
- * unknown and out-of-org server ids 404 indistinguishably to prevent
- * cross-tenant existence leaks.
+ * active organization. Returns true on success; returns false on failure
+ * — handlers wrap false into a 404. Both unknown and out-of-org server
+ * ids 404 indistinguishably to prevent cross-tenant existence leaks.
  *
  * Every admin handler (domains, mailboxes, components, dns, stats, etc.)
  * must call this — they all reach the iRedMail psql/SSH layer via the
  * named serverId, so an unguarded handler is a full mail-admin takeover.
  */
-async function assertServerInOrg(
-  c: Context,
-  serverId: string,
-): Promise<Response | null> {
-  const organizationId = getActiveOrganizationId(c);
-  const server = await repos.server.getInOrganization(serverId, organizationId);
-  if (!server) {
-    return c.json({ error: "Server not found" }, 404);
-  }
-  return null;
-}
-
 // ─── Domains ─────────────────────────────────────────────────────────────────
 
 export async function listDomainsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   try {
     const rows = await listDomains(serverId);
     return c.json({ domains: rows });
@@ -112,12 +84,14 @@ export async function listDomainsHandler(c: Context) {
 }
 
 export async function getDomainHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   try {
@@ -130,12 +104,14 @@ export async function getDomainHandler(c: Context) {
 }
 
 export async function createDomainHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
   try {
     const { row, dnsWarning } = await createDomain(serverId, {
@@ -155,12 +131,14 @@ export async function createDomainHandler(c: Context) {
 }
 
 export async function updateDomainHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   const body = await c.req.json().catch(() => ({}));
@@ -182,12 +160,14 @@ export async function updateDomainHandler(c: Context) {
 }
 
 export async function deleteDomainHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "admin" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   const cascade = c.req.query("cascade") === "true";
@@ -214,12 +194,14 @@ export async function deleteDomainHandler(c: Context) {
  * `dnsRecords`, not here).
  */
 export async function getDomainDnsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   try {
@@ -239,12 +221,14 @@ export async function getDomainDnsHandler(c: Context) {
  * banner for this domain on the next reload.
  */
 export async function acknowledgeDomainDnsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   try {
@@ -261,12 +245,14 @@ export async function acknowledgeDomainDnsHandler(c: Context) {
  * banners in one round-trip instead of per-row.
  */
 export async function pendingDomainDnsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   try {
     const pending = await listPendingDomainDns(serverId);
     // Flatten { domain, state } → { domain, ...state } so the shape matches
@@ -280,12 +266,14 @@ export async function pendingDomainDnsHandler(c: Context) {
 }
 
 export async function domainDependentsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.param("domain");
   if (!domain) return c.json({ error: "domain required" }, 400);
   try {
@@ -300,12 +288,14 @@ export async function domainDependentsHandler(c: Context) {
 // ─── Mailboxes ───────────────────────────────────────────────────────────────
 
 export async function listMailboxesHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const domain = c.req.query("domain");
   if (!domain) return c.json({ error: "domain query param required" }, 400);
   try {
@@ -317,12 +307,14 @@ export async function listMailboxesHandler(c: Context) {
 }
 
 export async function getMailboxHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const email = c.req.param("email");
   if (!email) return c.json({ error: "email required" }, 400);
   try {
@@ -335,12 +327,14 @@ export async function getMailboxHandler(c: Context) {
 }
 
 export async function createMailboxHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
   try {
     const row = await createMailbox(serverId, {
@@ -360,12 +354,14 @@ export async function createMailboxHandler(c: Context) {
 }
 
 export async function updateMailboxHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const email = c.req.param("email");
   if (!email) return c.json({ error: "email required" }, 400);
   const body = await c.req.json().catch(() => ({}));
@@ -386,12 +382,14 @@ export async function updateMailboxHandler(c: Context) {
 }
 
 export async function deleteMailboxHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "admin" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const email = c.req.param("email");
   if (!email) return c.json({ error: "email required" }, 400);
   const hard = c.req.query("hard") === "true";
@@ -400,7 +398,7 @@ export async function deleteMailboxHandler(c: Context) {
     if (hard) {
       await hardDeleteMailbox(serverId, email);
     } else {
-      await softDeleteMailbox(serverId, email, getActingAdmin(c));
+      await softDeleteMailbox(serverId, email, (ctx.user.email || ctx.user.name || ctx.userId || "unknown"));
     }
     return c.json({ ok: true, mode: hard ? "hard" : "soft" });
   } catch (err) {
@@ -414,12 +412,14 @@ export async function deleteMailboxHandler(c: Context) {
 // ─── Stats ───────────────────────────────────────────────────────────────────
 
 export async function getStatsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   try {
     const stats = await getMailServerStats(serverId);
     return c.json(stats);
@@ -431,12 +431,14 @@ export async function getStatsHandler(c: Context) {
 // ─── Test email ──────────────────────────────────────────────────────────────
 
 export async function sendTestEmailHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "write" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const body = await c.req.json().catch(() => ({}));
   try {
     const result = await sendTestEmail(serverId, {
@@ -458,12 +460,14 @@ export async function sendTestEmailHandler(c: Context) {
 // ─── DNS health scan ─────────────────────────────────────────────────────────
 
 export async function getDnsScanHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   try {
     const result = await scanDns(serverId);
     return c.json(result);
@@ -475,12 +479,14 @@ export async function getDnsScanHandler(c: Context) {
 // ─── Component actions (Health tab) ──────────────────────────────────────────
 
 export async function runComponentActionHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "admin" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const key = c.req.param("key");
   if (!key) return c.json({ error: "key is required" }, 400);
   const action = c.req.param("action") as ComponentAction | undefined;
@@ -497,12 +503,14 @@ export async function runComponentActionHandler(c: Context) {
 }
 
 export async function restartAllComponentsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "admin" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   try {
     const result = await restartAllComponents(serverId);
     return c.json(result);
@@ -512,12 +520,14 @@ export async function restartAllComponentsHandler(c: Context) {
 }
 
 export async function getComponentLogsHandler(c: Context) {
-  const guard = localOnlyGuard(c);
+  const guard = assertNotCloud(c);
   if (guard) return guard;
-  const serverId = requireServerId(c);
-  await permission.assert(c, { resourceType: "mail_server", resourceId: serverId, action: "read" });
-  const orgGuard = await assertServerInOrg(c, serverId);
-  if (orgGuard) return orgGuard;
+  const serverId = param(c, "serverId");
+  await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
+  const ctx = getRequestContext(c);
+  if (!(await isServerInOrg(ctx, serverId))) {
+    return c.json({ error: "Server not found" }, 404);
+  }
   const key = c.req.param("key");
   if (!key) return c.json({ error: "key is required" }, 400);
   const linesParam = c.req.query("lines");
