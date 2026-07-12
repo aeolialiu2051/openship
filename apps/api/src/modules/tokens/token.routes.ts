@@ -19,5 +19,8 @@ r.get("/", { tag: "settings:read" }, ctrl.list);
 r.post("/", { tag: "settings:write" }, tbValidator("json", CreateTokenBody), ctrl.create);
 r.delete("/:id", { tag: "settings:write" }, ctrl.revoke);
 r.post("/mcp-authorize", { tag: "settings:write" }, ctrl.authorizeMcpClient);
+// Connected MCP clients (OAuth bindings) — list + disconnect (revoke).
+r.get("/mcp-clients", { tag: "settings:read" }, ctrl.listMcpClients);
+r.delete("/mcp-clients/:clientId", { tag: "settings:write" }, ctrl.disconnectMcpClient);
 
 export const tokenRoutes = r.hono;

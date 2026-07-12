@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, isNotNull } from "drizzle-orm";
 import { generateId } from "@repo/core";
 import type { Database } from "../client";
 import { personalAccessToken } from "../schema";
@@ -73,6 +73,24 @@ export function createPersonalAccessTokenRepo(db: Database) {
         where: and(
           eq(personalAccessToken.userId, userId),
           isNull(personalAccessToken.oauthClientId),
+        ),
+        orderBy: [desc(personalAccessToken.createdAt)],
+      });
+    },
+
+    /**
+     * List a user's OAuth MCP client bindings (the "connected clients" the
+     * settings UI shows). Only active bindings — a disconnected one is
+     * hard-deleted. `tokenHash` is projected out (it's a synthetic sentinel
+     * anyway, but the projection keeps the contract uniform).
+     */
+    async listOAuthBindings(userId: string): Promise<PublicPersonalAccessToken[]> {
+      return db.query.personalAccessToken.findMany({
+        columns: { tokenHash: false },
+        where: and(
+          eq(personalAccessToken.userId, userId),
+          isNotNull(personalAccessToken.oauthClientId),
+          isNull(personalAccessToken.revokedAt),
         ),
         orderBy: [desc(personalAccessToken.createdAt)],
       });

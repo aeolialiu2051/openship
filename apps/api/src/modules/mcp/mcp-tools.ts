@@ -23,8 +23,14 @@ export interface McpToolDef {
   hasBody: boolean;
 }
 
-/** Modules whose routes are never tools (transport-incompatible or non-agentic). */
-const DENY_MODULES = new Set(["webhooks", "auth", "health", "images", "mcp"]);
+/**
+ * Modules whose routes are never tools (transport-incompatible or non-agentic).
+ * `tokens` is denied for privilege-containment: exposing it would let a
+ * full-access MCP token mint a fresh PAT (or re-scope its own binding) and
+ * escape the read-only/scope limits of its authorization — credential
+ * management must never be an agent capability.
+ */
+const DENY_MODULES = new Set(["webhooks", "auth", "health", "images", "mcp", "tokens"]);
 
 /** Path fragments to exclude: streaming/interactive endpoints and callback/webhook routes. */
 const DENY_PATH_FRAGMENTS = [

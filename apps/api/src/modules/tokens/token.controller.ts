@@ -225,3 +225,63 @@ export async function authorizeMcpClient(c: Context) {
 
   return c.json({ data: { ok: true, scoped, readOnly: binding.readOnly } });
 }
+
+/**
+ * GET /api/tokens/mcp-clients — the caller's connected MCP clients (one per
+ * OAuth binding), for the settings management list. Self-scoped to ctx.userId.
+ */
+export async function listMcpClients(c: Context) {
+  const ctx = getRequestContext(c);
+  const bindings = await repos.personalAccessToken.listOAuthBindings(ctx.userId);
+  if (bindings.length === 0) return c.json({ data: [] });
+
+  const clientIds = bindings
+    .map((b) => b.oauthClientId)
+    .filter((id): id is string => !!id);
+  const orgIds = Array.from(
+    new Set(bindings.map((b) => b.organizationId).filter((id): id is string => !!id)),
+  );
+
+  const [apps, orgs, grantsPerBinding] = await Promise.all([
+    repos.oauth.listApplicationsByClientIds(clientIds),
+    orgIds.length ? repos.organization.findManyById(orgIds) : Promise.resolve([]),
+    Promise.all(bindings.map((b) => repos.patGrant.listByToken(b.id))),
+  ]);
+
+  const nameByClient = new Map(apps.map((a) => [a.clientId, a.name]));
+  const nameByOrg = new Map(orgs.map((o) => [o.id, o.name]));
+
+  const data = bindings.map((b, i) => ({
+    clientId: b.oauthClientId,
+    // Registered client name; fall back to the binding's stored label.
+    name: (b.oauthClientId && nameByClient.get(b.oauthClientId)) || b.name,
+    organizationId: b.organizationId,
+    organizationName: b.organizationId ? (nameByOrg.get(b.organizationId) ?? null) : null,
+    readOnly: b.readOnly,
+    scoped: b.scoped,
+    grantCount: grantsPerBinding[i]?.length ?? 0,
+    authorizedAt: b.createdAt,
+    lastUsedAt: b.lastUsedAt,
+  }));
+
+  return c.json({ data });
+}
+
+/**
+ * DELETE /api/tokens/mcp-clients/:clientId — disconnect a client. Revoke issued
+ * tokens first (stops it immediately), then drop the scope binding + its grants
+ * and the recorded consent so a reconnect re-prompts. All scoped to this user —
+ * a client shared across users keeps working for everyone else.
+ */
+export async function disconnectMcpClient(c: Context) {
+  const ctx = getRequestContext(c);
+  const clientId = param(c, "clientId").trim();
+  if (!clientId) return c.json({ error: "clientId required", code: "CLIENT_ID_REQUIRED" }, 400);
+
+  // Atomic: tokens + consent + binding + grants are torn down in one
+  // transaction (see oauth repo). Self-scoped to ctx.userId, so a client
+  // shared across users keeps working for everyone else.
+  await repos.oauth.disconnectMcpClient(ctx.userId, clientId);
+
+  return c.json({ data: { ok: true } });
+}

@@ -8,9 +8,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Boxes, Copy, Check, ShieldCheck } from "lucide-react";
+import { Boxes, Copy, Check, ShieldCheck, Unplug, Loader2 } from "lucide-react";
 import { SettingsSection } from "./SettingsSection";
 import { getRestApiBaseUrl } from "@/lib/api/urls";
+import { tokensApi, getApiErrorMessage, type McpClient } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
 
 function useCopy() {
   const [copied, setCopied] = useState(false);
@@ -110,6 +112,8 @@ export function McpConnection() {
           </p>
         </div>
 
+        <ConnectedClients />
+
         <div>
           <p className="mb-1.5 text-xs font-medium text-foreground">Without OAuth (static token)</p>
           <CopyBlock value={configSnippet} />
@@ -126,5 +130,128 @@ export function McpConnection() {
         </div>
       </div>
     </SettingsSection>
+  );
+}
+
+function formatDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+/**
+ * Connected MCP clients (OAuth bindings) with a disconnect action. Rendered
+ * only when at least one client is connected; disconnect revokes the client's
+ * tokens server-side so it can no longer call the API.
+ */
+function ConnectedClients() {
+  const { showToast } = useToast();
+  const [clients, setClients] = useState<McpClient[] | null>(null);
+  const [confirmId, setConfirmId] = useState<string | null>(null);
+  const [disconnecting, setDisconnecting] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    tokensApi
+      .listMcpClients()
+      .then((res) => !cancelled && setClients(res.data ?? []))
+      .catch(() => !cancelled && setClients([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const disconnect = async (clientId: string) => {
+    setDisconnecting(clientId);
+    try {
+      await tokensApi.disconnectMcpClient(clientId);
+      setClients((prev) => (prev ?? []).filter((c) => c.clientId !== clientId));
+      showToast("MCP client disconnected", "success");
+    } catch (err) {
+      showToast(getApiErrorMessage(err, "Failed to disconnect"), "error", "Disconnect");
+    } finally {
+      setDisconnecting(null);
+      setConfirmId(null);
+    }
+  };
+
+  // While loading, show a slim placeholder; once loaded with nothing connected,
+  // render nothing (the endpoint block above already explains how to connect).
+  if (clients === null) {
+    return (
+      <div className="flex items-center gap-2 rounded-xl border border-border/50 px-4 py-3 text-xs text-muted-foreground">
+        <Loader2 className="size-3.5 animate-spin" /> Loading connected clients…
+      </div>
+    );
+  }
+  if (clients.length === 0) return null;
+
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-foreground">Connected clients</p>
+      <div className="divide-y divide-border/40 rounded-xl border border-border/50">
+        {clients.map((c) => {
+          const id = c.clientId ?? "";
+          const confirming = confirmId === id;
+          const busy = disconnecting === id;
+          return (
+            <div key={id || c.name} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="truncate text-sm font-medium text-foreground">{c.name}</span>
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${
+                      c.readOnly
+                        ? "bg-muted text-muted-foreground"
+                        : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    }`}
+                  >
+                    {c.readOnly ? "Read-only" : "Full control"}
+                  </span>
+                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    {c.scoped
+                      ? `${c.grantCount} resource${c.grantCount === 1 ? "" : "s"}`
+                      : "All resources"}
+                  </span>
+                </div>
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {c.organizationName ? `${c.organizationName} · ` : ""}
+                  Authorized {formatDate(c.authorizedAt)}
+                  {c.lastUsedAt ? ` · last used ${formatDate(c.lastUsedAt)}` : ""}
+                </p>
+              </div>
+              {confirming ? (
+                <div className="flex shrink-0 items-center gap-1.5">
+                  <button
+                    onClick={() => setConfirmId(null)}
+                    disabled={busy}
+                    className="rounded-lg px-2 py-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => disconnect(id)}
+                    disabled={busy || !id}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-red-600 px-2.5 py-1 text-xs font-medium text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Unplug className="size-3.5" />}
+                    Disconnect
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmId(id)}
+                  disabled={!id}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/60 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-red-500/40 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                >
+                  <Unplug className="size-3.5" />
+                  Disconnect
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

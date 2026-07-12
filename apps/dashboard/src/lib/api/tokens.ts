@@ -41,4 +41,24 @@ export const tokensApi = {
       endpoints.tokens.mcpAuthorize,
       body,
     ),
+
+  /** The caller's connected MCP clients (OAuth bindings) for the settings list. */
+  listMcpClients: () => api.get<{ data: McpClient[] }>(endpoints.tokens.mcpClients),
+
+  /** Disconnect a client: revoke its tokens + drop its binding/consent. */
+  disconnectMcpClient: (clientId: string) =>
+    api.delete<{ data: { ok: boolean } }>(endpoints.tokens.mcpClient(clientId)),
 };
+
+/** A connected MCP client, as shown in the settings management list. */
+export interface McpClient {
+  clientId: string | null;
+  name: string;
+  organizationId: string | null;
+  organizationName: string | null;
+  readOnly: boolean;
+  scoped: boolean;
+  grantCount: number;
+  authorizedAt: string;
+  lastUsedAt: string | null;
+}

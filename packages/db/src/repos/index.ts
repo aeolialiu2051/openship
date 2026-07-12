@@ -19,6 +19,7 @@ export {
   type NewPersonalAccessToken,
   type CreatePatInput,
 } from "./personal-access-token.repo";
+export { createOAuthRepo } from "./oauth.repo";
 export { createProjectAppRepo, type ProjectApp, type NewProjectApp } from "./project-app.repo";
 export {
   createProjectRepo,
@@ -185,6 +186,7 @@ import { createServiceTerminalSessionRepo } from "./service-terminal-session.rep
 import { createCloudHandoffCodeRepo } from "./cloud-handoff-code.repo";
 import { createPersonalAccessTokenRepo } from "./personal-access-token.repo";
 import { createPersonalAccessTokenGrantRepo } from "./personal-access-token-grant.repo";
+import { createOAuthRepo } from "./oauth.repo";
 import {
   createBackupDestinationRepo,
   createBackupPolicyRepo,
@@ -241,6 +243,7 @@ export const repos = {
   cloudHandoffCode: createCloudHandoffCodeRepo(db),
   personalAccessToken: createPersonalAccessTokenRepo(db),
   patGrant: createPersonalAccessTokenGrantRepo(db),
+  oauth: createOAuthRepo(db),
   backupDestination: createBackupDestinationRepo(db),
   backupPolicy: createBackupPolicyRepo(db),
   backupRun: createBackupRunRepo(db),

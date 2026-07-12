@@ -28,7 +28,7 @@ export { projectsApi } from "./projects";
 export { deployApi } from "./deploy";
 export { domainsApi } from "./domains";
 export { tokensApi } from "./tokens";
-export type { AccessToken, CreatedAccessToken } from "./tokens";
+export type { AccessToken, CreatedAccessToken, McpClient } from "./tokens";
 export { githubApi } from "./github";
 export { iconsApi } from "./icons";
 export { imagesApi } from "./images";
