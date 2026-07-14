@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  # Manual run publishes ONLY the CLI to npm (current version, no tag / installers).
+  workflow_dispatch: {}
 
 concurrency:
   group: release-${{ github.ref }}
@@ -15,6 +17,7 @@ permissions:
 jobs:
   build-openship:
     name: Build openship release artifact
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -67,6 +70,7 @@ jobs:
 
   build-email:
     name: Build openship email release artifact
+    if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -122,6 +126,7 @@ jobs:
 
   build-desktop:
     name: Build desktop installer (${{ matrix.label }})
+    if: github.event_name == 'push'
     strategy:
       fail-fast: false
       matrix:
@@ -210,6 +215,7 @@ jobs:
 
   build-desktop-macos:
     name: Build desktop installers (macOS arm64 + x64)
+    if: github.event_name == 'push'
     runs-on: macos-14
     steps:
       - name: Checkout
@@ -345,6 +351,7 @@ jobs:
 
   publish:
     name: Publish GitHub release
+    if: github.event_name == 'push'
     needs: [build-openship, build-email, build-desktop, build-desktop-macos]
     runs-on: ubuntu-24.04
     steps:
