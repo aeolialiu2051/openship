@@ -3,7 +3,11 @@ import { createServer } from "node:net";
 import { createServer as createHttpServer, type Server as HttpServer } from "node:http";
 import { probeTcp, probeHttp, waitForReady } from "./reachability";
 
-const tcpMock = vi.hoisted(() => ({ simulateTimeout: false }));
+const tcpMock = vi.hoisted(() => ({
+  simulateTimeout: false,
+  setTimeout: vi.fn(),
+  destroy: vi.fn(),
+}));
 
 vi.mock("node:net", async (importOriginal) => {
   const actual = await importOriginal<typeof import("node:net")>();
@@ -17,7 +21,8 @@ vi.mock("node:net", async (importOriginal) => {
 
       const listeners = new Map<string, (() => void)[]>();
       const socket = {
-        setTimeout: () => {
+        setTimeout: (timeoutMs: number) => {
+          tcpMock.setTimeout(timeoutMs);
           queueMicrotask(() => {
             for (const listener of listeners.get("timeout") ?? []) listener();
           });
@@ -29,7 +34,7 @@ vi.mock("node:net", async (importOriginal) => {
           listeners.set(event, eventListeners);
           return socket;
         },
-        destroy: () => socket,
+        destroy: () => tcpMock.destroy(),
       };
 
       return socket as unknown as ReturnType<typeof actual.connect>;
@@ -86,10 +91,12 @@ describe("probeTcp", () => {
 
   test("resolves false when the connection times out", async () => {
     tcpMock.simulateTimeout = true;
-    const start = Date.now();
+    tcpMock.setTimeout.mockClear();
+    tcpMock.destroy.mockClear();
     try {
       expect(await probeTcp("example.test", 22, 600)).toBe(false);
-      expect(Date.now() - start).toBeLessThan(100);
+      expect(tcpMock.setTimeout).toHaveBeenCalledWith(600);
+      expect(tcpMock.destroy).toHaveBeenCalledOnce();
     } finally {
       tcpMock.simulateTimeout = false;
     }
