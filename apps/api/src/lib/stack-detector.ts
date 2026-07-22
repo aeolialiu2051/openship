@@ -193,11 +193,19 @@ function hasAnyContentMatch(detection: StackDetection | undefined, fileContents:
  *   depMatch  = explicit override OR `hasAnyDep(stack.detection)`
  *   contentMatch = explicit override OR `hasAnyContentMatch(stack.detection)`
  *
- * Ordering matters: frontend/fullstack frameworks come before generic backend
- * ones because (for instance) a Next.js project also has Express in transitive
- * deps. When a stack only needs default matchers, list just `{ stack: "..." }`.
+ * Ordering matters: Compose is the explicit deployment contract and wins first.
+ * Among application frameworks, frontend/fullstack entries come before generic
+ * backend ones because (for instance) Next.js may include Express transitively.
+ * When a stack only needs default matchers, list just `{ stack: "..." }`.
  */
 const FRAMEWORK_RULES: FrameworkRule[] = [
+  // ── Docker Compose (explicit deployment contract) ───────────────────────
+  // A Compose file is an explicit declaration of the deployment shape, so it
+  // must win over language/framework manifests in the same project directory.
+  // Without this early rule a Go/Gin or Node project that also ships Compose
+  // is incorrectly reduced to a single app (or expanded as a monorepo).
+  { stack: "docker-compose" },
+
   // ── Frontend / Fullstack JS (check first - they may also have backend deps) ──
   { stack: "nextjs" },
   { stack: "nuxt" },
@@ -324,9 +332,6 @@ const FRAMEWORK_RULES: FrameworkRule[] = [
 
   // ── Generic Python (catch-all - after specific Python frameworks) ────────
   { stack: "python" },
-
-  // ── Docker Compose (check before single Dockerfile) ──────────────────────
-  { stack: "docker-compose" },
 
   // ── Dockerfile (single container) ────────────────────────────────────────
   { stack: "docker" },
@@ -494,6 +499,13 @@ export function applyMetadataOverrides(
   result: StackResult,
   metadataList: DeploymentMetadata[],
 ): StackResult {
+  // Compose is the highest-priority, explicit deployment contract. Metadata
+  // such as vercel.json may still contribute routing elsewhere, but it must not
+  // reclassify a Compose project as a framework app.
+  if (result.stack === "docker-compose") {
+    return result;
+  }
+
   let out = result;
 
   for (const meta of metadataList) {

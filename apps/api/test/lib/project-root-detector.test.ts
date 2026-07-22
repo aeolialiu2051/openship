@@ -329,6 +329,25 @@ describe("selectPreferredProjectRoot", () => {
     expect(selected.stack.stack).toBe("docker-compose");
   });
 
+  it("prefers a nested compose root over a root Dockerfile", () => {
+    const selected = selectPreferredProjectRoot(
+      {
+        rootDirectory: "",
+        files: [{ name: "Dockerfile", type: "file" as const }],
+        fileContents: { Dockerfile: "FROM nginx:alpine\n" },
+      },
+      [{
+        rootDirectory: "deploy",
+        source: "discovered",
+        files: [{ name: "docker-compose.yml", type: "file" as const }],
+        fileContents: {},
+      }],
+    );
+
+    expect(selected.rootDirectory).toBe("deploy");
+    expect(selected.stack.stack).toBe("docker-compose");
+  });
+
   it("recognises a Rush monorepo and elevates its projects to workspace hints", () => {
     const rushJson = JSON.stringify({
       projects: [

@@ -673,6 +673,30 @@ export function selectPreferredProjectRoot(
   rootInput: ProjectRootSnapshotInput,
   candidateInputs: ProjectRootSnapshotInput[],
 ): ProjectRootSnapshot {
+  const root = buildSnapshot(rootInput);
+
+  // Compose is an explicit orchestration contract. Prefer it globally: a
+  // standard Compose file in deploy/ or another discovered project root must
+  // beat a root Dockerfile, language framework, or monorepo heuristic.
+  if (root.stack.projectType === "services") {
+    return root;
+  }
+
+  let bestCompose: ProjectRootSnapshot | null = null;
+  let bestComposeScore = -1;
+  for (const candidateInput of candidateInputs) {
+    const candidate = buildSnapshot(candidateInput);
+    if (candidate.stack.projectType !== "services") continue;
+    const candidateScore = scoreCandidate(candidate);
+    if (candidateScore > bestComposeScore) {
+      bestCompose = candidate;
+      bestComposeScore = candidateScore;
+    }
+  }
+  if (bestCompose) {
+    return bestCompose;
+  }
+
   return selectPreferredCandidate(rootInput, candidateInputs, {
     canSelect: canPromoteNestedApp,
     isEligible: isNestedProjectCandidate,

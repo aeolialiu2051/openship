@@ -492,6 +492,26 @@ describe("detectStack - rule ordering & gate disambiguation", () => {
     expect(result.stack).toBe("docker-compose");
   });
 
+  it("Docker Compose wins over a detected language framework", () => {
+    const result = detectStack(
+      files("docker-compose.yml", "Dockerfile", "go.mod", "main.go"),
+      undefined,
+      { "go.mod": "module example.com/app\n\nrequire github.com/gin-gonic/gin v1.10.0\n" },
+    );
+    expect(result.stack).toBe("docker-compose");
+    expect(result.projectType).toBe("services");
+  });
+
+  it("Docker Compose is not reclassified by deployment metadata", () => {
+    const result = detectStack(
+      files("docker-compose.yml", "vercel.json", "package.json", "next.config.js"),
+      { dependencies: { next: "^15.0.0" } },
+      { "vercel.json": JSON.stringify({ framework: "nextjs" }) },
+    );
+    expect(result.stack).toBe("docker-compose");
+    expect(result.projectType).toBe("services");
+  });
+
   it("Static site does NOT match when package.json is also present (falls to a JS stack)", () => {
     const result = detectStack(files("index.html", "package.json"), {
       dependencies: { express: "^5.0.0" },

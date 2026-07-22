@@ -36,7 +36,6 @@ const PREPARE_FILE_CONTENTS = [
 ] as const;
 const COMPOSE_FILES = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"] as const;
 
-
 export type Source =
   | {
       source: "github";
@@ -219,7 +218,6 @@ async function selectProjectSnapshot(
   return { selected, monorepo };
 }
 
-
 async function readProjectText(
   reader: ProjectReader,
   rootDirectory: string,
@@ -272,6 +270,8 @@ type RepoMeta = Parameters<typeof toProjectInfo>[0];
 
 /**
  * Shared resolution pipeline: snapshot → select root → read compose/.env → map.
+ * Compose roots have the highest selection priority; when none exists, the
+ * normal framework, Dockerfile, and monorepo fallbacks remain available.
  * Source-specific work (auth, branch validation, fs stat) lives in the callers.
  */
 export async function resolveFromReader(
@@ -342,9 +342,13 @@ function toProjectInfo(
   if (composeContent && stack.projectType === "services") {
     try {
       const parsed = parseComposeFile(composeContent, { envFileContent: composeEnvContent });
+      if (parsed.services.length === 0) {
+        throw new Error("No services were declared.");
+      }
       services = parsed.services;
-    } catch {
-      // Invalid YAML - continue without services.
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Unknown parse error";
+      throw new Error(`Invalid Docker Compose file: ${detail}`);
     }
   }
 
