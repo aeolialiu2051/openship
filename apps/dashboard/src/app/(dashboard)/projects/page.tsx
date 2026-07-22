@@ -26,7 +26,7 @@ export default function ProjectsPage() {
   const [filter, setFilter] = useState<ProjectFilter>({ kind: "all" });
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
-  const { selfHosted } = usePlatform();
+  const { userServers } = usePlatform();
   const isLoadingRef = useRef(false);
 
   useEffect(() => {
@@ -180,10 +180,10 @@ export default function ProjectsPage() {
                     <p className="text-xs text-muted-foreground/70 mb-3 leading-relaxed">
                       {t.projects.serverCta.description}
                     </p>
-                    {/* SSH servers are a self-hosted/desktop capability — the SaaS
-                        can't connect one, so send cloud users to the download page
-                        to get the app that can. Self-hosted/desktop use the real flow. */}
-                    {selfHosted ? (
+                    {/* The SSH-server flow follows the explicit userServers
+                        capability. Local SaaS can orchestrate a user's own VPS;
+                        production cloud SaaS cannot. */}
+                    {userServers ? (
                       <Link
                         href="/servers/new"
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted/50 text-foreground text-[13px] font-medium transition-colors hover:bg-muted"

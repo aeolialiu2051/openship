@@ -33,6 +33,16 @@ export function canUseCloudConnection({
   return selfHosted || deployMode === "desktop";
 }
 
+/** Whether this dashboard should expose the build/deploy target picker.
+ * Local SaaS is cloud-hosted but may still orchestrate user-owned VPS targets,
+ * so this follows the explicit capability instead of `selfHosted`. */
+export function canChooseDeployTarget({
+  deployMode,
+  userServers,
+}: Pick<PlatformContextValue, "deployMode" | "userServers">) {
+  return deployMode === "desktop" || userServers;
+}
+
 export function usePlatform() {
   const ctx = useContext(PlatformContext);
   if (!ctx) throw new Error("usePlatform must be used within PlatformProvider");

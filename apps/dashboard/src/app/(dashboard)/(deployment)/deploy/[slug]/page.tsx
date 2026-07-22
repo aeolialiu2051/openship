@@ -10,7 +10,7 @@ import EnvironmentVariables from "@/components/import-project/EnvironmentVariabl
 import MonorepoApps from "@/components/import-project/MonorepoApps";
 import RoutingSection from "@/components/import-project/RoutingSection";
 import Sidebar from "./components/Sidebar";
-import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDesktopTargets } from "./components/DeployTargetStep";
+import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDeployTargets } from "./components/DeployTargetStep";
 // Clone-strategy gate moved from inline render to a preflight modal
 // triggered from <Sidebar>'s handleDeploy. The inline placement was
 // wrong (showed before the user clicked Deploy). See
@@ -18,7 +18,7 @@ import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDesktopTargets
 import { decodeSlug } from "@/utils/repoSlug";
 import { useDeployment } from "@/context/DeploymentContext";
 import { usesServiceDeployment } from "@/context/deployment/types";
-import { usePlatform } from "@/context/PlatformContext";
+import { canChooseDeployTarget, usePlatform } from "@/context/PlatformContext";
 import SkeletonLoader from "./components/SkeletonLoader";
 import ErrorState from "@/components/shared/ErrorState";
 import { PageContainer } from "@/components/ui/PageContainer";
@@ -59,7 +59,7 @@ const DeployRepository: React.FC = () => {
     const params = useParams();
     const slug = params.slug as string;
     const { config, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromProject, updateConfig } = useDeployment();
-    const { deployMode } = usePlatform();
+    const { deployMode, userServers } = usePlatform();
     const { t } = useI18n();
     const searchParams = useSearchParams();
     const force = searchParams.get("force") || undefined;
@@ -71,7 +71,7 @@ const DeployRepository: React.FC = () => {
     const uploadName = searchParams.get("name") || undefined;
     // Edit-from-Runtime-tab: hydrate from SAVED settings, skip repo re-detection.
     const isConfigEdit = searchParams.get("mode") === "config" && !!projectId;
-    const isDesktop = deployMode === "desktop";
+    const canPickTarget = canChooseDeployTarget({ deployMode, userServers });
 
     // Decode the slug at render time so the skeleton can name the source
     // ("Fetching owner/repo from GitHub") on the very first paint, before the
@@ -105,11 +105,13 @@ const DeployRepository: React.FC = () => {
     const hasInitialized = useRef<boolean>(false);
     const { toast } = useToast();
 
-    // Desktop-only: resolve available deploy targets (server / cloud)
-    const targets = useDesktopTargets();
+    // Resolve available deploy targets (user-owned servers / managed cloud).
+    // Local SaaS participates because userServers is an explicit capability.
+    const targets = useDeployTargets();
 
     // Step: "target" = pick build/deploy target, "config" = project settings
-    // Only desktop gets step 1. Non-desktop skips straight to config.
+    // Desktop and runtimes that manage user-owned servers get step 1.
+    // Production cloud SaaS skips straight to config.
     //
     // Returning users land directly on "config": we read their soft
     // last-pick from localStorage SYNCHRONOUSLY in the useState initializer
@@ -119,7 +121,7 @@ const DeployRepository: React.FC = () => {
     // The settings-API default is still authoritative and gets applied
     // if the user clicks "edit" to reopen the picker.
     const [step, setStep] = useState<"target" | "config">(() => {
-        if (!isDesktop) return "config";
+        if (!canPickTarget) return "config";
         if (typeof window === "undefined") return "target";
         return lastPickStore.read() ? "config" : "target";
     });
@@ -136,7 +138,7 @@ const DeployRepository: React.FC = () => {
     const appliedLastPickRef = useRef(false);
 
     const applyLastPick = useCallback(() => {
-        if (!isDesktop || appliedLastPickRef.current) return;
+        if (!canPickTarget || appliedLastPickRef.current) return;
         const last = typeof window !== "undefined" ? lastPickStore.read() : null;
         if (!last) return;
         appliedLastPickRef.current = true;
@@ -147,7 +149,7 @@ const DeployRepository: React.FC = () => {
         } else if (last.target === "local") {
             updateConfig({ deployTarget: "local", serverId: undefined });
         }
-    }, [isDesktop, updateConfig]);
+    }, [canPickTarget, updateConfig]);
 
     useLayoutEffect(() => {
         applyLastPick();
@@ -282,11 +284,11 @@ const DeployRepository: React.FC = () => {
 
     return (
         <PageContainer>
-                {/* Step 1: Deploy target picker - centered onboarding style (desktop only).
+                {/* Step 1: Deploy target picker - centered onboarding style.
                     DeployTargetStep owns its own max-width: it widens to two columns
                     when a right-hand panel (cloud power / server runtime) is shown, and
                     stays narrow single-column otherwise. The page just centers it. */}
-                {step === "target" && isDesktop && (
+                {step === "target" && canPickTarget && (
                     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] py-8">
                         <DeployTargetStep
                             targets={targets}
@@ -300,8 +302,8 @@ const DeployRepository: React.FC = () => {
                 {step === "config" && (
                     <div className="grid lg:grid-cols-[1fr_340px] gap-6">
                         <div className="space-y-5">
-                            {/* Target summary bar - click to go back to step 1 (desktop only) */}
-                            {isDesktop && (
+                            {/* Target summary bar - click to go back to step 1. */}
+                            {canPickTarget && (
                                 <DeployTargetSummary
                                     deployTarget={config.deployTarget}
                                     buildStrategy={config.buildStrategy}

@@ -363,7 +363,7 @@ export interface ResolvedTargets {
   refreshServers: () => void;
 }
 
-export function useDesktopTargets(): ResolvedTargets {
+export function useDeployTargets(): ResolvedTargets {
   const cloud = useCloud();
   const { userServers } = usePlatform();
   const [servers, setServers] = useState<ServerInfo[]>([]);

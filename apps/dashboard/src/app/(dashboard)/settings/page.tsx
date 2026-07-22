@@ -57,7 +57,7 @@ export default function SettingsPage() {
 }
 
 function SettingsPageInner() {
-  const { selfHosted, deployMode } = usePlatform();
+  const { selfHosted, userServers, deployMode } = usePlatform();
   const { refresh } = useCloud();
   const { showToast } = useToast();
   const { t } = useI18n();
@@ -66,8 +66,9 @@ function SettingsPageInner() {
 
   // Build preferences: only self-hosted — SaaS manages builds.
   const showBuildPreferences = selfHosted;
-  // Deploy defaults: only meaningful where the picker exists (desktop / self-hosted)
-  const showDeployDefaults = selfHosted;
+  // Deploy defaults are also meaningful on local SaaS, where the picker can
+  // target either managed cloud or a user-owned VPS.
+  const showDeployDefaults = selfHosted || userServers;
 
   /* ── Cloud callback (redirect after connect) ── */
   useEffect(() => {

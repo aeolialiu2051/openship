@@ -500,6 +500,7 @@ export async function resolveSnapshotTarget(
 
   const deployTarget: DeployTarget | undefined =
     override?.deployTarget ??
+    (override?.serverId ? "server" : undefined) ??
     (project.cloudWorkspaceId ? "cloud" : (activeMeta?.deployTarget ?? undefined)) ??
     undefined;
 

@@ -125,4 +125,40 @@ describe("runPreflightChecks", () => {
     expect(result.ok).toBe(true);
     expect(result.checks.some((check) => check.status === "fail")).toBe(false);
   });
+
+  it("does not block a user-owned VPS when optional free-domain routing is unavailable", async () => {
+    preflightFn.mockResolvedValue(null);
+
+    const result = await runPreflightChecks({
+      repoUrl: "https://github.com/acme/app.git",
+      branch: "main",
+      buildImage: "node:22",
+      installCommand: "npm install",
+      buildCommand: "npm run build",
+      startCommand: "npm start",
+      port: 3000,
+      hasBuild: true,
+      hasServer: true,
+      deployTarget: "server",
+      serverId: "srv-vps",
+      organizationId: "org-1",
+    } as any, {
+      ctx: { userId: "user-1", organizationId: "org-1" } as any,
+      buildStrategy: "server",
+      publicEndpoints: [
+        { port: 3000, domain: "my-vps-app", domainType: "free" },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "runtime",
+          label: "Free domain routing",
+          status: "warn",
+        }),
+      ]),
+    );
+  });
 });

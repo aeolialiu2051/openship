@@ -6,17 +6,31 @@
  *
  * Copy is TRANSLATION-BASED: each tip's `id` maps to an i18n entry at
  * `overview.homeTip.tips.<id>` → { text, label } (see the locale files). To add
- * a tip, add the `{ id, href }` here AND the matching copy under that key. Set
- * `selfHostedOnly` when the route only exists on a self-hosted instance
- * (servers, jobs, mail) so it's never shown on cloud.
+ * a tip, add the `{ id, href }` here AND the matching copy under that key.
+ * Capability requirements keep local SaaS's user-owned VPS routes distinct
+ * from native self-hosted-only routes such as Jobs.
  */
 export interface ProductTip {
   /** i18n key under `overview.homeTip.tips.<id>` → { text, label }. */
   id: string;
   /** In-app destination the tip links to. */
   href: string;
-  /** Hide on cloud installs — the route is self-hosted only. */
-  selfHostedOnly?: boolean;
+  /** Optional platform capability required by the destination route. */
+  requires?: "selfHosted" | "userServers";
+}
+
+export interface ProductTipCapabilities {
+  selfHosted: boolean;
+  userServers: boolean;
+}
+
+export function isProductTipAvailable(
+  tip: ProductTip,
+  capabilities: ProductTipCapabilities,
+): boolean {
+  if (tip.requires === "selfHosted") return capabilities.selfHosted;
+  if (tip.requires === "userServers") return capabilities.userServers;
+  return true;
 }
 
 export const PRODUCT_TIPS: ProductTip[] = [
@@ -25,9 +39,9 @@ export const PRODUCT_TIPS: ProductTip[] = [
   { id: "autoDeploy", href: "/settings/git" },
   { id: "rollback", href: "/deployments" },
   { id: "apps", href: "/apps" },
-  { id: "servers", href: "/servers", selfHostedOnly: true },
-  { id: "jobs", href: "/jobs", selfHostedOnly: true },
+  { id: "servers", href: "/servers", requires: "userServers" },
+  { id: "jobs", href: "/jobs", requires: "selfHosted" },
   { id: "backups", href: "/backups" },
-  { id: "mail", href: "/emails", selfHostedOnly: true },
+  { id: "mail", href: "/emails", requires: "userServers" },
   { id: "team", href: "/settings?tab=team" },
 ];

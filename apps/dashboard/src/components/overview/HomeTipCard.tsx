@@ -7,7 +7,7 @@ import { ArrowRight, Zap } from "lucide-react";
 import { useGitHub } from "@/context/GitHubContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n } from "@/components/i18n-provider";
-import { PRODUCT_TIPS } from "./home-tips";
+import { isProductTipAvailable, PRODUCT_TIPS } from "./home-tips";
 
 interface HomeTipCardProps {
   projectCount: number;
@@ -22,7 +22,7 @@ interface HomeTip {
 
 export default function HomeTipCard({ projectCount, loading }: HomeTipCardProps) {
   const gitHub = useGitHub();
-  const { selfHosted } = usePlatform();
+  const { selfHosted, userServers } = usePlatform();
   const { t } = useI18n();
   const c = t.overview.homeTip;
 
@@ -39,8 +39,8 @@ export default function HomeTipCard({ projectCount, loading }: HomeTipCardProps)
   // visit). Only tips whose route exists on this install. Index 0 on SSR /
   // first render (deterministic → no hydration mismatch), randomized on mount.
   const pool = useMemo(
-    () => PRODUCT_TIPS.filter((tip) => selfHosted || !tip.selfHostedOnly),
-    [selfHosted],
+    () => PRODUCT_TIPS.filter((tip) => isProductTipAvailable(tip, { selfHosted, userServers })),
+    [selfHosted, userServers],
   );
   const [idx, setIdx] = useState(0);
   useEffect(() => {

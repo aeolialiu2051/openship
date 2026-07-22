@@ -9,6 +9,7 @@ import type { DefaultDeployTarget } from "@/lib/api/settings";
 import { useToast } from "@/context/ToastContext";
 import { SettingsSection } from "./SettingsSection";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { usePlatform } from "@/context/PlatformContext";
 
 // Static target options. "server" gets a server-id sub-picker below.
 const TARGET_OPTIONS: {
@@ -23,11 +24,18 @@ const TARGET_OPTIONS: {
 export function DeployDefaults() {
   const { showToast } = useToast();
   const { t } = useI18n();
+  const { selfHosted } = usePlatform();
   const [target, setTarget] = useState<DefaultDeployTarget | null>(null);
   const [serverId, setServerId] = useState<string | null>(null);
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  // "local" means the control-plane host itself. That is a valid deployment
+  // target for native self-hosted installs, but not for local SaaS: in that
+  // mode users choose managed cloud or one of their own SSH servers.
+  const targetOptions = selfHosted
+    ? TARGET_OPTIONS
+    : TARGET_OPTIONS.filter(({ value }) => value !== "local");
 
   const load = useCallback(async () => {
     try {
@@ -103,8 +111,12 @@ export function DeployDefaults() {
           <p className="text-sm text-muted-foreground mb-4">
             {t.settings.deployDefaults.intro}
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {TARGET_OPTIONS.map(({ value, icon: ModeIcon }) => {
+          <div
+            className={`grid grid-cols-1 gap-3 ${
+              targetOptions.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
+            }`}
+          >
+            {targetOptions.map(({ value, icon: ModeIcon }) => {
               const active = target === value;
               return (
                 <button

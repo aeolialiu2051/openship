@@ -21,6 +21,7 @@ import { resolveServiceHostnameLabel, normalizeCustomHostname } from "@repo/core
 import { cloudClient } from "../../lib/cloud/client";
 import { isCloudConnectedForOrg } from "../../lib/cloud/session";
 import { runCloudPreflight, type CloudPreflightData } from "../../lib/cloud-preflight";
+import { hasOblienCredentials } from "../../lib/platform-mode";
 import { isStaticService, type DeployableService } from "../../lib/deployable-service";
 import { serviceKind } from "./compose/project-services";
 import { resolveClonePlan } from "./clone-plan";
@@ -628,14 +629,22 @@ async function checkComposeServiceDomains(
     );
     const fqdn = `${subdomain}.${baseDomain}`;
 
-    // Free subdomains require cloud - fail early if not connected
+    // The managed free URL is optional for a user-owned VPS. Missing cloud
+    // access must not block the containers from reaching the server; routing
+    // can be connected later or replaced with a custom domain.
     if (!cloud) {
+      const effectiveTarget = resolveEffectiveTarget(platform().target, snapshot ?? {});
       checks.push({
         id: `service-domain-${service.name}`,
         label: `Service subdomain (${service.name})`,
-        status: "fail",
-        code: PREFLIGHT_ERROR_CODES.CLOUD_REQUIRED_MANAGED_COMPOSE_DOMAINS,
-        message: `Free subdomain "${fqdn}" requires Openship Cloud. Connect your account or switch to a custom domain.`,
+        status: effectiveTarget === "cloud" ? "fail" : "warn",
+        ...(effectiveTarget === "cloud"
+          ? { code: PREFLIGHT_ERROR_CODES.CLOUD_REQUIRED_MANAGED_COMPOSE_DOMAINS }
+          : {}),
+        message:
+          effectiveTarget === "cloud"
+            ? `Free subdomain "${fqdn}" requires Openship Cloud. Connect your account or switch to a custom domain.`
+            : `The VPS deployment can continue, but "${fqdn}" needs Openship Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
       });
       continue;
     }
@@ -668,12 +677,17 @@ async function requestCloudPreflight(
 ): Promise<CloudPreflightData | null> {
   const plat = platform();
   if (!snapshot.organizationId) return null;
+  const effectiveTarget = resolveEffectiveTarget(plat.target, snapshot);
 
   // On the SaaS itself, run preflight in-process — no bridge needed.
   // `runCloudPreflight` keys EVERYTHING off the organization id
   // (namespace slug, quota, token mint) — passing userId here used
   // to mint the wrong namespace on SaaS.
   if (plat.target === "cloud") {
+    // Local SaaS can deploy to a user-owned VPS without Oblien. A missing
+    // managed-edge credential affects only the optional free URL, not the VPS
+    // runtime itself. Real cloud targets still run the full cloud preflight.
+    if (effectiveTarget !== "cloud" && !hasOblienCredentials()) return null;
     return runCloudPreflight(snapshot.organizationId, input);
   }
 
@@ -1112,24 +1126,12 @@ async function checkCloudRuntime(
     // `connected` is the org-owner's validated verdict (same source the
     // dashboard card + GitHub mode read), so a momentary blip never tells a
     // connected user to reconnect.
-    if (connected) {
-      return {
-        id: "runtime",
-        label: requirement === "cloud-runtime" ? "Openship Cloud" : "Free domain routing",
-        status: "fail",
-        code: PREFLIGHT_ERROR_CODES.CLOUD_UNREACHABLE,
-        message:
-          "Openship Cloud is connected, but the cloud API didn't respond just now. This is usually transient — retry the deploy in a moment.",
-      };
-    }
-
     if (requirement === "managed-project-domain") {
       return {
         id: "runtime",
         label: "Free domain routing",
-        status: "fail",
-        code: PREFLIGHT_ERROR_CODES.CLOUD_REQUIRED_MANAGED_PROJECT_DOMAIN,
-        message: `Free .${getRoutingBaseDomain()} domains require Openship Cloud for routing. To deploy to your own server, either connect Openship Cloud or switch this project to a custom domain.`,
+        status: "warn",
+        message: `The VPS deployment will continue, but the free .${getRoutingBaseDomain()} URL needs Openship Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
       };
     }
 
@@ -1137,9 +1139,19 @@ async function checkCloudRuntime(
       return {
         id: "runtime",
         label: "Free domain routing",
+        status: "warn",
+        message: `The VPS deployment will continue, but exposed services using free .${getRoutingBaseDomain()} domains need Openship Cloud routing. Connect cloud later or use custom domains pointing to the VPS.`,
+      };
+    }
+
+    if (connected) {
+      return {
+        id: "runtime",
+        label: "Openship Cloud",
         status: "fail",
-        code: PREFLIGHT_ERROR_CODES.CLOUD_REQUIRED_MANAGED_COMPOSE_DOMAINS,
-        message: `One or more exposed services use free .${getRoutingBaseDomain()} domains. Connect Openship Cloud or switch those services to custom domains before deploying to your own server.`,
+        code: PREFLIGHT_ERROR_CODES.CLOUD_UNREACHABLE,
+        message:
+          "Openship Cloud is connected, but the cloud API didn't respond just now. This is usually transient — retry the deploy in a moment.",
       };
     }
 
@@ -1158,6 +1170,15 @@ async function checkCloudRuntime(
       id: "runtime",
       label: requirement === "cloud-runtime" ? "Openship Cloud" : "Free domain routing",
       status: "pass",
+    };
+  }
+
+  if (requirement !== "cloud-runtime") {
+    return {
+      id: "runtime",
+      label: "Free domain routing",
+      status: "warn",
+      message: `${cloud.runtime.message}. The VPS deployment will continue; only the free managed URL is unavailable.`,
     };
   }
 

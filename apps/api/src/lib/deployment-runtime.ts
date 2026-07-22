@@ -145,13 +145,17 @@ async function resolveOrgServer(
  * and the build pipeline both route through this so their notion of the target
  * can never drift (a drift caused the self-hosted→cloud-preflight 403).
  */
-export function resolveEffectiveTarget(base: Platform["target"], snapshot: DeploymentMeta): DeployTarget {
+export function resolveEffectiveTarget(
+  base: Platform["target"],
+  snapshot: DeploymentMeta,
+  userServersEnabled = USER_SERVERS_ENABLED,
+): DeployTarget {
   if (base === "desktop") return snapshot.deployTarget ?? "cloud";
   // local-saas is cloud-backed for managed deployments, but explicitly chosen
   // user VPS targets are orchestrated over SSH from this control plane.
   if (
     base === "cloud" &&
-    USER_SERVERS_ENABLED &&
+    userServersEnabled &&
     (snapshot.deployTarget === "server" || snapshot.serverId)
   ) {
     return "server";
