@@ -31,7 +31,9 @@ import { useModal } from "@/context/ModalContext";
 import { GrantPickerModal } from "./GrantPickerModal";
 import { InviteMemberModal } from "./InviteMemberModal";
 import { usePlatform } from "@/context/PlatformContext";
+import { useCloud } from "@/context/CloudContext";
 import { TeamWorkspaceCard } from "./TeamWorkspaceCard";
+import { TeamReachabilityCard, type TeamReachability } from "./TeamReachabilityCard";
 import { WorkspaceManageModal } from "./WorkspaceManageModal";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -98,10 +100,12 @@ export function TeamTab() {
   type InvitationMailSource = "platform" | "cloud";
   const [invitationMailSource, setInvitationMailSource] =
     useState<InvitationMailSource>("platform");
-  const [teamMode, setTeamMode] = useState<
-    "single_user" | "self_hosted_remote" | "cloud_hosted" | "tunneled"
-  >("single_user");
+  const [reachability, setReachability] = useState<TeamReachability | null>(null);
   const { selfHosted, userServers } = usePlatform();
+  const {
+    connected: cloudConnected,
+    startConnect: connectCloud,
+  } = useCloud();
 
   // Servers + mail servers follow the explicit user-server capability; local
   // SaaS has both those resources and cloud billing.
@@ -148,7 +152,7 @@ export function TeamTab() {
         api
           .get<{
             invitationMailSource?: InvitationMailSource;
-            teamMode?: "single_user" | "self_hosted_remote" | "cloud_hosted" | "tunneled";
+            teamReachability?: TeamReachability;
           }>("system/settings")
           .catch(() => ({ invitationMailSource: "platform" as InvitationMailSource })),
         // Active org name for the manage-workspace modal (rename default + confirm).
@@ -167,8 +171,7 @@ export function TeamTab() {
       } else if (src === "platform" || src === "cloud") {
         setInvitationMailSource(src);
       }
-      const tm = (settingsRes as { teamMode?: typeof teamMode })?.teamMode;
-      if (tm) setTeamMode(tm);
+      setReachability((settingsRes as { teamReachability?: TeamReachability })?.teamReachability ?? null);
     } catch (err) {
       // Network/abort errors are handled by the global NetworkErrorHandler;
       // only surface real API errors here so we don't double-toast.
@@ -241,7 +244,8 @@ export function TeamTab() {
           availableTypes={availableTypes}
           selfHosted={selfHosted}
           initialMailSource={invitationMailSource}
-          isPersonalOrg={orgKind === "personal"}
+          cloudConnected={cloudConnected}
+          onConnectCloud={connectCloud}
           onInvited={() => void refresh()}
           onClose={() => hideModal(id)}
         />
@@ -362,12 +366,16 @@ export function TeamTab() {
   // a self-hosted single-user instance: no shared location, no multi-user auth,
   // so a teammate couldn't reach it. There we hide the button and show the
   // "shared location" hint (TeamWorkspaceCard) instead of a dead action.
-  const canInvite = isAdminOrOwner && !(selfHosted && teamMode === "single_user");
+  // Smart gate: invites are allowed once the instance is actually REACHABLE
+  // (a real public URL — env `--public-url` or the Openship app's verified
+  // domain), not gated on the migration-wizard flag. So adding a domain to the
+  // Openship app turns invites on directly.
+  const canInvite = isAdminOrOwner && (!selfHosted || !!reachability?.configured);
 
-  // Team-workspace migration card: surfaced ONLY to the owner on
-  // single_user self-hosted instances. After migration the dashboard
-  // renders the MigratedLauncher in place of this whole page anyway.
-  const showWorkspaceMigration = selfHosted && teamMode === "single_user";
+  // Not reachable yet (self-hosted, no public URL) → show inline guidance
+  // (add a domain to Openship / install it) + the migrate-elsewhere option,
+  // instead of a dead-ended invite button.
+  const showWorkspaceMigration = selfHosted && !reachability?.configured;
 
   // Delete/leave apply to a TEAM workspace only — never the personal workspace
   // (org_<userId>), which is the account base. Owner deletes; a member leaves.
@@ -591,10 +599,15 @@ export function TeamTab() {
         </>
       )}
 
-      {/* Team workspace / migration card — last in the team tab so the
-          primary "people" UI (members + invitations) is what operators
-          see first. Owner-only, self-hosted single_user only. */}
-      {showWorkspaceMigration && <TeamWorkspaceCard canMigrate={!!isOwner} />}
+      {/* Not reachable yet: inline guidance (add a domain to Openship / install
+          it) is the primary path; the migrate-elsewhere card is the alternative.
+          Last in the tab so the members UI leads. */}
+      {showWorkspaceMigration && (
+        <>
+          <TeamReachabilityCard reachability={reachability} />
+          <TeamWorkspaceCard canMigrate={!!isOwner} />
+        </>
+      )}
 
       {/* Owner-only manage modal: rename, pause all projects, or delete the
           workspace (tears each project down before removing the org). */}

@@ -25,6 +25,7 @@
  */
 
 import type { Context } from "hono";
+import type { SSEStreamingApi } from "hono/streaming";
 import crypto from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { buildMailBackupPayload } from "./admin/backup-plan";
@@ -55,6 +56,7 @@ import {
 } from "./mail.service";
 import { checkMailHealth, MAIL_COMPONENTS } from "./mail-health.service";
 import { updatePostmasterPassword } from "./mail-credentials.service";
+import { reserveMailSetup } from "./mail-setup-lease";
 import {
   readState,
   writeState,
@@ -649,22 +651,41 @@ export async function startSetup(c: Context) {
     return c.json({ error: "Setup already running" }, 409);
   }
 
-  // Set synchronously before the next await so two requests for the same VPS
-  // cannot both enter the installer in this process. Incomplete DB rows are
-  // deliberately NOT treated as locks: DNS/PTR holds and failed installs keep
-  // that row while the user resumes from persisted on-server state.
-  activeSessions.set(serverId, { serverId, domain, cancelled: false });
+  const session: ActiveSession = {
+    serverId,
+    domain,
+    cancelled: false,
+  };
+  activeSessions.set(serverId, session);
 
+  let reservation;
   try {
-    await repos.mailServer.upsert({ serverId, domain, installedAt: null });
+    reservation = await reserveMailSetup(serverId, domain);
   } catch (err) {
-    console.warn(
-      "[mail] failed to record mail-server install start:",
+    if (activeSessions.get(serverId) === session) {
+      activeSessions.delete(serverId);
+    }
+    console.error(
+      "[mail] failed to reserve mail-server setup:",
       safeErrorMessage(err),
+    );
+    return c.json(
+      { error: "Could not reserve mail setup. Please try again." },
+      503,
     );
   }
 
-  return streamSSE(c, async (stream) => {
+  if (!reservation) {
+    if (activeSessions.get(serverId) === session) {
+      activeSessions.delete(serverId);
+    }
+    return c.json(
+      { error: "Setup already running on another replica" },
+      409,
+    );
+  }
+
+  const runSetup = async (stream: SSEStreamingApi) => {
     // Resolve initial state from the server. New install → fresh state.
     // Existing install on same domain → merge so secrets/completedSteps
     // survive across retries. Different domain on same server → wipe and
@@ -977,7 +998,27 @@ export async function startSetup(c: Context) {
         activeSessions.delete(serverId);
       }
     }
-  });
+  };
+
+  const releaseSession = async () => {
+    if (activeSessions.get(serverId) === session) {
+      activeSessions.delete(serverId);
+    }
+    await reservation.release();
+  };
+
+  try {
+    return streamSSE(c, async (stream) => {
+      try {
+        await runSetup(stream);
+      } finally {
+        await releaseSession();
+      }
+    });
+  } catch (err) {
+    await releaseSession();
+    throw err;
+  }
 }
 
 /** POST /mail/setup/cancel - cancel the running setup */
