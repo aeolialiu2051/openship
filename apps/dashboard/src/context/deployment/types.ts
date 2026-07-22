@@ -312,7 +312,7 @@ export interface DeploymentConfig {
    */
   forwardGitCredentials?: boolean;
   /**
-   * Where a server deploy clones the repo (default "api-host"). "server" makes
+   * Where a server deploy clones the repo (default "server"). "server" makes
    * the build host clone directly — desktop via the credential relay, a
    * server-hosted instance via a short-lived token. The build always runs on
    * the server; only the clone location differs. See {@link CloneStrategy}.
@@ -346,6 +346,7 @@ export const DEFAULT_CONFIG: DeploymentConfig = {
   services: [],
   serviceDeploymentMode: "single",
   cloudResourceTier: "low",
+  cloneStrategy: "server",
   productionPortTouched: false,
   lastAutoDetectedEnvPort: null,
   options: {

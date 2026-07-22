@@ -928,6 +928,14 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           }
         }
 
+        // Fresh picker with no explicit default or usable last pick: prefer the
+        // user's SSH infrastructure over managed cloud. Keep `applied` false so
+        // this remains a visible default selection instead of auto-skipping the
+        // target step as if the user had saved a preference.
+        if (!applied && hasServers) {
+          updateConfig({ deployTarget: "server", serverId: servers[0].id });
+        }
+
         // Collapse to compact summary only when defaults applied cleanly
         // AND we're not coming back here on purpose. `autoSkipAllowed=false`
         // means the user clicked the edit affordance on the next step to
@@ -936,7 +944,14 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
         // the collapse so they see the full picker right away.
         if (applied && autoSkipAllowed) setExpanded(false);
       })
-      .catch(() => { /* no default - picker falls back to auto-select */ })
+      .catch(() => {
+        if (cancelled) return;
+        // Settings being unavailable should not change the fresh-picker
+        // default: choose the first configured SSH server when one exists.
+        if (hasServers) {
+          updateConfig({ deployTarget: "server", serverId: servers[0].id });
+        }
+      })
       .finally(() => { if (!cancelled) setDefaultsLoaded(true); });
     return () => { cancelled = true; };
     // Excluded `servers` / `updateConfig` on purpose: this is a one-shot
