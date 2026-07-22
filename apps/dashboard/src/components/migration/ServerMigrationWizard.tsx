@@ -23,6 +23,7 @@ import { Modal } from "@/components/ui/Modal";
 import ServerSelector, { type ServerOption } from "@/components/shared/ServerSelector";
 import {
   dockerMigrationApi,
+  deployApi,
   getApiErrorMessage,
   type DiscoveredStack,
   type DiscoveredGroup,
@@ -33,6 +34,7 @@ import {
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { randomUUID } from "@/lib/random-uuid";
 import { AppLogo } from "@/components/AppLogo";
+import { DeploymentTerminal } from "@/components/import-project/DeploymentTerminal";
 
 /** Platforms whose Docker/Compose apps this flow can adopt — shown as faint
  *  brand hints under the intro (decorative). Unknown marks fall back to a
@@ -141,6 +143,11 @@ export function ServerMigrationWizard({
   const [migrationId, setMigrationId] = useState<string | null>(null);
   const [confirmToken, setConfirmToken] = useState<string | null>(null);
   const [run, setRun] = useState<MigrationRun | null>(null);
+  // Per-service status peek (the failure rows). Full logs are shown by the
+  // embedded DeploymentTerminal (its own build-session stream), not here.
+  const [deploy, setDeploy] = useState<{
+    services?: Array<{ name: string; status: string; error?: string }>;
+  } | null>(null);
   const [cutoverBusy, setCutoverBusy] = useState(false);
 
   const reset = () => {
@@ -417,6 +424,17 @@ export function ServerMigrationWizard({
     if (pid) router.push(`/projects/${pid}/domains`);
   };
 
+  // On a deploy/verify failure the run row only carries a one-line reason. The
+  // real stepper, full logs, and per-service failure detail live on the target
+  // deployment's build screen — deep-link to it so "just failed" isn't a
+  // dead-end. (Only meaningful once the deploy started, i.e. deploymentId set.)
+  const openDeployLogs = () => {
+    const depId = run?.deploymentId;
+    if (!depId) return;
+    close();
+    router.push(`/build/${depId}`);
+  };
+
   // Poll the current run while a migration is in flight; stop once terminal.
   useEffect(() => {
     if (!migrationId) return;
@@ -438,6 +456,44 @@ export function ServerMigrationWizard({
     };
   }, [migrationId, run?.status]);
 
+  // Pull the target deploy's logs + per-service status while it's deploying/
+  // verifying (live) and once it fails — so the wizard shows the actual reason
+  // and log tail inline instead of only a one-line "partial_failure".
+  useEffect(() => {
+    const depId = run?.deploymentId;
+    const live = run?.status === "deploying" || run?.status === "verifying";
+    const failedNow = run?.status === "failed" || run?.status === "rolled_back";
+    if (!depId || (!live && !failedNow)) {
+      setDeploy(null);
+      return;
+    }
+    let on = true;
+    const tick = async () => {
+      try {
+        const st = await deployApi.getBuildStatus(depId);
+        if (!on) return;
+        setDeploy({
+          services: Array.isArray(st?.serviceStatuses)
+            ? st.serviceStatuses.map((s: Record<string, unknown>) => ({
+                name: String(s.serviceName ?? s.serviceId ?? "service"),
+                status: String(s.status ?? ""),
+                error: (s.errorMessage as string) || (s.error as string) || undefined,
+              }))
+            : undefined,
+        });
+      } catch {
+        /* transient */
+      }
+    };
+    void tick();
+    // Live phases keep polling; a terminal failure only needs one fetch.
+    const iv = live ? setInterval(tick, 2500) : null;
+    return () => {
+      on = false;
+      if (iv) clearInterval(iv);
+    };
+  }, [run?.deploymentId, run?.status]);
+
   const inProgress = Boolean(queue);
   const failed = run?.status === "failed" || run?.status === "rolled_back";
   // Only go near-full-screen once there are RESULTS to show (an adoptable stack
@@ -445,10 +501,11 @@ export function ServerMigrationWizard({
   // "nothing found" result all stay a compact, content-sized dialog.
   const expanded = adoptable || inProgress;
 
-  // The wide layout only exists to show the container table (scan/select). The
-  // progress phase has just a short step list — keep it in the compact,
-  // height-to-content shell so it doesn't float in a huge empty modal.
-  const wide = expanded && !inProgress;
+  // Wide layout for the scan/select table AND for the deploy phase — once a
+  // target deployment exists (deploying/verifying/failed) we mount the native
+  // terminal, which needs the full-width shell. Earlier progress phases
+  // (adopting/moving_data) have only a short step list → stay compact.
+  const wide = expanded && (!inProgress || Boolean(run?.deploymentId));
 
   return (
     <Modal
@@ -491,6 +548,7 @@ export function ServerMigrationWizard({
                 queueIndex={queueIndex}
                 queueTotal={queue?.length ?? 1}
                 completed={completed}
+                deployServices={deploy?.services}
               />
             </div>
             <div className="shrink-0 flex items-center justify-between gap-4 px-6 py-4 border-t border-border/60">
@@ -548,13 +606,24 @@ export function ServerMigrationWizard({
               ) : (
                 <>
                   <span />
-                  <button
-                    type="button"
-                    onClick={close}
-                    className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors shrink-0"
-                  >
-                    {failed ? m.wizard.close : m.wizard.cancel}
-                  </button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {failed && run?.deploymentId && (
+                      <button
+                        type="button"
+                        onClick={openDeployLogs}
+                        className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                      >
+                        {m.run.viewDeployLogs}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={close}
+                      className="px-4 py-2.5 rounded-xl border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                    >
+                      {failed ? m.wizard.close : m.wizard.cancel}
+                    </button>
+                  </div>
                 </>
               )}
             </div>
@@ -1239,6 +1308,7 @@ function MigrationProgress({
   queueIndex,
   queueTotal,
   completed,
+  deployServices,
 }: {
   run: MigrationRun | null;
   error: string | null;
@@ -1246,6 +1316,7 @@ function MigrationProgress({
   queueIndex: number;
   queueTotal: number;
   completed: Array<{ name: string; projectId?: string | null }>;
+  deployServices?: Array<{ name: string; status: string; error?: string }>;
 }) {
   const { t } = useI18n();
   const m = t.migration;
@@ -1355,6 +1426,41 @@ function MigrationProgress({
           })}
         </ol>
       )}
+
+      {run?.deploymentId &&
+        (failed || status === "deploying" || status === "verifying") && (
+          <div className="space-y-2">
+            <p className="px-0.5 text-xs font-medium text-muted-foreground">{m.run.deployDetail}</p>
+            {deployServices && deployServices.length > 0 && (
+              <div className="space-y-1 rounded-xl border border-border/50 bg-muted/20 p-2.5">
+                {deployServices.map((s) => {
+                  const bad = /fail|error|crash|exit/i.test(s.status);
+                  const good = /ready|run|succeed|live|deployed|healthy/i.test(s.status);
+                  return (
+                    <div key={s.name} className="flex items-start gap-2 text-xs">
+                      <span
+                        className={`mt-1 inline-block size-1.5 shrink-0 rounded-full ${
+                          bad ? "bg-danger" : good ? "bg-success" : "bg-muted-foreground"
+                        }`}
+                      />
+                      <span className="font-mono text-foreground">{s.name}</span>
+                      <span className="text-muted-foreground">{s.status}</span>
+                      {s.error && <span className="min-w-0 flex-1 truncate text-danger">— {s.error}</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {/* Native terminal — reuses the /deploy xterm (TerminalSurface +
+                useBuildStream attach-only), driven by the run's deploymentId.
+                Live while deploying/verifying, persisted logs on failure. */}
+            <DeploymentTerminal
+              deploymentId={run.deploymentId}
+              live={status === "deploying" || status === "verifying"}
+              className="h-[360px] w-full overflow-hidden rounded-xl border border-border/50"
+            />
+          </div>
+        )}
 
       {status === "awaiting_cutover" && (
         <div className="flex items-start gap-2 text-sm rounded-xl bg-success-bg text-success px-4 py-3">

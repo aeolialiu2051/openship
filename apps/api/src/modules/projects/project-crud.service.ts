@@ -288,6 +288,14 @@ function buildProductionProjectInput(
     cloudArchiveStrategy: data.cloudArchiveStrategy ?? undefined,
     isApp: data.isApp ?? false,
     appTemplateId: data.appTemplateId ?? null,
+    // Services / docker(-compose) projects can only run on the Docker runtime, so
+    // pin it at creation — same rule the deploy wizard applies via
+    // normalizeRuntimeMode. Without this the row's runtime_mode is null, the
+    // deploy resolves to "bare", and a compose deploy fails with "services are
+    // not supported on the bare runtime". Git apps/monorepos stay null (chosen at
+    // deploy time).
+    runtimeMode:
+      data.projectType === "services" || data.projectType === "docker" ? "docker" : null,
   };
 }
 

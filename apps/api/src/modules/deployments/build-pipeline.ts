@@ -392,7 +392,12 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     // service(s) deploy here; the app's own bare deploy is untouched. Compose
     // projects are already Docker, so the `=== "bare"` guard skips them; a plain
     // bare app deploy with no services never flips (useServicePipeline=false).
-    if (snapshot.runtimeMode === "bare") {
+    // Guard on `!== "docker"` (not `=== "bare"`) so an UNSET runtime (null/
+    // undefined — e.g. a template/app project created without a runtime_mode)
+    // also flips; otherwise it resolves to bare and the service deploy dies with
+    // "services are not supported on the bare runtime". Already-Docker projects
+    // skip the check.
+    if (snapshot.runtimeMode !== "docker") {
       const willRunServices = (await resolveServicePipelineMode(project, snapshot)).useServicePipeline;
       if (willRunServices) {
         logger.log("→ Services require the Docker runtime — running this service deploy on Docker.\n");

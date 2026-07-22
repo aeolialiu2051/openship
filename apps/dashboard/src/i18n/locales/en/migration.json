@@ -47,6 +47,8 @@
     "rolled_back": "Rolled back — your original containers were restarted",
     "openProject": "Open project",
     "addDomains": "Add domains",
+    "viewDeployLogs": "View deploy logs",
+    "deployDetail": "Deploy logs",
     "routeHint": "Your services are imported but not public yet. Add a domain per service on the Domains tab — Openship deploys automatically to install its edge (OpenResty) and, if your old proxy still holds 80/443, offers to take it over.",
     "downtimeNote": "Original containers are stopped during the move; expect brief downtime until the new deployment is live."
   },

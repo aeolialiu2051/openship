@@ -6,6 +6,7 @@ import type {
   RoutingConfig,
   MetadataParser,
 } from "./types";
+import { trimmed } from "./text";
 
 /**
  * Map Vercel's `framework` slugs to openship StackIds. Only the slugs that
@@ -38,10 +39,6 @@ export interface VercelConfig {
   headers?: DeploymentHeaderRule[];
   cleanUrls?: boolean;
   trailingSlash?: boolean;
-}
-
-function trimmed(value: unknown): string | undefined {
-  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 /** A rule that matches conditionally (`has`/`missing`) can't be faithfully

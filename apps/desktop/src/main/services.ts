@@ -97,6 +97,9 @@ function resourcePaths() {
     migrationsDir: join(root, "migrations"),
     pgliteDir: join(root, "pglite"),
     dashboardDir: join(root, "dashboard", "apps", "dashboard"),
+    // ssh2 + dockerode live here (externalized from the compiled API binary);
+    // the binary resolves them via NODE_PATH — see the spawn below.
+    nodeModulesDir: join(root, "node_modules"),
   };
 }
 
@@ -213,7 +216,7 @@ export async function startLocalServices(internalToken: string): Promise<void> {
   if (started) return;
   started = true;
 
-  const { apiBin, migrationsDir, pgliteDir, dashboardDir } = resourcePaths();
+  const { apiBin, migrationsDir, pgliteDir, dashboardDir, nodeModulesDir } = resourcePaths();
   const userData = app.getPath("userData");
   const dataDir = join(userData, "data");
   mkdirSync(dataDir, { recursive: true });
@@ -287,6 +290,11 @@ export async function startLocalServices(internalToken: string): Promise<void> {
       OPENSHIP_LOCAL_DASHBOARD_URL: dashOrigin,
       BETTER_AUTH_SECRET: authSecret,
       INTERNAL_TOKEN: internalToken,
+      // The compiled API binary loads ssh2/dockerode (externalized from the
+      // --compile bundle) from the staged Resources/node_modules — without this
+      // the SSH/Docker connect hangs. Verified: Bun compiled binaries honor
+      // NODE_PATH for external module resolution.
+      NODE_PATH: nodeModulesDir,
     });
 
     let apiDead = false;

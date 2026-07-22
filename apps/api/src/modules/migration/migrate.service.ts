@@ -38,16 +38,38 @@ function volumeToComposeString(v: DiscoveredVolumeMount): string | null {
   return `${v.source}:${v.target}${mode}`;
 }
 
-/** Ports 80/443 belong to Openship's OpenResty edge. For an imported service
- *  that published one, drop the host side (and any host IP) but KEEP the
- *  container port so OpenResty can still route to it — e.g. "80:3000" → "3000",
- *  "443:443" → "443". Non-edge host ports (e.g. "8080:80") are untouched. */
-function stripEdgeHostPorts(ports: string[]): string[] {
-  return ports.map((spec) => {
+/** Normalize an adopted service's ports for the shared Openship service group:
+ *
+ *   - Ports 80/443 belong to Openship's OpenResty edge → drop the host side,
+ *     keep the container port (e.g. "80:3000" → "3000"); OpenResty routes to it.
+ *   - Every OTHER host-published port must be UNIQUE across the group — two
+ *     containers cannot bind the same host port (the classic "two postgres both
+ *     on 127.0.0.1:5432" migration failure: `port is already allocated`). The
+ *     first service to claim a host port keeps it; a later collision drops only
+ *     the HOST binding and keeps the container port, so the service stays
+ *     reachable by name on the group network (`postgres-2:5432`).
+ *
+ *  `claimed` is the shared set of host ports already taken by earlier services
+ *  in the group (mutated here). Returns the rewritten ports + the host ports
+ *  that were dropped as duplicates (for a user-facing note). */
+function normalizeHostPorts(
+  ports: string[],
+  claimed: Set<number>,
+): { ports: string[]; droppedDuplicates: number[] } {
+  const droppedDuplicates: number[] = [];
+  const out = ports.map((spec) => {
     const { host, container, proto } = parseComposePort(spec);
-    if (host == null || !EDGE_PORTS.has(host)) return spec;
-    return proto ? `${container}/${proto}` : container;
+    const containerOnly = proto ? `${container}/${proto}` : container;
+    if (host == null) return spec; // container-only expose — nothing published
+    if (EDGE_PORTS.has(host)) return containerOnly; // edge → OpenResty
+    if (claimed.has(host)) {
+      droppedDuplicates.push(host);
+      return containerOnly; // duplicate host port — keep only the container side
+    }
+    claimed.add(host);
+    return spec; // unique host publish — keep as-is
   });
+  return { ports: out, droppedDuplicates };
 }
 
 
@@ -114,7 +136,19 @@ export async function adoptServerStack(opts: {
     return unique;
   });
 
-  const parsed: ParsedComposeList = chosen.map((s, i) => ({
+  // Host ports must be unique across the whole group — process services in
+  // order, first-claim-wins, so two services publishing the same host port
+  // (e.g. two postgres on 5432) don't collide at deploy time.
+  const claimedHostPorts = new Set<number>();
+  const parsed: ParsedComposeList = chosen.map((s, i) => {
+    const { ports, droppedDuplicates } = normalizeHostPorts(s.ports, claimedHostPorts);
+    if (droppedDuplicates.length > 0) {
+      s.warnings.push(
+        `Host port(s) ${droppedDuplicates.join(", ")} already published by another service — ` +
+          `kept ${uniqueNames[i]} on the internal network only (reachable as ${uniqueNames[i]}:<port>).`,
+      );
+    }
+    return {
     name: uniqueNames[i],
     kind: "compose" as const,
     // Adoption takes the running container AS-IS via its current image — we
@@ -125,7 +159,7 @@ export async function adoptServerStack(opts: {
     image: s.image,
     build: s.image ? undefined : s.build,
     dockerfile: s.image ? undefined : s.dockerfile,
-    ports: stripEdgeHostPorts(s.ports),
+    ports,
     // Left UNEXPOSED on purpose: an exposed free service would synthesize a
     // subdomain route (usesManagedRouting is true for a self-hosted server
     // deploy), which fires the routing/OpenResty ensure DURING migration — and
@@ -143,7 +177,8 @@ export async function adoptServerStack(opts: {
     command: s.command,
     restart: s.restart,
     advanced: s.healthcheck ? { healthcheck: s.healthcheck } : undefined,
-  }));
+    };
+  });
 
   const createdServices = await repos.service.syncFromCompose(project_id, parsed);
 

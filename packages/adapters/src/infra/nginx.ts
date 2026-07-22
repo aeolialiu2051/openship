@@ -31,7 +31,7 @@ import { dirname, join } from "node:path";
 import type { CommandExecutor, ManualCert, RouteConfig, SslResult } from "../types";
 import type { RoutingProvider, SslProvider } from "./types";
 import { LUA_LOGGER_PATH, RULES_GUARD_PATH, luaSourceAvailable, buildReloadCommand, detectOpenRestyPaths, type OpenRestyPaths } from "./openresty-lua";
-import { safeErrorMessage } from "@repo/core";
+import { safeErrorMessage, sanitizeProxySettings, PROXY_GZIP_TYPES, type ProxySettings } from "@repo/core";
 
 /** Reverse-proxy headers shared by every proxy_pass location. */
 const PROXY_HEADERS = `proxy_set_header Host $host;
@@ -80,6 +80,34 @@ function renderServerHeaders(route: RouteConfig): string {
   const lines = global.flatMap((rule) =>
     rule.headers.map((h) => `    add_header ${h.key} "${h.value.replace(/"/g, '\\"')}" always;`),
   );
+  return lines.length > 0 ? `\n${lines.join("\n")}` : "";
+}
+
+/**
+ * Render the curated reverse-proxy tunables (client_max_body_size, proxy/body
+ * timeouts, buffering, gzip) as server-scope directives. Re-validates every
+ * value via `sanitizeProxySettings` before emitting — a malformed value is
+ * DROPPED, never interpolated raw into the config (defense-in-depth over the
+ * API schema; keeps `nginx -t` safe). gzip emits a FIXED, safe type set.
+ */
+export function renderProxyOptions(proxy?: ProxySettings | null): string {
+  const p = sanitizeProxySettings(proxy);
+  if (!p) return "";
+  const lines: string[] = [];
+  if (p.clientMaxBodySize) lines.push(`    client_max_body_size ${p.clientMaxBodySize};`);
+  if (p.proxyReadTimeout) lines.push(`    proxy_read_timeout ${p.proxyReadTimeout};`);
+  if (p.proxySendTimeout) lines.push(`    proxy_send_timeout ${p.proxySendTimeout};`);
+  if (p.clientBodyTimeout) lines.push(`    client_body_timeout ${p.clientBodyTimeout};`);
+  if (p.proxyBuffering !== undefined) {
+    lines.push(`    proxy_buffering ${p.proxyBuffering ? "on" : "off"};`);
+  }
+  if (p.gzip !== undefined) {
+    lines.push(`    gzip ${p.gzip ? "on" : "off"};`);
+    if (p.gzip) {
+      lines.push(`    gzip_types ${PROXY_GZIP_TYPES};`);
+      lines.push(`    gzip_min_length 1024;`);
+    }
+  }
   return lines.length > 0 ? `\n${lines.join("\n")}` : "";
 }
 
@@ -287,6 +315,10 @@ export class NginxProvider implements RoutingProvider, SslProvider {
     const extraLocations = `${renderRedirects(route)}${renderProxyLocations(route)}`;
     // Global response headers (vercel.json `headers` with source "/(.*)").
     const serverHeaders = renderServerHeaders(route);
+    // Curated reverse-proxy tunables (client_max_body_size, timeouts, gzip, …).
+    // Server-scope so they cover `location /` + every extra location, and
+    // override the server-wide http default for this vhost.
+    const proxyOpts = renderProxyOptions(route.proxy);
 
     // Optional: webhook proxy location for GitHub push delivery
     const webhookLocation = route.webhookProxy
@@ -342,7 +374,7 @@ ${luaProxy}
 
     ssl_certificate ${certPath};
     ssl_certificate_key ${keyPath};
-${serverHeaders}
+${serverHeaders}${proxyOpts}
 ${webhookLocation}${extraLocations}
     location / {
         ${locationBody}
@@ -357,7 +389,7 @@ server {
     server_name ${route.domain};
 
 ${luaProxy}
-${serverHeaders}
+${serverHeaders}${proxyOpts}
     location /.well-known/acme-challenge/ {
         root /var/www/acme;
     }

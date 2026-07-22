@@ -78,9 +78,12 @@ function main(): void {
     const binDir = join(RESOURCES, "bin");
     mkdirSync(binDir, { recursive: true });
     const out = join(binDir, API_BIN);
-    // cpu-features is an optional native dep of ssh2 whose .node binding can't
-    // be embedded in a --compile binary. ssh2 guards its require in try/catch
-    // and falls back to pure JS, so keep it external instead of failing here.
+    // ssh2 + dockerode MUST stay external: bundling them into a --compile binary
+    // mangles ssh2's dynamic cipher/KEX `require()`s and dockerode's transport,
+    // so the SSH handshake / Docker socket-forward hangs (verified). They're
+    // staged into resources/node_modules below and resolved at runtime via
+    // NODE_PATH (services.ts). cpu-features is ssh2's optional native dep whose
+    // .node binding can't be embedded either; ssh2 guards it and falls back.
     // --target pins the output arch so we can cross-compile x64 on an arm64 host.
     execFileSync(
       BUN,
@@ -91,6 +94,10 @@ function main(): void {
         `--target=${BUN_TARGET}`,
         "--external",
         "cpu-features",
+        "--external",
+        "ssh2",
+        "--external",
+        "dockerode",
         "--outfile",
         out,
       ],
@@ -101,6 +108,35 @@ function main(): void {
     // .app and broke the code-signature seal on macOS. Windows doesn't use it.
     if (!isWin) chmodSync(out, 0o755);
     process.stdout.write(`  ${API_BIN}: ${sizeOf(out)}\n`);
+  });
+
+  // 1b. Stage the SSH/Docker native stack (externalized above) as a real
+  //     node_modules the compiled binary resolves at runtime via NODE_PATH
+  //     (set in services.ts). npm produces a hoisted tree with all transitive
+  //     deps (asn1, bcrypt-pbkdf, …); versions track packages/adapters so the
+  //     shipped copy matches what the API was built against.
+  step("staging ssh2 + dockerode → resources/node_modules", () => {
+    const adapters = JSON.parse(
+      readFileSync(join(REPO_ROOT, "packages/adapters/package.json"), "utf8"),
+    ) as { dependencies: Record<string, string> };
+    execFileSync(
+      "npm",
+      [
+        "install",
+        "--prefix",
+        RESOURCES,
+        "--omit=dev",
+        "--no-audit",
+        "--no-fund",
+        "--no-package-lock",
+        `ssh2@${adapters.dependencies.ssh2}`,
+        `dockerode@${adapters.dependencies.dockerode}`,
+      ],
+      { cwd: REPO_ROOT, stdio: "inherit" },
+    );
+    process.stdout.write(
+      `  node_modules: ${existsSync(join(RESOURCES, "node_modules", "ssh2")) ? "ssh2+dockerode staged" : "MISSING"}\n`,
+    );
   });
 
   // 2. Dashboard → build fresh with prod/local env, then copy the Next

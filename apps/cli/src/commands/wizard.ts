@@ -16,12 +16,10 @@
 
 import chalk from "chalk";
 import open from "open";
-import { createServer } from "node:http";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AddressInfo } from "node:net";
 import {
   intro,
   outro,
@@ -182,67 +180,69 @@ async function connectOpenshipCloud(port: string): Promise<{ email: string | nul
 
   const verifier = b64url(randomBytes(32));
   const challenge = b64url(createHash("sha256").update(verifier).digest());
-  const state = b64url(randomBytes(16));
+  const state = b64url(randomBytes(24)); // 192-bit unguessable poll capability
 
-  // Loopback listener captures the browser redirect (?code&state).
-  const codePromise = new Promise<string | null>((resolve) => {
-    // Self-contained, branded result page (this opens in the user's real
-    // browser). Distinguishes success vs failure and auto-closes the tab.
-    const page = (ok: boolean): string => {
-      const icon = ok ? '<path d="M20 6 9 17l-5-5"/>' : '<path d="M18 6 6 18M6 6l12 12"/>';
-      const title = ok ? "Connected to Openship Cloud" : "Connection didn’t complete";
-      const msg = ok
-        ? "Your instance is now linked to your Openship Cloud account."
-        : "Something went wrong. Return to your terminal and run the connect step again.";
-      return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Openship</title><style>:root{color-scheme:dark}*{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;background:#09090b;color:#e7e7ea;font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}.card{width:min(92vw,420px);padding:40px 36px;text-align:center}.badge{margin:0 auto 20px;display:grid;place-items:center}svg{width:40px;height:40px}h1{margin:0 0 8px;font-size:19px;font-weight:600;letter-spacing:-.2px}p{margin:0;color:#9a9aa2;font-size:14px}.hint{margin-top:22px;font-size:12.5px;color:#6a6a72}</style></head><body><div class="card"><div class="badge"><svg viewBox="0 0 24 24" fill="none" stroke="#e7e7ea" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg></div><h1>${title}</h1><p>${msg}</p><div class="hint">You can close this tab and return to your terminal.</div></div><script>setTimeout(function(){try{window.close()}catch(e){}},1200)</script></body></html>`;
-    };
-    const server = createServer((req, res) => {
-      const u = new URL(req.url || "/", "http://127.0.0.1");
-      if (!u.pathname.startsWith("/callback")) {
-        res.writeHead(404).end();
-        return;
-      }
-      const code = u.searchParams.get("code");
-      const gotState = u.searchParams.get("state");
-      const ok = !!(code && gotState === state);
-      res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" }).end(page(ok));
-      server.close();
-      resolve(ok ? code : null);
-    });
-    server.on("error", () => resolve(null));
-    server.listen(0, "127.0.0.1", () => {
-      const cbPort = (server.address() as AddressInfo).port;
-      const redirect = `http://127.0.0.1:${cbPort}/callback`;
-      const handoff =
-        `${cloudApiUrl.replace(/\/$/, "")}/api/cloud/connect-handoff` +
-        `?redirect=${encodeURIComponent(redirect)}&state=${state}&code_challenge=${challenge}`;
-      note(handoff, "Open this URL to authorize (opening your browser…)");
-      void open(handoff).catch(() => {});
-    });
-    setTimeout(() => {
-      try {
-        server.close();
-      } catch {
-        /* already closed */
-      }
-      resolve(null);
-    }, 300_000);
-  });
+  const apiBase = cloudApiUrl.replace(/\/$/, "");
+  // Device/poll handshake — the server-friendly flow (and fine locally too):
+  // NO loopback listener and NO browser→box redirect. The CLI opens the auth
+  // URL, the user clicks Authorize, and the CLI POLLS the SaaS with its
+  // unguessable `state` to pick up the one-time, PKCE-locked code. This is why
+  // it works over SSH — the browser (on the user's laptop) never has to reach
+  // back to this box.
+  //   - mode=device → the consent page confirms in-place (no redirect).
+  //   - `redirect` is required + validated by the SaaS but never navigated to
+  //     in device mode; point it at the cloud origin so validation passes.
+  const handoff =
+    `${apiBase}/api/cloud/connect-handoff` +
+    `?redirect=${encodeURIComponent(apiBase)}` +
+    `&state=${encodeURIComponent(state)}&code_challenge=${challenge}&mode=device`;
+
+  const overSsh = !!(process.env.SSH_CONNECTION || process.env.SSH_TTY || process.env.SSH_CLIENT);
+  note(handoff, "Open this URL in your browser to authorize (then click Authorize)");
+  // A box with a desktop browser can auto-open it; over SSH there's none, so
+  // the user opens the printed URL on their own machine.
+  if (!overSsh) void open(handoff).catch(() => {});
 
   const s = spinner();
-  s.start("Waiting for Openship Cloud authorization in your browser");
-  const code = await codePromise;
+  s.start("Waiting for you to authorize in the browser");
+  // Poll the SaaS for our code once the user approves. Fixed 2.5s cadence keeps
+  // us well under the SaaS per-IP limit (300/min) across the 5-min window. The
+  // box already needs SaaS reachability to finish the exchange below, so
+  // polling here adds no new network requirement.
+  let code: string | null = null;
+  const deadline = Date.now() + 300_000;
+  while (Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 2500));
+    try {
+      const res = await fetch(
+        `${apiBase}/api/cloud/connect-poll?state=${encodeURIComponent(state)}`,
+        { signal: AbortSignal.timeout(5000) },
+      );
+      if (!res.ok) continue;
+      const data = (await res.json()) as { status?: string; code?: string };
+      if (data.status === "ready" && data.code) {
+        code = data.code;
+        break;
+      }
+    } catch {
+      /* transient network blip — keep polling until the deadline */
+    }
+  }
+
   if (!code) {
-    s.stop("Openship Cloud wasn't authorized.", 1);
+    s.stop("Openship Cloud wasn't authorized in time — re-run the connect step to try again.", 1);
     return null;
   }
-  s.message("Linking this instance to Openship Cloud");
+  s.stop("Authorized.");
+
+  const linking = spinner();
+  linking.start("Linking this instance to Openship Cloud");
   const res = await internalPost(port, "/api/system/cloud-connect", { code, codeVerifier: verifier });
   if (!res.ok) {
-    s.stop(`Couldn't link Openship Cloud: ${res.data?.error || "failed"}`, 1);
+    linking.stop(`Couldn't link Openship Cloud: ${res.data?.error || "failed"}`, 1);
     return null;
   }
-  s.stop(`Connected to Openship Cloud${res.data?.email ? ` as ${res.data.email}` : ""}.`);
+  linking.stop(`Connected to Openship Cloud${res.data?.email ? ` as ${res.data.email}` : ""}.`);
   return { email: res.data?.email ?? null };
 }
 
