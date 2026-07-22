@@ -210,10 +210,6 @@ if (env.CLOUD_MODE) {
   const { systemRoutes } = await import("./modules/system/system.routes");
   app.route("/api/system", systemRoutes);
 
-  /** Mail server setup - self-hosted iRedMail wizard */
-  const { mailRoutes } = await import("./modules/mail/mail.routes");
-  app.route("/api/mail", mailRoutes);
-
   /** Docker migration - inspect a server's Docker and adopt it as a project */
   const { migrationRoutes } = await import("./modules/migration/migration.routes");
   app.route("/api/migration", migrationRoutes);
@@ -237,6 +233,14 @@ if (env.CLOUD_MODE) {
 
   // Analytics is scraped ON-DEMAND when a server's analytics is viewed
   // (analytics.controller → scrapeServerIfStale) — no background interval.
+}
+
+// Mail remains a user-owned-VPS product. Local SaaS can orchestrate it because
+// it has the same explicit user-server capability; production cloud SaaS does
+// not mount this module at all.
+if (USER_SERVERS_ENABLED) {
+  const { mailRoutes } = await import("./modules/mail/mail.routes");
+  app.route("/api/mail", mailRoutes);
 }
 
 // ─── Backup job runner + boot reconcile ─────────────────────────────

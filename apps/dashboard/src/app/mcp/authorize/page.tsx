@@ -71,12 +71,17 @@ async function postConsent(accept: boolean, consentCode: string | null): Promise
   return res.data?.redirectURI ?? null;
 }
 
-/** Grantable resource types for the current mode. SaaS has no servers/mail
- *  servers; self-hosted has no cloud billing. Mirrors the PAT scope picker. */
-function grantableTypes(selfHosted: boolean): ResourceType[] {
-  return selfHosted
-    ? ["project", "server", "mail_server", "backup_destination", "audit", "github_installation", "github_repository"]
-    : ["project", "backup_destination", "billing", "audit", "github_installation", "github_repository"];
+/** Grantable resource types for the current runtime capabilities. */
+function grantableTypes(selfHosted: boolean, userServers: boolean): ResourceType[] {
+  return [
+    "project",
+    ...(userServers ? (["server", "mail_server"] as ResourceType[]) : []),
+    "backup_destination",
+    ...(!selfHosted ? (["billing"] as ResourceType[]) : []),
+    "audit",
+    "github_installation",
+    "github_repository",
+  ];
 }
 
 function McpAuthorizeInner() {
@@ -102,7 +107,9 @@ function McpAuthorizeInner() {
   // grant so the client can create projects and control only what it makes.
   const [mode, setMode] = useState<"full" | "limited" | "own">("full");
 
-  const selfHosted = useDeploymentInfo()?.selfHosted ?? true;
+  const deploymentInfo = useDeploymentInfo();
+  const selfHosted = deploymentInfo?.selfHosted ?? true;
+  const userServers = deploymentInfo?.userServers ?? selfHosted;
 
   // The org the client will be confined to. Defaults to the active org; a
   // multi-org user can pick another. Changing it SWITCHES the session's active
@@ -343,7 +350,7 @@ function McpAuthorizeInner() {
               key={orgId ?? "none"}
               value={grants}
               onChange={setGrants}
-              availableTypes={grantableTypes(selfHosted)}
+              availableTypes={grantableTypes(selfHosted, userServers)}
               defaultPermissions={["read", "write"]}
               disabled={busy}
             />

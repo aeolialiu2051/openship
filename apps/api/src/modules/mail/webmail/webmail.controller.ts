@@ -4,11 +4,11 @@
  *   GET  /mail/webmail/targets?serverId=…   - host picker options
  *   POST /mail/webmail/deploy-project       - create project + deployment
  *
- * Self-hosted only (the parent /mail mount applies localOnly + auth).
+ * User-owned-server only (the parent /mail mount applies the capability gate).
  */
 
 import type { Context } from "hono";
-import { env } from "../../../config";
+import { USER_SERVERS_ENABLED } from "../../../config";
 import { getRequestContext } from "../../../lib/request-context";
 import { listWebmailTargets } from "./webmail.service";
 import { startWebmailDeploy } from "./webmail-project.service";
@@ -18,7 +18,7 @@ const HOSTNAME_RE = /^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/;
 // ─── GET /mail/webmail/targets ───────────────────────────────────────────────
 
 export async function getTargetsHandler(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const ctx = getRequestContext(c);
   const mailServerId = c.req.query("serverId");
@@ -54,7 +54,7 @@ export async function getTargetsHandler(c: Context) {
  * webmail-project.service.ts for the full rationale.
  */
 export async function startDeployAsProjectHandler(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const ctx = getRequestContext(c);
   const userId = ctx.userId;

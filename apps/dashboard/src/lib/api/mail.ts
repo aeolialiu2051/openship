@@ -445,8 +445,10 @@ export const mailApi = {
   },
 
   /** Cancel a running setup */
-  cancelSetup: () =>
-    api.post<{ ok: boolean; message: string }>(endpoints.mail.cancelSetup),
+  cancelSetup: (serverId?: string) =>
+    api.post<{ ok: boolean; message: string }>(endpoints.mail.cancelSetup, {
+      ...(serverId ? { serverId } : {}),
+    }),
 
   /**
    * Wipe the on-server state file. Use after purging or reimaging the VPS
@@ -547,4 +549,3 @@ export const mailApi = {
       ),
   },
 };
-

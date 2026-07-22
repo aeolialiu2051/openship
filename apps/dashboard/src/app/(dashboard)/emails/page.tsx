@@ -500,12 +500,12 @@ export default function EmailsPage() {
   const handleCancel = useCallback(async () => {
     abortRef.current?.abort();
     try {
-      await mailApi.cancelSetup();
+      await mailApi.cancelSetup(selectedServer?.id);
     } catch {
       // Already stopped
     }
     setRunning(false);
-  }, []);
+  }, [selectedServer]);
 
   /**
    * Wipe `/root/.openship-mail-state.json` on the target server, then refetch
@@ -536,7 +536,7 @@ export default function EmailsPage() {
 
     // (2) Ask the backend to drop its in-memory session pointer. We catch
     // the rejection - it's normal for there to be no active session.
-    await mailApi.cancelSetup().catch(() => {});
+    await mailApi.cancelSetup(selectedServer.id).catch(() => {});
 
     // (3) Wipe the on-server state file
     try {

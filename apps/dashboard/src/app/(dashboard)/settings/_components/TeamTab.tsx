@@ -101,14 +101,19 @@ export function TeamTab() {
   const [teamMode, setTeamMode] = useState<
     "single_user" | "self_hosted_remote" | "cloud_hosted" | "tunneled"
   >("single_user");
-  const { selfHosted } = usePlatform();
+  const { selfHosted, userServers } = usePlatform();
 
-  // Mode-aware grantable types: servers + mail servers are self-hosted-only;
-  // billing exists only in cloud (SaaS). The picker collapses the two GitHub
-  // types into one tab.
-  const availableTypes: ResourceType[] = selfHosted
-    ? ["project", "server", "mail_server", "backup_destination", "audit", "github_installation", "github_repository"]
-    : ["project", "backup_destination", "billing", "audit", "github_installation", "github_repository"];
+  // Servers + mail servers follow the explicit user-server capability; local
+  // SaaS has both those resources and cloud billing.
+  const availableTypes: ResourceType[] = [
+    "project",
+    ...(userServers ? (["server", "mail_server"] as ResourceType[]) : []),
+    "backup_destination",
+    ...(!selfHosted ? (["billing"] as ResourceType[]) : []),
+    "audit",
+    "github_installation",
+    "github_repository",
+  ];
 
   // Org-meta: drives personal-vs-team UX. Personal workspaces (auto-
   // created on signup) hide the invite UI; clicking "Create team org"
@@ -674,4 +679,3 @@ export function TeamTab() {
     </div>
   );
 }
-

@@ -1,11 +1,11 @@
 /**
  * Mail setup routes - mounted at /api/mail in app.ts.
  *
- * Self-hosted only (dynamic import, gated by localOnly middleware).
+ * Available only where users can manage their own VPS targets.
  */
 
 import { Hono } from "hono";
-import { localOnly } from "../../middleware";
+import { userServersOnly } from "../../middleware";
 import { secureRouter } from "../../lib/secure-router";
 import * as mail from "./mail.controller";
 import * as admin from "./admin/admin.controller";
@@ -17,7 +17,7 @@ const r = secureRouter(new Hono(), {
   ids: { mail_server: "serverId" },
 });
 
-r.use("*", localOnly);
+r.use("*", userServersOnly);
 
 /* ── Setup wizard ─────────────────────────────────────────────────── */
 r.get("/steps", { tag: "mail_server:read" }, mail.getSteps);
@@ -188,4 +188,3 @@ r.post(
 );
 
 export const mailRoutes = r.hono;
-

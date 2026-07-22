@@ -54,10 +54,16 @@ export function PersonalAccessTokens() {
   const [newToken, setNewToken] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
-  const { selfHosted } = usePlatform();
-  const availableTypes: ResourceType[] = selfHosted
-    ? ["project", "server", "mail_server", "backup_destination", "audit", "github_installation", "github_repository"]
-    : ["project", "backup_destination", "billing", "audit", "github_installation", "github_repository"];
+  const { selfHosted, userServers } = usePlatform();
+  const availableTypes: ResourceType[] = [
+    "project",
+    ...(userServers ? (["server", "mail_server"] as ResourceType[]) : []),
+    "backup_destination",
+    ...(!selfHosted ? (["billing"] as ResourceType[]) : []),
+    "audit",
+    "github_installation",
+    "github_repository",
+  ];
 
   // Open the shared grant picker (blurred, centered) to set the token's scope.
   const openScopePicker = () => {

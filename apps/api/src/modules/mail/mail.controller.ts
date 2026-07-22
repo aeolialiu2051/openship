@@ -1,7 +1,7 @@
 /**
  * Mail setup controller - HTTP endpoints for the iRedMail setup wizard.
  *
- * Self-hosted only (mounted behind `localOnly` + `authMiddleware`).
+ * User-owned-server only (self-hosted and local-saas).
  *
  * Endpoints:
  *   GET  /mail/steps                → list all setup steps
@@ -15,8 +15,8 @@
  * State model:
  *   - Durable state ("what HAS been installed") lives on the target VPS at
  *     /root/.openship/mail-state.json. Purge the VPS, state goes with it.
- *   - Ephemeral state ("is an install running RIGHT NOW") lives as one
- *     `activeSession` variable in this process. Lost on API restart, which
+ *   - Ephemeral state ("is an install running RIGHT NOW") lives in a
+ *     per-server session map in this process. Lost on API restart, which
  *     is fine - if openship restarts mid-install, the on-server state file
  *     still has the completed steps, the SSE caller can retry from where
  *     it left off via the regular Resume button.
@@ -29,7 +29,7 @@ import crypto from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { buildMailBackupPayload } from "./admin/backup-plan";
 import { streamSSE } from "../../lib/sse";
-import { env } from "../../config";
+import { USER_SERVERS_ENABLED } from "../../config";
 import { safeErrorMessage } from "@repo/core";
 import { sshManager } from "../../lib/ssh-manager";
 import { repos } from "@repo/db";
@@ -71,9 +71,8 @@ import {
 // ─── In-memory pointer to the currently-running install ──────────────────────
 
 /**
- * One install at a time per process. Tracked in memory only because
- * "running" is a process-local thing - the durable record of "step 8
- * completed" lives in the on-server JSON file.
+ * One install at a time per server. Different organizations/servers may run
+ * concurrently; the durable record still lives in each server's JSON file.
  */
 interface ActiveSession {
   serverId: string;
@@ -81,14 +80,14 @@ interface ActiveSession {
   cancelled: boolean;
 }
 
-let active: ActiveSession | null = null;
+const activeSessions = new Map<string, ActiveSession>();
 
 // ─── Status rendering ────────────────────────────────────────────────────────
 
 /**
  * Render an on-server state object into the dashboard-facing payload.
  * The frontend type is the same as before - we just synthesise it from
- * the persistent state plus the in-memory `active` pointer.
+ * the persistent state plus the in-memory per-server session map.
  */
 function statusFromState(state: MailServerState | null, serverId: string) {
   if (!state) {
@@ -99,7 +98,7 @@ function statusFromState(state: MailServerState | null, serverId: string) {
     };
   }
 
-  const isActive = active?.serverId === state.serverId;
+  const isActive = activeSessions.has(state.serverId);
   const runningStep = isActive ? activeRunningStep(state) : null;
 
   const stepStatuses = MAIL_SETUP_STEPS.map((step) => {
@@ -220,7 +219,7 @@ function activeRunningStep(state: MailServerState): number {
 
 /** GET /mail/steps - list all setup steps with metadata */
 export async function getSteps(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
   return c.json({ steps: MAIL_SETUP_STEPS, total: TOTAL_STEPS });
 }
 
@@ -232,7 +231,7 @@ export async function getSteps(c: Context) {
  * missing, returns "no install" - same shell.
  */
 export async function getStatus(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const serverId = c.req.query("serverId");
   if (!serverId) {
@@ -292,7 +291,7 @@ export async function getStatus(c: Context) {
  *                   in THIS API process (in-memory flag)
  */
 export async function listMailServers(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ servers: [] });
+  if (!USER_SERVERS_ENABLED) return c.json({ servers: [] });
 
   const ctx = getRequestContext(c);
   const organizationId = ctx.organizationId;
@@ -356,7 +355,7 @@ export async function listMailServers(c: Context) {
         user: s.sshUser ?? "root",
         domain: row.domain,
         completed: row.installedAt !== null,
-        active: active?.serverId === s.id,
+        active: activeSessions.has(s.id),
       };
     })
     .filter((r): r is NonNullable<typeof r> => r !== null);
@@ -373,7 +372,7 @@ export async function listMailServers(c: Context) {
  * a server they already set up instead of reinstalling.
  */
 export async function scanMailInstall(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const { serverId } = await c.req.json<{ serverId?: string }>();
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
@@ -425,7 +424,7 @@ export async function scanMailInstall(c: Context) {
  * again. Idempotent — no reinstall, nothing changes on the server.
  */
 export async function adoptMailServer(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const { serverId } = await c.req.json<{ serverId?: string }>();
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
@@ -618,7 +617,7 @@ async function resolveHostIPs(
  *   - error         { message, resumeStep? }
  */
 export async function startSetup(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -646,28 +645,15 @@ export async function startSetup(c: Context) {
     return c.json({ error: "Server not found" }, 404);
   }
 
-  if (active) {
+  if (activeSessions.has(serverId)) {
     return c.json({ error: "Setup already running" }, 409);
   }
 
-  // Cross-replica lock: the mail_servers row IS the lock. INSERT with
-  // installedAt=null + atomic conflict detection — if another replica
-  // already started an install for this server within the last hour
-  // (row exists with installedAt=null AND createdAt is recent), we
-  // refuse. After 1h we assume the install crashed and let the next
-  // attempt take over.
-  const existing = await repos.mailServer.get(serverId).catch(() => null);
-  if (existing && !existing.installedAt) {
-    const ageMs = Date.now() - new Date(existing.createdAt).getTime();
-    if (ageMs < 60 * 60 * 1000) {
-      return c.json(
-        { error: "Setup already running on another replica or recently crashed" },
-        409,
-      );
-    }
-  }
-
-  active = { serverId, domain, cancelled: false };
+  // Set synchronously before the next await so two requests for the same VPS
+  // cannot both enter the installer in this process. Incomplete DB rows are
+  // deliberately NOT treated as locks: DNS/PTR holds and failed installs keep
+  // that row while the user resumes from persisted on-server state.
+  activeSessions.set(serverId, { serverId, domain, cancelled: false });
 
   try {
     await repos.mailServer.upsert({ serverId, domain, installedAt: null });
@@ -705,7 +691,7 @@ export async function startSetup(c: Context) {
           message: `Could not read state from server: ${err instanceof Error ? err.message : "ssh error"}`,
         }),
       });
-      active = null;
+      activeSessions.delete(serverId);
       return;
     }
 
@@ -743,7 +729,7 @@ export async function startSetup(c: Context) {
     const halt = async (extra: Partial<MailServerState>) => {
       state = { ...state, finishedAt: extra.finishedAt ?? null, ...extra };
       await persist();
-      active = null;
+      activeSessions.delete(serverId);
     };
 
     try {
@@ -784,7 +770,7 @@ export async function startSetup(c: Context) {
       }
 
       for (let stepId = startStep; stepId <= TOTAL_STEPS; stepId++) {
-        if (active?.cancelled) {
+        if (activeSessions.get(serverId)?.cancelled) {
           await stream.writeSSE({
             event: "error",
             data: JSON.stringify({ message: "Setup cancelled by user" }),
@@ -988,7 +974,7 @@ export async function startSetup(c: Context) {
       try {
         await halt({ errorMessage: message });
       } catch {
-        active = null;
+        activeSessions.delete(serverId);
       }
     }
   });
@@ -996,23 +982,29 @@ export async function startSetup(c: Context) {
 
 /** POST /mail/setup/cancel - cancel the running setup */
 export async function cancelSetup(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
-  if (!active) {
+  const body = await c.req.json().catch(() => ({}));
+  const requestedServerId = body.serverId as string | undefined;
+  const serverId = requestedServerId ??
+    (activeSessions.size === 1 ? activeSessions.keys().next().value : undefined);
+  if (!serverId) {
     return c.json({ error: "No active setup" }, 400);
   }
+  const active = activeSessions.get(serverId);
+  if (!active) return c.json({ error: "No active setup" }, 400);
 
   // Primary gate: cancelling a running install is a state mutation (write).
   await permission.assert(getRequestContext(c), {
     resourceType: "mail_server",
-    resourceId: active.serverId,
+    resourceId: serverId,
     action: "write",
   });
   const ctx = getRequestContext(c);
   // Org-scoped: only the org that owns the target server can cancel its
   // setup. 404-shape on cross-org so existence of the install doesn't
   // leak.
-  if (!(await isServerInOrg(ctx, active.serverId))) {
+  if (!(await isServerInOrg(ctx, serverId))) {
     return c.json({ error: "Server not found" }, 404);
   }
 
@@ -1030,7 +1022,7 @@ export async function cancelSetup(c: Context) {
  * the DKIM hold.
  */
 export async function acknowledgeDns(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -1078,7 +1070,7 @@ export async function acknowledgeDns(c: Context) {
  * about having set it, mail-to-Gmail just goes to spam - recoverable.
  */
 export async function acknowledgePtr(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -1121,7 +1113,7 @@ export async function acknowledgePtr(c: Context) {
  * iRedMail or any installed daemons; just removes openship's record.
  */
 export async function resetSetup(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -1138,7 +1130,7 @@ export async function resetSetup(c: Context) {
     return c.json({ error: "Server not found" }, 404);
   }
 
-  if (active?.serverId === serverId) {
+  if (activeSessions.has(serverId)) {
     return c.json({ error: "Cancel the running setup first" }, 409);
   }
 
@@ -1176,7 +1168,7 @@ export async function resetSetup(c: Context) {
  * resetSetup, for clearing a stale/corrupted registry mark.
  */
 export async function forgetMailServer(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const serverId = c.req.param("serverId");
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
@@ -1193,7 +1185,7 @@ export async function forgetMailServer(c: Context) {
 
   // Don't detach a row out from under a running install - startSetup
   // re-upserts it and the UI would flap.
-  if (active?.serverId === serverId) {
+  if (activeSessions.has(serverId)) {
     return c.json({ error: "Cancel the running setup first" }, 409);
   }
 
@@ -1206,7 +1198,7 @@ export async function forgetMailServer(c: Context) {
 /** GET /mail/admin/:serverId/backup-policy — the mail server's backup
  *  policy (or null), so the Backup tab can show its current config. */
 export async function getMailBackupPolicy(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
   const serverId = c.req.param("serverId");
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
   const ctx = getRequestContext(c);
@@ -1226,7 +1218,7 @@ export async function getMailBackupPolicy(c: Context) {
  *  server's backup policy. Body: { destinationId, messageData?, keys?,
  *  cronExpression?, retainCount?, retainDays? }. */
 export async function saveMailBackupPolicy(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
   const serverId = c.req.param("serverId");
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
   const ctx = getRequestContext(c);
@@ -1295,7 +1287,7 @@ export async function saveMailBackupPolicy(c: Context) {
 
 /** GET /mail/admin/:serverId/backup-runs — this mail server's backup runs. */
 export async function listMailBackupRuns(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
   const serverId = c.req.param("serverId");
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
   const ctx = getRequestContext(c);
@@ -1325,7 +1317,7 @@ export async function listMailBackupRuns(c: Context) {
  * (would race with the installer's own writes to that row).
  */
 export async function setPostmasterPassword(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -1350,7 +1342,7 @@ export async function setPostmasterPassword(c: Context) {
     return c.json({ error: "Server not found" }, 404);
   }
 
-  if (active?.serverId === serverId) {
+  if (activeSessions.has(serverId)) {
     return c.json(
       { error: "Setup is currently running - wait for it to finish" },
       409,
@@ -1379,7 +1371,7 @@ export async function setPostmasterPassword(c: Context) {
  * each component. Cheap: one short SSH per unit, all parallel.
  */
 export async function getHealth(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const serverId = c.req.param("serverId");
   if (!serverId) return c.json({ error: "serverId is required" }, 400);

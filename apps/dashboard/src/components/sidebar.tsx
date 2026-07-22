@@ -102,9 +102,9 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   const infraItems: NavItem[] = [];
   if (userServers) {
     infraItems.push({ key: "servers", href: "/servers", icon: Server });
+    infraItems.push({ key: "emails", href: "/emails", icon: Mail });
   }
   if (selfHosted) {
-    infraItems.push({ key: "emails", href: "/emails", icon: Mail });
     infraItems.push({ key: "jobs", href: "/jobs", icon: Clock });
   }
   // infraItems.push(

@@ -6,15 +6,14 @@
  * 4xx responses. No business logic lives here.
  *
  * All routes are mounted under `/api/mail/admin/:serverId/…` in
- * `../mail.routes.ts` behind `localOnly` + `authMiddleware`.
+ * `../mail.routes.ts` behind the user-server capability + authentication.
  */
 
 import type { Context } from "hono";
-import { env } from "../../../config";
 import { repos } from "@repo/db";
 import { getRequestContext, type RequestContext } from "../../../lib/request-context";
 import { permission } from "../../../lib/permission";
-import { param, isServerInOrg, assertNotCloud } from "../../../lib/controller-helpers";
+import { param, isServerInOrg, assertUserServersEnabled } from "../../../lib/controller-helpers";
 import {
   countDomainDependents,
   createDomain,
@@ -67,7 +66,7 @@ import {
 // ─── Domains ─────────────────────────────────────────────────────────────────
 
 export async function listDomainsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -84,7 +83,7 @@ export async function listDomainsHandler(c: Context) {
 }
 
 export async function getDomainHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -104,7 +103,7 @@ export async function getDomainHandler(c: Context) {
 }
 
 export async function createDomainHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -131,7 +130,7 @@ export async function createDomainHandler(c: Context) {
 }
 
 export async function updateDomainHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -160,7 +159,7 @@ export async function updateDomainHandler(c: Context) {
 }
 
 export async function deleteDomainHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
@@ -194,7 +193,7 @@ export async function deleteDomainHandler(c: Context) {
  * `dnsRecords`, not here).
  */
 export async function getDomainDnsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -221,7 +220,7 @@ export async function getDomainDnsHandler(c: Context) {
  * banner for this domain on the next reload.
  */
 export async function acknowledgeDomainDnsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -245,7 +244,7 @@ export async function acknowledgeDomainDnsHandler(c: Context) {
  * banners in one round-trip instead of per-row.
  */
 export async function pendingDomainDnsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -266,7 +265,7 @@ export async function pendingDomainDnsHandler(c: Context) {
 }
 
 export async function domainDependentsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -288,7 +287,7 @@ export async function domainDependentsHandler(c: Context) {
 // ─── Mailboxes ───────────────────────────────────────────────────────────────
 
 export async function listMailboxesHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -307,7 +306,7 @@ export async function listMailboxesHandler(c: Context) {
 }
 
 export async function getMailboxHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -327,7 +326,7 @@ export async function getMailboxHandler(c: Context) {
 }
 
 export async function createMailboxHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -354,7 +353,7 @@ export async function createMailboxHandler(c: Context) {
 }
 
 export async function updateMailboxHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -382,7 +381,7 @@ export async function updateMailboxHandler(c: Context) {
 }
 
 export async function deleteMailboxHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
@@ -412,7 +411,7 @@ export async function deleteMailboxHandler(c: Context) {
 // ─── Stats ───────────────────────────────────────────────────────────────────
 
 export async function getStatsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -431,7 +430,7 @@ export async function getStatsHandler(c: Context) {
 // ─── Test email ──────────────────────────────────────────────────────────────
 
 export async function sendTestEmailHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "write" });
@@ -460,7 +459,7 @@ export async function sendTestEmailHandler(c: Context) {
 // ─── DNS health scan ─────────────────────────────────────────────────────────
 
 export async function getDnsScanHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -482,7 +481,7 @@ export async function getDnsScanHandler(c: Context) {
 // ─── Component actions (Health tab) ──────────────────────────────────────────
 
 export async function runComponentActionHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
@@ -506,7 +505,7 @@ export async function runComponentActionHandler(c: Context) {
 }
 
 export async function restartAllComponentsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
@@ -523,7 +522,7 @@ export async function restartAllComponentsHandler(c: Context) {
 }
 
 export async function getComponentLogsHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
