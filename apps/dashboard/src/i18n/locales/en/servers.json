@@ -120,7 +120,8 @@
     "toastPrivateKeyTestRequired": "Private key is required to test connection",
     "toastConnectionSuccess": "Connection successful",
     "toastConnectionFailed": "Connection failed",
-    "toastConnectionTestFailed": "Connection test failed"
+    "toastConnectionTestFailed": "Connection test failed",
+    "managementAccessRequired": "SSH connected, but this user must be root or have passwordless sudo access."
   },
   "detail": {
     "tabs": {

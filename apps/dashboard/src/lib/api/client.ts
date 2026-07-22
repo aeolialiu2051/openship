@@ -90,6 +90,13 @@ export function getApiErrorMessage(
   return fallback;
 }
 
+/** Stable machine-readable error code returned by API endpoints. */
+export function getApiErrorCode(err: unknown): string | undefined {
+  if (!(err instanceof ApiError)) return undefined;
+  const body = err.body as Record<string, unknown> | undefined;
+  return body && typeof body.code === "string" ? body.code : undefined;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Request helper                                                    */
 /* ------------------------------------------------------------------ */

@@ -100,7 +100,8 @@
     "toastKeyPathTestRequired": "مسار المفتاح مطلوب لاختبار الاتصال",
     "toastConnectionSuccess": "نجح الاتصال",
     "toastConnectionFailed": "فشل الاتصال",
-    "toastConnectionTestFailed": "فشل اختبار الاتصال"
+    "toastConnectionTestFailed": "فشل اختبار الاتصال",
+    "managementAccessRequired": "تم الاتصال عبر SSH، لكن يجب أن يكون هذا المستخدم root أو يمتلك صلاحية sudo بدون كلمة مرور."
   },
   "detail": {
     "tabs": {

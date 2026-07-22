@@ -11,7 +11,7 @@ import {
   Network,
   X,
 } from "lucide-react";
-import { getApiErrorMessage, systemApi } from "@/lib/api";
+import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
@@ -51,6 +51,11 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
   const [testOk, setTestOk] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  const localizedConnectionError = (err: unknown, fallback: string) =>
+    getApiErrorCode(err) === "permission_denied"
+      ? t.servers.form.managementAccessRequired
+      : getApiErrorMessage(err, fallback);
+
   async function handleTest() {
     if (!sshHost.trim()) {
       showToast(tr.ipRequired, "error", tr.toastTitle);
@@ -86,10 +91,16 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
       if (result.ok) {
         showToast(tr.connectionSuccessful, "success", tr.toastTitle);
       } else {
-        showToast(result.message || tr.connectionFailed, "error", tr.toastTitle);
+        showToast(
+          result.code === "permission_denied"
+            ? t.servers.form.managementAccessRequired
+            : result.message || tr.connectionFailed,
+          "error",
+          tr.toastTitle,
+        );
       }
     } catch (err) {
-      showToast(getApiErrorMessage(err, tr.connectionTestFailed), "error", tr.toastTitle);
+      showToast(localizedConnectionError(err, tr.connectionTestFailed), "error", tr.toastTitle);
     } finally {
       setTesting(false);
     }
@@ -131,7 +142,7 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
       showToast(tr.serverSaved, "success", tr.toastTitle);
       onCreated(created);
     } catch (err) {
-      showToast(getApiErrorMessage(err, tr.saveFailed), "error", tr.toastTitle);
+      showToast(localizedConnectionError(err, tr.saveFailed), "error", tr.toastTitle);
     } finally {
       setSaving(false);
     }

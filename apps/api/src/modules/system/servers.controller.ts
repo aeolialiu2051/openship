@@ -8,7 +8,9 @@
 import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
-import { sshManager } from "../../lib/ssh-manager";
+import { buildSshConfig, sshManager, type SshSettingsInput } from "../../lib/ssh-manager";
+import { runConnectivityCheck } from "../../lib/connectivity";
+import "../../lib/connectivity-checks";
 import {
   encodeInlinePrivateKey,
   encryptSecretField,
@@ -19,6 +21,43 @@ import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { assertUserServersEnabled } from "../../lib/controller-helpers";
 import { primeGeo, countryForIp } from "@/lib/geo-ip";
+
+const CONNECTION_FIELDS = new Set([
+  "sshHost",
+  "sshPort",
+  "sshUser",
+  "sshAuthMethod",
+  "sshPassword",
+  "sshKeyPath",
+  "sshPrivateKey",
+  "sshKeyPassphrase",
+  "sshJumpHost",
+  "sshArgs",
+]);
+
+async function validateManagementAccess(settings: SshSettingsInput) {
+  const config = await buildSshConfig(settings);
+  if (!config) {
+    return {
+      ok: false as const,
+      code: "misconfigured" as const,
+      message: "Invalid SSH authentication configuration",
+    };
+  }
+  return runConnectivityCheck("ssh", config);
+}
+
+function managementAccessFailure(c: Context, result: { code: string; message: string }) {
+  const body = { error: "server_access_check_failed", code: result.code, message: result.message };
+  if (
+    result.code === "auth_failed" ||
+    result.code === "permission_denied" ||
+    result.code === "misconfigured"
+  ) {
+    return c.json(body, 400);
+  }
+  return c.json(body, 502);
+}
 
 /** Public shape - what the controller returns to clients (no SSH secrets). */
 function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
@@ -104,6 +143,26 @@ export async function createServer(c: Context) {
   }
 
   const ctx = getRequestContext(c);
+
+  // Saving a server is the binding boundary. Do not persist credentials that
+  // merely open an SSH shell but cannot manage the host non-interactively —
+  // deployments need root or passwordless sudo for OpenResty, ACME and package
+  // operations. The separate "Test connection" button is useful UX, but the
+  // API must enforce the same invariant because clients can skip that button.
+  const access = await validateManagementAccess({
+    sshHost: host,
+    sshPort: body.sshPort ?? 22,
+    sshUser: body.sshUser?.trim() || "root",
+    sshAuthMethod: body.sshAuthMethod || null,
+    sshPassword: body.sshPassword ?? null,
+    sshKeyPath: body.sshKeyPath ?? null,
+    sshPrivateKey: body.sshPrivateKey ?? null,
+    sshKeyPassphrase: body.sshKeyPassphrase ?? null,
+    sshJumpHost: body.sshJumpHost?.trim() || null,
+    sshArgs: body.sshArgs?.trim() || null,
+  });
+  if (!access.ok) return managementAccessFailure(c, access);
+
   const server = await repos.server.create({
     organizationId: ctx.organizationId,
     name: body.name?.trim() || null,
@@ -182,6 +241,31 @@ export async function updateServer(c: Context) {
 
   if (Object.keys(patch).length === 0) {
     return c.json({ error: "No fields to update" }, 400);
+  }
+
+  // A label-only edit must still work while a server is temporarily offline.
+  // Revalidate only when connection/auth fields change; merge omitted secrets
+  // from the stored row so ordinary edits do not force users to re-enter them.
+  if (Object.keys(body).some((key) => CONNECTION_FIELDS.has(key))) {
+    const access = await validateManagementAccess({
+      sshHost: body.sshHost?.trim() || existing.sshHost,
+      sshPort: body.sshPort ?? existing.sshPort,
+      sshUser: body.sshUser?.trim() || existing.sshUser,
+      sshAuthMethod: body.sshAuthMethod ?? existing.sshAuthMethod,
+      sshPassword: body.sshPassword !== undefined ? body.sshPassword : existing.sshPassword,
+      sshKeyPath: body.sshPrivateKey !== undefined
+        ? null
+        : body.sshKeyPath !== undefined
+          ? body.sshKeyPath
+          : existing.sshKeyPath,
+      sshPrivateKey: body.sshPrivateKey || null,
+      sshKeyPassphrase: body.sshKeyPassphrase !== undefined
+        ? body.sshKeyPassphrase
+        : existing.sshKeyPassphrase,
+      sshJumpHost: body.sshJumpHost !== undefined ? body.sshJumpHost?.trim() || null : existing.sshJumpHost,
+      sshArgs: body.sshArgs !== undefined ? body.sshArgs?.trim() || null : existing.sshArgs,
+    });
+    if (!access.ok) return managementAccessFailure(c, access);
   }
 
   const updated = await repos.server.update(id, patch);

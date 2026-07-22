@@ -10,7 +10,7 @@ import {
   ChevronDown,
   Network,
 } from "lucide-react";
-import { getApiErrorMessage, systemApi } from "@/lib/api";
+import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
@@ -64,6 +64,11 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
   );
   const [jumpHost, setJumpHost] = useState(server?.sshJumpHost ?? "");
   const [extraArgs, setExtraArgs] = useState(server?.sshArgs ?? "");
+
+  const localizedConnectionError = (err: unknown, fallback: string) =>
+    getApiErrorCode(err) === "permission_denied"
+      ? t.servers.form.managementAccessRequired
+      : getApiErrorMessage(err, fallback);
 
   async function handleSave() {
     if (!sshHost.trim()) {
@@ -127,7 +132,7 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
       onSaved({ server: saved, isEditing });
     } catch (err) {
       showToast(
-        getApiErrorMessage(err, t.servers.form.toastSaveFailed),
+        localizedConnectionError(err, t.servers.form.toastSaveFailed),
         "error",
         t.servers.toastTitles.server,
       );
@@ -177,14 +182,17 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         if (sshKeyPassphrase) payload.sshKeyPassphrase = sshKeyPassphrase;
       }
       const result = await systemApi.testConnection(payload as Parameters<typeof systemApi.testConnection>[0]);
-      setTestResult(result);
+      const message = result.code === "permission_denied"
+        ? t.servers.form.managementAccessRequired
+        : result.message;
+      setTestResult({ ok: result.ok, message });
       if (result.ok) {
         showToast(t.servers.form.toastConnectionSuccess, "success", t.servers.toastTitles.server);
       } else {
-        showToast(result.message || t.servers.form.toastConnectionFailed, "error", t.servers.toastTitles.server);
+        showToast(message || t.servers.form.toastConnectionFailed, "error", t.servers.toastTitles.server);
       }
     } catch (err) {
-      const message = getApiErrorMessage(err, t.servers.form.toastConnectionTestFailed);
+      const message = localizedConnectionError(err, t.servers.form.toastConnectionTestFailed);
       setTestResult({ ok: false, message });
       showToast(message, "error", t.servers.toastTitles.server);
     } finally {

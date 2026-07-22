@@ -163,7 +163,7 @@ export type {
   SystemPackageManager,
   SystemServiceManager,
 } from "./system/environment";
-export { resolveEnvironment } from "./system/environment";
+export { resolveEnvironment, detectPrivilege } from "./system/environment";
 export { systemCatalog } from "./system/catalog";
 // Native-module versioning + migration framework (verify → reconcile).
 export {

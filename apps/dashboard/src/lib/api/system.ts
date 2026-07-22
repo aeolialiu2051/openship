@@ -290,7 +290,11 @@ export const systemApi = {
     sshPrivateKey?: string;
     sshKeyPassphrase?: string;
   }) =>
-    api.post<{ ok: boolean; message: string }>(endpoints.system.testConnection, data),
+    api.post<{ ok: boolean; message: string; code?: string }>(
+      endpoints.system.testConnection,
+      data,
+      { timeout: 30_000 },
+    ),
 
   /** Run system health checks on a specific server */
   checkServer: (serverId: string, components?: string[]) =>

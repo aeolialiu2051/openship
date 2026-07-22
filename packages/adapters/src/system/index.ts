@@ -10,7 +10,7 @@ export type {
   SystemPackageManager,
   SystemServiceManager,
 } from "./environment";
-export { resolveEnvironment } from "./environment";
+export { resolveEnvironment, detectPrivilege } from "./environment";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 export type {

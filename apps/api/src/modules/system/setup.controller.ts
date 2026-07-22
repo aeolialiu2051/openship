@@ -30,7 +30,9 @@ import {
 import { zeroAuthAllowed } from "../../middleware/zero-auth-guard";
 import { normalizeRollbackWindow } from "../../lib/release-retention";
 import { getInstanceReachability } from "../../lib/public-url";
-import { sshManager } from "../../lib/ssh-manager";
+import { buildSshConfig, sshManager } from "../../lib/ssh-manager";
+import { runConnectivityCheck } from "../../lib/connectivity";
+import "../../lib/connectivity-checks";
 import { encryptSecretField } from "@/lib/credential-encryption";
 import { ensureLocalUser, invalidateLocalUserCache } from "../../lib/local-user";
 import { provisionUser } from "../../lib/provision-user";
@@ -108,6 +110,52 @@ export async function setup(c: Context) {
   const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
 
   const body = await c.req.json();
+
+  // Onboarding is another server-binding path, so enforce the same invariant
+  // as POST /servers before persisting any instance or SSH settings. A plain
+  // SSH login is insufficient: deployments must be able to perform system
+  // operations non-interactively as root or through passwordless sudo.
+  if (body.sshHost) {
+    const config = await buildSshConfig({
+      sshHost: body.sshHost,
+      sshPort: body.sshPort || 22,
+      sshUser: body.sshUser || "root",
+      sshAuthMethod: body.sshAuthMethod || null,
+      sshPassword: body.sshPassword || null,
+      sshKeyPath: body.sshKeyPath || null,
+      sshPrivateKey: body.sshPrivateKey || null,
+      sshKeyPassphrase: body.sshKeyPassphrase || null,
+      sshJumpHost: body.sshJumpHost || null,
+      sshArgs: body.sshArgs || null,
+    });
+    if (!config) {
+      return c.json(
+        {
+          error: "server_access_check_failed",
+          code: "misconfigured",
+          message: "Invalid SSH authentication configuration",
+        },
+        400,
+      );
+    }
+
+    const access = await runConnectivityCheck("ssh", config);
+    if (!access.ok) {
+      const response = {
+        error: "server_access_check_failed",
+        code: access.code,
+        message: access.message,
+      };
+      if (
+        access.code === "auth_failed" ||
+        access.code === "permission_denied" ||
+        access.code === "misconfigured"
+      ) {
+        return c.json(response, 400);
+      }
+      return c.json(response, 502);
+    }
+  }
 
   // Instance-level config (non-SSH) → instance_settings table.
   // authMode is security-sensitive and this handler is ALSO reachable

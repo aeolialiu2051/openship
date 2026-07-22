@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getApiOrigin } from "@/lib/api/urls";
 import { useI18n } from "@/components/i18n-provider";
-import { api, endpoints, getApiErrorMessage } from "@/lib/api";
+import { api, endpoints, getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { validateSshPayload } from "@repo/onboarding";
 import type { SshPayload } from "@repo/onboarding";
 import type { StepProps } from "./step-props";
@@ -91,15 +91,26 @@ export function SshStep({ state, onUpdate, onNext, onBack }: StepProps) {
       if (jumpHost.trim()) payload.sshJumpHost = jumpHost.trim();
       if (sshArgs.trim()) payload.sshArgs = sshArgs.trim();
 
-      const res = await api.post<{ ok: boolean; message: string }>(
+      const res = await api.post<{ ok: boolean; message: string; code?: string }>(
         endpoints.system.onboardingTestConnection,
         payload,
+        { timeout: 30_000 },
       );
       if (res.ok) setTestOk(true);
-      else setError(res.message || t.onboarding.ssh.testFailed);
+      else {
+        setError(
+          res.code === "permission_denied"
+            ? t.servers.form.managementAccessRequired
+            : res.message || t.onboarding.ssh.testFailed,
+        );
+      }
     } catch (err) {
       // Non-2xx (auth failure 400 / unreachable 502) surface as thrown ApiErrors.
-      setError(getApiErrorMessage(err, t.onboarding.ssh.testFailed));
+      setError(
+        getApiErrorCode(err) === "permission_denied"
+          ? t.servers.form.managementAccessRequired
+          : getApiErrorMessage(err, t.onboarding.ssh.testFailed),
+      );
     } finally {
       setTesting(false);
     }

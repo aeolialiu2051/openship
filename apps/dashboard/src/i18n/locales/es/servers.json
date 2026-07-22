@@ -100,7 +100,8 @@
     "toastKeyPathTestRequired": "La ruta de la clave es obligatoria para probar la conexión",
     "toastConnectionSuccess": "Conexión correcta",
     "toastConnectionFailed": "Error de conexión",
-    "toastConnectionTestFailed": "La prueba de conexión falló"
+    "toastConnectionTestFailed": "La prueba de conexión falló",
+    "managementAccessRequired": "SSH está conectado, pero este usuario debe ser root o tener acceso a sudo sin contraseña."
   },
   "detail": {
     "tabs": {

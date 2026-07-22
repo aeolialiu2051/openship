@@ -139,7 +139,11 @@ async function runEphemeralConnectionTest(c: Context): Promise<Response> {
 
   // Preserve the historical HTTP contract (bad creds → 400, other failures →
   // 502) and the friendly auth copy; `code` is additive for richer client UI.
-  const status = result.ok ? 200 : result.code === "auth_failed" ? 400 : 502;
+  const status = result.ok
+    ? 200
+    : result.code === "auth_failed" || result.code === "permission_denied" || result.code === "misconfigured"
+      ? 400
+      : 502;
   const message =
     result.code === "auth_failed"
       ? "Authentication failed - check your credentials"

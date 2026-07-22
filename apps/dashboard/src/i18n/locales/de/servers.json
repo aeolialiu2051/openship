@@ -100,7 +100,8 @@
     "toastKeyPathTestRequired": "Schlüsselpfad ist erforderlich, um die Verbindung zu testen",
     "toastConnectionSuccess": "Verbindung erfolgreich",
     "toastConnectionFailed": "Verbindung fehlgeschlagen",
-    "toastConnectionTestFailed": "Verbindungstest fehlgeschlagen"
+    "toastConnectionTestFailed": "Verbindungstest fehlgeschlagen",
+    "managementAccessRequired": "SSH ist verbunden, aber dieser Benutzer muss root sein oder passwortlosen sudo-Zugriff haben."
   },
   "detail": {
     "tabs": {

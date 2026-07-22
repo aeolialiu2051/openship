@@ -100,7 +100,8 @@
     "toastKeyPathTestRequired": "接続をテストするにはキーのパスが必要です",
     "toastConnectionSuccess": "接続に成功しました",
     "toastConnectionFailed": "接続に失敗しました",
-    "toastConnectionTestFailed": "接続テストに失敗しました"
+    "toastConnectionTestFailed": "接続テストに失敗しました",
+    "managementAccessRequired": "SSH には接続できましたが、このユーザーは root であるか、パスワードなしで sudo を実行できる必要があります。"
   },
   "detail": {
     "tabs": {

@@ -105,7 +105,8 @@
     "toastPrivateKeyTestRequired": "测试连接需要填写私钥",
     "toastConnectionSuccess": "连接成功",
     "toastConnectionFailed": "连接失败",
-    "toastConnectionTestFailed": "连接测试失败"
+    "toastConnectionTestFailed": "连接测试失败",
+    "managementAccessRequired": "SSH 已连接，但该用户必须是 root，或拥有免密 sudo 权限。"
   },
   "detail": {
     "tabs": {

@@ -133,7 +133,7 @@ async function detectServiceManager(
  *  passwordless sudo? `sudo -n true` is the canonical non-interactive probe —
  *  it exits 0 only when sudo needs no password. The `|| echo no` keeps the
  *  command's own exit status 0 so execSafe returns the marker either way. */
-async function detectPrivilege(
+export async function detectPrivilege(
   executor: CommandExecutor,
 ): Promise<{ isRoot: boolean; canSudo: boolean }> {
   const uid = await execSafe(executor, "id -u");

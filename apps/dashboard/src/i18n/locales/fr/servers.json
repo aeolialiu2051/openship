@@ -100,7 +100,8 @@
     "toastKeyPathTestRequired": "Le chemin de la clé est requis pour tester la connexion",
     "toastConnectionSuccess": "Connexion réussie",
     "toastConnectionFailed": "Échec de la connexion",
-    "toastConnectionTestFailed": "Échec du test de connexion"
+    "toastConnectionTestFailed": "Échec du test de connexion",
+    "managementAccessRequired": "SSH est connecté, mais cet utilisateur doit être root ou disposer d'un accès sudo sans mot de passe."
   },
   "detail": {
     "tabs": {

@@ -11,6 +11,7 @@
  */
 import {
   createExecutor,
+  detectPrivilege,
   isSshAuthError,
   resolveDestination,
   type BackupDestinationRow,
@@ -31,6 +32,31 @@ async function sshEcho(executor: CommandExecutor): Promise<ConnectivityResult> {
   return connOk(Date.now() - startedAt);
 }
 
+/** A deploy target needs more than an authenticated shell: Openship must be
+ * able to install packages, write proxy/ACME state, and reload services without
+ * an interactive password prompt. Validate that contract while credentials are
+ * still being bound, rather than failing halfway through the first deploy. */
+async function sshManagementAccess(executor: CommandExecutor): Promise<ConnectivityResult> {
+  const startedAt = Date.now();
+  const echo = await sshEcho(executor);
+  if (!echo.ok) return echo;
+
+  const privilege = await detectPrivilege(executor);
+  if (!privilege.isRoot && !privilege.canSudo) {
+    return connFail(
+      "permission_denied",
+      "SSH connected, but this user is neither root nor allowed to run passwordless sudo (sudo -n).",
+    );
+  }
+
+  return connOk(
+    Date.now() - startedAt,
+    privilege.isRoot
+      ? "Connection and root access verified"
+      : "Connection and passwordless sudo access verified",
+  );
+}
+
 /** Turn a thrown SSH error into a result, preferring the precise auth signal. */
 function sshError(err: unknown): ConnectivityResult {
   const { code, message } = classifyConnectivityError(err, isSshAuthError(err) ? "auth_failed" : undefined);
@@ -41,7 +67,7 @@ function sshError(err: unknown): ConnectivityResult {
 registerConnectivityCheck<SshConfig>("ssh", async (config) => {
   const executor = createExecutor(config);
   try {
-    return await sshEcho(executor);
+    return await sshManagementAccess(executor);
   } catch (err) {
     return sshError(err);
   } finally {

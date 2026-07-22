@@ -228,20 +228,35 @@ async function createInfraProvider(
   );
   const paths = await detectOpenRestyPaths(executor);
 
+  // Application builds run as the SSH login user, but edge management writes
+  // to system-owned paths (/etc, /var/www, OpenResty's prefix) and reloads
+  // services. Oracle/Ubuntu-style VPS images intentionally disable root login
+  // and grant the default user passwordless sudo instead, so use a narrowly
+  // scoped elevated executor for infrastructure operations only.
+  const { detectPrivilege } = await import("./system/environment");
+  const { elevatedExecutor } = await import("./system/elevated-executor");
+  const privilege = await detectPrivilege(executor);
+  if (!privilege.isRoot && !privilege.canSudo) {
+    throw new Error(
+      "Server management requires root or passwordless sudo (sudo -n). Update the SSH user permissions and reconnect the server.",
+    );
+  }
+  const infraExecutor = privilege.isRoot ? executor : elevatedExecutor(executor);
+
   // Idempotent, but writes the SHARED nginx.conf (grep||sed). Concurrent deploys
   // would race the non-atomic edit and lose/duplicate the include — serialize it.
   const ensureConfig = async () => {
-    await ensureOpenRestyConfig(executor, paths);
+    await ensureOpenRestyConfig(infraExecutor, paths);
     // Self-heal the edge Lua on EVERY deploy — a box that lost rules_guard.lua
     // (reinstall, manual rm, a pre-embed release) would otherwise 500 every
     // request. Cheap: one listing, writes only what's missing, reloads only if
     // it repaired something. deployLuaScripts (with geo deps) stays install-only.
-    await ensureLuaScripts(executor, paths);
+    await ensureLuaScripts(infraExecutor, paths);
   };
   await (config.provisionLock ? config.provisionLock.run(ensureConfig) : ensureConfig());
 
   const { NginxProvider } = await import("./infra/nginx");
-  const nginx = new NginxProvider({ paths, ...config.nginx, executor });
+  const nginx = new NginxProvider({ paths, ...config.nginx, executor: infraExecutor });
   return { routing: nginx, ssl: nginx };
 }
 

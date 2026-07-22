@@ -12,6 +12,7 @@
 export {
 	api,
 	ApiError,
+	getApiErrorCode,
 	getApiErrorMessage,
 	isAbortError,
 	isNetworkError,
