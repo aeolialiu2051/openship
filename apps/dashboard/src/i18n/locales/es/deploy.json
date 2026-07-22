@@ -118,6 +118,7 @@
     "noTargetBody": "Conecta Openship Cloud o añade un servidor para continuar con este despliegue.",
     "addServer": "Añade tu propio servidor",
     "continue": "Continuar",
+    "comingSoon": "Próximamente",
     "chooseServer": "Elige un servidor",
     "searchPlaceholder": "Buscar servidores…",
     "noServersMatch": "Ningún servidor coincide con tu búsqueda.",

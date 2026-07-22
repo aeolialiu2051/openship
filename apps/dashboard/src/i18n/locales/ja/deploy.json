@@ -118,6 +118,7 @@
     "noTargetBody": "このデプロイを続行するには、Openship Cloudを接続するか、サーバーを追加してください。",
     "addServer": "独自のサーバーを追加",
     "continue": "続行",
+    "comingSoon": "近日公開",
     "chooseServer": "サーバーを選択",
     "searchPlaceholder": "サーバーを検索…",
     "noServersMatch": "検索に一致するサーバーはありません。",

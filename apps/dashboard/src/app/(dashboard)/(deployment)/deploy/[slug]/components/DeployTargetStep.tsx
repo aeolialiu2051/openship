@@ -1219,6 +1219,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     : ts.build.options;
 
   const hasAnyDeployTarget = deployTargetOptions.length > 0;
+  const cloudComingSoon = config.deployTarget === "cloud";
   const canContinue = ready && (
     config.deployTarget === "cloud" ||
     (config.deployTarget === "server" && !!config.serverId && hasServers)
@@ -1228,7 +1229,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // AND the parent allows skipping. While true, we want to bypass the UI
   // entirely (no flash of compact summary before onContinue fires).
   const baseLoading = !ready || !defaultsLoaded;
-  const baseCompactEligible = !baseLoading && !expanded && canContinue;
+  const baseCompactEligible = !baseLoading && !expanded && canContinue && !cloudComingSoon;
   const wouldAutoSkip = autoSkipAllowed && baseCompactEligible;
 
   // Render flags. When we're about to auto-skip, keep showing the loading
@@ -1357,8 +1358,8 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     "inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none";
   const continueLabel = (
     <>
-      {ts.continue}
-      <ArrowRight className="size-4 rtl:rotate-180" />
+      {cloudComingSoon ? ts.comingSoon : ts.continue}
+      {!cloudComingSoon && <ArrowRight className="size-4 rtl:rotate-180" />}
     </>
   );
 
@@ -1391,7 +1392,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
       <div className="lg:pe-6">{headerTitleBlock}</div>
       <div className="hidden lg:block" aria-hidden />
       <div className="lg:ps-6">
-        <button type="button" onClick={handleContinue} disabled={!canContinue} className={`w-full ${continueBtnClass}`}>
+        <button type="button" onClick={handleContinue} disabled={!canContinue || cloudComingSoon} className={`w-full ${continueBtnClass}`}>
           {continueLabel}
         </button>
       </div>
@@ -1399,7 +1400,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   ) : (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       {headerTitleBlock}
-      <button type="button" onClick={handleContinue} disabled={!canContinue} className={`shrink-0 ${continueBtnClass}`}>
+      <button type="button" onClick={handleContinue} disabled={!canContinue || cloudComingSoon} className={`shrink-0 ${continueBtnClass}`}>
         {continueLabel}
       </button>
     </div>

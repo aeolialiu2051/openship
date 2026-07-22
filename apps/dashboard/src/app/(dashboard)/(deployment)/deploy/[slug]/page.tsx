@@ -123,7 +123,10 @@ const DeployRepository: React.FC = () => {
     const [step, setStep] = useState<"target" | "config">(() => {
         if (!canPickTarget) return "config";
         if (typeof window === "undefined") return "target";
-        return lastPickStore.read() ? "config" : "target";
+        const lastPick = lastPickStore.read();
+        // Cloud is selectable for preview, but cannot advance while the
+        // managed deployment path is marked as coming soon.
+        return lastPick && lastPick.target !== "cloud" ? "config" : "target";
     });
 
     // Apply the soft last-pick to config so step="config" renders with the

@@ -118,6 +118,7 @@
     "noTargetBody": "请连接 Openship Cloud 或添加一台服务器以继续此次部署。",
     "addServer": "添加你自己的服务器",
     "continue": "继续",
+    "comingSoon": "即将推出",
     "chooseServer": "选择一台服务器",
     "searchPlaceholder": "搜索服务器…",
     "noServersMatch": "没有与搜索匹配的服务器。",
