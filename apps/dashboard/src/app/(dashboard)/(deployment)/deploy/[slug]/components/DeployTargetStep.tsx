@@ -365,14 +365,14 @@ export interface ResolvedTargets {
 
 export function useDesktopTargets(): ResolvedTargets {
   const cloud = useCloud();
-  const { selfHosted } = usePlatform();
+  const { userServers } = usePlatform();
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [serversReady, setServersReady] = useState(false);
 
   // Fetch servers + filter to ones that can run apps. Exposed so the picker
   // can re-pull after the user adds a new server in another tab.
   const fetchServers = useCallback(() => {
-    if (!selfHosted) {
+    if (!userServers) {
       setServersReady(true);
       return () => {};
     }
@@ -383,7 +383,7 @@ export function useDesktopTargets(): ResolvedTargets {
       .catch(() => {})
       .finally(() => { if (!cancelled) setServersReady(true); });
     return () => { cancelled = true; };
-  }, [selfHosted]);
+  }, [userServers]);
 
   useEffect(() => {
     const cleanup = fetchServers();
@@ -393,11 +393,11 @@ export function useDesktopTargets(): ResolvedTargets {
   // Refresh when the tab regains focus - covers the "added a server in a new
   // tab" flow without forcing the user to reload the deploy page.
   useEffect(() => {
-    if (!selfHosted) return;
+    if (!userServers) return;
     const onFocus = () => { fetchServers(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [selfHosted, fetchServers]);
+  }, [userServers, fetchServers]);
 
   const hasServers = servers.length > 0;
   const hasCloudConnected = cloud.connected;
@@ -718,7 +718,7 @@ const CloudPowerPicker: React.FC = () => {
 const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue, autoSkipAllowed = true }) => {
   const { config, updateConfig } = useDeployment();
   const { requireCloud } = useCloud();
-  const { selfHosted, deployMode } = usePlatform();
+  const { userServers, deployMode } = usePlatform();
   // Git credential forwarding is desktop-only — the relay forwards the
   // operator's machine-local `gh`, which only exists on a desktop host.
   const isDesktop = deployMode === "desktop";
@@ -1356,7 +1356,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
                     servers={servers}
                     selectedId={config.serverId}
                     onSelect={handleServerSelect}
-                    onAddServer={selfHosted ? openAddServer : undefined}
+                    onAddServer={userServers ? openAddServer : undefined}
                   />
                 )}
               </OptionCard>
@@ -1364,7 +1364,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           </div>
           {/* External add-server button only when the picker (which now owns it)
               isn't shown — i.e. cloud selected, or the single-server case. */}
-          {selfHosted && !(config.deployTarget === "server" && !isSingleServer) && (
+          {userServers && !(config.deployTarget === "server" && !isSingleServer) && (
             <button
               type="button"
               onClick={openAddServer}
@@ -1383,7 +1383,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           <div className="rounded-xl border border-border/50 bg-card px-4 py-4 text-sm text-muted-foreground leading-relaxed">
             {ts.noTargetBody}
           </div>
-          {selfHosted && (
+          {userServers && (
             <button
               type="button"
               onClick={openAddServer}

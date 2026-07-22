@@ -380,6 +380,7 @@ export const ENCRYPTED_COLUMNS: ReadonlyArray<EncryptedColumnSpec> = [
   { table: "backup_destination", column: "sftpPrivateKeyEnc" },
   { table: "backup_destination", column: "sftpKeyPassphraseEnc" },
   { table: "servers", column: "sshPassword" },
+  { table: "servers", column: "sshKeyPath" },
   { table: "servers", column: "sshKeyPassphrase" },
   { table: "instance_settings", column: "tunnelToken" },
   { table: "deployment", column: "envVars" },

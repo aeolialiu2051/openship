@@ -17,6 +17,7 @@ import { api } from "@/lib/api/client";
 
 export type ClientDeploymentInfo = {
   selfHosted: boolean;
+  userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
   /** Running server release (self-hosted). Absent on older servers. */

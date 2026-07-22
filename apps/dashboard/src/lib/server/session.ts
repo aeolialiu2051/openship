@@ -80,6 +80,7 @@ export const getSession = cache(async (): Promise<SessionData | null> => {
 
 export type DeploymentInfo = {
   selfHosted: boolean;
+  userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
   cloudAuthUrl: string;

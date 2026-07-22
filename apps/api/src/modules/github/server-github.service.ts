@@ -17,8 +17,8 @@
  *   - "ssh-deploy-key" — a per-repo read-only deploy key auto-registered via
  *                        the GitHub API.
  *
- * Everything here is self-hosted-only and hard-guards CLOUD_MODE (mirror
- * github.local-auth.ts). Secrets use the same encrypt/decrypt as the existing
+ * Everything here is restricted to runtimes with the user-server capability.
+ * Secrets use the same encrypt/decrypt as the existing
  * clone-token pipe; they are decrypted only at deploy time and never logged.
  */
 
@@ -29,7 +29,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { repos } from "@repo/db";
-import { env } from "../../config/env";
+import { USER_SERVERS_ENABLED } from "../../config/env";
 import { encrypt, decrypt } from "../../lib/encryption";
 import type { RequestContext } from "../../lib/request-context";
 import { startServerDeviceFlow, getDeviceFlowStatus, cancelDeviceFlow } from "./github.local-auth";
@@ -42,9 +42,9 @@ const execFileAsync = promisify(execFile);
 
 const flowKey = (serverId: string) => `server:${serverId}`;
 
-function assertSelfHosted(): void {
-  if (env.CLOUD_MODE) {
-    throw new Error("Per-server GitHub auth is only available on self-hosted instances");
+function assertUserServersEnabled(): void {
+  if (!USER_SERVERS_ENABLED) {
+    throw new Error("Per-server GitHub auth is not available in this mode");
   }
 }
 
@@ -81,7 +81,7 @@ async function generateEd25519(comment: string): Promise<{ privateKey: string; p
 /** Start a device-flow login for a server; on completion the token is stored
  *  encrypted (mode "token", source "device-flow"). Returns the verification. */
 export async function startServerConnect(ctx: RequestContext, serverId: string) {
-  assertSelfHosted();
+  assertUserServersEnabled();
   return startServerDeviceFlow(flowKey(serverId), async (token) => {
     const login = await probeLogin(token);
     await repos.serverGithubAuth.upsert({
@@ -112,7 +112,7 @@ export function cancelServerConnect(serverId: string): void {
 
 /** Store a pasted PAT for this server (validated against /user). */
 export async function setServerToken(ctx: RequestContext, serverId: string, pat: string) {
-  assertSelfHosted();
+  assertUserServersEnabled();
   const login = await probeLogin(pat);
   if (!login) throw new Error("That token could not authenticate to GitHub");
   await repos.serverGithubAuth.upsert({
@@ -129,7 +129,7 @@ export async function setServerToken(ctx: RequestContext, serverId: string, pat:
 /** Generate (or return the existing) SSH server key. Public line is returned so
  *  the operator can add it to github.com/settings/keys. */
 export async function ensureServerKey(ctx: RequestContext, serverId: string): Promise<{ publicKey: string }> {
-  assertSelfHosted();
+  assertUserServersEnabled();
   const existing = await repos.serverGithubAuth.getByServer(serverId);
   if (existing?.mode === "ssh-server-key" && existing.serverKeyPublic) {
     return { publicKey: existing.serverKeyPublic };
@@ -148,7 +148,7 @@ export async function ensureServerKey(ctx: RequestContext, serverId: string): Pr
 /** Switch a server to per-repo deploy-key mode (keys are minted lazily per repo
  *  at deploy time by `ensureDeployKey`). */
 export async function setDeployKeyMode(ctx: RequestContext, serverId: string) {
-  assertSelfHosted();
+  assertUserServersEnabled();
   await repos.serverGithubAuth.upsert({
     serverId,
     organizationId: ctx.organizationId,
@@ -207,7 +207,7 @@ export async function resolveServerGitCredential(opts: {
   owner: string | null;
   repo: string | null;
 }): Promise<BuildGitCredential | null> {
-  if (env.CLOUD_MODE) return null;
+  if (!USER_SERVERS_ENABLED) return null;
   const row = await repos.serverGithubAuth.getByServer(opts.serverId);
   if (!row) return null;
 
@@ -258,7 +258,7 @@ export async function resolveServerGitCredential(opts: {
  * could 403 surfaces there, not here).
  */
 export async function canResolveServerGitCredential(serverId: string): Promise<boolean> {
-  if (env.CLOUD_MODE) return false;
+  if (!USER_SERVERS_ENABLED) return false;
   const row = await repos.serverGithubAuth.getByServer(serverId).catch(() => null);
   if (!row) return false;
   if (row.mode === "token") return !!row.tokenEncrypted;
@@ -293,7 +293,7 @@ export async function getServerGithubStatus(serverId: string) {
 /** Disconnect a server: revoke its GitHub deploy keys (best-effort) and delete
  *  all stored credential rows. */
 export async function disconnectServerGithub(ctx: RequestContext, serverId: string): Promise<void> {
-  assertSelfHosted();
+  assertUserServersEnabled();
   const deployKeys = await repos.githubDeployKey.listByServer(serverId);
   for (const k of deployKeys) {
     if (k.githubKeyId != null) {

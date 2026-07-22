@@ -1,6 +1,7 @@
 /**
  * HTTP handlers for per-server GitHub auth (self-hosted only), mounted under
- * /api/servers/:id/github. Gating mirrors servers.controller.ts: assertNotCloud
+ * /api/servers/:id/github. Gating mirrors servers.controller.ts: the runtime
+ * must explicitly support user-owned SSH servers.
  * + permission.assert({ resourceType: "server" }) + org-scoped existence check.
  * Secrets are never echoed — the service returns masked status.
  */
@@ -9,7 +10,7 @@ import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
-import { assertNotCloud } from "../../lib/controller-helpers";
+import { assertUserServersEnabled } from "../../lib/controller-helpers";
 import { safeErrorMessage } from "@repo/core";
 import {
   startServerConnect,
@@ -27,7 +28,7 @@ async function guardServer(
   c: Context,
   action: "read" | "write" | "admin",
 ): Promise<{ ctx: ReturnType<typeof getRequestContext>; id: string } | Response> {
-  const cloudGuard = assertNotCloud(c);
+  const cloudGuard = assertUserServersEnabled(c);
   if (cloudGuard) return cloudGuard;
   const id = c.req.param("id")!;
   const ctx = getRequestContext(c);

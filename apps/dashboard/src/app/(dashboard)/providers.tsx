@@ -8,6 +8,7 @@ import { AuthProvider, type AuthUser } from "@/context/AuthContext";
 interface DashboardProvidersProps {
   children: React.ReactNode;
   selfHosted: boolean;
+  userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
   cloudAuthUrl: string;
@@ -23,6 +24,7 @@ export function DashboardProviders({
   initialGithubData,
   initialUser,
   selfHosted,
+  userServers,
   deployMode,
   authMode,
   cloudAuthUrl,
@@ -34,6 +36,7 @@ export function DashboardProviders({
     <AuthProvider initialUser={initialUser}>
       <PlatformProvider
         selfHosted={selfHosted}
+        userServers={userServers}
         deployMode={deployMode}
         authMode={authMode}
         cloudAuthUrl={cloudAuthUrl}

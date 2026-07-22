@@ -51,6 +51,7 @@ export const DASHBOARD_RUNTIME_TARGETS = {
     ports: { dashboard: DEFAULT_PORT.dashboard, api: DEFAULT_PORT.api },
     cloudTargetId: "cloud-saas",
     selfHosted: true,
+    userServers: true,
   },
   "local-saas": {
     dashboard: localhost(DEFAULT_PORT.saasDashboard),
@@ -61,6 +62,9 @@ export const DASHBOARD_RUNTIME_TARGETS = {
     // round-tripping to api.openship.io.
     cloudTargetId: "local-saas",
     selfHosted: false,
+    // This development SaaS also orchestrates user-owned VPS targets. Keep
+    // the capability explicit so production cloud SaaS remains locked down.
+    userServers: true,
   },
   "cloud-saas": {
     dashboard: CLOUD_DASHBOARD_URL,
@@ -68,11 +72,13 @@ export const DASHBOARD_RUNTIME_TARGETS = {
     ports: { dashboard: DEFAULT_PORT.saasDashboard, api: DEFAULT_PORT.saasApi },
     cloudTargetId: "cloud-saas",
     selfHosted: false,
+    userServers: false,
   },
 } as const;
 
 // NOTE: this table is the source of truth for WHO an instance is (identity,
-// URLs, ports) + whether it's self-hosted. It deliberately does NOT carry
+// URLs, ports) plus platform capabilities such as self-hosting and user-owned
+// server orchestration. It deliberately does NOT carry
 // deploy/build mode (docker | bare | cloud | desktop): that's an orthogonal
 // axis a single instance varies independently (a self-hosted box runs docker,
 // bare, or desktop), owned by the API's env (DEPLOY_MODE/CLOUD_MODE) and

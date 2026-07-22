@@ -7,14 +7,14 @@
  * persistent mode.
  *
  * Security:
- *   - Gated behind localOnly + authMiddleware (no cloud, no unauthenticated)
+ *   - Gated by the user-server capability and authenticated org permissions
  *   - SSH credentials are read from DB, never from request body
  *   - Component names are validated against a known allowlist
  */
 
 import type { Context } from "hono";
 import { streamSSE } from "../../lib/sse";
-import { env } from "../../config";
+import { env, USER_SERVERS_ENABLED } from "../../config";
 import {
   checkComponents,
   type CommandExecutor,
@@ -91,6 +91,7 @@ async function withCapabilities<T extends { name: string; installed?: boolean }>
  * These are always shown in System Health regardless of install state.
  */
 function resolveRequiredComponents(): string[] {
+  if (USER_SERVERS_ENABLED && env.CLOUD_MODE) return ["docker", "git"];
   const mode = env.DEPLOY_MODE;
   if (mode === "docker") return ["docker", "git"];
   if (mode === "bare") return ["git"];
@@ -147,7 +148,7 @@ async function runEphemeralConnectionTest(c: Context): Promise<Response> {
 }
 
 export async function testConnection(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   // Gate to org owner/admin: this endpoint connects to an arbitrary SSH host
   // from the request body (onboarding/setup wizard flow). Even non-Hono
@@ -173,7 +174,7 @@ export async function testConnection(c: Context) {
  * has no servers configured. Same ephemeral SSH echo test, no persistence.
  */
 export async function onboardingTestConnection(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   // A publicly-served / CLI-managed instance is network-reachable, so an
   // UNauthenticated SSH prober here is an SSRF / port-scan oracle. Those
@@ -223,6 +224,9 @@ async function buildEphemeralSshConfig(c: Context) {
   if (!host) {
     return c.json({ ok: false, message: "SSH host is required" }, 400);
   }
+  if (typeof body.sshPrivateKey === "string" && body.sshPrivateKey.length > 65_536) {
+    return c.json({ ok: false, message: "SSH private key is too large" }, 400);
+  }
 
   // buildSshConfig also handles "agent" auth (uses the host's SSH_AUTH_SOCK,
   // like VSCode) and THROWS a clear message when agent is selected but no
@@ -236,6 +240,7 @@ async function buildEphemeralSshConfig(c: Context) {
       sshAuthMethod: body.sshAuthMethod as string,
       sshPassword: body.sshPassword as string ?? null,
       sshKeyPath: body.sshKeyPath as string ?? null,
+      sshPrivateKey: body.sshPrivateKey as string ?? null,
       sshKeyPassphrase: body.sshKeyPassphrase as string ?? null,
       sshJumpHost: body.sshJumpHost as string ?? null,
       sshArgs: body.sshArgs as string ?? null,
@@ -260,7 +265,7 @@ async function buildEphemeralSshConfig(c: Context) {
  * Returns: { components: ComponentStatus[], ready: boolean, missing: string[] }
  */
 export async function checkServer(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const startedAt = Date.now();
 
@@ -345,7 +350,7 @@ export async function checkServer(c: Context) {
  * when no sessionId is given (only one install runs at a time).
  */
 export async function installRespond(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const action = body.action as string | undefined;
@@ -373,7 +378,7 @@ export async function installRespond(c: Context) {
  * Returns: { success: boolean, component: string, version?: string, error?: string }
  */
 export async function installComponent(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -433,7 +438,7 @@ export async function installComponent(c: Context) {
  * Returns: { success: boolean, component: string, error?: string, logs?: string[] }
  */
 export async function removeComponent(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -494,7 +499,7 @@ export async function removeComponent(c: Context) {
  *   - end: stream terminated
  */
 export async function installStream(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const body = await c.req.json().catch(() => ({}));
   const serverId = body.serverId as string | undefined;
@@ -670,7 +675,7 @@ export async function installStream(c: Context) {
  * Returns: session state or 404
  */
 export async function getInstallSession(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const sessionId = c.req.query("id");
 
@@ -706,7 +711,7 @@ export async function getInstallSession(c: Context) {
  * Query: ?id=setup_xxx
  */
 export async function attachInstallStream(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const sessionId = c.req.query("id");
   const session = sessionId
@@ -813,7 +818,7 @@ const STATS_COMMAND = [
  * Query: ?serverId=<uuid>
  */
 export async function monitorStream(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const serverId = c.req.query("serverId");
   if (!serverId) return c.json({ error: "serverId query param is required" }, 400);

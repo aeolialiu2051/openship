@@ -9,6 +9,7 @@ import {
 } from "@repo/core";
 
 export { runtimeTarget, runtimeTargetId, cloudRuntimeTarget, cloudRuntimeTargetId };
+export const USER_SERVERS_ENABLED = runtimeTarget.userServers;
 
 const DEFAULT_BETTER_AUTH_SECRET = "change-me-in-production";
 

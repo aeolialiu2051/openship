@@ -7,7 +7,12 @@ vi.mock("../../src/config/env", () => ({
 }));
 
 import { encrypt, decrypt } from "../../src/lib/encryption";
-import { encryptSecretField, decryptSecretField } from "../../src/lib/credential-encryption";
+import {
+  decodeInlinePrivateKey,
+  decryptSecretField,
+  encodeInlinePrivateKey,
+  encryptSecretField,
+} from "../../src/lib/credential-encryption";
 import {
   sealSecretBundle,
   openSecretBundle,
@@ -60,6 +65,14 @@ describe("secret-codec round-trips (extract → seal → decrypt)", () => {
     expect(entry?.value).toBe("hunter2");
     const sealedCell = sealForInstance(spec("enc1", "sshPassword"), entry!) as string;
     expect(decryptSecretField(sealedCell)).toBe("hunter2");
+  });
+
+  it("inline private key", () => {
+    const stored = encodeInlinePrivateKey("-----BEGIN OPENSSH PRIVATE KEY-----");
+    const entry = extractPlaintext(spec("inline-key", "sshKeyPath"), "id1", stored);
+    expect(entry?.value).toBe("-----BEGIN OPENSSH PRIVATE KEY-----");
+    const sealedCell = sealForInstance(spec("inline-key", "sshKeyPath"), entry!) as string;
+    expect(decodeInlinePrivateKey(sealedCell)).toBe("-----BEGIN OPENSSH PRIVATE KEY-----");
   });
 
   it("plaintext (tunnelToken)", () => {

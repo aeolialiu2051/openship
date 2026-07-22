@@ -84,7 +84,7 @@ import {
   type PlatformTarget,
   type PlatformConfig,
 } from "@repo/adapters";
-import { env } from "../config/env";
+import { env, USER_SERVERS_ENABLED } from "../config/env";
 import { isOblienConfigured } from "./platform-mode";
 
 // Re-export the platform accessor so existing callers that do
@@ -156,6 +156,14 @@ export async function isServerInOrg(
 export function assertNotCloud(c: Context): Response | null {
   if (env.CLOUD_MODE) {
     return c.json({ error: "Not available in cloud mode" }, 404);
+  }
+  return null;
+}
+
+/** Guard the user-owned SSH server surface independently of CLOUD_MODE. */
+export function assertUserServersEnabled(c: Context): Response | null {
+  if (!USER_SERVERS_ENABLED) {
+    return c.json({ error: "User servers are not available in this mode" }, 404);
   }
   return null;
 }

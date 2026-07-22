@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import { localOnly } from "../../middleware/local-only";
+import { userServersOnly } from "../../middleware/user-servers-only";
 import { authMiddleware } from "../../middleware/auth";
 import { secureRouter } from "../../lib/secure-router";
 import { issueTicket, terminalWsHandler } from "./terminal.controller";
 import { repos } from "@repo/db";
 
 /**
- * Interactive terminal routes - self-hosted only (cloud mode 404s here).
+ * Interactive terminal routes for runtimes that manage user-owned servers.
  *
  *   POST /api/terminal/ticket           one-shot WS auth ticket (cookie-authed)
  *   GET  /api/terminal/ws/:serverId    WebSocket upgrade
@@ -22,7 +22,7 @@ const r = secureRouter(new Hono(), {
   basePath: "/api/terminal",
 });
 
-r.use("*", localOnly);
+r.use("*", userServersOnly);
 
 // Ticket endpoint - normal HTTP auth.
 r.post("/ticket", { tag: "terminal:write" }, issueTicket);
@@ -60,4 +60,3 @@ void repos.terminalSession
   });
 
 export const terminalRoutes = r.hono;
-

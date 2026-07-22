@@ -27,6 +27,7 @@ export interface ServerInfo {
   sshUser: string;
   sshAuthMethod: string | null;
   sshKeyPath: string | null;
+  hasInlineSshKey?: boolean;
   sshJumpHost: string | null;
   sshArgs: string | null;
   createdAt: string;
@@ -215,6 +216,7 @@ export const systemApi = {
     sshAuthMethod: string;
     sshPassword?: string;
     sshKeyPath?: string;
+    sshPrivateKey?: string;
     sshKeyPassphrase?: string;
   }) =>
     api.post<{ ok: boolean; message: string }>(endpoints.system.testConnection, data),

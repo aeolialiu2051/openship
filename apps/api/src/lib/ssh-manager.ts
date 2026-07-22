@@ -39,7 +39,11 @@ import {
   type SshConfig,
 } from "@repo/adapters";
 import { formatDuration, systemDebug } from "@/lib/system-debug";
-import { decryptSecretField } from "@/lib/credential-encryption";
+import {
+  decodeInlinePrivateKey,
+  decryptSecretField,
+  isInlinePrivateKey,
+} from "@/lib/credential-encryption";
 import { resolveSafeSshKeyPath } from "@/lib/ssh-key-path";
 import { OPENSHIP_DIR } from "@/lib/openship-server-store";
 import { safeErrorMessage } from "@repo/core";
@@ -102,6 +106,8 @@ export interface SshSettingsInput {
   sshAuthMethod?: string | null;
   sshPassword?: string | null;
   sshKeyPath?: string | null;
+  /** Plaintext request-only key used by the connection test; never persisted. */
+  sshPrivateKey?: string | null;
   sshKeyPassphrase?: string | null;
   sshJumpHost?: string | null;
   sshArgs?: string | null;
@@ -132,24 +138,34 @@ export async function buildSshConfig(
     // Stored encrypted on insert; decrypted only here at the moment we
     // hand it to the ssh2 client.
     config.password = decryptSecretField(settings.sshPassword);
-  } else if (settings.sshAuthMethod === "key" && settings.sshKeyPath) {
-    // Centralised allowlist + traversal check — see lib/ssh-key-path.ts.
-    // homedir() is the operator's home, used as the default convenient
-    // root so `~/.ssh/openship` works without explicit env config.
-    let keyPath: string;
-    try {
-      keyPath = resolveSafeSshKeyPath(settings.sshKeyPath, {
-        extraRoots: [homedir()],
-      });
-    } catch {
-      return null;
-    }
+  } else if (
+    settings.sshAuthMethod === "key" &&
+    (settings.sshPrivateKey || settings.sshKeyPath)
+  ) {
+    if (settings.sshPrivateKey) {
+      config.privateKey = settings.sshPrivateKey;
+    } else if (isInlinePrivateKey(settings.sshKeyPath)) {
+      config.privateKey = decodeInlinePrivateKey(settings.sshKeyPath!);
+    } else {
+      // Centralised allowlist + traversal check — see lib/ssh-key-path.ts.
+      // homedir() is the operator's home, used as the default convenient
+      // root so `~/.ssh/openship` works without explicit env config.
+      let keyPath: string;
+      try {
+        keyPath = resolveSafeSshKeyPath(settings.sshKeyPath!, {
+          extraRoots: [homedir()],
+        });
+      } catch {
+        return null;
+      }
 
-    try {
-      config.privateKey = readFileSync(keyPath, "utf-8");
-    } catch {
-      return null;
+      try {
+        config.privateKey = readFileSync(keyPath, "utf-8");
+      } catch {
+        return null;
+      }
     }
+    if (!config.privateKey) return null;
     if (settings.sshKeyPassphrase) {
       config.privateKeyPassphrase = decryptSecretField(settings.sshKeyPassphrase);
     }

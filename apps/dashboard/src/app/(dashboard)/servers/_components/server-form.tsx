@@ -14,6 +14,7 @@ import { getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
+import { usePlatform } from "@/context/PlatformContext";
 
 const INPUT =
   "w-full px-3.5 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:ring-2 focus:ring-primary/20";
@@ -35,7 +36,9 @@ interface ServerFormProps {
 export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
   const { showToast } = useToast();
   const { t } = useI18n();
+  const { selfHosted, userServers } = usePlatform();
   const isEditing = !!server;
+  const useInlinePrivateKey = userServers && !selfHosted;
 
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -54,6 +57,7 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
   );
   const [sshPassword, setSshPassword] = useState("");
   const [sshKeyPath, setSshKeyPath] = useState(server?.sshKeyPath ?? "");
+  const [sshPrivateKey, setSshPrivateKey] = useState("");
   const [sshKeyPassphrase, setSshKeyPassphrase] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(
     !!(server?.sshJumpHost || server?.sshArgs),
@@ -81,8 +85,15 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
       return;
     }
 
-    if (sshAuthMethod === "key" && (!isEditing || server?.sshAuthMethod !== "key") && !sshKeyPath) {
-      showToast(t.servers.form.toastKeyPathSwitchRequired, "error", t.servers.toastTitles.server);
+    const keyCredential = useInlinePrivateKey ? sshPrivateKey : sshKeyPath;
+    if (sshAuthMethod === "key" && (!isEditing || server?.sshAuthMethod !== "key") && !keyCredential) {
+      showToast(
+        useInlinePrivateKey
+          ? t.servers.form.toastPrivateKeySwitchRequired
+          : t.servers.form.toastKeyPathSwitchRequired,
+        "error",
+        t.servers.toastTitles.server,
+      );
       return;
     }
 
@@ -103,7 +114,8 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         data.sshPassword = sshPassword;
       }
       if (sshAuthMethod === "key") {
-        if (sshKeyPath) data.sshKeyPath = sshKeyPath;
+        if (useInlinePrivateKey && sshPrivateKey) data.sshPrivateKey = sshPrivateKey;
+        if (!useInlinePrivateKey && sshKeyPath) data.sshKeyPath = sshKeyPath;
         if (sshKeyPassphrase) data.sshKeyPassphrase = sshKeyPassphrase;
       }
 
@@ -135,8 +147,15 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
       return;
     }
 
-    if (sshAuthMethod === "key" && !sshKeyPath && !(isEditing && server?.sshAuthMethod === "key")) {
-      showToast(t.servers.form.toastKeyPathTestRequired, "error", t.servers.toastTitles.server);
+    const keyCredential = useInlinePrivateKey ? sshPrivateKey : sshKeyPath;
+    if (sshAuthMethod === "key" && !keyCredential) {
+      showToast(
+        useInlinePrivateKey
+          ? t.servers.form.toastPrivateKeyTestRequired
+          : t.servers.form.toastKeyPathTestRequired,
+        "error",
+        t.servers.toastTitles.server,
+      );
       return;
     }
 
@@ -153,7 +172,8 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         payload.sshPassword = sshPassword;
       }
       if (sshAuthMethod === "key") {
-        if (sshKeyPath) payload.sshKeyPath = sshKeyPath;
+        if (useInlinePrivateKey && sshPrivateKey) payload.sshPrivateKey = sshPrivateKey;
+        if (!useInlinePrivateKey && sshKeyPath) payload.sshKeyPath = sshKeyPath;
         if (sshKeyPassphrase) payload.sshKeyPassphrase = sshKeyPassphrase;
       }
       const result = await systemApi.testConnection(payload as Parameters<typeof systemApi.testConnection>[0]);
@@ -270,18 +290,20 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
               <KeyRound className="size-3.5" />
               {t.servers.form.sshKey}
             </button>
-            <button
-              type="button"
-              onClick={() => setSshAuthMethod("agent")}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-[13px] font-medium rounded-lg transition-all ${
-                sshAuthMethod === "agent"
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground/70"
-              }`}
-            >
-              <Network className="size-3.5" />
-              {t.servers.form.agent}
-            </button>
+            {selfHosted && (
+              <button
+                type="button"
+                onClick={() => setSshAuthMethod("agent")}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 text-[13px] font-medium rounded-lg transition-all ${
+                  sshAuthMethod === "agent"
+                    ? "bg-card text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground/70"
+                }`}
+              >
+                <Network className="size-3.5" />
+                {t.servers.form.agent}
+              </button>
+            )}
           </div>
 
           {sshAuthMethod === "password" ? (
@@ -309,18 +331,37 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
             </div>
           ) : (
             <div className="space-y-[18px]">
-              <div>
-                <label className={LABEL}>{t.servers.form.keyPath}</label>
-                <input
-                  type="text"
-                  value={sshKeyPath}
-                  onChange={(e) => setSshKeyPath(e.target.value)}
-                  placeholder="~/.ssh/id_rsa"
-                  spellCheck={false}
-                  autoComplete="off"
-                  className={INPUT}
-                />
-              </div>
+              {useInlinePrivateKey ? (
+                <div>
+                  <label className={LABEL}>{t.servers.form.privateKey}</label>
+                  <textarea
+                    value={sshPrivateKey}
+                    onChange={(e) => setSshPrivateKey(e.target.value)}
+                    placeholder={
+                      isEditing && server?.hasInlineSshKey
+                        ? t.servers.form.privateKeyPlaceholderKeep
+                        : t.servers.form.privateKeyPlaceholderEnter
+                    }
+                    spellCheck={false}
+                    autoComplete="off"
+                    rows={7}
+                    className={`${INPUT} resize-y font-mono text-xs`}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className={LABEL}>{t.servers.form.keyPath}</label>
+                  <input
+                    type="text"
+                    value={sshKeyPath}
+                    onChange={(e) => setSshKeyPath(e.target.value)}
+                    placeholder="~/.ssh/id_rsa"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className={INPUT}
+                  />
+                </div>
+              )}
               <div>
                 <label className={LABEL}>
                   {t.servers.form.passphrase}{" "}

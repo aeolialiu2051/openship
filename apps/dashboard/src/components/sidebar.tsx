@@ -91,7 +91,7 @@ const MAIN_ITEMS: NavItem[] = [
 ];
 
 /** Build nav sections dynamically */
-function getNavSections(isSaaS: boolean, selfHosted: boolean): NavSection[] {
+function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boolean): NavSection[] {
   const settingsItems: NavItem[] = [
     { key: "settings",   href: "/settings",   icon: Settings },
   ];
@@ -100,8 +100,10 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean): NavSection[] {
   }
 
   const infraItems: NavItem[] = [];
-  if (selfHosted) {
+  if (userServers) {
     infraItems.push({ key: "servers", href: "/servers", icon: Server });
+  }
+  if (selfHosted) {
     infraItems.push({ key: "emails", href: "/emails", icon: Mail });
     infraItems.push({ key: "jobs", href: "/jobs", icon: Clock });
   }
@@ -119,7 +121,7 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean): NavSection[] {
 
 export function Sidebar() {
   const { user } = useAuth();
-  const { selfHosted, deployMode, authMode, machineName } = usePlatform();
+  const { selfHosted, userServers, deployMode, authMode, machineName } = usePlatform();
   const { connected: cloudConnected, cloudUser } = useCloud();
   const isDesktop = deployMode === "desktop";
 
@@ -150,7 +152,7 @@ export function Sidebar() {
   const cloudBadge = cloudConnected ? cloudUser : null;
   const displayInitial = displayName?.[0] ?? displayEmail?.[0] ?? "?";
   const isSaaS = !selfHosted || cloudConnected;
-  const navSections = getNavSections(isSaaS, selfHosted);
+  const navSections = getNavSections(isSaaS, selfHosted, userServers);
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, toggle } = useTheme();
@@ -618,4 +620,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

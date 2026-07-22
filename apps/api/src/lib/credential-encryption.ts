@@ -32,6 +32,7 @@ import { encrypt, decrypt } from "./encryption";
  *            algorithm or key derivation changes incompatibly.
  */
 const CIPHERTEXT_PREFIX = "enc1:" as const;
+const INLINE_PRIVATE_KEY_PREFIX = "inline-key:" as const;
 
 /**
  * Encrypt a credential string for storage.
@@ -65,4 +66,18 @@ export function decryptSecretField(stored: string | null | undefined): string | 
 /** Whether a stored field is in the encrypted-at-rest format. */
 export function isEncryptedSecret(stored: string | null | undefined): boolean {
   return typeof stored === "string" && stored.startsWith(CIPHERTEXT_PREFIX);
+}
+
+/** Store a pasted private key inside the legacy sshKeyPath column safely. */
+export function encodeInlinePrivateKey(plain: string): string {
+  return INLINE_PRIVATE_KEY_PREFIX + encryptSecretField(plain);
+}
+
+export function isInlinePrivateKey(stored: string | null | undefined): boolean {
+  return typeof stored === "string" && stored.startsWith(INLINE_PRIVATE_KEY_PREFIX);
+}
+
+export function decodeInlinePrivateKey(stored: string): string | undefined {
+  if (!isInlinePrivateKey(stored)) return undefined;
+  return decryptSecretField(stored.slice(INLINE_PRIVATE_KEY_PREFIX.length));
 }

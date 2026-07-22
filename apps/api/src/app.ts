@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { env, trustedOrigins } from "./config/env";
+import { env, trustedOrigins, USER_SERVERS_ENABLED } from "./config/env";
 import { handleApiError } from "./middleware/error-handler";
 import { rateLimiter, rateLimiterFor } from "./middleware/rate-limiter";
 import { clientIpMiddleware } from "./middleware/client-ip";
@@ -185,6 +185,19 @@ if (env.CLOUD_MODE) {
 
   const { billingSaasRoutes } = await import("./modules/billing/billing.routes");
   app.route("/api/billing", billingSaasRoutes);
+
+  // local-saas is allowed to orchestrate user-owned VPS targets, but it must
+  // not inherit the full self-hosted /api/system surface (filesystem, instance
+  // migration, data transfer, etc.). Mount only the server-focused subset.
+  if (USER_SERVERS_ENABLED) {
+    const { serverSystemRoutes } = await import(
+      "./modules/system/server-system.routes"
+    );
+    app.route("/api/system", serverSystemRoutes);
+
+    const { terminalRoutes } = await import("./modules/terminal/terminal.routes");
+    app.route("/api/terminal", terminalRoutes);
+  }
 } else {
   /**
    * System routes - filesystem browse, instance setup, user provisioning.

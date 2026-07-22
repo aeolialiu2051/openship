@@ -1,19 +1,23 @@
 /**
  * Servers CRUD controller - manage SSH server configurations.
  *
- * Security: Gated behind localOnly + authMiddleware (no cloud, no unauthenticated).
+ * Security: gated by the explicit user-server capability plus authenticated,
+ * organization-scoped permissions.
  */
 
 import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
-import { env } from "../../config";
 import { sshManager } from "../../lib/ssh-manager";
-import { encryptSecretField } from "@/lib/credential-encryption";
+import {
+  encodeInlinePrivateKey,
+  encryptSecretField,
+  isInlinePrivateKey,
+} from "@/lib/credential-encryption";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
-import { assertNotCloud } from "../../lib/controller-helpers";
+import { assertUserServersEnabled } from "../../lib/controller-helpers";
 import { primeGeo, countryForIp } from "@/lib/geo-ip";
 
 /** Public shape - what the controller returns to clients (no SSH secrets). */
@@ -26,7 +30,8 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
     sshPort: s.sshPort,
     sshUser: s.sshUser,
     sshAuthMethod: s.sshAuthMethod,
-    sshKeyPath: s.sshKeyPath,
+    sshKeyPath: isInlinePrivateKey(s.sshKeyPath) ? null : s.sshKeyPath,
+    hasInlineSshKey: isInlinePrivateKey(s.sshKeyPath),
     sshJumpHost: s.sshJumpHost,
     sshArgs: s.sshArgs,
     createdAt: s.createdAt,
@@ -38,7 +43,7 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
 
 /** GET /servers - list servers in the caller's active organization. */
 export async function listServers(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   // Org-scoped: only the caller's org's servers.
   const ctx = getRequestContext(c);
@@ -49,7 +54,7 @@ export async function listServers(c: Context) {
 
 /** GET /servers/:id - get a single server. */
 export async function getServer(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver (404 on deny, IDOR-safe).
@@ -70,7 +75,7 @@ export async function getServer(c: Context) {
  * host or transient failure is just `{ reachable: false }`.
  */
 export async function probeReachability(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "read" });
@@ -84,12 +89,15 @@ export async function probeReachability(c: Context) {
 
 /** POST /servers - create a new server */
 export async function createServer(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const body = await c.req.json();
 
   const host = (body.sshHost as string)?.trim();
   if (!host) return c.json({ error: "SSH host is required" }, 400);
+  if (typeof body.sshPrivateKey === "string" && body.sshPrivateKey.length > 65_536) {
+    return c.json({ error: "SSH private key is too large" }, 400);
+  }
 
   const ctx = getRequestContext(c);
   const server = await repos.server.create({
@@ -102,7 +110,9 @@ export async function createServer(c: Context) {
     // Encrypted at rest with AES-256-GCM (key derived from BETTER_AUTH_SECRET).
     // Decrypted only inside `buildSshConfig` when the ssh2 client needs it.
     sshPassword: encryptSecretField(body.sshPassword),
-    sshKeyPath: body.sshKeyPath || null,
+    sshKeyPath: body.sshPrivateKey
+      ? encodeInlinePrivateKey(body.sshPrivateKey)
+      : body.sshKeyPath || null,
     sshKeyPassphrase: encryptSecretField(body.sshKeyPassphrase),
     sshJumpHost: body.sshJumpHost?.trim() || null,
     sshArgs: body.sshArgs?.trim() || null,
@@ -132,7 +142,7 @@ export async function createServer(c: Context) {
 
 /** PATCH /servers/:id - update a server */
 export async function updateServer(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver. Updating server config is a write.
@@ -143,6 +153,9 @@ export async function updateServer(c: Context) {
   if (!existing) return c.json({ error: "Server not found" }, 404);
 
   const body = await c.req.json();
+  if (typeof body.sshPrivateKey === "string" && body.sshPrivateKey.length > 65_536) {
+    return c.json({ error: "SSH private key is too large" }, 400);
+  }
   const patch: Record<string, unknown> = {};
 
   if (body.name !== undefined) patch.name = body.name?.trim() || null;
@@ -152,7 +165,13 @@ export async function updateServer(c: Context) {
   if (body.sshAuthMethod !== undefined) patch.sshAuthMethod = body.sshAuthMethod || null;
   // Sensitive fields are encrypted at rest; see lib/credential-encryption.
   if (body.sshPassword !== undefined) patch.sshPassword = encryptSecretField(body.sshPassword);
-  if (body.sshKeyPath !== undefined) patch.sshKeyPath = body.sshKeyPath || null;
+  if (body.sshPrivateKey !== undefined) {
+    patch.sshKeyPath = body.sshPrivateKey
+      ? encodeInlinePrivateKey(body.sshPrivateKey)
+      : null;
+  } else if (body.sshKeyPath !== undefined) {
+    patch.sshKeyPath = body.sshKeyPath || null;
+  }
   if (body.sshKeyPassphrase !== undefined) patch.sshKeyPassphrase = encryptSecretField(body.sshKeyPassphrase);
   if (body.sshJumpHost !== undefined) patch.sshJumpHost = body.sshJumpHost?.trim() || null;
   if (body.sshArgs !== undefined) patch.sshArgs = body.sshArgs?.trim() || null;
@@ -173,6 +192,7 @@ export async function updateServer(c: Context) {
   if (body.sshUser !== undefined) auditAfter.sshUser = updated?.sshUser ?? null;
   if (body.sshAuthMethod !== undefined) auditAfter.sshAuthMethod = updated?.sshAuthMethod ?? null;
   if (body.sshKeyPath !== undefined) auditAfter.sshKeyPath = updated?.sshKeyPath ?? null;
+  if (body.sshPrivateKey !== undefined) auditAfter.sshPrivateKeyChanged = true;
   if (body.sshJumpHost !== undefined) auditAfter.sshJumpHost = updated?.sshJumpHost ?? null;
   if (body.sshArgs !== undefined) auditAfter.sshArgs = updated?.sshArgs ?? null;
   // Sentinels for credential rotation (no values).
@@ -191,7 +211,7 @@ export async function updateServer(c: Context) {
 
 /** DELETE /servers/:id - delete a server */
 export async function deleteServer(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: deleting a server is admin-tier (destructive).

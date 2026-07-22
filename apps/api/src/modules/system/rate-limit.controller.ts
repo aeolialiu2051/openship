@@ -17,7 +17,7 @@ import { env } from "../../config";
 import { withOpenRestyRouting } from "@/lib/openresty-paths";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
-import { param, assertNotCloud } from "../../lib/controller-helpers";
+import { param, assertUserServersEnabled } from "../../lib/controller-helpers";
 import { safeErrorMessage } from "@repo/core";
 
 function isValidCidr(cidr: string): boolean {
@@ -25,7 +25,7 @@ function isValidCidr(cidr: string): boolean {
 }
 
 export async function getRateLimit(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const organizationId = getRequestContext(c).organizationId;
   const serverId = param(c, "id");
@@ -51,7 +51,7 @@ export async function getRateLimit(c: Context) {
 }
 
 export async function updateRateLimit(c: Context) {
-  const cloudGuard = assertNotCloud(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
 
   const organizationId = getRequestContext(c).organizationId;
   const serverId = param(c, "id");

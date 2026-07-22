@@ -1,14 +1,18 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GITHUB_KNOWN_HOSTS } from "../../../src/modules/github/github-known-hosts";
 
-// Mutable env so a single suite can exercise both self-hosted and CLOUD_MODE.
-const { envMock, getByServer, listByServer } = vi.hoisted(() => ({
-  envMock: { CLOUD_MODE: false } as { CLOUD_MODE: boolean },
+// Mutable capability so a single suite can exercise enabled and locked modes.
+const { capability, getByServer, listByServer } = vi.hoisted(() => ({
+  capability: { enabled: true },
   getByServer: vi.fn(),
   listByServer: vi.fn(),
 }));
 
-vi.mock("../../../src/config/env", () => ({ env: envMock }));
+vi.mock("../../../src/config/env", () => ({
+  get USER_SERVERS_ENABLED() {
+    return capability.enabled;
+  },
+}));
 vi.mock("@repo/db", () => ({
   repos: {
     serverGithubAuth: { getByServer, deleteByServer: vi.fn() },
@@ -43,13 +47,13 @@ const resolve = (owner: string | null = "acme", repo: string | null = "app") =>
 
 beforeEach(() => {
   vi.clearAllMocks();
-  envMock.CLOUD_MODE = false;
+  capability.enabled = true;
   listByServer.mockResolvedValue([]);
 });
 
-describe("resolveServerGitCredential — CLOUD_MODE guard", () => {
-  it("returns null and never reads the DB in cloud", async () => {
-    envMock.CLOUD_MODE = true;
+describe("resolveServerGitCredential — capability guard", () => {
+  it("returns null and never reads the DB when user servers are disabled", async () => {
+    capability.enabled = false;
     expect(await resolve()).toBeNull();
     expect(getByServer).not.toHaveBeenCalled();
   });
@@ -88,8 +92,8 @@ describe("resolveServerGitCredential — mode mapping", () => {
 });
 
 describe("canResolveServerGitCredential — matches the resolver verdict", () => {
-  it("false in cloud", async () => {
-    envMock.CLOUD_MODE = true;
+  it("false when user servers are disabled", async () => {
+    capability.enabled = false;
     expect(await canResolveServerGitCredential("s1")).toBe(false);
   });
   it("false when no row", async () => {
@@ -108,10 +112,10 @@ describe("canResolveServerGitCredential — matches the resolver verdict", () =>
   });
 });
 
-describe("mutator cloud guard", () => {
-  it("disconnect throws in CLOUD_MODE before touching any DB", async () => {
-    envMock.CLOUD_MODE = true;
-    await expect(disconnectServerGithub(ctx, "s1")).rejects.toThrow(/self-hosted/i);
+describe("mutator capability guard", () => {
+  it("disconnect throws when user servers are disabled before touching any DB", async () => {
+    capability.enabled = false;
+    await expect(disconnectServerGithub(ctx, "s1")).rejects.toThrow(/not available/i);
     expect(listByServer).not.toHaveBeenCalled();
   });
 });

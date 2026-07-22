@@ -10,6 +10,7 @@ const DEFAULT_CLOUD_DOMAIN = "opsh.io";
 
 interface PlatformContextValue {
   selfHosted: boolean;
+  userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
   cloudAuthUrl: string;
@@ -43,6 +44,7 @@ export function usePlatform() {
 interface PlatformProviderProps {
   children: React.ReactNode;
   selfHosted?: boolean;
+  userServers?: boolean;
   deployMode?: string;
   authMode?: "cloud" | "local" | "none";
   cloudAuthUrl?: string;
@@ -62,6 +64,7 @@ interface PlatformProviderProps {
 export function PlatformProvider({
   children,
   selfHosted: initialSelfHosted = true,
+  userServers = initialSelfHosted,
   deployMode = "docker",
   authMode = "local",
   cloudAuthUrl = CLOUD_DASHBOARD_URL,
@@ -77,6 +80,7 @@ export function PlatformProvider({
     <PlatformContext.Provider
       value={{
         selfHosted,
+        userServers,
         deployMode,
         authMode,
         cloudAuthUrl,

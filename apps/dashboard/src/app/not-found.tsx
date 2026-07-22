@@ -37,6 +37,7 @@ export default async function NotFound() {
       initialGithubData={initialGithubData}
       initialUser={session.user}
       selfHosted={deploymentInfo.selfHosted}
+      userServers={deploymentInfo.userServers}
       deployMode={deploymentInfo.deployMode}
       authMode={deploymentInfo.authMode}
       cloudAuthUrl={deploymentInfo.cloudAuthUrl}

@@ -1,6 +1,7 @@
 export { authMiddleware } from "./auth";
 export { internalAuth } from "./internal-auth";
 export { localOnly } from "./local-only";
+export { userServersOnly } from "./user-servers-only";
 export { rateLimiter } from "./rate-limiter";
 export { betterAuthShield } from "./better-auth-shield";
 export { originGuard } from "./origin-guard";

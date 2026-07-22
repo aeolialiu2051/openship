@@ -11,7 +11,13 @@
  */
 
 import { encrypt, decrypt, decryptEnvMap } from "../../../lib/encryption";
-import { encryptSecretField, decryptSecretField } from "../../../lib/credential-encryption";
+import {
+  decodeInlinePrivateKey,
+  decryptSecretField,
+  encodeInlinePrivateKey,
+  encryptSecretField,
+  isInlinePrivateKey,
+} from "../../../lib/credential-encryption";
 
 import type { SecretColumn } from "./secret-registry";
 import type { SecretEntry } from "./types";
@@ -34,6 +40,11 @@ export function extractPlaintext(
       if (typeof cell !== "string" || cell === "") return null;
       const value = decryptSecretField(cell);
       return value === undefined ? null : { ...base, scheme: "enc1", value };
+    }
+    case "inline-key": {
+      if (typeof cell !== "string" || !isInlinePrivateKey(cell)) return null;
+      const value = decodeInlinePrivateKey(cell);
+      return value === undefined ? null : { ...base, scheme: "inline-key", value };
     }
     case "plaintext": {
       if (typeof cell !== "string" || cell === "") return null;
@@ -74,6 +85,8 @@ export function sealForInstance(
       return entry.value != null ? encrypt(entry.value) : null;
     case "enc1":
       return entry.value != null ? encryptSecretField(entry.value) : null;
+    case "inline-key":
+      return entry.value != null ? encodeInlinePrivateKey(entry.value) : null;
     case "plaintext":
       return entry.value ?? null;
     case "map": {

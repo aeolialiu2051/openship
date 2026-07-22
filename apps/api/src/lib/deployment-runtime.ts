@@ -10,7 +10,7 @@ import {
 import type { Deployment } from "@repo/db";
 import { repos } from "@repo/db";
 import type { DeployTarget, RuntimeMode } from "@repo/core";
-import { env } from "../config";
+import { env, USER_SERVERS_ENABLED } from "../config";
 import { cloudClient, getOrgCloudToken } from "./cloud/client";
 import { resolveOrgCloudUserId } from "./cloud/transport";
 import { platform } from "./controller-helpers";
@@ -147,6 +147,15 @@ async function resolveOrgServer(
  */
 export function resolveEffectiveTarget(base: Platform["target"], snapshot: DeploymentMeta): DeployTarget {
   if (base === "desktop") return snapshot.deployTarget ?? "cloud";
+  // local-saas is cloud-backed for managed deployments, but explicitly chosen
+  // user VPS targets are orchestrated over SSH from this control plane.
+  if (
+    base === "cloud" &&
+    USER_SERVERS_ENABLED &&
+    (snapshot.deployTarget === "server" || snapshot.serverId)
+  ) {
+    return "server";
+  }
   if (base === "selfhosted") {
     // Explicit server ID → always SSH
     if (snapshot.serverId) return "server";
@@ -168,8 +177,8 @@ export function usesManagedRouting(base: Platform["target"], effectiveTarget: De
   // target — including the local-orchestrated cloud deploy — routes via cloud
   // pages/edge, not the local proxy.
   return (
-    (effectiveTarget === "server" || effectiveTarget === "local") &&
-    (base === "selfhosted" || base === "desktop")
+    effectiveTarget === "server" ||
+    (effectiveTarget === "local" && (base === "selfhosted" || base === "desktop"))
   );
 }
 
