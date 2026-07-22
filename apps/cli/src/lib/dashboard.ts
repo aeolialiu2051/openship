@@ -22,7 +22,7 @@ function assetName(tag: string): string {
 
 export interface DashboardBundle {
   tag: string;
-  /** server.js entry to run with the CLI's runtime (Node/Bun). */
+  /** Production front-server entry (falls back to legacy server.js bundles). */
   entry: string;
   /** Directory the entry must run from so its relative .next/public resolve. */
   cwd: string;
@@ -43,7 +43,9 @@ export async function ensureDashboard(
   const override = process.env.OPENSHIP_DASHBOARD_DIR?.trim();
   if (override) {
     const cwd = join(override, "apps", "dashboard");
-    const entry = join(cwd, "server.js");
+    const proxyEntry = join(cwd, "standalone-server.mjs");
+    const legacyEntry = join(cwd, "server.js");
+    const entry = existsSync(proxyEntry) ? proxyEntry : legacyEntry;
     if (!existsSync(entry)) {
       throw new Error(
         `OPENSHIP_DASHBOARD_DIR=${override} but ${entry} is missing — build the dashboard standalone first (see docs).`,
@@ -55,12 +57,18 @@ export async function ensureDashboard(
   const tag = opts.tag ?? (await resolveLatestTag());
   const dir = join(DASHBOARD_CACHE, tag);
   const cwd = join(dir, "apps", "dashboard");
-  const entry = join(cwd, "server.js");
+  const proxyEntry = join(cwd, "standalone-server.mjs");
+  const legacyEntry = join(cwd, "server.js");
+  const entry = existsSync(proxyEntry) ? proxyEntry : legacyEntry;
   const marker = join(dir, ".extracted");
 
   // Cached + intact → reuse.
-  if (existsSync(marker) && existsSync(entry)) {
-    return { tag, entry, cwd };
+  if (existsSync(marker) && (existsSync(proxyEntry) || existsSync(legacyEntry))) {
+    return {
+      tag,
+      entry: existsSync(proxyEntry) ? proxyEntry : legacyEntry,
+      cwd,
+    };
   }
 
   // Start from a clean dir (a prior run may have partially extracted).
@@ -89,9 +97,10 @@ export async function ensureDashboard(
   }
   rmSync(tarball, { force: true });
 
-  if (!existsSync(entry)) {
-    throw new Error(`Dashboard bundle extracted but ${entry} is missing (unexpected layout).`);
+  const extractedEntry = existsSync(proxyEntry) ? proxyEntry : legacyEntry;
+  if (!existsSync(extractedEntry)) {
+    throw new Error(`Dashboard bundle extracted but no server entry is present in ${cwd}.`);
   }
   writeFileSync(marker, `${tag}\n`);
-  return { tag, entry, cwd };
+  return { tag, entry: extractedEntry, cwd };
 }

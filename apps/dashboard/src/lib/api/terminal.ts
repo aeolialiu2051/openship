@@ -16,8 +16,9 @@
  *      (userId, serverId).
  */
 
-import { api, getApiBaseUrl } from "./client";
+import { api } from "./client";
 import { endpoints } from "./endpoints";
+import { getWebSocketApiBaseUrl } from "./urls";
 
 // The protocol prefix MUST match the constant in the API controller
 // (apps/api/src/modules/terminal/terminal.controller.ts). The server
@@ -107,12 +108,12 @@ export async function requestTerminalTicket(serverId: string): Promise<TerminalT
 // ─── WS URL construction ────────────────────────────────────────────────────
 
 /**
- * Build a WebSocket URL from the configured REST API base. We just swap
- * http(s):// → ws(s):// and append the WS path. Keeping this in one
- * helper means the call site can't accidentally hardcode a host.
+ * Build a WebSocket URL from the dedicated Upgrade-capable API base. In
+ * production proxy mode this is a same-origin path owned by the dashboard
+ * front server; direct dev mode still uses the configured API origin.
  */
 export function buildTerminalWsUrl(serverId: string): string {
-  const base = getApiBaseUrl();
+  const base = getWebSocketApiBaseUrl();
   const url = new URL(endpoints.terminal.wsPath(serverId), base);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();

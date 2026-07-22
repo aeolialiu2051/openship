@@ -160,6 +160,39 @@ export function getRestApiBaseUrl() {
   return `${getApiOrigin()}/api`;
 }
 
+/** Resolve the production same-origin path used for WebSocket upgrades. */
+export function resolveProxyWebSocketApiBase(
+  pageOrigin: string,
+  directApiOrigin: string,
+): string {
+  try {
+    const page = new URL(pageOrigin);
+    // The production dashboard front server owns this stable same-origin
+    // prefix and forwards it to the private API with Upgrade/Connection intact.
+    // Managed OpenResty may intercept the same prefix one hop earlier.
+    return `${page.origin}/_openship/ws/api/`;
+  } catch {
+    return directApiOrigin.replace(/\/+$/, "") + "/api/";
+  }
+}
+
+/**
+ * Base URL for browser WebSocket upgrades.
+ *
+ * The Next.js `/api/proxy/*` route is a fetch-based HTTP proxy and cannot
+ * forward an Upgrade handshake. The production dashboard front server owns a
+ * dedicated same-origin Upgrade path while REST continues through Next.
+ */
+export function getWebSocketApiBaseUrl() {
+  if (API_PROXY_ENABLED && typeof window !== "undefined") {
+    return resolveProxyWebSocketApiBase(
+      window.location.origin,
+      currentTarget().api,
+    );
+  }
+  return getRestApiBaseUrl();
+}
+
 export function getCloudDashboardUrl(rawUrl?: string) {
   return originOf(rawUrl ?? "") ?? cloudPartner(currentTarget()).dashboard;
 }
@@ -182,4 +215,3 @@ export function getMarketingOrigin() {
   }
   return "https://openship.io";
 }
-

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { alignLoopbackOrigin } from "./urls";
+import {
+  alignLoopbackOrigin,
+  resolveProxyWebSocketApiBase,
+} from "./urls";
 
 describe("alignLoopbackOrigin", () => {
   it("rewrites a 127.0.0.1 API origin when the page is served from localhost", () => {
@@ -34,5 +37,34 @@ describe("alignLoopbackOrigin", () => {
 
   it("passes a malformed override through unchanged", () => {
     expect(alignLoopbackOrigin("not a url", "http://localhost:3001")).toBe("not a url");
+  });
+});
+
+describe("resolveProxyWebSocketApiBase", () => {
+  it("routes a Compose dashboard socket through the same-origin Upgrade path", () => {
+    expect(
+      resolveProxyWebSocketApiBase(
+        "http://localhost:3001",
+        "http://localhost:4000",
+      ),
+    ).toBe("http://localhost:3001/_openship/ws/api/");
+  });
+
+  it("preserves the loopback hostname used to open the dashboard", () => {
+    expect(
+      resolveProxyWebSocketApiBase(
+        "http://127.0.0.1:3001",
+        "http://localhost:4000",
+      ),
+    ).toBe("http://127.0.0.1:3001/_openship/ws/api/");
+  });
+
+  it("uses the same-origin edge WebSocket prefix on a public dashboard", () => {
+    expect(
+      resolveProxyWebSocketApiBase(
+        "https://app.example.com",
+        "http://localhost:4000",
+      ),
+    ).toBe("https://app.example.com/_openship/ws/api/");
   });
 });

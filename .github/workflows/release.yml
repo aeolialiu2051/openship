@@ -171,10 +171,11 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           STAGING="dashboard-dist"
           rm -rf "$STAGING"; mkdir -p "$STAGING"
-          # The monorepo-rooted standalone has apps/dashboard/server.js as entry
-          # plus a trimmed node_modules. static/ + public/ are excluded by Next,
-          # so copy them back next to .next/ where the standalone server expects.
+          # The generated Next server runs behind our standalone front server,
+          # which owns public HTTP + terminal WebSocket upgrades. static/ +
+          # public/ are excluded by Next, so copy them back beside .next/.
           cp -a apps/dashboard/.next/standalone/. "$STAGING"/
+          cp apps/dashboard/scripts/standalone-server.mjs "$STAGING/apps/dashboard/standalone-server.mjs"
           mkdir -p "$STAGING/apps/dashboard/.next"
           cp -a apps/dashboard/.next/static "$STAGING/apps/dashboard/.next/static"
           if [ -d apps/dashboard/public ]; then

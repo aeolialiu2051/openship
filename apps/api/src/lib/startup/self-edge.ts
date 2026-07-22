@@ -79,6 +79,12 @@ async function runProvision(
     if (progress?.onLog) progress.onLog(message, level);
     else console.log(`[edge] ${message}`);
   };
+  const websocketProxyLocations = [
+    {
+      pathPrefix: "/_openship/ws/api/",
+      targetUrl: `http://127.0.0.1:${env.PORT}/api/`,
+    },
+  ];
 
   // Edge install needs a root Linux host (apt/dnf + certbot + systemd).
   if (process.platform !== "linux") {
@@ -118,7 +124,12 @@ async function runProvision(
         status,
         sites: scan.sites,
         acmeEmail: env.OPENSHIP_ACME_EMAIL,
-        extraRoutes: [{ domain: hostname, targetUrl: `http://127.0.0.1:${dashPort}`, tls: true }],
+        extraRoutes: [{
+          domain: hostname,
+          targetUrl: `http://127.0.0.1:${dashPort}`,
+          tls: true,
+          proxyLocations: websocketProxyLocations,
+        }],
       },
       (entry) => log(entry.message, entry.level),
     );
@@ -149,6 +160,7 @@ async function runProvision(
     domain: hostname,
     tls: true,
     targetUrl: `http://127.0.0.1:${dashPort}`,
+    proxyLocations: websocketProxyLocations,
   });
   progress?.onStep?.("route", "installed");
   log(`routing ${hostname} → http://127.0.0.1:${dashPort}`);

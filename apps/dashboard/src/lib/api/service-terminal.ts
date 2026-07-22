@@ -14,8 +14,9 @@
  *      single-use, ~30s TTL, bound to (userId, serviceId).
  */
 
-import { api, getApiBaseUrl } from "./client";
+import { api } from "./client";
 import { endpoints } from "./endpoints";
+import { getWebSocketApiBaseUrl } from "./urls";
 
 import type { TerminalTicketResponse } from "./terminal";
 
@@ -28,7 +29,7 @@ export async function requestServiceTerminalTicket(
 }
 
 export function buildServiceTerminalWsUrl(serviceId: string): string {
-  const base = getApiBaseUrl();
+  const base = getWebSocketApiBaseUrl();
   const url = new URL(endpoints.serviceTerminal.wsPath(serviceId), base);
   url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
   return url.toString();

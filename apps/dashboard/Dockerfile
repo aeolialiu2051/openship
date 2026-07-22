@@ -21,7 +21,8 @@ WORKDIR /app
 COPY --from=builder /app/apps/dashboard/.next/standalone ./
 COPY --from=builder /app/apps/dashboard/.next/static ./apps/dashboard/.next/static
 COPY --from=builder /app/apps/dashboard/public ./apps/dashboard/public
+COPY --from=builder /app/apps/dashboard/scripts/standalone-server.mjs ./apps/dashboard/standalone-server.mjs
 
 ENV NODE_ENV=production
 EXPOSE 3001
-CMD ["node", "apps/dashboard/server.js"]
+CMD ["node", "apps/dashboard/standalone-server.mjs"]

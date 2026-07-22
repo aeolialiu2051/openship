@@ -30,7 +30,8 @@
  *       src/              ← TS source (bun runs it directly)
  *       drizzle/          ← migrations, ran on first boot
  *     dashboard/
- *       server.js         ← Next standalone entry
+ *       standalone-server.mjs ← public HTTP + WebSocket front server
+ *       server.js         ← private Next standalone child
  *       .next/            ← standalone build output (already minified)
  *       public/           ← static assets
  *     packages/
@@ -330,21 +331,19 @@ process.on("SIGINT", () => shutdown(0));
 // hoisted node_modules resolve from there).
 start("api", "bun", ["run", "src/index.ts"], join(ROOT, "api"), {
   PORT: apiPort,
-  // Dashboard talks to the API over loopback in this layout.
-  API_INTERNAL_URL: \`http://127.0.0.1:\${apiPort}\`,
 });
 
-// Dashboard: Next standalone. The monorepo-rooted standalone lands at
-// dashboard/apps/dashboard/server.js and expects to run from that dir so its
-// relative .next/ + public/ + node_modules resolve.
+// Dashboard: production front server. It keeps Next on a private child port
+// and forwards the dedicated terminal WebSocket prefix to the loopback API.
 start(
   "dashboard",
   "node",
-  ["server.js"],
+  ["standalone-server.mjs"],
   join(ROOT, "dashboard", "apps", "dashboard"),
   {
     PORT: dashboardPort,
     HOSTNAME: "0.0.0.0",
+    INTERNAL_API_URL: \`http://127.0.0.1:\${apiPort}\`,
   },
 );
 `;
@@ -380,14 +379,14 @@ restart cleanly.
 | \`DASHBOARD_PORT\`  | \`3000\`  | dashboard  |
 
 If \`API_PORT\` is unset, the supervisor falls back to \`PORT\`, then
-to \`4000\`. The dashboard's \`API_INTERNAL_URL\` is wired to the API
+to \`4000\`. The dashboard's \`INTERNAL_API_URL\` is wired to the API
 port automatically.
 
 ## Layout
 
 - \`api/\` — TS source, bun runs it directly. \`api/drizzle/\` migrations
   run on first boot via the API's normal migration path.
-- \`dashboard/\` — Next standalone bundle. \`server.js\` is the entry.
+- \`dashboard/\` — Next standalone bundle. \`standalone-server.mjs\` is the entry.
 - \`packages/\` — workspace packages the API depends on, linked into
   \`api/node_modules/@repo/*\` by bun via \`file:\` paths in api/package.json.
 `;
@@ -461,10 +460,8 @@ async function main(): Promise<void> {
     //     apps/dashboard/.next/...
     //     node_modules/...
     //     package.json
-    // We copy it all verbatim and then re-home server.js + .next/ at
-    // the dist's dashboard/ root via a small shim (server-entry.js).
-    // Simpler: copy the entire standalone tree into dashboard/ and
-    // have start.ts launch apps/dashboard/server.js inside it.
+    // We copy it all verbatim, then add the production front server beside
+    // the generated Next server under apps/dashboard/.
     await cp(dashboardStandalone, target, { recursive: true });
     // Static assets need to sit at apps/dashboard/.next/static and
     // apps/dashboard/public so Next's standalone server finds them at
@@ -476,6 +473,10 @@ async function main(): Promise<void> {
     if (existsSync(dashboardPublic)) {
       await cp(dashboardPublic, innerPublic, { recursive: true });
     }
+    await cp(
+      join(DASHBOARD_DIR, "scripts/standalone-server.mjs"),
+      join(target, "apps/dashboard/standalone-server.mjs"),
+    );
   });
 
   // 3. Copy api source + drizzle migrations. Drizzle migrations

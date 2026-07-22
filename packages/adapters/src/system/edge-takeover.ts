@@ -12,7 +12,7 @@
  */
 
 import { safeErrorMessage } from "@repo/core";
-import type { CommandExecutor } from "../types";
+import type { CommandExecutor, RouteProxyLocation } from "../types";
 import type { EdgeStatus, ImportedSite, SystemLog, SystemLogCallback } from "./types";
 import { freeEdgeTargets, sq, stopTargetsForStatus } from "./edge-preflight";
 import { installOpenResty } from "./installer";
@@ -56,7 +56,12 @@ export interface EdgeTakeoverOptions {
   sites: ImportedSite[];
   acmeEmail?: string;
   /** Extra routes to register beyond the imported sites (e.g. the control plane's own hostname). */
-  extraRoutes?: Array<{ domain: string; targetUrl: string; tls: boolean }>;
+  extraRoutes?: Array<{
+    domain: string;
+    targetUrl: string;
+    tls: boolean;
+    proxyLocations?: RouteProxyLocation[];
+  }>;
 }
 
 export interface EdgeTakeoverResult {
@@ -235,7 +240,12 @@ export async function runEdgeTakeover(
 
     for (const route of opts.extraRoutes ?? []) {
       try {
-        await nginx.registerRoute({ domain: route.domain, tls: route.tls, targetUrl: route.targetUrl });
+        await nginx.registerRoute({
+          domain: route.domain,
+          tls: route.tls,
+          targetUrl: route.targetUrl,
+          proxyLocations: route.proxyLocations,
+        });
         if (route.tls) await nginx.provisionCert(route.domain);
         registered.push(route.domain);
       } catch (err) {
