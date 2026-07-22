@@ -121,10 +121,9 @@ export default function AddServerPage() {
   useEffect(() => {
     (async () => {
       try {
-        // Edit a SPECIFIC server when `?edit=<id>` is present. Otherwise fall
-        // back to auto-editing the sole server when exactly one exists. (The
-        // detail page links its "Edit" button to /servers/<id>?edit=true; this
-        // remains for direct visits to /servers/new.)
+        // `/servers/new` is always a fresh form unless a specific legacy
+        // `?edit=<id>` link was used. Editing from the current UI lives on
+        // `/servers/<id>?edit=true`; do not infer edit mode from server count.
         const editId =
           typeof window !== "undefined"
             ? new URLSearchParams(window.location.search).get("edit")
@@ -132,9 +131,6 @@ export default function AddServerPage() {
         let existing: ServerInfo | null = null;
         if (editId) {
           existing = await systemApi.getServerById(editId).catch(() => null);
-        } else {
-          const servers = await systemApi.listServers();
-          if (servers.length === 1) existing = servers[0]!;
         }
 
         if (existing) {
