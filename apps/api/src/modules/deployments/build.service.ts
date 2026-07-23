@@ -14,7 +14,7 @@
  * pipeline owns the deploy↔rollback cycle (a deliberate dynamic import).
  */
 
-import { repos, type Project } from "@repo/db";
+import { repos, toComposeSpec, type Project, type Service } from "@repo/db";
 import {
   AppError,
   NotFoundError,
@@ -409,11 +409,62 @@ async function resolveProjectBranch(ctx: RequestContext, project: Project, branc
  * blocks the deploy. GitHub-source compose projects only.
  *
  * `changedPaths` (webhook only) is an optimization: when we have a definite,
- * non-empty changed-file list that does NOT include a compose file, skip the
- * repo scan entirely — the compose can't have changed. When it's absent (manual
- * redeploy) or empty, reconcile runs to be safe.
+ * non-empty changed-file list that does NOT include a compose input (compose
+ * YAML, its interpolation `.env`, or `openship.json`), skip the repo scan.
+ * When it's absent (manual redeploy) or empty, reconcile runs to be safe.
  */
-const COMPOSE_PATH_RE = /(^|\/)(docker-compose|compose)\.ya?ml$/i;
+const COMPOSE_INPUT_PATH_RE = /(^|\/)(?:(?:docker-compose|compose)\.ya?ml|\.env|openship\.json)$/i;
+
+/**
+ * Rows imported before compose drift tracking was added have no 3-way merge
+ * baseline. Recover it from the active deployment's frozen snapshot: that is
+ * the exact compose shape that produced the currently-running release. This
+ * lets the next repo commit auto-apply when the row is untouched, while still
+ * detecting and preserving dashboard edits made after that deployment.
+ */
+export async function backfillComposeBaselinesFromActiveDeployment(
+  project: Project,
+  composeRows: Service[],
+): Promise<void> {
+  const missingBaseline = composeRows.filter(
+    (service) =>
+      (service.kind === "compose" || service.kind === null) && service.importedSpec == null,
+  );
+  if (missingBaseline.length === 0 || !project.activeDeploymentId) return;
+
+  // Older manual/API deploys did not freeze composeServices in their own meta,
+  // but metaWithPrevious linked them to the release they replaced. Walk that
+  // bounded chain so a just-completed legacy redeploy can still recover the
+  // original repo baseline instead of permanently adopting its stale DB rows.
+  let deploymentId: string | undefined = project.activeDeploymentId;
+  let activeCompose: DeployableService[] = [];
+  const visited = new Set<string>();
+  for (let depth = 0; deploymentId && depth < 20 && !visited.has(deploymentId); depth += 1) {
+    visited.add(deploymentId);
+    const deployment = await repos.deployment.findById(deploymentId).catch(() => null);
+    if (!deployment) break;
+    const deploymentMeta = deployment.meta as DeploymentConfigSnapshot | null;
+    activeCompose = (deploymentMeta?.composeServices ?? []).filter(
+      (service) => serviceKind(service) === "compose",
+    );
+    if (activeCompose.length > 0) break;
+    deploymentId = deploymentMeta?.previousActiveDeploymentId;
+  }
+  if (activeCompose.length === 0) return;
+
+  const baselineByName = new Map(activeCompose.map((service) => [service.name, service]));
+  await Promise.all(
+    missingBaseline.map(async (row) => {
+      const baseline = baselineByName.get(row.name);
+      if (!baseline) return;
+      await repos.service.update(row.id, {
+        importedSpec: toComposeSpec(baseline),
+        driftSpec: null,
+      });
+    }),
+  );
+}
+
 async function reconcileComposeDrift(
   ctx: RequestContext,
   project: Project,
@@ -422,11 +473,16 @@ async function reconcileComposeDrift(
 ) {
   try {
     if (!project.gitOwner || !project.gitRepo) return; // local/no-git source → nothing to re-parse
-    if (changedPaths && changedPaths.length > 0 && !changedPaths.some((p) => COMPOSE_PATH_RE.test(p))) {
-      return; // this push didn't touch the compose file → no drift possible
+    if (
+      changedPaths &&
+      changedPaths.length > 0 &&
+      !changedPaths.some((path) => COMPOSE_INPUT_PATH_RE.test(path))
+    ) {
+      return; // this push didn't touch a compose input → no drift possible
     }
     const composeRows = await listProjectComposeServices(project.id);
     if (!composeRows.some((s) => s.kind === "compose")) return; // not a compose project
+    await backfillComposeBaselinesFromActiveDeployment(project, composeRows);
     const info = await resolveProjectInfo({
       source: "github",
       owner: project.gitOwner,
@@ -894,6 +950,12 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     project,
     snapshot,
   );
+  if (useServicePipeline) {
+    // Freeze the canonical service rows into this deployment. The compose
+    // pipeline can re-query the DB while it runs, but history/redeploy drift
+    // reconciliation needs the exact service spec that produced this release.
+    snapshot.composeServices = servicePreflightServices;
+  }
 
   // Resolve the snapshot's target (deployTarget + serverId + runtimeMode) from
   // the single source of truth shared with triggerDeployment — UI override >
@@ -1462,6 +1524,12 @@ export async function triggerDeployment(
     project,
     snapshot,
   );
+  if (useServicePipeline) {
+    // Persist the freshly reconciled compose shape in deployment.meta. Without
+    // this, a manual/API deploy can run the right services but leave no baseline
+    // for the next repo-driven environment update.
+    snapshot.composeServices = servicePreflightServices;
+  }
 
   // ── Preflight: validate config before creating any resources ────
   await runDeploymentPreflight(snapshot, routeState, {

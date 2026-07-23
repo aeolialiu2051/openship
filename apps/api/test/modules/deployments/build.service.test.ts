@@ -19,11 +19,15 @@ const {
     },
     deployment: {
       listByProject: vi.fn(),
+      findById: vi.fn(),
       getLatestSuccessfulForBranch: vi.fn(),
       create: vi.fn(),
       createBuildSession: vi.fn(),
       supersedeReconciling: vi.fn(),
       supersedePendingDecisions: vi.fn(),
+    },
+    service: {
+      update: vi.fn(),
     },
   },
   resolveProjectRouteState: vi.fn(),
@@ -35,6 +39,7 @@ const {
 
 vi.mock("@repo/db", () => ({
   repos,
+  toComposeSpec: (service: Record<string, unknown>) => service,
 }));
 
 vi.mock("../../../src/modules/deployments/preflight", () => ({
@@ -70,6 +75,7 @@ vi.mock("../../../src/modules/deployments/smart-route", () => ({
 }));
 
 import {
+  backfillComposeBaselinesFromActiveDeployment,
   triggerDeployment,
   type DeploymentConfigSnapshot,
 } from "../../../src/modules/deployments/build.service";
@@ -210,6 +216,11 @@ describe("triggerDeployment", () => {
         composeServices,
       }),
     );
+    expect(repos.deployment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        meta: expect.objectContaining({ composeServices }),
+      }),
+    );
   });
 
   it("resolves service mode before preflight for reused snapshots", async () => {
@@ -234,5 +245,52 @@ describe("triggerDeployment", () => {
         composeServices,
       }),
     );
+  });
+});
+
+describe("compose baseline backfill", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("recovers a legacy row baseline from the active deployment snapshot", async () => {
+    repos.deployment.findById.mockImplementation(async (id: string) =>
+      id === "dep-live"
+        ? {
+            id,
+            meta: { previousActiveDeploymentId: "dep-with-compose" },
+          }
+        : {
+            id,
+            meta: {
+              composeServices: [
+                {
+                  kind: "compose",
+                  name: "web",
+                  environment: { APP_VERSION: "1" },
+                },
+              ],
+            },
+          },
+    );
+    repos.service.update.mockResolvedValue(undefined);
+
+    await backfillComposeBaselinesFromActiveDeployment(
+      baseProject({ activeDeploymentId: "dep-live" }) as any,
+      [
+        {
+          id: "svc-web",
+          kind: "compose",
+          name: "web",
+          importedSpec: null,
+        },
+      ] as any,
+    );
+
+    expect(repos.service.update).toHaveBeenCalledWith("svc-web", {
+      importedSpec: expect.objectContaining({ environment: { APP_VERSION: "1" } }),
+      driftSpec: null,
+    });
+    expect(repos.deployment.findById).toHaveBeenCalledWith("dep-with-compose");
   });
 });

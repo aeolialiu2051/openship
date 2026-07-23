@@ -658,11 +658,14 @@ export async function deployComposeServices(
         status: "failed",
         error: message,
       });
-      await repos.service.createServiceDeployment({
+      await repos.service.upsertServiceDeployment({
         deploymentId: dep.id,
         serviceId: svc.id,
+        serviceName: svc.name,
         status: "failure",
         imageRef: opts?.builtImages?.get(svc.id) ?? svc.image ?? null,
+        errorMessage: message,
+        error: message,
       });
       results.push({
         serviceId: svc.id,
@@ -709,11 +712,14 @@ export async function deployComposeServices(
         status: "failed",
         error: buildFailure,
       });
-      await repos.service.createServiceDeployment({
+      await repos.service.upsertServiceDeployment({
         deploymentId: dep.id,
         serviceId: svc.id,
+        serviceName: svc.name,
         status: "failure",
         imageRef: svc.image ?? null,
+        errorMessage: buildFailure,
+        error: buildFailure,
       });
       results.push({
         serviceId: svc.id,
@@ -743,10 +749,13 @@ export async function deployComposeServices(
         status: "failed",
         error: message,
       });
-      await repos.service.createServiceDeployment({
+      await repos.service.upsertServiceDeployment({
         deploymentId: dep.id,
         serviceId: svc.id,
+        serviceName: svc.name,
         status: "failure",
+        errorMessage: message,
+        error: message,
       });
       results.push({
         serviceId: svc.id,
@@ -920,32 +929,22 @@ export async function deployComposeServices(
         status: "running",
       };
 
-      if (opts?.strictScope) {
-        // Reused (active) deployment id → a row for this service may already
-        // exist; upsert instead of INSERT to avoid a UNIQUE violation.
-        await repos.service.upsertServiceDeployment({
-          deploymentId: dep.id,
-          serviceId: svc.id,
-          serviceName: svc.name,
-          containerId: result.containerId,
-          status: "success",
-          imageRef: image,
-          imageDigest: result.imageDigest ?? null,
-          hostPort: result.hostPort ?? null,
-          ip: result.ip ?? null,
-        });
-      } else {
-        await repos.service.createServiceDeployment({
-          deploymentId: dep.id,
-          serviceId: svc.id,
-          containerId: result.containerId,
-          status: "success",
-          imageRef: image,
-          imageDigest: result.imageDigest ?? null,
-          hostPort: result.hostPort ?? null,
-          ip: result.ip ?? null,
-        });
-      }
+      // A status row may already exist (smart-deploy fan-out, retry, or a
+      // post-start error after an earlier write). The DB invariant is one row
+      // per deployment+service, so every terminal state uses the same upsert.
+      await repos.service.upsertServiceDeployment({
+        deploymentId: dep.id,
+        serviceId: svc.id,
+        serviceName: svc.name,
+        containerId: result.containerId,
+        status: "success",
+        imageRef: image,
+        imageDigest: result.imageDigest ?? null,
+        hostPort: result.hostPort ?? null,
+        ip: result.ip ?? null,
+        errorMessage: null,
+        error: null,
+      });
 
       results.push({
         serviceId: svc.id,
@@ -1044,9 +1043,10 @@ export async function deployComposeServices(
           serviceId: svc.id,
           status: "deploying",
         });
-        await repos.service.createServiceDeployment({
+        await repos.service.upsertServiceDeployment({
           deploymentId: dep.id,
           serviceId: svc.id,
+          serviceName: svc.name,
           containerId: deployedContainerId,
           status: "indeterminate",
           imageRef: image,
@@ -1083,11 +1083,14 @@ export async function deployComposeServices(
           error: message,
         });
 
-        await repos.service.createServiceDeployment({
+        await repos.service.upsertServiceDeployment({
           deploymentId: dep.id,
           serviceId: svc.id,
+          serviceName: svc.name,
           status: "failure",
           imageRef: image,
+          errorMessage: message,
+          error: message,
         });
 
         results.push({

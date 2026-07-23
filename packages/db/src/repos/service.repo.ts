@@ -73,6 +73,126 @@ const canonicalize = (value: unknown): unknown => {
 const canonicalSpec = (s: ComposeServiceSpec): string =>
   JSON.stringify(canonicalize(toComposeSpec(s)));
 
+const COMPOSE_SPEC_FIELDS: (keyof ComposeServiceSpec)[] = [
+  "image",
+  "build",
+  "dockerfile",
+  "ports",
+  "dependsOn",
+  "environment",
+  "volumes",
+  "command",
+  "restart",
+  "advanced",
+];
+
+const composeFieldEqual = (a: unknown, b: unknown): boolean =>
+  JSON.stringify(canonicalize(a)) === JSON.stringify(canonicalize(b));
+
+type EnvironmentEntry = { present: boolean; value?: string };
+
+function environmentEntry(env: Record<string, string>, key: string): EnvironmentEntry {
+  return Object.prototype.hasOwnProperty.call(env, key)
+    ? { present: true, value: env[key] }
+    : { present: false };
+}
+
+function environmentEntryEqual(a: EnvironmentEntry, b: EnvironmentEntry): boolean {
+  return a.present === b.present && (!a.present || a.value === b.value);
+}
+
+/**
+ * Three-way merge one compose environment map at KEY granularity. A dashboard
+ * edit to one key must not block an unrelated key added by the repo.
+ */
+function mergeComposeEnvironment(
+  base: Record<string, string>,
+  ours: Record<string, string>,
+  theirs: Record<string, string>,
+): { current: Record<string, string>; baseline: Record<string, string>; conflicted: boolean } {
+  const current: Record<string, string> = {};
+  const baseline: Record<string, string> = {};
+  let conflicted = false;
+  const keys = new Set([...Object.keys(base), ...Object.keys(ours), ...Object.keys(theirs)]);
+
+  const assign = (target: Record<string, string>, key: string, entry: EnvironmentEntry) => {
+    if (entry.present) target[key] = entry.value ?? "";
+  };
+
+  for (const key of keys) {
+    const baseEntry = environmentEntry(base, key);
+    const ourEntry = environmentEntry(ours, key);
+    const theirEntry = environmentEntry(theirs, key);
+    const userChanged = !environmentEntryEqual(ourEntry, baseEntry);
+    const upstreamChanged = !environmentEntryEqual(theirEntry, baseEntry);
+
+    if (!upstreamChanged) {
+      assign(current, key, ourEntry);
+      assign(baseline, key, baseEntry);
+    } else if (!userChanged || environmentEntryEqual(ourEntry, theirEntry)) {
+      assign(current, key, theirEntry);
+      assign(baseline, key, theirEntry);
+    } else {
+      assign(current, key, ourEntry);
+      assign(baseline, key, baseEntry);
+      conflicted = true;
+    }
+  }
+
+  return { current, baseline, conflicted };
+}
+
+/**
+ * Three-way merge compose-owned fields. Independent upstream fields apply even
+ * when another field has a real conflict; environment receives per-key merge.
+ */
+function mergeComposeSpecs(
+  baseInput: ComposeServiceSpec,
+  oursInput: ComposeServiceSpec,
+  theirsInput: ComposeServiceSpec,
+): { current: ComposeServiceSpec; baseline: ComposeServiceSpec; conflicted: boolean } {
+  const base = toComposeSpec(baseInput);
+  const ours = toComposeSpec(oursInput);
+  const theirs = toComposeSpec(theirsInput);
+  const current = {} as ComposeServiceSpec;
+  const baseline = {} as ComposeServiceSpec;
+  let conflicted = false;
+
+  for (const field of COMPOSE_SPEC_FIELDS) {
+    if (field === "environment") {
+      const merged = mergeComposeEnvironment(
+        base.environment ?? {},
+        ours.environment ?? {},
+        theirs.environment ?? {},
+      );
+      current.environment = merged.current;
+      baseline.environment = merged.baseline;
+      conflicted ||= merged.conflicted;
+      continue;
+    }
+
+    const baseValue = base[field];
+    const ourValue = ours[field];
+    const theirValue = theirs[field];
+    const userChanged = !composeFieldEqual(ourValue, baseValue);
+    const upstreamChanged = !composeFieldEqual(theirValue, baseValue);
+
+    if (!upstreamChanged) {
+      (current as Record<string, unknown>)[field] = ourValue;
+      (baseline as Record<string, unknown>)[field] = baseValue;
+    } else if (!userChanged || composeFieldEqual(ourValue, theirValue)) {
+      (current as Record<string, unknown>)[field] = theirValue;
+      (baseline as Record<string, unknown>)[field] = theirValue;
+    } else {
+      (current as Record<string, unknown>)[field] = ourValue;
+      (baseline as Record<string, unknown>)[field] = baseValue;
+      conflicted = true;
+    }
+  }
+
+  return { current, baseline, conflicted };
+}
+
 /** Compose-field equality (ignores routing + ordering-insensitive env). */
 export const composeSpecsEqual = (a: ComposeServiceSpec, b: ComposeServiceSpec) =>
   canonicalSpec(a) === canonicalSpec(b);
@@ -424,6 +544,7 @@ export function createServiceRepo(db: Database) {
       for (let i = 0; i < composeParsed.length; i++) {
         const p = composeParsed[i];
         const ex = existingByName.get(p.name);
+        const composeSpec = toComposeSpec(p);
 
         const routing = normalizeRoutingFields({
           exposed: p.exposed ?? (ex?.exposed || false),
@@ -438,13 +559,13 @@ export function createServiceRepo(db: Database) {
           // Update existing - preserve the operator's `enabled` choice AND their
           // `sortOrder` (dashboard reordering); the compose YAML carries neither.
           await this.update(ex.id, {
-            ...toComposeSpec(p),
+            ...composeSpec,
             ...routing,
             // enabled + sortOrder left as-is (already on ex)
           });
           results.push({
             ...ex,
-            ...toComposeSpec(p),
+            ...composeSpec,
             ...routing,
             updatedAt: new Date(),
           } as Service);
@@ -454,8 +575,13 @@ export function createServiceRepo(db: Database) {
             projectId,
             name: p.name,
             kind: "compose",
-            ...toComposeSpec(p),
+            ...composeSpec,
             ...routing,
+            // Capture the repo-imported spec at creation time. Without this
+            // baseline, the first redeploy after a compose change cannot tell
+            // an upstream edit from an operator edit and keeps the old values.
+            importedSpec: composeSpec,
+            driftSpec: null,
             enabled: true,
             sortOrder: i,
           });
@@ -547,17 +673,18 @@ export function createServiceRepo(db: Database) {
           continue;
         }
 
-        // Repo changed, user has NOT edited → auto-apply theirs, advance baseline.
-        if (composeSpecsEqual(ours, base)) {
-          const routing = normalizeRoutingFields({
-            exposed: ex.exposed,
-            exposedPort: ex.exposedPort,
-            domain: ex.domain,
-            customDomain: ex.customDomain,
-            domainType: ex.domainType,
-          });
+        const merged = mergeComposeSpecs(base, ours, theirs);
+        const routing = normalizeRoutingFields({
+          exposed: ex.exposed,
+          exposedPort: ex.exposedPort,
+          domain: ex.domain,
+          customDomain: ex.customDomain,
+          domainType: ex.domainType,
+        });
+
+        if (!merged.conflicted) {
           await this.update(ex.id, {
-            ...theirs,
+            ...merged.current,
             ...routing,
             importedSpec: theirs,
             driftSpec: null,
@@ -565,11 +692,15 @@ export function createServiceRepo(db: Database) {
           continue;
         }
 
-        // Repo changed AND user edited → protect ours, flag drift for approval.
-        // Only write when the pending drift actually changes (avoid churn).
-        if (!ex.driftSpec || !composeSpecsEqual(ex.driftSpec, theirs)) {
-          await this.update(ex.id, { driftSpec: theirs });
-        }
+        // Apply every non-conflicting upstream field/key now, preserve only
+        // genuine same-field conflicts, and keep the full upstream spec for the
+        // operator's eventual "accept upstream" action.
+        await this.update(ex.id, {
+          ...merged.current,
+          ...routing,
+          importedSpec: merged.baseline,
+          driftSpec: theirs,
+        });
         driftedNames.push(p.name);
       }
 
@@ -636,6 +767,11 @@ export function createServiceRepo(db: Database) {
             ip: data.ip ?? null,
             reason: data.reason ?? null,
             reasonSkipped: data.reasonSkipped ?? null,
+            errorMessage: data.errorMessage ?? null,
+            error: data.error ?? null,
+            startedAt: data.startedAt ?? undefined,
+            finishedAt: data.finishedAt ?? undefined,
+            durationMs: data.durationMs ?? undefined,
             updatedAt: new Date(),
           },
         });
