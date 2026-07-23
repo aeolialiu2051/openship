@@ -28,6 +28,7 @@ import type {
   TUpdateServiceBody,
   TSetServiceEnvVarsBody,
 } from "./service.schema";
+import { findContainerByTrackedId } from "./container-id";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -579,10 +580,10 @@ export async function getActiveServiceContainers(ctx: RequestContext, projectId:
       (async () => {
         if (runtime.supports("deploymentContainerQuery") && runtime.listDeploymentContainers) {
           const containers = await runtime.listDeploymentContainers(dep!.id);
-          const byId = new Map(containers.map((c) => [c.containerId, c]));
           return rows.map((row) => {
-            if (!row.containerId) return { ...row, status: serviceStatusToContainerState(row.status) };
-            const c = byId.get(row.containerId);
+            if (!row.containerId)
+              return { ...row, status: serviceStatusToContainerState(row.status) };
+            const c = findContainerByTrackedId(containers, row.containerId);
             // A tracked container missing from `docker ps` is gone → stopped.
             return { ...row, status: c ? containerStatusToServiceState(c.status) : "stopped" };
           });
@@ -860,4 +861,3 @@ export async function streamServiceRuntimeLogs(
   };
   return { cleanup, serverId };
 }
-

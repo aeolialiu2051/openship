@@ -1671,7 +1671,7 @@ export class DockerRuntime implements RuntimeAdapter {
   ): Promise<Array<{ containerId: string; status: ContainerStatus; serviceName?: string }>> {
     if (this.usesRemoteDockerCli()) {
       const output = await this.remoteDockerExec(
-        `ps -a --filter ${sq(`label=openship.deployment=${deploymentId}`)}` +
+        `ps -a --no-trunc --filter ${sq(`label=openship.deployment=${deploymentId}`)}` +
           ` --format ${sq("{{json .}}")}`,
       );
       const stateMap: Record<string, ContainerStatus> = {

@@ -4,7 +4,7 @@ import { DockerRuntime } from "../src/runtime/docker";
 describe("DockerRuntime container status normalization", () => {
   it("correctly identifies running status when State.Running is true regardless of State.Status casing", async () => {
     const runtime = await DockerRuntime.create();
-    
+
     // Mock container inspect response
     const mockInspectInfo: any = {
       Id: "container-12345",
@@ -75,5 +75,26 @@ describe("DockerRuntime container status normalization", () => {
     expect(results[0]).toEqual({ containerId: "c1", status: "running", serviceName: "web" });
     expect(results[1]).toEqual({ containerId: "c2", status: "running", serviceName: "db" });
     expect(results[2]).toEqual({ containerId: "c3", status: "stopped", serviceName: "cache" });
+  });
+
+  it("requests untruncated IDs when listing containers over the remote Docker CLI", async () => {
+    const runtime = await DockerRuntime.create();
+    const fullId = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+    const commands: string[] = [];
+
+    (runtime as any).usesRemoteDockerCli = () => true;
+    (runtime as any).remoteDockerExec = async (command: string) => {
+      commands.push(command);
+      if (command.startsWith("ps ")) {
+        return JSON.stringify({ ID: fullId, State: "running" });
+      }
+      if (command.startsWith("inspect ")) return "web";
+      throw new Error(`Unexpected Docker command: ${command}`);
+    };
+
+    const results = await runtime.listDeploymentContainers("dep1");
+
+    expect(commands[0]).toContain("ps -a --no-trunc");
+    expect(results).toEqual([{ containerId: fullId, status: "running", serviceName: "web" }]);
   });
 });
