@@ -610,7 +610,7 @@ export function useDeploymentConfig() {
         owner,
         localPath,
         uploadSessionId,
-        projectName: project?.name || repoName,
+        projectName: project?.name || prev.projectName || repoName,
         projectType: preparedContext.projectType,
         serviceDeploymentMode: preparedContext.serviceDeploymentMode,
         composeDefaults: preparedContext.composeDefaults,
@@ -700,7 +700,11 @@ export function useDeploymentConfig() {
         const sourceOwner = project?.gitOwner || owner;
         const sourceRepo = project?.gitRepo || repo;
         const projectBranch = typeof project?.gitBranch === "string" ? project.gitBranch : "";
-        const requestedBranch = (projectBranch || context?.branch || "").trim() || undefined;
+        // An explicit branch selection must win over the project's persisted
+        // branch. This path is also used when the deploy wizard rescans after a
+        // branch switch; preferring project.gitBranch here would silently scan
+        // the old branch while the selector displayed the new one.
+        const requestedBranch = (context?.branch || projectBranch || "").trim() || undefined;
 
         const response = await deployApi.prepare({
           owner: sourceOwner,

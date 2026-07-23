@@ -145,8 +145,12 @@ const ComposeChecklist: React.FC = () => {
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-const Sidebar: React.FC = () => {
-  const { config, state, updateConfig, startDeployment } = useDeployment();
+interface SidebarProps {
+  onBranchScanningChange?: (branch: string | null) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
+  const { config, state, updateConfig, initializeFromRepo, startDeployment } = useDeployment();
   const { t } = useI18n();
   const { requireCloud } = useCloud();
   const { baseDomain, selfHosted, deployMode } = usePlatform();
@@ -183,6 +187,58 @@ const Sidebar: React.FC = () => {
   // connect-account flow, local builds don't need a remote credential.
   const cloneGate = useCloneStrategyGate();
   const openGithubConnect = useServerGitHubConnectModal();
+
+  // Branch-derived settings (framework, project type, compose services,
+  // commands, root env, routing, monorepo apps) must be rescanned together.
+  // Keep the committed config untouched until prepare succeeds so a failed
+  // scan cannot leave the selected branch out of sync with the visible config.
+  const [pendingBranch, setPendingBranch] = React.useState<string | null>(null);
+  const handleBranchChange = useCallback(async (nextBranch: string) => {
+    if (
+      pendingBranch ||
+      nextBranch === config.branch ||
+      !config.owner ||
+      config.owner === "local" ||
+      !config.repo
+    ) {
+      return;
+    }
+
+    setPendingBranch(nextBranch);
+    onBranchScanningChange?.(nextBranch);
+    try {
+      const result = await initializeFromRepo(config.owner, config.repo, undefined, {
+        branch: nextBranch,
+        projectId: config.projectId,
+      });
+      if (!result.success) {
+        showToast(
+          result.error || t.deploy.page.errorLoadRepoFailed,
+          "error",
+          t.deploy.page.errorLoadRepoTitle,
+        );
+      }
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, t.deploy.page.errorLoadRepoFailed),
+        "error",
+        t.deploy.page.errorLoadRepoTitle,
+      );
+    } finally {
+      setPendingBranch(null);
+      onBranchScanningChange?.(null);
+    }
+  }, [
+    config.branch,
+    config.owner,
+    config.projectId,
+    config.repo,
+    initializeFromRepo,
+    onBranchScanningChange,
+    pendingBranch,
+    showToast,
+    t,
+  ]);
 
   // Lazy branch list. In config-edit mode the wizard hydrates from saved data
   // with only the current branch seeded (no repo round-trip on load). The full
@@ -478,13 +534,16 @@ const Sidebar: React.FC = () => {
           {config.branches.length > 0 && (
             <div className="mt-3">
               <CustomSelect
-                value={config.branch}
-                onChange={(val) => updateConfig({ branch: val })}
+                value={pendingBranch ?? config.branch}
+                onChange={handleBranchChange}
                 onOpen={loadBranches}
+                disabled={pendingBranch !== null}
                 options={config.branches.map(branch => ({
                   value: branch,
                   label: branch,
-                  icon: <GitBranch className="w-3.5 h-3.5" />
+                  icon: pendingBranch === branch
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <GitBranch className="w-3.5 h-3.5" />
                 }))}
                 footerAction={config.projectId
                   ? {
@@ -543,7 +602,7 @@ const Sidebar: React.FC = () => {
       {isConfigMode ? (
         <button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || pendingBranch !== null}
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? (
@@ -561,7 +620,7 @@ const Sidebar: React.FC = () => {
       ) : (
         <button
           onClick={handleDeploy}
-          disabled={state.isDeploying}
+          disabled={state.isDeploying || pendingBranch !== null}
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {state.isDeploying ? (

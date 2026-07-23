@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { useI18n } from "@/components/i18n-provider";
 
-type LoadingSource =
+export type LoadingSource =
   | { kind: "repo"; owner: string; repo: string; branch?: string }
   | { kind: "local"; path: string }
   | { kind: "settings"; label?: string }
@@ -53,7 +53,7 @@ function sourceLabel(source: LoadingSource): string | null {
   return source.branch ? `${source.owner}/${source.repo} · ${source.branch}` : `${source.owner}/${source.repo}`;
 }
 
-const StatusHeader = ({ source }: { source: LoadingSource }) => {
+export const DeploymentAnalysisStatus = ({ source }: { source: LoadingSource }) => {
   const { t } = useI18n();
   const label = sourceLabel(source);
   const s = t.deploy.skeleton;
@@ -73,7 +73,11 @@ const StatusHeader = ({ source }: { source: LoadingSource }) => {
   }, [phases.length]);
 
   return (
-    <div className="bg-card rounded-2xl border border-border/50 px-5 py-4 mb-6 overflow-hidden">
+    <div
+      role="status"
+      aria-live="polite"
+      className="bg-card rounded-2xl border border-border/50 px-5 py-4 mb-6 overflow-hidden"
+    >
       <div className="flex items-center gap-3">
         <RingSpinner />
         <div className="min-w-0 flex-1">
@@ -115,7 +119,7 @@ const StatusHeader = ({ source }: { source: LoadingSource }) => {
 
 const SkeletonLoader = ({ source = null }: SkeletonLoaderProps) => (
   <PageContainer>
-      <StatusHeader source={source} />
+      <DeploymentAnalysisStatus source={source} />
       <div className="grid lg:grid-cols-[1fr_340px] gap-6">
         {/* Main column */}
         <div className="space-y-5">

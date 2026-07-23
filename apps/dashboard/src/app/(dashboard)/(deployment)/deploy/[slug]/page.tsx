@@ -19,7 +19,7 @@ import { decodeSlug } from "@/utils/repoSlug";
 import { useDeployment } from "@/context/DeploymentContext";
 import { usesServiceDeployment } from "@/context/deployment/types";
 import { canChooseDeployTarget, usePlatform } from "@/context/PlatformContext";
-import SkeletonLoader from "./components/SkeletonLoader";
+import SkeletonLoader, { DeploymentAnalysisStatus } from "./components/SkeletonLoader";
 import ErrorState from "@/components/shared/ErrorState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { useToast } from "@/components/toast";
@@ -101,6 +101,7 @@ const DeployRepository: React.FC = () => {
     }, [slug, branch, isConfigEdit, t]);
 
     const [loading, setLoading] = useState<boolean>(true);
+    const [scanningBranch, setScanningBranch] = useState<string | null>(null);
     const [error, setError] = useState<DeployError | null>(null);
     const hasInitialized = useRef<boolean>(false);
     const { toast } = useToast();
@@ -338,40 +339,54 @@ const DeployRepository: React.FC = () => {
 
                 {/* Step 2: Project configuration */}
                 {step === "config" && (
-                    <div className="grid lg:grid-cols-[1fr_340px] gap-6">
-                        <div className="space-y-5">
-                            {/* Target summary bar - click to go back to step 1. */}
-                            {canPickTarget && (
-                                <DeployTargetSummary
-                                    deployTarget={config.deployTarget}
-                                    buildStrategy={config.buildStrategy}
-                                    showBuildStrategy={isSingleAppFlow}
-                                    cloudResourceTier={config.cloudResourceTier}
-                                    hasServer={config.options.hasServer}
-                                    serverName={(() => {
-                                        // Resolve the selected server by id; if id isn't set yet but
-                                        // there's exactly one server, use it (covers the paint before
-                                        // the single-server auto-select effect wires serverId).
-                                        const s = config.serverId
-                                            ? targets.servers.find((x) => x.id === config.serverId)
-                                            : targets.servers.length === 1
-                                                ? targets.servers[0]
-                                                : undefined;
-                                        return s?.name ?? s?.sshHost ?? null;
-                                    })()}
-                                    onEdit={() => {
-                                        // User explicitly came back to change something - don't
-                                        // auto-skip them past the picker again.
-                                        autoSkipTargetRef.current = false;
-                                        setStep("target");
+                    <>
+                        {scanningBranch && config.owner && config.repo && (
+                            <div className="sticky top-4 z-50">
+                                <DeploymentAnalysisStatus
+                                    source={{
+                                        kind: "repo",
+                                        owner: config.owner,
+                                        repo: config.repo,
+                                        branch: scanningBranch,
                                     }}
                                 />
-                            )}
+                            </div>
+                        )}
+                        <div className="grid lg:grid-cols-[1fr_340px] gap-6">
+                            <div className="space-y-5">
+                                {/* Target summary bar - click to go back to step 1. */}
+                                {canPickTarget && (
+                                    <DeployTargetSummary
+                                        deployTarget={config.deployTarget}
+                                        buildStrategy={config.buildStrategy}
+                                        showBuildStrategy={isSingleAppFlow}
+                                        cloudResourceTier={config.cloudResourceTier}
+                                        hasServer={config.options.hasServer}
+                                        serverName={(() => {
+                                            // Resolve the selected server by id; if id isn't set yet but
+                                            // there's exactly one server, use it (covers the paint before
+                                            // the single-server auto-select effect wires serverId).
+                                            const s = config.serverId
+                                                ? targets.servers.find((x) => x.id === config.serverId)
+                                                : targets.servers.length === 1
+                                                    ? targets.servers[0]
+                                                    : undefined;
+                                            return s?.name ?? s?.sshHost ?? null;
+                                        })()}
+                                        onEdit={() => {
+                                            // User explicitly came back to change something - don't
+                                            // auto-skip them past the picker again.
+                                            autoSkipTargetRef.current = false;
+                                            setStep("target");
+                                        }}
+                                    />
+                                )}
 
-                            {deploymentSections}
+                                {deploymentSections}
+                            </div>
+                            <Sidebar onBranchScanningChange={setScanningBranch} />
                         </div>
-                        <Sidebar />
-                    </div>
+                    </>
                 )}
         </PageContainer>
     );

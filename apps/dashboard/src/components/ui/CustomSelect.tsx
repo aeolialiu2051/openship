@@ -37,6 +37,7 @@ interface CustomSelectProps<T extends string> {
   footerAction?: CustomSelectFooterAction;
   /** Fired once each time the menu opens — use to lazily load options. */
   onOpen?: () => void;
+  disabled?: boolean;
 }
 
 export function CustomSelect<T extends string>({
@@ -47,6 +48,7 @@ export function CustomSelect<T extends string>({
   className = "",
   footerAction,
   onOpen,
+  disabled = false,
 }: CustomSelectProps<T>) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -221,9 +223,11 @@ export function CustomSelect<T extends string>({
       <button
         ref={triggerRef}
         onClick={() => {
+          if (disabled) return;
           if (!isOpen) onOpen?.();
           setIsOpen((prev) => !prev);
         }}
+        disabled={disabled}
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         className={`
@@ -234,6 +238,7 @@ export function CustomSelect<T extends string>({
             ? 'bg-muted/80 border-border' 
             : 'bg-muted/40 hover:bg-muted/60 hover:border-border'
           }
+          disabled:cursor-wait disabled:opacity-70
         `}
         type="button"
       >
