@@ -352,6 +352,12 @@ async function finalizeComposeDeploy(opts: {
 async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSessionId: string) {
   const plat = platform();
   let { runtime, routing, ssl, system } = plat;
+  // resolveDeploymentPlatform() creates a fresh platform for local/server
+  // targets. That platform owns transport resources (most importantly the
+  // loopback Docker SSH bridge) and must be released when this deployment
+  // finishes. The process-global platform is borrowed and must never be
+  // disposed by an individual deployment.
+  let ownedRuntime: typeof runtime | null = null;
 
   const snapshot = dep.meta as DeploymentConfigSnapshot | null;
   if (!snapshot) {
@@ -410,6 +416,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     ssl = resolved.platform.ssl;
     system = resolved.platform.system;
     ctx.runtime = runtime;
+    if (resolved.platform !== plat) ownedRuntime = runtime;
 
     const usesManagedRouting = resolved.usesManagedRouting;
     const targetExecutor: CommandExecutor | null = resolved.platform.executor;
@@ -815,6 +822,13 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     const message = err instanceof Error ? err.message : "Unknown error";
     logger.log(`Error: ${message}`, "error");
     await onFailure(ctx, message);
+  } finally {
+    // Dynamic runtimes are leases, not process singletons. Closing them here
+    // prevents one loopback listener / Docker keep-alive / SSH relay from
+    // leaking on every deploy and eventually exhausting sshd MaxSessions.
+    await ownedRuntime?.dispose?.().catch((err) => {
+      console.warn(`[build] failed to dispose deployment runtime ${dep.id}:`, err);
+    });
   }
 }
 

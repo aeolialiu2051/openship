@@ -558,10 +558,18 @@ export interface CommandExecutor {
   /**
    * Open a Unix domain socket tunnel to the target machine.
    *
-   * SshExecutor: opens an SSH streamlocal channel on the persistent connection.
-   * Not available on LocalExecutor (local Docker uses socket transport directly).
+   * Legacy raw Unix-socket forwarding hook. Docker API transport uses
+   * forwardDockerSocket() instead so the relay can have an isolated lifetime.
    */
   forwardUnixSocket?(socketPath: string): Promise<Duplex>;
+
+  /**
+   * Open Docker Engine's HTTP API through the remote Docker CLI on a dedicated
+   * SSH connection. This mirrors Docker's official SSH transport (`docker
+   * system dial-stdio`) without consuming a session on the pooled management
+   * connection used by builds, SFTP and routing.
+   */
+  forwardDockerSocket?(socketPath: string): Promise<Duplex>;
 
   /**
    * Open a TCP tunnel to a port on the remote machine (SSH direct-tcpip).

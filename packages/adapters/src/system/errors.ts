@@ -15,6 +15,9 @@ const RETRYABLE_CONNECTION_ERROR_PATTERNS = [
   "Handshake failed",
   "keepalive timeout",
   "SSH connection closed before ready",
+  // Bun/Node HTTP clients can surface a stale SSH-bridge keep-alive socket
+  // with this message instead of ECONNRESET.
+  "socket connection was closed unexpectedly",
   // ssh2 emits "Channel open failure: open failed" / "Channel open failure: …"
   // when the SSH SERVER refuses a new channel - typically because the cached
   // connection has gone half-dead (peer-side LOGOUT, network blip,

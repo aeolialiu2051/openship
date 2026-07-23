@@ -1,9 +1,10 @@
 /**
- * Docker runtime - manages containers via the Docker Engine API (dockerode).
+ * Docker runtime - manages local/TLS daemons via the Docker Engine API and
+ * SSH-hosted daemons through bounded native Docker CLI commands.
  *
  * Supports three connection modes:
  *   - Local socket (default, zero config)
- *   - Remote via SSH tunnel (ssh2 streamlocal forwarding to Docker socket)
+ *   - Remote via SSH + Docker CLI (same selected daemon socket as builds)
  *   - Remote via TCP + mutual TLS
  *
  * This is ONLY the runtime. Routing (Nginx) and SSL (certbot) are separate
@@ -38,6 +39,7 @@ import type {
   ShellOptions,
   ShellSession,
   ProvisionLock,
+  CommandExecutor,
 } from "../types";
 import type { PortProbeExecutor } from "../system/port-listen";
 import { PassThrough, Writable } from "node:stream";
@@ -65,7 +67,10 @@ function clampShellWindow(
   return Math.floor(n);
 }
 import type { Feature, SystemLog } from "../system/types";
-import { isRuntimeNotFoundError } from "../system/errors";
+import {
+  isRetryableRemoteConnectionError,
+  isRuntimeNotFoundError,
+} from "../system/errors";
 
 import type {
   RuntimeAdapter,
@@ -96,6 +101,7 @@ import {
   type DockerTransport,
   resolveDockerTransport,
 } from "./docker-transport";
+import { resolveRemoteDockerSocketPath } from "./docker-ssh-agent";
 
 // ─── Connection config ───────────────────────────────────────────────────────
 export type { DockerConnectionOptions } from "./docker-transport";
@@ -114,6 +120,9 @@ const RESTART_POLICIES: Record<string, { Name: string; MaximumRetryCount: number
 };
 
 const DOCKER_BUILD_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+const SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS = 20_000;
+const SSH_DOCKER_API_DRAIN_TIMEOUT_MS = 5_000;
+const SSH_DOCKER_RECONCILE_TIMEOUT_MS = 10_000;
 
 function resolveRestartPolicy(policy?: string) {
   return RESTART_POLICIES[policy ?? "always"] ?? RESTART_POLICIES.always;
@@ -420,6 +429,7 @@ export class DockerRuntime implements RuntimeAdapter {
   readonly transport: DockerTransport;
   private readonly systemManager: DockerSystemManager | null;
   private readonly provisionLock?: ProvisionLock;
+  private disposed = false;
 
   private constructor(
     opts?: DockerConnectionOptions,
@@ -452,8 +462,53 @@ export class DockerRuntime implements RuntimeAdapter {
   }
 
   async dispose(): Promise<void> {
+    if (this.disposed) return;
+    this.disposed = true;
+    // Destroy dockerode's reusable HTTP sockets before closing the loopback
+    // bridge. Otherwise an idle agent socket can keep a Docker SSH relay alive
+    // after the deployment that created this runtime has finished.
+    const agent = (this._docker?.modem as unknown as {
+      agent?: { destroy?: () => void };
+    } | undefined)?.agent;
+    agent?.destroy?.();
     // Tear down the SSH transport's loopback bridge (no-op for socket/TCP).
     await this.transport.close();
+  }
+
+  /**
+   * Execute a bounded Docker CLI operation on the remote daemon selected for
+   * this SSH runtime. Remote deployment mutations intentionally use this path:
+   * the same SSH command channel already completed the image build, while the
+   * dockerode HTTP bridge is not reliable on every VPS/OpenSSH/Docker version.
+   */
+  private async remoteDockerExec(
+    args: string,
+    opts?: { timeout?: number },
+  ): Promise<string> {
+    const connection = this.connectionOptions;
+    const executor = connection?.executor;
+    if (this.transport.kind !== "ssh" || !connection || !executor) {
+      throw new Error("Remote Docker CLI is only available for SSH runtimes.");
+    }
+    const socketPath = await resolveRemoteDockerSocketPath(connection);
+    return executor.exec(
+      `docker --host ${sq(`unix://${socketPath}`)} ${args}`,
+      { timeout: opts?.timeout ?? 30_000 },
+    );
+  }
+
+  private usesRemoteDockerCli(): boolean {
+    return this.transport.kind === "ssh" && !!this.connectionOptions?.executor;
+  }
+
+  private async inspectRemoteContainer(
+    containerId: string,
+  ): Promise<Dockerode.ContainerInspectInfo> {
+    const output = await this.remoteDockerExec(`inspect ${sq(containerId)}`);
+    const parsed = JSON.parse(output) as Dockerode.ContainerInspectInfo[];
+    const data = parsed[0];
+    if (!data) throw new Error(`Docker inspect returned no data for ${containerId}`);
+    return data;
   }
 
   // ─── Health check ──────────────────────────────────────────────────
@@ -462,6 +517,10 @@ export class DockerRuntime implements RuntimeAdapter {
   async ping(): Promise<boolean> {
     try {
       await this.ensureDockerFeature();
+      if (this.usesRemoteDockerCli()) {
+        await this.remoteDockerExec(`info --format ${sq("{{json .ServerVersion}}")}`);
+        return true;
+      }
       await this.transport.preflight();
       await this.docker.ping();
       return true;
@@ -482,6 +541,9 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Get Docker daemon info (version, platform, etc.) */
   async info(): Promise<Record<string, unknown>> {
+    if (this.usesRemoteDockerCli()) {
+      return JSON.parse(await this.remoteDockerExec(`info --format ${sq("{{json .}}")}`));
+    }
     return this.docker.info();
   }
 
@@ -501,6 +563,34 @@ export class DockerRuntime implements RuntimeAdapter {
     if (config.deploymentId) l["openship.deployment"] = config.deploymentId;
     if (config.sessionId) l["openship.build"] = config.sessionId;
     return l;
+  }
+
+  /**
+   * Verify a completed build without letting an SSH-tunneled Docker API
+   * inspect hang the deployment indefinitely. Remote native builds already
+   * target the bridge's exact socket, so inspecting through the same CLI/socket
+   * is both authoritative and bounded. Local/TCP builds keep using dockerode.
+   */
+  private async assertBuiltImageExists(
+    tag: string,
+    sshExecutor?: CommandExecutor,
+  ): Promise<void> {
+    try {
+      if (sshExecutor && this.connectionOptions) {
+        const dockerSocketPath = await resolveRemoteDockerSocketPath(this.connectionOptions);
+        const dockerHost = `unix://${dockerSocketPath}`;
+        await sshExecutor.exec(
+          `docker --host ${sq(dockerHost)} image inspect --format ${sq("{{.Id}}")}` +
+            ` ${sq(tag)}`,
+          { timeout: 30_000 },
+        );
+        return;
+      }
+
+      await this.docker.getImage(tag).inspect();
+    } catch (cause) {
+      throw new Error(`Docker build finished but the image ${tag} was not created`, { cause });
+    }
   }
 
   // ── Build lifecycle ────────────────────────────────────────────────────
@@ -725,7 +815,17 @@ export class DockerRuntime implements RuntimeAdapter {
     log: BuildLogger,
   ): Promise<void> {
     const executor = this.connectionOptions?.executor;
-    if (!executor) throw new Error("SSH build path requires an executor on connectionOptions");
+    if (!executor || !this.connectionOptions) {
+      throw new Error("SSH build path requires an executor on connectionOptions");
+    }
+
+    // Use the exact socket selected by the dockerode SSH bridge. A bare
+    // `docker build` may honor DOCKER_HOST or a rootless/custom Docker context
+    // from the SSH user's environment while the API bridge uses another
+    // socket. The build would then succeed, but API inspect (and deployment)
+    // would report that the image does not exist.
+    const dockerSocketPath = await resolveRemoteDockerSocketPath(this.connectionOptions);
+    const dockerHost = `unix://${dockerSocketPath}`;
 
     // Compose the docker build command. Quoting matters - buildargs and labels
     // can contain `=` and spaces.
@@ -753,7 +853,7 @@ export class DockerRuntime implements RuntimeAdapter {
     // as a bare "exited with code 1". Plain progress streams every line through.
     const buildCmd =
       `cd ${sq(remoteContextDir)} && ` +
-      `docker build --progress=plain -t ${sq(tag)}${dockerfileFlag} ` +
+      `docker --host ${sq(dockerHost)} build --progress=plain -t ${sq(tag)}${dockerfileFlag} ` +
       `${labelArgs} ${buildArgs} --force-rm .`;
 
     log.log(`Running on remote: ${buildCmd}`);
@@ -767,6 +867,13 @@ export class DockerRuntime implements RuntimeAdapter {
 
     log.log("─── end docker build output ───");
     if (code !== 0) throw new Error(`docker build exited with code ${code}`);
+    // The Docker API bridge may still hold an idle keep-alive connection that
+    // predates this long-running SSH command. Some SSH servers silently reap
+    // that streamlocal channel without closing the local TCP side, so the next
+    // dockerode request (usually listNetworks) hangs forever on a stale socket.
+    // Drop only active bridge connections; the listener remains available and
+    // dockerode opens a fresh SSH channel for the next API request.
+    await this.transport.resetConnections();
     this.emitDockerStep(log, "install", "completed", "Image build finished");
   }
 
@@ -1092,11 +1199,8 @@ export class DockerRuntime implements RuntimeAdapter {
           sshExecutor.exec(`rm -rf ${sq(remoteContextDir)}`).catch(() => { /* best effort */ });
         }
 
-        try {
-          await this.docker.getImage(tag).inspect();
-        } catch (cause) {
-          throw new Error(`Docker build finished but the image ${tag} was not created`, { cause });
-        }
+        log.log(`Verifying image ${tag}...`);
+        await this.assertBuiltImageExists(tag, sshExecutor);
         log.log(`Image ${tag} is ready.\n`);
         log.step("build", "completed", `Finalizing image ${tag}`);
         return { sessionId: config.sessionId, status: "deploying", imageRef: tag, durationMs: Date.now() - startTime };
@@ -1165,11 +1269,8 @@ export class DockerRuntime implements RuntimeAdapter {
         await this.buildViaDockerode(config, buildContext, tag, log);
       }
 
-      try {
-        await this.docker.getImage(tag).inspect();
-      } catch (cause) {
-        throw new Error(`Docker build finished but the image ${tag} was not created`, { cause });
-      }
+      log.log(`Verifying image ${tag}...`);
+      await this.assertBuiltImageExists(tag, sshExecutor ?? undefined);
 
       log.log(`Image ${tag} is ready.\n`);
       log.log(`[build] ✓ Image ${tag} ready`);
@@ -1346,11 +1447,11 @@ export class DockerRuntime implements RuntimeAdapter {
             await this.streamDockerodeBuild(stream, spec.logger);
           }
 
-          try {
-            await this.docker.getImage(tag).inspect();
-          } catch (cause) {
-            throw new Error(`Docker build finished but the image ${tag} was not created`, { cause });
-          }
+          spec.logger.log(`Verifying image ${tag}...`);
+          await this.assertBuiltImageExists(
+            tag,
+            isSsh ? this.connectionOptions?.executor : undefined,
+          );
 
           spec.logger.log(`Image ${tag} is ready.\n`);
           const result: BuildResult = {
@@ -1471,21 +1572,41 @@ export class DockerRuntime implements RuntimeAdapter {
   }
 
   async stop(containerId: string): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      await this.remoteDockerExec(`stop ${sq(containerId)}`);
+      return;
+    }
     const container = this.docker.getContainer(containerId);
     await container.stop();
   }
 
   async start(containerId: string): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      await this.remoteDockerExec(`start ${sq(containerId)}`);
+      return;
+    }
     const container = this.docker.getContainer(containerId);
     await container.start();
   }
 
   async restart(containerId: string): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      await this.remoteDockerExec(`restart ${sq(containerId)}`);
+      return;
+    }
     const container = this.docker.getContainer(containerId);
     await container.restart();
   }
 
   async removeImage(imageRef: string): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      try {
+        await this.remoteDockerExec(`image rm -f ${sq(imageRef)}`);
+      } catch (error) {
+        if (!/no such image|not found/i.test(safeErrorMessage(error))) throw error;
+      }
+      return;
+    }
     const image = this.docker.getImage(imageRef);
     try {
       await image.remove({ force: true });
@@ -1498,6 +1619,14 @@ export class DockerRuntime implements RuntimeAdapter {
   }
 
   async destroy(containerId: string): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      try {
+        await this.remoteDockerExec(`rm -f ${sq(containerId)}`);
+      } catch (error) {
+        if (!/no such container|not found/i.test(safeErrorMessage(error))) throw error;
+      }
+      return;
+    }
     const container = this.docker.getContainer(containerId);
     try {
       await container.remove({ force: true });
@@ -1517,6 +1646,12 @@ export class DockerRuntime implements RuntimeAdapter {
    * (see `labels()`), so this is authoritative for THIS docker host.
    */
   async listProjectContainerIds(projectId: string): Promise<string[]> {
+    if (this.usesRemoteDockerCli()) {
+      const output = await this.remoteDockerExec(
+        `ps -aq --filter ${sq(`label=openship.project=${projectId}`)}`,
+      );
+      return output.split(/\s+/).filter(Boolean);
+    }
     const containers = await this.docker.listContainers({
       all: true,
       filters: { label: [`openship.project=${projectId}`] },
@@ -1534,6 +1669,36 @@ export class DockerRuntime implements RuntimeAdapter {
   async listDeploymentContainers(
     deploymentId: string,
   ): Promise<Array<{ containerId: string; status: ContainerStatus; serviceName?: string }>> {
+    if (this.usesRemoteDockerCli()) {
+      const output = await this.remoteDockerExec(
+        `ps -a --filter ${sq(`label=openship.deployment=${deploymentId}`)}` +
+          ` --format ${sq("{{json .}}")}`,
+      );
+      const stateMap: Record<string, ContainerStatus> = {
+        running: "running",
+        restarting: "running",
+        exited: "stopped",
+        paused: "stopped",
+        created: "stopped",
+        dead: "failed",
+      };
+      const rows = output.split("\n").map((line) => line.trim()).filter(Boolean);
+      const result: Array<{ containerId: string; status: ContainerStatus; serviceName?: string }> = [];
+      for (const line of rows) {
+        const row = JSON.parse(line) as { ID?: string; State?: string };
+        if (!row.ID) continue;
+        const serviceName = await this.remoteDockerExec(
+          `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` +
+            ` ${sq(row.ID)}`,
+        ).catch(() => "");
+        result.push({
+          containerId: row.ID,
+          status: stateMap[(row.State ?? "").toLowerCase()] ?? "stopped",
+          ...(serviceName ? { serviceName } : {}),
+        });
+      }
+      return result;
+    }
     const containers = await this.docker.listContainers({
       all: true,
       filters: { label: [`openship.deployment=${deploymentId}`] },
@@ -1783,6 +1948,23 @@ export class DockerRuntime implements RuntimeAdapter {
    * A local socket has no such issue, so it keeps the native dockerode pull.
    */
   async pullImage(ref: string, opts?: { force?: boolean }): Promise<void> {
+    const connectionOptions = this.connectionOptions;
+    const executor = connectionOptions?.executor;
+    if (this.usesRemoteDockerCli() && executor) {
+      if (!opts?.force) {
+        try {
+          await this.remoteDockerExec(`image inspect ${sq(ref)}`, { timeout: 30_000 });
+          return;
+        } catch (error) {
+          // Only a genuinely missing image falls through to pull. Transport,
+          // permission and daemon errors must retain their original diagnosis.
+          if (!/no such image|not found/i.test(safeErrorMessage(error))) throw error;
+        }
+      }
+      await this.remoteDockerExec(`pull ${sq(ref)}`, { timeout: 10 * 60_000 });
+      return;
+    }
+
     if (!opts?.force) {
       try {
         await this.docker.getImage(ref).inspect();
@@ -1793,11 +1975,16 @@ export class DockerRuntime implements RuntimeAdapter {
     }
     // force → skip the present-check and always pull the tag, so a moved
     // mutable tag (:latest/:1) rolls forward on an "update" deploy.
-    const executor = this.connectionOptions?.executor;
     if (executor) {
       // 10 min ceiling — large images over a slow link; still bounded so a
       // genuinely stuck pull surfaces instead of hanging the whole migration.
-      await executor.exec(`docker pull ${sq(ref)}`, { timeout: 10 * 60_000 });
+      const dockerSocketPath = await resolveRemoteDockerSocketPath(connectionOptions);
+      const dockerHost = `unix://${dockerSocketPath}`;
+      await executor.exec(
+        `docker --host ${sq(dockerHost)} pull ${sq(ref)}`,
+        { timeout: 10 * 60_000 },
+      );
+      await this.transport.resetConnections();
       return;
     }
     const stream = await this.docker.pull(ref);
@@ -1833,10 +2020,11 @@ export class DockerRuntime implements RuntimeAdapter {
   // ── Observability ──────────────────────────────────────────────────────
 
   async getContainerInfo(containerId: string): Promise<ContainerInfo> {
-    const container = this.docker.getContainer(containerId);
     let data: Dockerode.ContainerInspectInfo;
     try {
-      data = await container.inspect();
+      data = this.usesRemoteDockerCli()
+        ? await this.inspectRemoteContainer(containerId)
+        : await this.docker.getContainer(containerId).inspect();
     } catch (err) {
       // ABSENT: the daemon has no such container — it was removed out-of-band.
       // Report `missing` (drift) rather than throwing; a genuine connection
@@ -1874,6 +2062,18 @@ export class DockerRuntime implements RuntimeAdapter {
   }
 
   async getRuntimeLogs(containerId: string, tail?: number): Promise<LogEntry[]> {
+    if (this.usesRemoteDockerCli()) {
+      const raw = await this.remoteDockerExec(
+        `logs --timestamps --tail ${sq(String(tail ?? 200))} ${sq(containerId)} 2>&1`,
+      );
+      return raw
+        .split("\n")
+        .filter(Boolean)
+        .map((line) => {
+          const { timestamp, message } = parseTimestampedLine(line);
+          return { timestamp, message, level: parseLogLevel(message) };
+        });
+    }
     const container = this.docker.getContainer(containerId);
     const buffer = await container.logs({
       stdout: true,
@@ -1980,8 +2180,9 @@ export class DockerRuntime implements RuntimeAdapter {
   // ── Network ────────────────────────────────────────────────────────────
 
   async getContainerIp(containerId: string): Promise<string | null> {
-    const container = this.docker.getContainer(containerId);
-    const data = await container.inspect();
+    const data = this.usesRemoteDockerCli()
+      ? await this.inspectRemoteContainer(containerId)
+      : await this.docker.getContainer(containerId).inspect();
 
     for (const net of Object.values(data.NetworkSettings.Networks ?? {})) {
       if (net.IPAddress) return net.IPAddress;
@@ -2188,6 +2389,15 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Command runner scoped to the inside of the container (advisory port probe). */
   async inContainerExecutor(containerId: string): Promise<PortProbeExecutor> {
+    if (this.usesRemoteDockerCli()) {
+      return {
+        exec: (command: string) =>
+          this.remoteDockerExec(
+            `exec ${sq(containerId)} sh -c ${sq(command)}`,
+            { timeout: 30_000 },
+          ),
+      };
+    }
     return {
       exec: async (command: string) => {
         const { exitCode, stdout } = await this.execInContainer(containerId, command);
@@ -2212,6 +2422,22 @@ export class DockerRuntime implements RuntimeAdapter {
     // slug would both miss and both create, yielding two networks with the same
     // name (Docker allows it) and ambiguous name lookups. Serialize per server.
     const critical = async () => {
+      if (this.usesRemoteDockerCli()) {
+        try {
+          return await this.remoteDockerExec(
+            `network inspect --format ${sq("{{.Id}}")}` + ` ${sq(networkName)}`,
+            { timeout: SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS },
+          );
+        } catch (error) {
+          if (!/no such network|not found/i.test(safeErrorMessage(error))) throw error;
+        }
+        return this.remoteDockerExec(
+          `network create --driver bridge --label ${sq(`openship.network=${slug}`)}` +
+            ` ${sq(networkName)}`,
+          { timeout: SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS },
+        );
+      }
+
       const networks = await this.docker.listNetworks({
         filters: { name: [networkName] },
       });
@@ -2236,17 +2462,127 @@ export class DockerRuntime implements RuntimeAdapter {
     slug: string;
   }): Promise<MultiServiceGroupHandle> {
     void config.deploymentId;
-    const networkId = await this.ensureNetwork(config.slug);
-    // Self-heal network membership. A container joins the network only at
-    // CREATE time (see deployServiceWorkload). Normal/partial/smart redeploys
-    // are fine — the network is reused by name so its id is stable and
-    // survivors stay attached. This covers the narrow case where the network's
-    // identity changed out-of-band (docker network prune/rm, daemon/host
-    // rebuild): survivors fall off it and become unreachable by name
-    // (ESERVFAIL). Reconnecting every project container here, once per deploy,
-    // makes membership independent of that.
-    await this.reconcileNetworkMembership(networkId, config.projectId);
-    return { id: networkId };
+    const ensureGroup = async (): Promise<MultiServiceGroupHandle> => ({
+      id: await this.ensureNetwork(config.slug),
+    });
+
+    const reconcile = async (group: MultiServiceGroupHandle): Promise<void> => {
+      // Network creation is a deployment invariant; repairing membership of
+      // survivors after an out-of-band network deletion is advisory. Keeping
+      // these separate prevents a best-effort repair from hiding which critical
+      // operation failed or holding the network provisioning lock.
+      await this.reconcileNetworkMembership(group.id, config.projectId);
+    };
+
+    if (this.usesRemoteDockerCli()) {
+      // Native SSH commands already have real per-command cancellation: the
+      // SSH channel is closed on timeout, so the provisioning lock is released
+      // before the error propagates. Do not wrap this path in the legacy
+      // dockerode bridge reset/race machinery.
+      const group = await ensureGroup();
+      await reconcile(group).catch((error) => {
+        console.warn(
+          `[docker] optional network membership reconciliation skipped: ${safeErrorMessage(error)}`,
+        );
+      });
+      return group;
+    }
+
+    if (this.transport.kind !== "ssh") {
+      const group = await ensureGroup();
+      await reconcile(group);
+      return group;
+    }
+
+    const runBounded = async <T>(
+      operation: () => Promise<T>,
+      timeoutMs: number,
+      timeoutMessage: string,
+    ): Promise<T> => {
+      const running = operation();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        return await Promise.race([
+          running,
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
+          }),
+        ]);
+      } catch (error) {
+        // Rejecting the outer race does not cancel dockerode. Tear down the
+        // local HTTP sockets, then wait for the original promise to settle so
+        // it cannot retain the provisioning lock while a retry queues behind
+        // it. If it cannot drain, retrying would be a guaranteed zombie retry.
+        await this.transport.resetConnections();
+        let drainTimer: ReturnType<typeof setTimeout> | undefined;
+        const drained = await Promise.race([
+          running.then(
+            () => true,
+            () => true,
+          ),
+          new Promise<false>((resolve) => {
+            drainTimer = setTimeout(() => resolve(false), SSH_DOCKER_API_DRAIN_TIMEOUT_MS);
+          }),
+        ]);
+        if (drainTimer) clearTimeout(drainTimer);
+        if (!drained) {
+          throw new Error(
+            "The previous Docker operation remained active after the transport was reset; " +
+              "refusing to retry while it may still hold the provisioning lock",
+            { cause: error },
+          );
+        }
+        throw error;
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
+    };
+
+    // A build can leave an apparently-open keep-alive connection whose remote
+    // relay was silently reaped. Bound the CRITICAL network step, refresh the
+    // bridge, and retry only after the old operation has demonstrably released
+    // its lock.
+    let lastError: unknown;
+    let group: MultiServiceGroupHandle | null = null;
+    for (let attempt = 1; attempt <= 2; attempt += 1) {
+      await this.transport.resetConnections();
+      try {
+        group = await runBounded(
+          ensureGroup,
+          SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS,
+          "Timed out ensuring the Docker project network over SSH",
+        );
+        break;
+      } catch (error) {
+        lastError = error;
+        if (attempt === 2 || !isRetryableRemoteConnectionError(error)) throw error;
+      }
+    }
+
+    if (!group) {
+      throw new Error(
+        `Failed to ensure the Docker project network after reconnecting: ${safeErrorMessage(lastError)}`,
+        { cause: lastError },
+      );
+    }
+    const readyGroup = group;
+
+    try {
+      await runBounded(
+        () => reconcile(readyGroup),
+        SSH_DOCKER_RECONCILE_TIMEOUT_MS,
+        "Timed out reconciling existing service network membership over SSH",
+      );
+    } catch (error) {
+      // This repairs the rare case where a network was deleted out-of-band.
+      // New service containers still attach to the ensured network at create
+      // time, so a repair failure must not block the deployment itself.
+      console.warn(
+        `[docker] optional network membership reconciliation skipped: ${safeErrorMessage(error)}`,
+      );
+    }
+
+    return readyGroup;
   }
 
   /**
@@ -2275,6 +2611,50 @@ export class DockerRuntime implements RuntimeAdapter {
       named.add(source);
     }
     if (named.size === 0) return;
+
+    if (this.usesRemoteDockerCli()) {
+      const ownNames = new Set<string>();
+      const foreign = new Map<string, string>();
+      for (const name of named) {
+        let ids: string[] = [];
+        try {
+          const output = await this.remoteDockerExec(
+            `ps -aq --filter ${sq(`volume=${name}`)}`,
+          );
+          ids = output.split(/\s+/).filter(Boolean);
+        } catch {
+          continue; // advisory collision guard, same semantics as dockerode
+        }
+        for (const id of ids) {
+          try {
+            const owner = await this.remoteDockerExec(
+              `inspect --format ${sq('{{index .Config.Labels "openship.project"}}')}` +
+                ` ${sq(id)}`,
+            );
+            if (!owner) continue;
+            if (owner === config.projectId) {
+              ownNames.add(name);
+            } else if (!foreign.has(name)) {
+              const containerName = await this.remoteDockerExec(
+                `inspect --format ${sq("{{.Name}}")}` + ` ${sq(id)}`,
+              ).catch(() => owner);
+              foreign.set(name, containerName.replace(/^\//, "") || owner);
+            }
+          } catch {
+            // A container disappearing between ps and inspect is harmless.
+          }
+        }
+      }
+      for (const [name, other] of foreign) {
+        if (ownNames.has(name)) continue;
+        throw new Error(
+          `Volume "${name}" is already used by another project's container "${other}". ` +
+            `Rename this service's volume to a project-unique name before deploying, ` +
+            `to avoid overwriting the other project's data.`,
+        );
+      }
+      return;
+    }
 
     let containers: Awaited<ReturnType<typeof this.docker.listContainers>>;
     try {
@@ -2319,6 +2699,44 @@ export class DockerRuntime implements RuntimeAdapter {
     networkId: string,
     projectId: string,
   ): Promise<void> {
+    if (this.usesRemoteDockerCli()) {
+      let ids: string[] = [];
+      try {
+        const output = await this.remoteDockerExec(
+          `ps -aq --filter ${sq(`label=openship.project=${projectId}`)}`,
+          { timeout: SSH_DOCKER_RECONCILE_TIMEOUT_MS },
+        );
+        ids = output.split(/\s+/).filter(Boolean);
+      } catch {
+        return;
+      }
+      for (const id of ids) {
+        try {
+          const attached = await this.remoteDockerExec(
+            `inspect --format ${sq("{{range .NetworkSettings.Networks}}{{println .NetworkID}}{{end}}")}` +
+              ` ${sq(id)}`,
+          );
+          if (attached.split(/\s+/).includes(networkId)) continue;
+          const service = await this.remoteDockerExec(
+            `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` +
+              ` ${sq(id)}`,
+          ).catch(() => "");
+          const alias = service ? ` --alias ${sq(service)}` : "";
+          await this.remoteDockerExec(
+            `network connect${alias} ${sq(networkId)} ${sq(id)}`,
+          );
+        } catch (error) {
+          const msg = safeErrorMessage(error);
+          if (!/already exists|already connected/i.test(msg)) {
+            console.warn(
+              `[docker] reconcile connect failed for ${id.slice(0, 12)} → ${networkId.slice(0, 12)}: ${msg}`,
+            );
+          }
+        }
+      }
+      return;
+    }
+
     let containers: Awaited<ReturnType<typeof this.docker.listContainers>>;
     try {
       containers = await this.docker.listContainers({
@@ -2358,6 +2776,10 @@ export class DockerRuntime implements RuntimeAdapter {
   /** Remove a project network (best-effort). */
   async removeNetwork(slug: string): Promise<void> {
     const networkName = `openship-${slug}`;
+    if (this.usesRemoteDockerCli()) {
+      await this.remoteDockerExec(`network rm ${sq(networkName)}`).catch(() => {});
+      return;
+    }
     try {
       const network = this.docker.getNetwork(networkName);
       await network.remove();
@@ -2381,11 +2803,15 @@ export class DockerRuntime implements RuntimeAdapter {
     const containerName = `openship-${config.slug}-${config.serviceName}`;
 
     // Stop and remove any existing container with the same name
-    try {
-      const existing = this.docker.getContainer(containerName);
-      await existing.remove({ force: true });
-    } catch {
-      // Does not exist - fine
+    if (this.usesRemoteDockerCli()) {
+      await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
+    } else {
+      try {
+        const existing = this.docker.getContainer(containerName);
+        await existing.remove({ force: true });
+      } catch {
+        // Does not exist - fine
+      }
     }
 
     // Environment variables. Inject PORT=<service port> (like the single-app
@@ -2447,6 +2873,101 @@ export class DockerRuntime implements RuntimeAdapter {
           level: "error",
         });
         throw err;
+      }
+    }
+
+    if (this.usesRemoteDockerCli()) {
+      const labels = {
+        ...this.labels({
+          deploymentId: config.deploymentId,
+          projectId: config.projectId,
+        }),
+        "openship.service": config.serviceName,
+      };
+      const args: string[] = [
+        "run",
+        "-d",
+        "--name", sq(containerName),
+        "--hostname", sq(config.serviceName),
+        "--network", sq(group.id),
+        "--network-alias", sq(config.serviceName),
+      ];
+      for (const [key, value] of Object.entries(labels)) {
+        args.push("--label", sq(`${key}=${value}`));
+      }
+      // Keep secrets out of the remote process command line. The env file is
+      // scoped to this service/deployment, mode 0600, and removed in finally.
+      const executor = this.connectionOptions?.executor;
+      const envFile = env.length > 0 && executor
+        ? `/tmp/openship-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}` +
+          `-${config.serviceName.replace(/[^A-Za-z0-9_.-]/g, "-")}`
+        : null;
+      if (envFile && executor) {
+        await executor.writeFile(envFile, `${env.join("\n")}\n`);
+        await executor.exec(`chmod 600 ${sq(envFile)}`);
+        args.push("--env-file", sq(envFile));
+      } else {
+        for (const value of env) args.push("--env", sq(value));
+      }
+      for (const port of config.ports) args.push("--publish", sq(port));
+      for (const bind of scopedBinds) args.push("--volume", sq(bind));
+
+      const restart = config.restart?.trim() || "unless-stopped";
+      args.push("--restart", sq(restart));
+      if (config.resources?.memoryMb) {
+        args.push("--memory", sq(`${config.resources.memoryMb}m`));
+      }
+      if (config.resources?.cpuCores) {
+        args.push("--cpu-shares", sq(String(Math.round(config.resources.cpuCores * 1024))));
+      }
+
+      const hc = config.advanced?.healthcheck;
+      if (hc?.disable) {
+        args.push("--no-healthcheck");
+      } else if (hc?.test) {
+        const healthCommand = Array.isArray(hc.test)
+          ? hc.test.map((part) => sq(part)).join(" ")
+          : hc.test;
+        args.push("--health-cmd", sq(healthCommand));
+        if (hc.interval) args.push("--health-interval", sq(hc.interval));
+        if (hc.timeout) args.push("--health-timeout", sq(hc.timeout));
+        if (typeof hc.retries === "number") {
+          args.push("--health-retries", sq(String(hc.retries)));
+        }
+        if (hc.startPeriod) args.push("--health-start-period", sq(hc.startPeriod));
+      }
+
+      args.push(sq(config.image));
+      if (config.command) args.push("sh", "-c", sq(config.command));
+
+      try {
+        let containerId: string;
+        try {
+          containerId = await this.remoteDockerExec(args.join(" "), { timeout: 2 * 60_000 });
+        } catch (error) {
+          await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
+          throw error;
+        }
+
+        const data = await this.inspectRemoteContainer(containerId);
+        const { ip, hostPort } = extractNetworkInfo(data);
+        const imageDigest = await this.resolveImageDigest(config.image).catch(() => undefined);
+
+        log({
+          timestamp: new Date().toISOString(),
+          message: `Service ${config.serviceName} started (${containerId.slice(0, 12)})${ip ? ` at ${ip}` : ""}.\n`,
+          level: "info",
+        });
+
+        return {
+          containerId,
+          status: "running",
+          ip,
+          hostPort,
+          imageDigest,
+        };
+      } finally {
+        if (envFile && executor) await executor.rm(envFile).catch(() => {});
       }
     }
 
@@ -2526,8 +3047,17 @@ export class DockerRuntime implements RuntimeAdapter {
    * followProgress). Never throws.
    */
   private async resolveImageDigest(ref: string): Promise<string | undefined> {
-    const info = await this.docker.getImage(ref).inspect();
-    const repoDigests: string[] = (info as { RepoDigests?: string[] })?.RepoDigests ?? [];
+    let repoDigests: string[];
+    if (this.usesRemoteDockerCli()) {
+      repoDigests = JSON.parse(
+        await this.remoteDockerExec(
+          `image inspect --format ${sq("{{json .RepoDigests}}")}` + ` ${sq(ref)}`,
+        ),
+      ) ?? [];
+    } else {
+      const info = await this.docker.getImage(ref).inspect();
+      repoDigests = (info as { RepoDigests?: string[] })?.RepoDigests ?? [];
+    }
     if (repoDigests.length === 0) return undefined;
     // repo = ref without tag/digest (a colon after the last slash is the tag).
     const noDigest = ref.split("@")[0];

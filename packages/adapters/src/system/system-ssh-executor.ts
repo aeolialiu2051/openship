@@ -55,10 +55,11 @@ function describeSshFailure(stderr: string, fallback: string): Error {
  *
  * Used for "agent" auth, where only the real OpenSSH client reliably resolves
  * the agent / `~/.ssh/config` / default keys / macOS keychain (the same thing
- * that makes `ssh root@host` work). Everything — exec, file ops, transfer,
- * port-forward, Docker socket-forward, the interactive shell — rides ONE
- * authenticated OpenSSH ControlMaster connection. Password/key auth keep using
- * the in-process `ssh2` SshExecutor.
+ * that makes `ssh root@host` work). Exec, file ops, transfer, port-forward and
+ * interactive shells ride one authenticated OpenSSH ControlMaster connection.
+ * The long-lived Docker API relay is intentionally isolated on a dedicated SSH
+ * connection so it cannot exhaust the management master's MaxSessions quota.
+ * Password/key auth keep using the in-process `ssh2` SshExecutor.
  */
 export class SystemSshExecutor implements CommandExecutor {
   private readonly config: SshConfig;
@@ -472,6 +473,42 @@ export class SystemSshExecutor implements CommandExecutor {
       this.socketForwards.delete(socketPath);
       return attempt();
     }
+  }
+
+  async forwardDockerSocket(socketPath: string): Promise<Duplex> {
+    const command = `docker --host ${sq(`unix://${socketPath}`)} system dial-stdio`;
+    // Docker HTTP keep-alives are long-lived. Do not attach them to the shared
+    // ControlMaster used by builds/SFTP/routing or they consume MaxSessions on
+    // that connection and can starve the next deployment. Later -o values
+    // override the common ControlMaster options from baseArgs().
+    const dedicatedArgs = [
+      ...this.baseArgs(),
+      "-o", "ControlMaster=no",
+      "-o", "ControlPath=none",
+      "-o", "ControlPersist=no",
+    ];
+    const child = spawn(
+      "ssh",
+      [...dedicatedArgs, sshTarget(this.config), command],
+      { env: sshChildEnv(this.config), stdio: ["pipe", "pipe", "pipe"] },
+    );
+    const duplex = Duplex.from({ writable: child.stdin, readable: child.stdout });
+    let stderr = "";
+    child.stderr.on("data", (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+    duplex.on("close", () => {
+      try { child.kill(); } catch { /* already gone */ }
+    });
+    child.on("exit", (code) => {
+      if (code && code !== 0) {
+        duplex.destroy(new Error(stderr.trim() || `Docker SSH relay exited with code ${code}`));
+      } else {
+        duplex.destroy();
+      }
+    });
+    child.on("error", (error) => duplex.destroy(error));
+    return duplex;
   }
 
   /**

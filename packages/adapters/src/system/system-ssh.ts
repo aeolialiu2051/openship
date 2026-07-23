@@ -8,10 +8,10 @@ import type { SshConfig } from "../types";
  * When SSH auth is "agent", openship shells out to the OS `ssh` binary instead
  * of the in-process `ssh2` client (only the real OpenSSH client reliably
  * resolves the agent / `~/.ssh/config` / default keys / macOS keychain — the
- * same thing that makes `ssh root@host` work in a terminal). Every system-`ssh`
- * invocation — command exec, file ops, port-forward, Docker socket-forward, the
- * interactive shell — shares the argv and env produced here so they all ride
- * one authenticated ControlMaster connection ("reuse the existing ssh tunnel").
+ * same thing that makes `ssh root@host` work in a terminal). Command exec, file
+ * ops, port-forward and interactive shells share the argv and env produced here
+ * and ride one authenticated ControlMaster connection. Docker API forwarding
+ * reuses the auth/host options but disables ControlMaster for session isolation.
  */
 
 /** Default connect timeout (seconds) handed to `ssh -o ConnectTimeout`. */

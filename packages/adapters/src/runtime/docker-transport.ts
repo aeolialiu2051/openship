@@ -8,10 +8,10 @@ export interface DockerConnectionOptions {
   transport?: "socket" | "ssh" | "tcp";
 
   /**
-   * Pooled command executor for SSH transport.  When provided, Docker
-   * API calls reuse the executor's SSH connection (via streamlocal
-   * channel multiplexing) instead of creating a fresh SSH connection
-   * per HTTP request.
+   * Pooled command executor for bounded CLI work such as socket discovery,
+   * remote builds, pulls and image verification. Long-lived Docker API relays
+   * deliberately use a separate SSH connection so they do not consume the
+   * management connection's MaxSessions quota.
    */
   executor?: CommandExecutor;
 
@@ -33,6 +33,12 @@ export interface DockerConnectionOptions {
   privateKeyPassphrase?: string;
   /** SSH agent socket path (alternative to privateKey) */
   sshAgent?: string;
+  /** Use the OS ssh client for agent/keychain-backed authentication. */
+  useSystemSsh?: boolean;
+  /** Optional jump/bastion host for the system-ssh path. */
+  sshJumpHost?: string;
+  /** Extra raw ssh arguments for the system-ssh path. */
+  sshArgs?: string;
   /** Custom host key verifier for SSH connections. */
   hostVerifier?: (hostKey: Buffer) => boolean;
 
@@ -55,6 +61,8 @@ export interface DockerTransport {
   establish: () => Promise<Dockerode.DockerOptions>;
   /** Tear down machinery created by establish(). Idempotent; safe to call when never established. */
   close: () => Promise<void>;
+  /** Drop reusable transport connections without tearing down the transport. */
+  resetConnections: () => Promise<void>;
   preflight: () => Promise<void>;
 }
 
@@ -66,12 +74,13 @@ export function resolveDockerTransport(opts?: DockerConnectionOptions): DockerTr
       unreachableHint: "Check that the local Docker daemon is running.",
       establish: async () => ({ socketPath: "/var/run/docker.sock" }),
       close: async () => {},
+      resetConnections: async () => {},
       preflight: async () => {},
     };
   }
 
   if (opts.transport === "ssh") {
-    if (!opts.privateKey && !opts.sshAgent && !opts.password) {
+    if (!opts.privateKey && !opts.sshAgent && !opts.password && !opts.useSystemSsh) {
       throw new Error("SSH transport requires one of privateKey, sshAgent, or password.");
     }
 
@@ -93,8 +102,11 @@ export function resolveDockerTransport(opts?: DockerConnectionOptions): DockerTr
         };
       },
       close: async () => {
-        bridge?.close();
+        await bridge?.close();
         bridge = null;
+      },
+      resetConnections: async () => {
+        await bridge?.resetConnections();
       },
       preflight: async () => verifyDockerSshBridge(opts),
     };
@@ -120,6 +132,7 @@ export function resolveDockerTransport(opts?: DockerConnectionOptions): DockerTr
       timeout: opts.timeout ?? 30_000,
     }),
     close: async () => {},
+    resetConnections: async () => {},
     preflight: async () => {},
   };
 }

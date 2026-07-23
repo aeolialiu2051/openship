@@ -13,7 +13,7 @@ import type {
 } from "../types";
 import { logEntry, sq } from "./local-shell";
 import { canUseRemoteRsync, extractRemoteArchive, packLocalArchive, uploadFileWithRsync } from "./remote-transfer";
-import type { Client as SshClient, SFTPWrapper } from "ssh2";
+import type { Client as SshClient, ClientChannel, SFTPWrapper } from "ssh2";
 import type { Readable, Duplex } from "node:stream";
 import { connectSshClient, openSftp, openSshUnixSocket, type StreamLocalCapableClient } from "./ssh-client";
 import { SshDisconnectedError } from "./errors";
@@ -212,6 +212,7 @@ export class SshExecutor implements CommandExecutor {
     return new Promise<string>((resolve, reject) => {
       let settled = false;
       let timer: ReturnType<typeof setTimeout> | null = null;
+      let activeStream: ClientChannel | null = null;
 
       // `abort` cancels THIS op on a transport drop; `finish` is the single
       // settle path (guards double-settle, clears the timer, deregisters).
@@ -225,13 +226,22 @@ export class SshExecutor implements CommandExecutor {
       };
       this.inflight.add(abort);
 
-      timer = setTimeout(
-        () => finish(() => reject(new Error(`Command timed out after ${timeout}ms: ${command}`))),
-        timeout,
-      );
+      timer = setTimeout(() => {
+        // A rejected Promise does not stop the remote SSH channel. Close it so
+        // timed-out Docker/system commands release MaxSessions and cannot keep
+        // mutating the server after their caller has moved on.
+        try { activeStream?.close(); } catch { /* already closed */ }
+        try { activeStream?.end(); } catch { /* already ended */ }
+        finish(() => reject(new Error(`Command timed out after ${timeout}ms: ${command}`)));
+      }, timeout);
 
       client.exec(SshExecutor.ENV_PREFIX + command, (err, stream) => {
+        if (settled) {
+          try { stream?.close(); } catch { /* timed out before channel opened */ }
+          return;
+        }
         if (err) return finish(() => reject(err));
+        activeStream = stream;
 
         let stdout = "";
         let stderr = "";
@@ -472,6 +482,46 @@ export class SshExecutor implements CommandExecutor {
   async forwardUnixSocket(socketPath: string): Promise<Duplex> {
     const client = await this.connect();
     return openSshUnixSocket(client as StreamLocalCapableClient, socketPath);
+  }
+
+  async forwardDockerSocket(socketPath: string): Promise<Duplex> {
+    // Docker HTTP relays are long-lived and must not consume a session on the
+    // pooled management client. Give the relay its own SSH connection whose
+    // lifetime is tied to the returned channel.
+    const client = await connectSshClient(this.config);
+    const command = `docker --host ${sq(`unix://${socketPath}`)} system dial-stdio`;
+    return new Promise<Duplex>((resolve, reject) => {
+      let settled = false;
+      const finish = (fn: () => void) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        fn();
+      };
+      const timer = setTimeout(() => {
+        finish(() => {
+          client.end();
+          reject(new Error("Timed out opening the dedicated Docker SSH relay"));
+        });
+      }, 15_000);
+      timer.unref?.();
+      client.exec(command, (error, channel) => {
+        if (settled) {
+          try { channel?.close(); } catch { /* connection already ended */ }
+          return;
+        }
+        if (error) {
+          finish(() => {
+            client.end();
+            reject(error);
+          });
+          return;
+        }
+        channel.once("close", () => client.end());
+        channel.on("error", () => client.end());
+        finish(() => resolve(channel));
+      });
+    });
   }
 
   async forwardPort(remoteHost: string, remotePort: number): Promise<Duplex> {

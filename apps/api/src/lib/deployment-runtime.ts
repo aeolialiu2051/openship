@@ -315,7 +315,8 @@ export async function resolveTargetPlatform(
     const server = await resolveOrgServer(serverId, organizationId);
     const executor = await sshManager.acquire(server.id);
 
-    // SSH config for the Docker SSH transport (dockerode uses its own connection).
+    // SSH config for the Docker SSH transport. Docker API relays use their own
+    // connection; bounded build/management commands reuse the pooled executor.
     const ssh = server.sshHost ? await buildSshConfig(server) : null;
 
     if (!ssh) {
@@ -371,11 +372,11 @@ export async function createServerDockerRuntime(
   return DockerRuntime.create(toDockerSshTransport(ssh, executor));
 }
 
-/** Map the shared SSH config → dockerode SSH transport options with pooled executor. */
+/** Map SSH config → Docker transport options plus the pooled command executor. */
 function toDockerSshTransport(ssh: SshConfig, executor: CommandExecutor): DockerConnectionOptions {
   return {
     transport: "ssh" as const,
-    executor, // ← reuses the pooled SSH connection for Docker API calls
+    executor, // bounded CLI operations only; Docker API gets a dedicated relay
     host: ssh.host,
     port: ssh.port,
     username: ssh.username,
@@ -384,6 +385,9 @@ function toDockerSshTransport(ssh: SshConfig, executor: CommandExecutor): Docker
     privateKey: ssh.privateKey,
     privateKeyPassphrase: ssh.privateKeyPassphrase,
     sshAgent: ssh.sshAgent,
+    useSystemSsh: ssh.useSystemSsh,
+    sshJumpHost: ssh.sshJumpHost,
+    sshArgs: ssh.sshArgs,
   };
 }
 

@@ -397,6 +397,9 @@ export async function deployComposeServices(
 
   logger.step("deploy", "running", `Deploying ${ordered.length} services...`);
   logger.log("Preparing shared service group for project services...\n");
+  if (runtime instanceof DockerRuntime && runtime.transport.kind === "ssh") {
+    logger.log("Using native Docker CLI over SSH for remote network and container operations...\n");
+  }
 
   const group = await runtime.ensureServiceGroup({
     deploymentId: dep.id,
