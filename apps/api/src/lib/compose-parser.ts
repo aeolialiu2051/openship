@@ -133,8 +133,19 @@ function parsePorts(ports: unknown, env: Record<string, string>): string[] {
       // fold it back into the "/proto" suffix so the string form is lossless.
       const proto = typeof port.protocol === "string" ? port.protocol.toLowerCase() : undefined;
       const suffix = proto && proto !== "tcp" ? `/${proto}` : "";
+      // Long form carries the bind interface as a separate `host_ip` field;
+      // fold it back into the leading "<ip>:" segment the short form spells.
+      const hostIp =
+        typeof port.host_ip === "string" ? interpolateComposeString(port.host_ip, env) : undefined;
       if (target) {
-        return published ? `${published}:${target}${suffix}` : `${target}${suffix}`;
+        const hostPart = published
+          ? hostIp
+            ? `${hostIp}:${published}:`
+            : `${published}:`
+          : hostIp
+            ? `${hostIp}::`
+            : "";
+        return `${hostPart}${target}${suffix}`;
       }
     }
     return String(p);
@@ -206,7 +217,23 @@ function parseVolumes(vols: unknown, env: Record<string, string>): string[] {
       const vol = v as Record<string, unknown>;
       const src = vol.source ?? vol.name;
       const tgt = vol.target;
-      if (src && tgt) return `${src}:${tgt}`;
+      // Long form carries read-only/selinux/nocopy intent as separate nested
+      // fields; fold them back into the single mode suffix the short-form
+      // string spells (the downstream MODE_SUFFIX regex in volume-namespace.ts
+      // only matches ONE flag, no combining — so read_only wins when more than
+      // one is set, since silently granting write access is the worse miss).
+      const bindOpts = vol.bind as Record<string, unknown> | undefined;
+      const volumeOpts = vol.volume as Record<string, unknown> | undefined;
+      const selinux = typeof bindOpts?.selinux === "string" ? bindOpts.selinux : undefined;
+      const mode =
+        vol.read_only === true
+          ? ":ro"
+          : volumeOpts?.nocopy === true
+            ? ":nocopy"
+            : selinux === "z" || selinux === "Z"
+              ? `:${selinux}`
+              : "";
+      if (src && tgt) return `${src}:${tgt}${mode}`;
       if (tgt) return String(tgt);
     }
     return String(v);
@@ -335,12 +362,9 @@ function parseEnvValue(rawValue: string): string {
   if (value.startsWith('"')) {
     const end = findClosingQuote(value, '"');
     const quoted = end >= 0 ? value.slice(1, end) : value.slice(1);
-    return quoted
-      .replace(/\\n/g, "\n")
-      .replace(/\\r/g, "\r")
-      .replace(/\\t/g, "\t")
-      .replace(/\\"/g, '"')
-      .replace(/\\\\/g, "\\");
+    return quoted.replace(/\\([nrt"\\])/g, (_m, ch: string) =>
+      ch === "n" ? "\n" : ch === "r" ? "\r" : ch === "t" ? "\t" : ch,
+    );
   }
 
   if (value.startsWith("'")) {
