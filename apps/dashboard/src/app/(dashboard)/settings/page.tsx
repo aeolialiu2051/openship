@@ -30,6 +30,7 @@ import { PersonalAccessTokens } from "./_components/PersonalAccessTokens";
 import { McpConnection } from "./_components/McpConnection";
 import { InstanceInfo } from "./_components/InstanceInfo";
 import { LanguageSetting } from "./_components/LanguageSetting";
+import { AccountSecurity } from "./_components/AccountSecurity";
 import { UpdatesTab } from "./_components/UpdatesTab";
 import { TeamTab } from "./_components/TeamTab";
 import { NotificationsTab } from "./_components/NotificationsTab";
@@ -83,15 +84,10 @@ function SettingsPageInner() {
   return (
     <PageContainer>
       <div className="mb-6">
-        <h1
-          className="text-2xl font-medium text-foreground/80"
-          style={{ letterSpacing: "-0.2px" }}
-        >
+        <h1 className="text-2xl font-medium text-foreground/80" style={{ letterSpacing: "-0.2px" }}>
           {t.settings.page.title}
         </h1>
-        <p className="text-sm text-muted-foreground/70 mt-1">
-          {t.settings.page.subtitle}
-        </p>
+        <p className="text-sm text-muted-foreground/70 mt-1">{t.settings.page.subtitle}</p>
       </div>
 
       <SettingsMobileTabs />
@@ -107,6 +103,8 @@ function SettingsPageInner() {
               <LanguageSetting />
             </>
           )}
+
+          {activeTab === "account" && <AccountSecurity />}
 
           {activeTab === "tokens" && (
             <>

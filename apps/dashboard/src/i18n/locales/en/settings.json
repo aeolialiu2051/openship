@@ -47,6 +47,7 @@
     "title": "Settings",
     "tabs": {
       "general": "General",
+      "account": "Account",
       "tokens": "Tokens",
       "mcp": "MCP",
       "team": "Team",
@@ -55,6 +56,36 @@
       "audit": "Audit log",
       "cloud": "Cloud",
       "instance": "Instance"
+    }
+  },
+  "account": {
+    "password": {
+      "title": "Password",
+      "changeDescription": "Change the password used to sign in to your Openship account.",
+      "setDescription": "Add a password as another way to sign in to your Openship account.",
+      "loading": "Checking your sign-in methods…",
+      "oauthHint": "You currently sign in with GitHub or Google. Setting a password lets you also sign in directly with your account email.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "passwordHint": "Use 8–128 characters.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "revokeSessions": "Sign out other sessions",
+      "revokeSessionsDescription": "Keep this device signed in and revoke your other active sessions.",
+      "changeAction": "Change password",
+      "setAction": "Set password",
+      "saving": "Saving…",
+      "toast": {
+        "title": "Password",
+        "invalidLength": "Password must be between 8 and 128 characters.",
+        "mismatch": "The new passwords do not match.",
+        "currentRequired": "Enter your current password.",
+        "invalidCurrent": "The current password is incorrect.",
+        "changed": "Password changed.",
+        "created": "Password set. You can now sign in with your email and password.",
+        "failed": "Couldn't update the password. Please try again."
+      }
     }
   },
   "email": {

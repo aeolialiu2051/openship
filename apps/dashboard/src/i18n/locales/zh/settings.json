@@ -47,6 +47,7 @@
     "title": "设置",
     "tabs": {
       "general": "常规",
+      "account": "账户",
       "tokens": "令牌",
       "mcp": "MCP",
       "team": "团队",
@@ -54,6 +55,36 @@
       "audit": "审计日志",
       "cloud": "云",
       "instance": "实例"
+    }
+  },
+  "account": {
+    "password": {
+      "title": "密码",
+      "changeDescription": "修改用于登录 Openship 账户的密码。",
+      "setDescription": "添加密码，作为登录 Openship 账户的另一种方式。",
+      "loading": "正在检查登录方式…",
+      "oauthHint": "你目前通过 GitHub 或 Google 登录。设置密码后，也可以使用账户邮箱和密码直接登录。",
+      "currentPassword": "当前密码",
+      "newPassword": "新密码",
+      "confirmPassword": "确认新密码",
+      "passwordHint": "请使用 8–128 个字符。",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
+      "revokeSessions": "退出其他会话",
+      "revokeSessionsDescription": "保留当前设备的登录状态，并撤销其他活跃会话。",
+      "changeAction": "修改密码",
+      "setAction": "设置密码",
+      "saving": "正在保存…",
+      "toast": {
+        "title": "密码",
+        "invalidLength": "密码长度必须为 8–128 个字符。",
+        "mismatch": "两次输入的新密码不一致。",
+        "currentRequired": "请输入当前密码。",
+        "invalidCurrent": "当前密码不正确。",
+        "changed": "密码已修改。",
+        "created": "密码已设置，现在可以使用邮箱和密码登录。",
+        "failed": "无法更新密码，请重试。"
+      }
     }
   },
   "github": {

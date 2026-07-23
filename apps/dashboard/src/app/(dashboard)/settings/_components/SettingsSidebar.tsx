@@ -16,12 +16,33 @@
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Settings as SettingsIcon, Users, ClipboardList, Cloud, Server, Bell, KeyRound, Boxes, Mail } from "lucide-react";
+import {
+  Settings as SettingsIcon,
+  Users,
+  ClipboardList,
+  Cloud,
+  Server,
+  Bell,
+  KeyRound,
+  Boxes,
+  Mail,
+  UserRound,
+} from "lucide-react";
 import { usePlatform } from "@/context/PlatformContext";
 import { useSession, authClient } from "@/lib/auth-client";
 import { useI18n } from "@/components/i18n-provider";
 
-export type SettingsTabId = "general" | "tokens" | "mcp" | "team" | "notifications" | "email" | "audit" | "cloud" | "instance";
+export type SettingsTabId =
+  | "general"
+  | "account"
+  | "tokens"
+  | "mcp"
+  | "team"
+  | "notifications"
+  | "email"
+  | "audit"
+  | "cloud"
+  | "instance";
 
 export interface SettingsTab {
   id: SettingsTabId;
@@ -38,18 +59,47 @@ export function useSettingsTabs(): { tabs: SettingsTab[]; activeTab: SettingsTab
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const raw = (searchParams.get("tab") ?? "general") as SettingsTabId;
-  const allowedTabs: SettingsTabId[] = ["general", "tokens", "mcp", "team", "notifications", "email", "audit", "cloud", "instance"];
+  const allowedTabs: SettingsTabId[] = [
+    "general",
+    "account",
+    "tokens",
+    "mcp",
+    "team",
+    "notifications",
+    "email",
+    "audit",
+    "cloud",
+    "instance",
+  ];
   const activeTab: SettingsTabId = allowedTabs.includes(raw) ? raw : "general";
 
   const tabs: SettingsTab[] = [
     { id: "general", label: t.settings.sidebar.tabs.general, icon: SettingsIcon, visible: true },
+    { id: "account", label: t.settings.sidebar.tabs.account, icon: UserRound, visible: true },
     { id: "tokens", label: t.settings.sidebar.tabs.tokens, icon: KeyRound, visible: true },
     { id: "mcp", label: t.settings.sidebar.tabs.mcp, icon: Boxes, visible: true },
     { id: "team", label: t.settings.sidebar.tabs.team, icon: Users, visible: true },
-    { id: "notifications", label: t.settings.sidebar.tabs.notifications, icon: Bell, visible: true },
+    {
+      id: "notifications",
+      label: t.settings.sidebar.tabs.notifications,
+      icon: Bell,
+      visible: true,
+    },
     // Instance SMTP transport — self-hosted only (the SaaS uses its own mailer).
-    { id: "email", label: t.settings.sidebar.tabs.email, icon: Mail, visible: selfHosted, requiresRole: "admin" },
-    { id: "audit", label: t.settings.sidebar.tabs.audit, icon: ClipboardList, visible: true, requiresRole: "admin" },
+    {
+      id: "email",
+      label: t.settings.sidebar.tabs.email,
+      icon: Mail,
+      visible: selfHosted,
+      requiresRole: "admin",
+    },
+    {
+      id: "audit",
+      label: t.settings.sidebar.tabs.audit,
+      icon: ClipboardList,
+      visible: true,
+      requiresRole: "admin",
+    },
     { id: "cloud", label: t.settings.sidebar.tabs.cloud, icon: Cloud, visible: selfHosted },
     // Updates live INSIDE the Instance tab (the "this install" home), not as
     // their own tab — see settings/page.tsx.
@@ -71,11 +121,13 @@ export function SettingsSidebar() {
   };
 
   // Resolve active org name for the header card.
-  const orgClient = (authClient as unknown as {
-    organization: {
-      getFullOrganization: () => Promise<{ data?: { id: string; name: string } | null }>;
-    };
-  }).organization;
+  const orgClient = (
+    authClient as unknown as {
+      organization: {
+        getFullOrganization: () => Promise<{ data?: { id: string; name: string } | null }>;
+      };
+    }
+  ).organization;
   // Note: simple sync read — we just use the session.user email/name in the header.
   // The full org name is shown in the AccountSwitcher dropdown elsewhere.
 
@@ -87,7 +139,9 @@ export function SettingsSidebar() {
             <SettingsIcon className="size-4 text-foreground" strokeWidth={1.7} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-foreground truncate">{t.settings.sidebar.title}</p>
+            <p className="text-sm font-medium text-foreground truncate">
+              {t.settings.sidebar.title}
+            </p>
             {session?.user?.email && (
               <p className="text-xs text-muted-foreground truncate">{session.user.email}</p>
             )}

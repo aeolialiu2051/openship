@@ -30,6 +30,19 @@ if (env.DEPLOY_MODE === "desktop") {
   authRoutes.get("/desktop-claim", ctrl.desktopClaim);
 }
 
+// Better Auth intentionally exposes `setPassword` as a server-only API. Give
+// authenticated OAuth users a narrow HTTP surface for creating their first
+// credential login; subsequent updates use the standard /change-password
+// endpoint and require the current password.
+authRoutes.post("/set-password", async (c) => {
+  const body = await c.req.json<{ newPassword?: string }>();
+  return auth.api.setPassword({
+    body: { newPassword: body.newPassword ?? "" },
+    headers: c.req.raw.headers,
+    asResponse: true,
+  });
+});
+
 // Invite-only sign-up guard (runs BEFORE the Better Auth catch-all). SaaS keeps
 // open public signup. On self-host the ONLY Better Auth signup allowed is the
 // FIRST account and only from loopback (CLI bootstrap / local dev) — this closes
