@@ -1,8 +1,9 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { linkSocialAccount, getGitHubAuthMode } = vi.hoisted(() => ({
+const { linkSocialAccount, getGitHubAuthMode, resolveDashboardPublicUrl } = vi.hoisted(() => ({
   linkSocialAccount: vi.fn(),
   getGitHubAuthMode: vi.fn(),
+  resolveDashboardPublicUrl: vi.fn(() => "https://ops.example.com"),
 }));
 
 vi.mock("../../../src/lib/auth", () => ({
@@ -19,8 +20,14 @@ vi.mock("../../../src/modules/github/github.auth", () => ({
 
 vi.mock("../../../src/modules/github/github.local-auth", () => ({}));
 vi.mock("../../../src/modules/github/github.service", () => ({}));
+vi.mock("../../../src/lib/public-url", () => ({
+  resolveDashboardPublicUrl,
+}));
 
+import { env } from "../../../src/config/env";
 import { connectRedirect } from "../../../src/modules/github/github.controller";
+
+const originalCloudMode = env.CLOUD_MODE;
 
 function createContext(headers: Headers) {
   return {
@@ -42,8 +49,14 @@ function createContext(headers: Headers) {
 
 describe("connectRedirect", () => {
   beforeEach(() => {
+    env.CLOUD_MODE = false;
     getGitHubAuthMode.mockReset();
     linkSocialAccount.mockReset();
+    resolveDashboardPublicUrl.mockClear();
+  });
+
+  afterAll(() => {
+    env.CLOUD_MODE = originalCloudMode;
   });
 
   it("starts a GitHub link flow and forwards the OAuth state cookie", async () => {
@@ -95,6 +108,34 @@ describe("connectRedirect", () => {
       expect.objectContaining({
         body: expect.objectContaining({
           callbackURL: "/auth/callback/install",
+        }),
+      }),
+    );
+  });
+
+  it("uses the configured public dashboard URL for a production-served local SaaS", async () => {
+    env.CLOUD_MODE = true;
+    getGitHubAuthMode.mockReturnValue("app");
+
+    linkSocialAccount.mockResolvedValue(
+      new Response(
+        JSON.stringify({ url: "https://github.com/login/oauth/authorize?client_id=test" }),
+        {
+          headers: {
+            "content-type": "application/json",
+          },
+        },
+      ),
+    );
+
+    await connectRedirect(createContext(new Headers()));
+
+    expect(resolveDashboardPublicUrl).toHaveBeenCalledOnce();
+    expect(linkSocialAccount).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: expect.objectContaining({
+          callbackURL: "https://ops.example.com/auth/callback/install",
+          errorCallbackURL: "https://ops.example.com/auth/callback/close",
         }),
       }),
     );

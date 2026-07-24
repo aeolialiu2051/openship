@@ -11,9 +11,10 @@
  */
 
 import type { Context } from "hono";
-import { env, runtimeTarget } from "../../config/env";
+import { env } from "../../config/env";
 import { auth } from "../../lib/auth";
 import { audit, auditContextFrom } from "../../lib/audit";
+import { resolveDashboardPublicUrl } from "../../lib/public-url";
 import * as githubAuth from "./github.auth";
 import * as githubService from "./github.service";
 import { createGitHubSource } from "./sources";
@@ -415,7 +416,10 @@ export async function connectRedirect(c: Context) {
   // split-origin SaaS (app.* vs api.*) a relative path would resolve against
   // the API host and dead-end, so absolutize against the dashboard origin.
   // Self-hosted keeps the relative path (resolves against its single origin).
-  const dashOrigin = env.CLOUD_MODE ? runtimeTarget.dashboard : "";
+  // A local-saas process can still be production-served behind a configured
+  // public domain. Use the shared resolver so OPENSHIP_PUBLIC_URL (or the
+  // verified self-app domain) wins over the localhost runtime-target fallback.
+  const dashOrigin = env.CLOUD_MODE ? resolveDashboardPublicUrl() : "";
   const callbackURL = `${dashOrigin}${path}`;
   // Route link FAILURES to the app's close page (which surfaces the error via
   // localStorage → opener toast) instead of Better Auth's raw error page on
