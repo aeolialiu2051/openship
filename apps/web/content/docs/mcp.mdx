@@ -5,7 +5,7 @@ description: Let AI clients like Claude drive your Openship instance as tools, o
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-**MCP (Model Context Protocol)** is a standard way for AI clients — Claude, Cursor, VS Code Copilot, and
+**MCP (Model Context Protocol)** is a standard way for AI clients — Codex, ChatGPT, Claude, Cursor, VS Code Copilot, and
 others — to call an app's features as *tools*. Point one of those clients at Openship and it can list your
 projects, kick off deployments, check logs, add domains, and more — using the exact same permissions you'd
 have yourself.
@@ -15,7 +15,7 @@ and permission stack**, so an agent can only ever see and do what its credential
 
 <Callout title="Where this lives in the dashboard">
 Everything below is set up under **Settings → MCP**. That tab shows the exact endpoint for *your* instance,
-a per-client "add" recipe (Claude Code, Cursor, VS Code, Claude Desktop, Windsurf, Zed), and the list of
+a per-client "add" recipe (Codex, ChatGPT Desktop, Claude Code, Cursor, VS Code, Claude Desktop, Windsurf, Zed), and the list of
 clients you've already connected.
 </Callout>
 
@@ -55,6 +55,17 @@ Give the client your endpoint — `https://<your-host>/api/mcp`. In Claude Code 
 ```bash
 claude mcp add --transport http openship https://<your-host>/api/mcp
 ```
+
+In Codex, add the server and then start the OAuth login flow:
+
+```bash
+codex mcp add openship --url https://<your-host>/api/mcp
+codex mcp login openship
+```
+
+In ChatGPT Desktop, open **Settings → Plugins → MCPs**, add an MCP server named Openship, select
+**Streamable HTTP** as its type, and paste the endpoint as its URL. ChatGPT requires a public HTTPS endpoint;
+`localhost` URLs are not supported.
 
 Other clients take it through their own UI; **Settings → MCP** has the exact snippet for each one.
 </Step>
