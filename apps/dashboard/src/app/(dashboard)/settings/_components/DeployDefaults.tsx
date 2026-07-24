@@ -10,6 +10,7 @@ import { useToast } from "@/context/ToastContext";
 import { SettingsSection } from "./SettingsSection";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { usePlatform } from "@/context/PlatformContext";
+import { displayedDeployTarget, resolveDeployTargetClick } from "./deploy-defaults-state";
 
 // Static target options. "server" gets a server-id sub-picker below.
 const TARGET_OPTIONS: {
@@ -30,6 +31,7 @@ export function DeployDefaults() {
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [choosingServer, setChoosingServer] = useState(false);
   // "local" means the control-plane host itself. That is a valid deployment
   // target for native self-hosted installs, but not for local SaaS: in that
   // mode users choose managed cloud or one of their own SSH servers.
@@ -46,6 +48,7 @@ export function DeployDefaults() {
       ]);
       setTarget(res?.defaultDeployTarget ?? null);
       setServerId(res?.defaultServerId ?? null);
+      setChoosingServer(res?.defaultDeployTarget === "server");
       setServers(serverList);
     } catch {
       /* silent */
@@ -54,21 +57,29 @@ export function DeployDefaults() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   // Save the picked target. For target='server' we require a serverId;
   // we don't auto-pick the first server because that hides the choice
   // from the user - they should select one explicitly.
   async function save(nextTarget: DefaultDeployTarget | null, nextServerId: string | null) {
     if (nextTarget === "server" && !nextServerId) {
-      showToast(t.settings.deployDefaults.toast.pickServer, "error", t.settings.common.toast.defaults);
+      showToast(
+        t.settings.deployDefaults.toast.pickServer,
+        "error",
+        t.settings.common.toast.defaults,
+      );
       return;
     }
     setSaving(true);
     const prevTarget = target;
     const prevServerId = serverId;
+    const prevChoosingServer = choosingServer;
     setTarget(nextTarget);
     setServerId(nextTarget === "server" ? nextServerId : null);
+    setChoosingServer(nextTarget === "server");
     try {
       await settingsApi.updateDeployDefaults({
         defaultDeployTarget: nextTarget,
@@ -78,7 +89,12 @@ export function DeployDefaults() {
         nextTarget === null
           ? t.settings.deployDefaults.toast.cleared
           : interpolate(t.settings.deployDefaults.toast.setTo, {
-              label: labelFor(nextTarget, nextServerId, servers, t.settings.deployDefaults.labelFor),
+              label: labelFor(
+                nextTarget,
+                nextServerId,
+                servers,
+                t.settings.deployDefaults.labelFor,
+              ),
             }),
         "success",
         t.settings.common.toast.defaults,
@@ -86,11 +102,24 @@ export function DeployDefaults() {
     } catch {
       setTarget(prevTarget);
       setServerId(prevServerId);
+      setChoosingServer(prevChoosingServer);
       showToast(t.settings.deployDefaults.toast.failed, "error", t.settings.common.toast.defaults);
     } finally {
       setSaving(false);
     }
   }
+
+  function selectTarget(nextTarget: DefaultDeployTarget) {
+    const intent = resolveDeployTargetClick(nextTarget);
+    if (intent.kind === "open-server-picker") {
+      setChoosingServer(true);
+      return;
+    }
+
+    void save(intent.target, intent.serverId);
+  }
+
+  const displayedTarget = displayedDeployTarget(target, choosingServer);
 
   return (
     <SettingsSection
@@ -108,20 +137,18 @@ export function DeployDefaults() {
         </div>
       ) : (
         <>
-          <p className="text-sm text-muted-foreground mb-4">
-            {t.settings.deployDefaults.intro}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4">{t.settings.deployDefaults.intro}</p>
           <div
             className={`grid grid-cols-1 gap-3 ${
               targetOptions.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"
             }`}
           >
             {targetOptions.map(({ value, icon: ModeIcon }) => {
-              const active = target === value;
+              const active = displayedTarget === value;
               return (
                 <button
                   key={value}
-                  onClick={() => save(value, value === "server" ? serverId : null)}
+                  onClick={() => selectTarget(value)}
                   disabled={saving}
                   className={`relative text-start rounded-xl border p-4 transition-all ${
                     active
@@ -132,8 +159,12 @@ export function DeployDefaults() {
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center mb-3">
                     <ModeIcon className="size-4 text-muted-foreground" />
                   </div>
-                  <p className="text-sm font-medium text-foreground">{t.settings.deployDefaults.targets[value].label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{t.settings.deployDefaults.targets[value].desc}</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {t.settings.deployDefaults.targets[value].label}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {t.settings.deployDefaults.targets[value].desc}
+                  </p>
                   {active && (
                     <div className="absolute top-3 end-3">
                       <Check className="size-4 text-primary" />
@@ -144,8 +175,8 @@ export function DeployDefaults() {
             })}
           </div>
 
-          {/* Server sub-picker - only when target=server */}
-          {target === "server" && (
+          {/* Server sub-picker - shown before a server target is persisted. */}
+          {choosingServer && (
             <div className="mt-4 rounded-xl border border-border/50 bg-muted/20 p-3">
               <p className="text-xs font-medium text-muted-foreground mb-2 px-1">
                 {t.settings.deployDefaults.defaultServer}
@@ -170,9 +201,13 @@ export function DeployDefaults() {
                             : "bg-card/60 border border-border/30 hover:border-primary/20 hover:bg-muted/30"
                         } disabled:opacity-50`}
                       >
-                        <div className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
-                          isSelected ? "bg-primary/15 text-primary" : "bg-muted/50 text-muted-foreground"
-                        }`}>
+                        <div
+                          className={`w-7 h-7 rounded-md flex items-center justify-center shrink-0 ${
+                            isSelected
+                              ? "bg-primary/15 text-primary"
+                              : "bg-muted/50 text-muted-foreground"
+                          }`}
+                        >
                           <Server className="size-3.5" />
                         </div>
                         <div className="flex-1 min-w-0">
@@ -183,9 +218,7 @@ export function DeployDefaults() {
                             {s.sshUser || "root"}@{s.sshHost}:{s.sshPort || 22}
                           </p>
                         </div>
-                        {isSelected && (
-                          <Check className="size-4 text-primary shrink-0" />
-                        )}
+                        {isSelected && <Check className="size-4 text-primary shrink-0" />}
                       </button>
                     );
                   })}
@@ -220,7 +253,7 @@ function labelFor(
 ): string {
   if (target === "server") {
     const s = servers.find((srv) => srv.id === serverId);
-    return s ? (s.name || s.sshHost) : labels.yourServer;
+    return s ? s.name || s.sshHost : labels.yourServer;
   }
   if (target === "cloud") return labels.cloud;
   return labels.local;
