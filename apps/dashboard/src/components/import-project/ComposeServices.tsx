@@ -2,12 +2,10 @@
 
 import React, { useState, useCallback, useEffect, useMemo } from "react";
 import {
-  Layers,
   Boxes,
   Globe,
   Lock,
   KeyRound,
-  Code2,
   ChevronDown,
   ChevronUp,
   MoreHorizontal,
@@ -28,15 +26,16 @@ import {
   type ComposeServiceInfo,
   type PublicEndpoint,
 } from "@/context/deployment/types";
-import { getModeSwitchUpdates } from "@/context/deployment/mode-config";
 import { normalizeSubdomain } from "@/utils/subdomain";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { Modal } from "@/components/ui/Modal";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import EnvironmentVariables from "./EnvironmentVariables";
 import BuildSettings from "./BuildSettings";
+import ProjectSettings from "./ProjectSettings";
 import { cn } from "@/lib/utils";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { STACKS } from "@repo/core";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -920,7 +919,6 @@ const ComposeServices: React.FC = () => {
   const sharedEnvVars = config.envVars || [];
   const rootEnvVars = config.rootEnvVars || [];
   const isServiceDeployment = usesServiceDeployment(config);
-  const [modeOptionsOpen, setModeOptionsOpen] = useState(false);
 
   const updateService = useCallback(
     (index: number, updates: Partial<ComposeServiceInfo>) => {
@@ -986,179 +984,85 @@ const ComposeServices: React.FC = () => {
     return new Set([...counts.entries()].filter(([, n]) => n > 1).map(([host]) => host));
   }, [services, baseDomain, projectNameForHost]);
 
-  const setDeploymentMode = useCallback(
-    (mode: "services" | "single") => {
-      updateConfig(getModeSwitchUpdates(config, mode));
-    },
-    [config, updateConfig],
-  );
-
-  const modeOptions = [
-    {
-      id: "services" as const,
-      label: cs.main.modeServicesLabel,
-      description: cs.main.modeServicesDesc,
-      icon: Layers,
-    },
-    {
-      id: "single" as const,
-      label: cs.main.modeSingleLabel,
-      description: cs.main.modeSingleDesc,
-      icon: Code2,
-    },
-  ];
-
-  const selectedMode = modeOptions.find((option) => option.id === config.serviceDeploymentMode) ?? modeOptions[0];
-
   return (
     <div className="space-y-5">
-      <div className="bg-card rounded-2xl border border-border/50">
-        <div className="px-5 py-5 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-orange-500/10 rounded-xl">
-              <Boxes className="w-6 h-6 text-orange-500" />
-            </div>
-            <div>
-              <h3 className="text-[15px] font-semibold text-foreground">Docker Compose</h3>
-              <p className="text-xs text-muted-foreground">
-                {isServiceDeployment ? cs.main.deployingServices : cs.main.deployingSingle}
-                {isServiceDeployment && (
-                  <>
-                    {" · "}
-                    {interpolate(services.length === 1 ? cnt.serviceOne : cnt.serviceOther, { count: String(services.length) })}
-                    {buildCount > 0 && ` ${interpolate(cs.main.buildCountSuffix, { count: String(buildCount) })}`}
-                    {exposedCount > 0 && ` ${interpolate(cs.main.exposedCountSuffix, { count: String(exposedCount) })}`}
-                  </>
-                )}
-              </p>
-            </div>
-          </div>
+      <ProjectSettings allowComposeDeployment />
 
-          {isServiceDeployment ? (
-            <>
-              <SharedEnvironmentCard
-                envVars={sharedEnvVars}
-                rootEnvVars={rootEnvVars}
-                onChange={updateSharedEnv}
-              />
-
-              {/* Duplicate-domain warning — two routes can't share a hostname. */}
-              {duplicateHosts.size > 0 && (
-                <div className="flex items-start gap-3 rounded-xl border border-warning-border bg-warning-bg px-4 py-3">
-                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
-                  <div className="min-w-0 text-sm">
-                    <p className="font-medium text-warning">
-                      {cs.domain.duplicateTitle}
-                    </p>
-                    <p className="mt-0.5 text-warning/80">
-                      {cs.domain.duplicateDescription}{" "}
-                      <span className="font-mono">{[...duplicateHosts].join(", ")}</span>
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Services list */}
-              {services.length > 0 ? (
-                <div className="space-y-4">
-                  {services.map((svc, i) => (
-                    <ServiceCard
-                      key={svc.name}
-                      service={svc}
-                      projectName={config.projectName || config.repo}
-                      onUpdate={(updates) => updateService(i, updates)}
-                      onEnvChange={(env) => updateServiceEnv(i, env)}
-                      onDelete={() => deleteService(i)}
-                    />
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <ServiceCardSkeleton />
-                  <ServiceCardSkeleton />
-                </div>
-              )}
-
-              {/* Info */}
-              <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  {cs.main.infoPart1}
-                  <strong className="text-foreground">{cs.main.infoBold}</strong>{cs.main.infoPart2}
+      {isServiceDeployment && (
+        <div className="bg-card rounded-2xl border border-border/50">
+          <div className="px-5 py-5 space-y-6">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-orange-500/10">
+                <Boxes className="size-6 text-orange-500" />
+              </div>
+              <div>
+                <h3 className="text-[15px] font-semibold text-foreground">
+                  {STACKS["docker-compose"].name}
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  {cs.main.deployingServices}
+                  {" · "}
+                  {interpolate(services.length === 1 ? cnt.serviceOne : cnt.serviceOther, { count: String(services.length) })}
+                  {buildCount > 0 && ` ${interpolate(cs.main.buildCountSuffix, { count: String(buildCount) })}`}
+                  {exposedCount > 0 && ` ${interpolate(cs.main.exposedCountSuffix, { count: String(exposedCount) })}`}
                 </p>
               </div>
-            </>
-          ) : (
-            <div className="rounded-xl border border-border/50 bg-muted/20 p-4">
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                {cs.main.singleAppNote}
-              </p>
             </div>
-          )}
 
-          <div className="border-t border-border/50 pt-4">
-            <button
-              type="button"
-              onClick={() => setModeOptionsOpen((open) => !open)}
-              className="flex w-full items-center justify-between gap-4 text-start"
-            >
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-xl bg-muted/40">
-                  <Settings2 className="size-4 text-muted-foreground" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-foreground">{cs.main.deploymentMode}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {interpolate(cs.main.deploymentModeDesc, { mode: selectedMode.label })}
+            <SharedEnvironmentCard
+              envVars={sharedEnvVars}
+              rootEnvVars={rootEnvVars}
+              onChange={updateSharedEnv}
+            />
+
+            {/* Duplicate-domain warning — two routes can't share a hostname. */}
+            {duplicateHosts.size > 0 && (
+              <div className="flex items-start gap-3 rounded-xl border border-warning-border bg-warning-bg px-4 py-3">
+                <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" />
+                <div className="min-w-0 text-sm">
+                  <p className="font-medium text-warning">
+                    {cs.domain.duplicateTitle}
+                  </p>
+                  <p className="mt-0.5 text-warning/80">
+                    {cs.domain.duplicateDescription}{" "}
+                    <span className="font-mono">{[...duplicateHosts].join(", ")}</span>
                   </p>
                 </div>
               </div>
-              {modeOptionsOpen ? (
-                <ChevronUp className="size-4 text-muted-foreground" />
-              ) : (
-                <ChevronDown className="size-4 text-muted-foreground" />
-              )}
-            </button>
+            )}
 
-            {modeOptionsOpen && (
-              <div className="mt-4 rounded-xl border border-border/50 bg-muted/20 p-4">
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {modeOptions.map((option) => {
-                    const Icon = option.icon;
-                    const selected = config.serviceDeploymentMode === option.id;
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => setDeploymentMode(option.id)}
-                        className={cn(
-                          "flex items-start gap-3 rounded-xl border p-3 text-start transition-colors",
-                          selected
-                            ? "border-primary/40 bg-primary/10 text-foreground"
-                            : "border-border/50 bg-background/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground",
-                        )}
-                      >
-                        <span className={cn(
-                          "mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg",
-                          selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
-                        )}>
-                          <Icon className="size-4" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium">{option.label}</span>
-                          <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
-                            {option.description}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+            {/* Services list */}
+            {services.length > 0 ? (
+              <div className="space-y-4">
+                {services.map((svc, i) => (
+                  <ServiceCard
+                    key={svc.name}
+                    service={svc}
+                    projectName={config.projectName || config.repo}
+                    onUpdate={(updates) => updateService(i, updates)}
+                    onEnvChange={(env) => updateServiceEnv(i, env)}
+                    onDelete={() => deleteService(i)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <ServiceCardSkeleton />
+                <ServiceCardSkeleton />
               </div>
             )}
+
+            {/* Info */}
+            <div className="p-4 bg-muted/30 rounded-xl border border-border/50">
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {cs.main.infoPart1}
+                <strong className="text-foreground">{cs.main.infoBold}</strong>{cs.main.infoPart2}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       {!isServiceDeployment && <BuildSettings />}
     </div>
   );

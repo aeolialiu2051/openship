@@ -3,49 +3,74 @@
 import React, { useCallback, useState, useMemo } from "react";
 import { frameworks, getFrameworkConfig, stackCategories } from "./Frameworks";
 import type { StackCategory } from "./Frameworks";
-import { STACKS } from "@repo/core";
 import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { useDeployment } from "@/context/DeploymentContext";
+import { getFrameworkSelectionUpdates } from "@/context/deployment/framework-selection";
+import { getModeSwitchUpdates } from "@/context/deployment/mode-config";
+import { usesServiceDeployment, type DeploymentConfig } from "@/context/deployment/types";
 import { useI18n } from "@/components/i18n-provider";
 import type { FrameworkId } from "./types";
+import { DockerMark } from "@/components/icons/DockerMark";
+import { STACKS } from "@repo/core";
 
-const ProjectSettings: React.FC = () => {
+interface ProjectSettingsProps {
+  /** Allow a compose project to switch between its detected service stack and an app framework. */
+  allowComposeDeployment?: boolean;
+}
+
+function getPickerCategory(frameworkId?: string): StackCategory {
+  if (!frameworkId) return "frontend";
+  const category = getFrameworkConfig(frameworkId).category;
+  return stackCategories.some((item) => item.id === category) ? category : "frontend";
+}
+
+const ProjectSettings: React.FC<ProjectSettingsProps> = ({ allowComposeDeployment = false }) => {
   const { config, updateConfig } = useDeployment();
   const { t } = useI18n();
-  const [showFrameworkPicker, setShowFrameworkPicker] = useState(false);
+  const [showFrameworkPicker, setShowFrameworkPicker] = useState(allowComposeDeployment);
 
-  const isAutoDetected = config.detectedFramework != null && config.framework === config.detectedFramework;
-  const detectedFw = config.detectedFramework ? getFrameworkConfig(config.detectedFramework) : null;
+  const isComposeDeployment = allowComposeDeployment && usesServiceDeployment(config);
+  const selectedFrameworkId = isComposeDeployment ? "docker-compose" : config.framework;
+  const detectedFrameworkId = allowComposeDeployment ? "docker-compose" : config.detectedFramework;
+  const isAutoDetected = detectedFrameworkId != null && selectedFrameworkId === detectedFrameworkId;
+  const detectedFw = detectedFrameworkId ? getFrameworkConfig(detectedFrameworkId) : null;
 
-  const currentFwConfig = getFrameworkConfig(config.framework);
-  const [activeTab, setActiveTab] = useState<StackCategory>(currentFwConfig.category);
+  const [activeTab, setActiveTab] = useState<StackCategory>(() =>
+    getPickerCategory(config.singleAppCandidate?.stack || selectedFrameworkId),
+  );
 
   const filteredFrameworks = useMemo(
     () => frameworks.filter((fw) => fw.category === activeTab),
     [activeTab],
   );
 
-  const handleFrameworkChange = useCallback((frameworkId: FrameworkId) => {
-    const fwConfig = getFrameworkConfig(frameworkId);
-    const stackDef = STACKS[frameworkId as keyof typeof STACKS];
-    const isStatic = fwConfig.options.isStatic;
-    updateConfig({
-      framework: frameworkId,
-      options: {
-        ...config.options,
-        buildCommand: stackDef?.defaultBuildCommand ?? fwConfig.options.buildCommand,
-        installCommand: fwConfig.options.installCommand,
-        outputDirectory: stackDef?.outputDirectory ?? fwConfig.options.outputDirectory,
-        startCommand: stackDef?.defaultStartCommand ?? "",
-        productionPort: String(stackDef?.defaultPort ?? 3000),
-        hasServer: !isStatic,
-      },
-    });
-  }, [updateConfig, config.options]);
+  const handleFrameworkChange = useCallback(
+    (frameworkId: FrameworkId) => {
+      if (allowComposeDeployment && frameworkId === "docker-compose") {
+        updateConfig(getModeSwitchUpdates(config, "services"));
+        return;
+      }
+
+      const modeUpdates = allowComposeDeployment ? getModeSwitchUpdates(config, "single") : {};
+      const switchedConfig: DeploymentConfig = {
+        ...config,
+        ...modeUpdates,
+        options: {
+          ...config.options,
+          ...modeUpdates.options,
+        },
+      };
+      updateConfig({
+        ...modeUpdates,
+        ...getFrameworkSelectionUpdates(switchedConfig, frameworkId),
+      });
+    },
+    [allowComposeDeployment, updateConfig, config],
+  );
 
   const handleChangeClick = () => {
     setShowFrameworkPicker(true);
-    if (detectedFw) setActiveTab(detectedFw.category);
+    setActiveTab(getPickerCategory(config.singleAppCandidate?.stack || selectedFrameworkId));
   };
 
   return (
@@ -98,7 +123,7 @@ const ProjectSettings: React.FC = () => {
                 onClick={() => {
                   setShowFrameworkPicker(false);
                   // Reset to detected framework
-                  if (config.detectedFramework) handleFrameworkChange(config.detectedFramework);
+                  if (detectedFrameworkId) handleFrameworkChange(detectedFrameworkId);
                 }}
                 className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
               >
@@ -129,8 +154,30 @@ const ProjectSettings: React.FC = () => {
 
           {/* Framework grid */}
           <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-6 gap-2.5">
+            {allowComposeDeployment && (
+              <button
+                onClick={() => handleFrameworkChange("docker-compose")}
+                type="button"
+                className={`flex flex-col items-center gap-2.5 p-3.5 rounded-xl border transition-all ${
+                  isComposeDeployment
+                    ? "border-primary bg-primary/5 ring-1 ring-primary/20"
+                    : "border-border/50 hover:border-border hover:bg-muted/30"
+                }`}
+              >
+                <div className="w-8 h-8 flex items-center justify-center">
+                  <DockerMark
+                    className={`size-8 ${isComposeDeployment ? "text-[#2496ED]" : "text-muted-foreground"}`}
+                  />
+                </div>
+                <span
+                  className={`text-xs font-medium ${isComposeDeployment ? "text-primary" : "text-muted-foreground"}`}
+                >
+                  {STACKS["docker-compose"].name}
+                </span>
+              </button>
+            )}
             {filteredFrameworks.map((fw) => {
-              const isSelected = config.framework === fw.id;
+              const isSelected = !isComposeDeployment && config.framework === fw.id;
               return (
                 <button
                   key={fw.id}
