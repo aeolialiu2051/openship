@@ -21,7 +21,14 @@ export async function forceMcpConsent(c: Context, next: Next): Promise<Response 
   const url = new URL(c.req.url);
   if (url.searchParams.get("prompt") !== "consent") {
     url.searchParams.set("prompt", "consent");
-    return c.redirect(url.toString(), 302);
+
+    // The dashboard's same-origin proxy reaches the API through an internal
+    // address such as http://api:4000. Redirecting with url.toString() leaks
+    // that container-only hostname into Location, so the user's browser tries
+    // (and fails) to resolve `api`. Keep the redirect origin-relative instead:
+    // the browser retains the public origin while every OAuth parameter stays
+    // intact.
+    return c.redirect(`${url.pathname}${url.search}`, 302);
   }
   return next();
 }
