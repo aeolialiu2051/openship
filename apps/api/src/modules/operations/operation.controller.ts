@@ -32,6 +32,7 @@ export function toOperationDto(operation: ResourceOperation) {
 }
 
 export async function getById(c: Context) {
+  c.header("Cache-Control", "no-store, max-age=0");
   const ctx = getRequestContext(c);
   const operation = await repos.resourceOperation.findByIdForOrganization(
     param(c, "id"),
@@ -42,6 +43,7 @@ export async function getById(c: Context) {
 }
 
 export async function getActive(c: Context) {
+  c.header("Cache-Control", "no-store, max-age=0");
   const ctx = getRequestContext(c);
   const kind = c.req.query("kind");
   const resourceId = c.req.query("resourceId");

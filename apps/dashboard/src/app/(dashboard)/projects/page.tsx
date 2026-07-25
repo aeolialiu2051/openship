@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useMemo, useDeferredValue } from "react";
 import Link from "next/link";
-import { Project } from "@/constants/mock";
 import ProjectCard from "./components/ProjectCard";
 import {
   ProjectFilters,
@@ -12,43 +11,19 @@ import {
 } from "./components/ProjectFilters";
 import EmptyState from "@/components/overview/EmptyState";
 import { ProjectIllustration } from "@/components/overview/ProjectIllustration";
-import { projectsApi } from "@/lib/api";
-import { useRouter } from "next/navigation";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { Plus, Search, Server } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { usePlatform } from "@/context/PlatformContext";
+import { useProjectsHome } from "@/hooks/useProjectsHome";
 
 export default function ProjectsPage() {
   const { t } = useI18n();
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { projects, isLoading } = useProjectsHome();
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filter, setFilter] = useState<ProjectFilter>({ kind: "all" });
-  const [isLoading, setIsLoading] = useState(true);
-  const router = useRouter();
   const { userServers } = usePlatform();
-  const isLoadingRef = useRef(false);
-
-  useEffect(() => {
-    const fetchProjects = async () => {
-      if (isLoadingRef.current) return;
-      isLoadingRef.current = true;
-      setIsLoading(true);
-      try {
-        const response = await projectsApi.getHome();
-        if (response.success && Array.isArray(response.projects)) {
-          setProjects(response.projects);
-        }
-      } catch (error) {
-        console.error("Error fetching projects:", error);
-      } finally {
-        setIsLoading(false);
-        isLoadingRef.current = false;
-      }
-    };
-    fetchProjects();
-    return () => { isLoadingRef.current = false; };
-  }, []);
 
   // Target filters derived from the loaded projects (Cloud / each server /
   // Local). Show the filter card once there's more than one group to pick
@@ -58,17 +33,19 @@ export default function ProjectsPage() {
   const showFilterCard = filterOptions.length > 1;
   const hasServers = projects.some((p) => p.deployTarget === "server");
 
-  const filteredProjects = projects.filter((p) => {
-    // Apps (catalog-installed: Convex, webmail, …) live under the Apps tab.
-    if (p.isApp) return false;
-    if (!projectMatchesFilter(p, filter)) return false;
-    const q = searchQuery.toLowerCase();
-    return (
-      p.name.toLowerCase().includes(q) ||
-      p.slug.toLowerCase().includes(q) ||
-      p.framework.toLowerCase().includes(q)
-    );
-  });
+  const filteredProjects = useMemo(() => {
+    const q = deferredSearchQuery.trim().toLowerCase();
+    return projects.filter((p) => {
+      // Apps (catalog-installed: Convex, webmail, …) live under the Apps tab.
+      if (p.isApp) return false;
+      if (!projectMatchesFilter(p, filter)) return false;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        p.slug.toLowerCase().includes(q) ||
+        p.framework.toLowerCase().includes(q)
+      );
+    });
+  }, [deferredSearchQuery, filter, projects]);
 
   return (
     <PageContainer outerClassName="pb-20">
@@ -142,9 +119,9 @@ export default function ProjectsPage() {
                 ) : (
                   <div className="flex min-h-[380px] flex-col items-center justify-center px-6 py-12 text-center">
                     <ProjectIllustration className="relative mx-auto mb-6 h-40 w-56" />
-                    {searchQuery ? (
+                    {deferredSearchQuery ? (
                       <p className="mx-auto max-w-sm text-sm text-muted-foreground/70">
-                        {t.dashboard.pages.projects.noResultsFound.replace("{query}", searchQuery)}
+                        {t.dashboard.pages.projects.noResultsFound.replace("{query}", deferredSearchQuery)}
                       </p>
                     ) : (
                       <>

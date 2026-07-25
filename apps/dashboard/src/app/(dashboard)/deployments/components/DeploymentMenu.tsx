@@ -14,9 +14,10 @@ import {
   Loader2,
 } from "lucide-react";
 import { generateIcon } from "@/utils/icons";
-import { deployApi, getApiErrorMessage, operationsApi } from "@/lib/api";
+import { deployApi, getApiErrorMessage } from "@/lib/api";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 interface Deployment {
   id: string;
@@ -55,12 +56,6 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     deployment.deletionOperationStatus === "queued" ||
       deployment.deletionOperationStatus === "running",
   );
-  const [deletionOperationId, setDeletionOperationId] = useState<string | null>(
-    deployment.deletionOperationStatus === "queued" ||
-      deployment.deletionOperationStatus === "running"
-      ? (deployment.deletionOperationId ?? null)
-      : null,
-  );
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -80,60 +75,11 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
-    const operationId = deployment.deletionOperationId;
-    if (
-      operationId &&
-      (deployment.deletionOperationStatus === "queued" ||
-        deployment.deletionOperationStatus === "running")
-    ) {
-      setIsDeleting(true);
-      setDeletionOperationId(operationId);
-    }
+    setIsDeleting(
+      deployment.deletionOperationStatus === "queued" ||
+        deployment.deletionOperationStatus === "running",
+    );
   }, [deployment.deletionOperationId, deployment.deletionOperationStatus]);
-
-  useEffect(() => {
-    if (!deletionOperationId) return;
-    let cancelled = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const poll = async () => {
-      try {
-        const operation = (await operationsApi.get(deletionOperationId)).data;
-        if (cancelled) return;
-        if (operation.status === "queued" || operation.status === "running") {
-          timer = setTimeout(() => void poll(), 2000);
-          return;
-        }
-
-        setDeletionOperationId(null);
-        setIsDeleting(false);
-        if (
-          operation.status === "completed" ||
-          operation.status === "completed_with_warnings"
-        ) {
-          showToast(t.deployments.menu.deleteSuccess, "success");
-        } else {
-          showToast(
-            operation.error?.message || t.deployments.menu.deleteFailed,
-            "error",
-            t.deployments.menu.deleteFailed,
-          );
-        }
-        onStatusChange?.();
-      } catch {
-        // A transient status-request failure must not turn a real background
-        // deletion into a false UI failure. Keep the pending state and retry;
-        // the operation is durable and can also be recovered after refresh.
-        if (!cancelled) timer = setTimeout(() => void poll(), 3000);
-      }
-    };
-
-    void poll();
-    return () => {
-      cancelled = true;
-      if (timer) clearTimeout(timer);
-    };
-  }, [deletionOperationId, onStatusChange, showToast, t.deployments.menu]);
 
   // `isInFlight` = status-wise busy (the cancel/delete affordances care
   // about this). Distinct from `deployment.isActive` which means
@@ -219,13 +165,12 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     if (!window.confirm(t.deployments.menu.confirmDelete)) return;
     setIsDeleting(true);
     try {
-      const response = await deployApi.deleteDeployment(deployment.id);
+      await deployApi.deleteDeployment(deployment.id);
+      invalidateProjectsHomeCache();
       showToast(t.deployments.menu.deleteQueued, "success");
-      setDeletionOperationId(response.operationId);
       onStatusChange?.();
     } catch (err) {
       setIsDeleting(false);
-      setDeletionOperationId(null);
       showToast(
         getApiErrorMessage(err, t.deployments.menu.deleteFailed),
         "error",

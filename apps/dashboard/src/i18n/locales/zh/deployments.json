@@ -69,7 +69,23 @@
     "rejected": "已拒绝",
     "verifying": "验证中",
     "pending": "待处理",
-    "deleting": "删除中"
+    "deleting": "删除中",
+    "cleanupNeedsAction": "清理需要处理"
+  },
+  "deletionProgress": {
+    "stepCount": "第 {current}/{total} 步",
+    "attemptCount": "第 {count} 次执行",
+    "steps": {
+      "queued": "等待清理任务",
+      "claiming_resource": "正在准备删除",
+      "dispatching": "正在启动清理",
+      "validating_resource": "正在检查部署",
+      "tearing_down": "正在移除项目资源",
+      "destroying_runtime": "正在移除运行资源",
+      "cleanup_blocked": "清理需要处理",
+      "done": "清理完成",
+      "failed": "清理失败"
+    }
   },
   "serviceStatus": {
     "deployed": "已部署",

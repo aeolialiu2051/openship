@@ -1,3 +1,5 @@
+import type { ResourceOperationView } from "@/lib/api/operations";
+
 export interface ServiceDeploymentSummary {
   id: string;
   serviceId: string;
@@ -60,6 +62,7 @@ export interface Deployment {
   isActive?: boolean;
   deletionOperationId?: string | null;
   deletionOperationStatus?: "queued" | "running" | "needs_action" | null;
+  deletionOperation?: ResourceOperationView | null;
   /**
    * Per-service deploy fan-out for this deployment. Populated when the
    * orchestrator-aware listing endpoint can resolve service_deployment

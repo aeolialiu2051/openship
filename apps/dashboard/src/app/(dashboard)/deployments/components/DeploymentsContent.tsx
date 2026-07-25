@@ -23,6 +23,7 @@ import {
   sortDeploymentsByDate,
   mapRowToDeployment,
 } from "../utils";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 interface DeploymentsContentProps {
   /** When set, scope to this project and hide the project selector */
@@ -58,6 +59,7 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
     // list with skeletons every time a background operation changes state made
     // otherwise-fast actions feel janky.
     if (!hasLoadedRef.current) setIsLoading(true);
+    let succeeded = false;
     try {
       if (isProject && projectId) {
         const res = await projectsApi.getDeployments(projectId);
@@ -88,17 +90,60 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
         }
         setProjects([...projectMap.values()]);
       }
+      succeeded = true;
     } catch {
       /* silent */
     } finally {
       hasLoadedRef.current = true;
       setIsLoading(false);
     }
+    return succeeded;
   }, [isProject, projectId, projectName]);
 
   useEffect(() => {
     fetchDeployments();
   }, [fetchDeployments]);
+
+  // One list-level timer observes every active deletion. The listing endpoint
+  // already batches operation lookup for all visible rows, so this replaces N
+  // per-card timers and N status requests with a single lightweight refresh.
+  const hasActiveDeletion = deployments.some(
+    (deployment) =>
+      deployment.deletionOperationStatus === "queued" ||
+      deployment.deletionOperationStatus === "running",
+  );
+
+  useEffect(() => {
+    if (!hasActiveDeletion) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveFailures = 0;
+
+    const schedule = (delayMs: number) => {
+      if (cancelled) return;
+      const visibilityDelay =
+        document.visibilityState === "hidden" ? Math.max(delayMs, 10_000) : delayMs;
+      timer = setTimeout(() => void poll(), visibilityDelay);
+    };
+
+    const poll = async () => {
+      invalidateProjectsHomeCache();
+      const succeeded = await fetchDeployments();
+      if (cancelled) return;
+      consecutiveFailures = succeeded ? 0 : consecutiveFailures + 1;
+      schedule(
+        succeeded
+          ? 2_000
+          : Math.min(3_000 * 2 ** (consecutiveFailures - 1), 15_000),
+      );
+    };
+
+    schedule(2_000);
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [fetchDeployments, hasActiveDeletion]);
 
   const filteredDeployments = useMemo(
     () =>

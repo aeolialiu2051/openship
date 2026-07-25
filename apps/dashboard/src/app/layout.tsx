@@ -4,7 +4,6 @@ import "./globals.css";
 import { ThemeProvider, ThemeScript } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/toast";
 import { I18nProvider } from "@/components/i18n-provider";
-import { AuthProvider } from "@/context/AuthContext";
 import { NetworkErrorHandler } from "@/components/network-error-handler";
 import { ModalProvider } from "@/context/ModalContext";
 import { DesktopChrome } from "@/components/desktop-chrome";
@@ -107,17 +106,15 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <ThemeProvider>
-          <AuthProvider>
-            <I18nProvider initialLocale={locale} initialDictionary={initialDictionary}>
-              <ToastProvider>
-                <ModalProvider>
-                  <DesktopChrome />
-                  <NetworkErrorHandler />
-                  {children}
-                </ModalProvider>
-              </ToastProvider>
-            </I18nProvider>
-          </AuthProvider>
+          <I18nProvider initialLocale={locale} initialDictionary={initialDictionary}>
+            <ToastProvider>
+              <ModalProvider>
+                <DesktopChrome />
+                <NetworkErrorHandler />
+                {children}
+              </ModalProvider>
+            </ToastProvider>
+          </I18nProvider>
         </ThemeProvider>
       </body>
     </html>

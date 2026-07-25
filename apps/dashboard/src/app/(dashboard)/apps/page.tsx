@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, useEffect, useRef, Fragment } from "react";
+import { useState, useEffect, Fragment } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Project } from "@/constants/mock";
 import ProjectCard from "../projects/components/ProjectCard";
-import { projectsApi } from "@/lib/api";
 import { updatesApi } from "@/lib/api/updates";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { AVAILABLE_APP_IDS } from "@repo/core";
 import { Plus, Mail, Database, Workflow, FileText, Activity, KeyRound, BarChart3, ArrowRight, type LucideIcon } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { AppLogo } from "@/components/AppLogo";
+import { useProjectsHome } from "@/hooks/useProjectsHome";
 
 /**
  * Apps tab — catalog-installed managed services. Shares `projects/home` data with
@@ -48,36 +47,16 @@ export default function AppsPage() {
   const { t } = useI18n();
   const router = useRouter();
   const ap = t.dashboard.pages.apps;
-  const [projects, setProjects] = useState<Project[]>([]);
+  const { projects, isLoading } = useProjectsHome();
   const [updatesBehind, setUpdatesBehind] = useState<Set<string>>(new Set());
-  const [isLoading, setIsLoading] = useState(true);
-  const isLoadingRef = useRef(false);
 
   useEffect(() => {
-    const load = async () => {
-      if (isLoadingRef.current) return;
-      isLoadingRef.current = true;
-      setIsLoading(true);
-      try {
-        const home = await projectsApi.getHome();
-        if (home.success && Array.isArray(home.projects)) setProjects(home.projects);
-      } catch (error) {
-        console.error("Error fetching apps:", error);
-      } finally {
-        setIsLoading(false);
-        isLoadingRef.current = false;
-      }
-    };
-    load();
     // Which installed apps have a pending update (fed by the update scan). Best-
     // effort — a failure just hides the badge.
     updatesApi
       .list(true)
       .then((res) => setUpdatesBehind(new Set(res.data.map((u) => u.projectId))))
       .catch(() => {});
-    return () => {
-      isLoadingRef.current = false;
-    };
   }, []);
 
   const apps = projects.filter((p) => p.isApp);

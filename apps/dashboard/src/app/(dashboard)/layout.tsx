@@ -149,6 +149,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       userServers={deploymentInfo.userServers}
       deployMode={deploymentInfo.deployMode}
       authMode={deploymentInfo.authMode}
+      version={deploymentInfo.version}
       cloudAuthUrl={deploymentInfo.cloudAuthUrl}
       cloudApiUrl={deploymentInfo.cloudApiUrl}
       machineName={deploymentInfo.machineName}

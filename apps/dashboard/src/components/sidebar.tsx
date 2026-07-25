@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -160,15 +160,14 @@ export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Org switcher state. Lazy-loaded — `list()` and the active org fetch
-  // only fire after the first popover open so the sidebar doesn't pay
-  // for the round-trip on every page load. The role chip for the active
-  // org is fetched alongside.
+  // Load the org list on mount so the active workspace is visible. Per-org
+  // role details are deferred until the switcher opens; fetching one full org
+  // payload per membership during every page boot competes with route data.
   const [orgsOpen, setOrgsOpen] = useState(false);
   const [orgs, setOrgs] = useState<SidebarOrg[]>([]);
   const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
-  const [activeOrgRole, setActiveOrgRole] = useState<string | null>(null);
   const [orgRoles, setOrgRoles] = useState<Record<string, string>>({});
+  const roleLoadsAttemptedRef = useRef(new Set<string>());
   const [orgsLoaded, setOrgsLoaded] = useState(false);
   const [switchingOrgId, setSwitchingOrgId] = useState<string | null>(null);
 
@@ -190,27 +189,9 @@ export function Sidebar() {
         setActiveOrgId(aid);
         setActiveOrganizationId(aid);
         setOrgsLoaded(true);
-        // Per-workspace role for EVERY row (not just the active one) so you can
-        // tell which workspaces you own. One getFullOrganization per org;
-        // failures just leave that row's chip off.
-        try {
-          const entries = await Promise.all(
-            list.map(async (o) => {
-              try {
-                const full = await sidebarOrgClient.getFullOrganization({ organizationId: o.id });
-                const me = full.data?.members?.find((m) => m.userId === user?.id);
-                return [o.id, me?.role ?? null] as const;
-              } catch {
-                return [o.id, null] as const;
-              }
-            }),
-          );
-          if (cancelled) return;
-          const map = Object.fromEntries(entries.filter(([, r]) => r)) as Record<string, string>;
-          setOrgRoles(map);
-          if (aid) setActiveOrgRole(map[aid] ?? null);
-        } catch {
-          /* role chips optional */
+        const activeMember = activeRes.data?.members?.find((m) => m.userId === user?.id);
+        if (aid && activeMember?.role) {
+          setOrgRoles({ [aid]: activeMember.role });
         }
       } catch {
         /* org switcher hidden when fetch fails */
@@ -220,6 +201,38 @@ export function Sidebar() {
       cancelled = true;
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (!orgsOpen || !user?.id || orgs.length === 0) return;
+    const missing = orgs.filter(
+      (org) => !orgRoles[org.id] && !roleLoadsAttemptedRef.current.has(org.id),
+    );
+    if (missing.length === 0) return;
+    for (const org of missing) roleLoadsAttemptedRef.current.add(org.id);
+
+    let cancelled = false;
+    void Promise.all(
+      missing.map(async (org) => {
+        try {
+          const full = await sidebarOrgClient.getFullOrganization({ organizationId: org.id });
+          const me = full.data?.members?.find((member) => member.userId === user.id);
+          return [org.id, me?.role ?? null] as const;
+        } catch {
+          return [org.id, null] as const;
+        }
+      }),
+    ).then((entries) => {
+      if (cancelled) return;
+      const loaded = Object.fromEntries(entries.filter(([, role]) => role)) as Record<string, string>;
+      if (Object.keys(loaded).length > 0) {
+        setOrgRoles((current) => ({ ...current, ...loaded }));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [orgRoles, orgs, orgsOpen, user?.id]);
 
   async function handleOrgSwitch(orgId: string) {
     if (orgId === activeOrgId) {

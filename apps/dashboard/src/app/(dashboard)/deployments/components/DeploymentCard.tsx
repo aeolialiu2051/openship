@@ -6,7 +6,7 @@ import { DeploymentMenu } from "./DeploymentMenu";
 import { CommitDetailsModal } from "./CommitDetailsModal";
 import type { Deployment } from "../types";
 import { formatDistanceToNow, formatBuildTime, getStatusConfig } from "../utils";
-import { GitBranch, Clock, ExternalLink, MoreVertical, Archive, Pin, Activity } from "lucide-react";
+import { GitBranch, Clock, ExternalLink, MoreVertical, Archive, Pin, Activity, Loader2 } from "lucide-react";
 import { getFrameworkConfig } from "@/components/import-project/Frameworks";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -102,19 +102,26 @@ function getServiceStatusChipConfig(
   }
 }
 
-export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onStatusChange }) => {
+export const DeploymentCard: React.FC<DeploymentCardProps> = React.memo(({ deployment, onStatusChange }) => {
   const { t } = useI18n();
   const router = useRouter();
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
   const deletionInProgress =
     deployment.deletionOperationStatus === "queued" ||
     deployment.deletionOperationStatus === "running";
+  const deletionNeedsAction = deployment.deletionOperationStatus === "needs_action";
   const statusConfig = deletionInProgress
     ? {
         ...getStatusConfig("pending"),
         color: "var(--color-danger)",
         bgColor: "bg-danger-bg",
       }
+    : deletionNeedsAction
+      ? {
+          ...getStatusConfig("failed"),
+          color: "var(--color-warning)",
+          bgColor: "bg-warning-bg",
+        }
     : getStatusConfig(deployment.status);
   const frameworkConfig = getFrameworkConfig(deployment.framework);
 
@@ -131,15 +138,27 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
   };
   const statusLabel = deletionInProgress
     ? t.deployments.status.deleting
+    : deletionNeedsAction
+      ? t.deployments.status.cleanupNeedsAction
     : statusLabelMap[deployment.status] ?? t.deployments.status.pending;
+  const deletionOperation = deployment.deletionOperation;
+  const deletionStep = deletionOperation?.currentStep
+    ? (t.deployments.deletionProgress.steps as Record<string, string>)[
+        deletionOperation.currentStep
+      ] ?? t.deployments.status.deleting
+    : t.deployments.status.deleting;
 
   const hasCommitData = deployment.commit?.hash && deployment.commit.hash !== "N/A";
   const hasCommitMessage = deployment.commit?.message && deployment.commit.message !== "Manual deployment";
+  const buildHref = `/build/${deployment.id}`;
 
   return (
     <div
       className="group relative flex cursor-pointer items-center gap-4 px-4 py-4 transition-colors hover:bg-muted/25"
-      onClick={() => router.push(`/build/${deployment.id}`)}
+      onClick={() => router.push(buildHref)}
+      onPointerEnter={() => router.prefetch(buildHref)}
+      onFocus={() => router.prefetch(buildHref)}
+      style={{ contentVisibility: "auto", containIntrinsicSize: "80px" }}
     >
       {/* Framework icon */}
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-muted/45 transition-colors group-hover:bg-muted/65">
@@ -264,6 +283,32 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
             </>
           )}
         </div>
+        {deletionOperation && (deletionInProgress || deletionNeedsAction) && (
+          <div
+            className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] ${
+              deletionNeedsAction ? "text-warning" : "text-danger"
+            }`}
+            title={deletionOperation.error?.message ?? deletionOperation.currentStep ?? undefined}
+          >
+            {deletionInProgress && <Loader2 className="size-3 animate-spin" />}
+            <span className="font-medium">{deletionStep}</span>
+            {deletionOperation.progress.total > 0 && (
+              <span className="text-muted-foreground">
+                {interpolate(t.deployments.deletionProgress.stepCount, {
+                  current: String(deletionOperation.progress.current),
+                  total: String(deletionOperation.progress.total),
+                })}
+              </span>
+            )}
+            {deletionOperation.attemptCount > 1 && (
+              <span className="text-muted-foreground">
+                {interpolate(t.deployments.deletionProgress.attemptCount, {
+                  count: String(deletionOperation.attemptCount),
+                })}
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right side - commit hash + actions */}
@@ -302,4 +347,6 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
       />
     </div>
   );
-};
+});
+
+DeploymentCard.displayName = "DeploymentCard";

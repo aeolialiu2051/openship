@@ -20,7 +20,7 @@ import {
   type LatestRelease,
   type UpdateState,
 } from "@repo/core";
-import { useDeploymentInfo } from "@/hooks/useDeploymentInfo";
+import { usePlatform } from "@/context/PlatformContext";
 import { getRestApiBaseUrl } from "@/lib/api/urls";
 
 const LS_MUTED = "openship_update_muted";
@@ -170,7 +170,7 @@ export interface UseUpdates {
 }
 
 export function useUpdates(): UseUpdates {
-  const deployInfo = useDeploymentInfo();
+  const deployInfo = usePlatform();
   const [state, setState] = useState<UpdateState | null>(null);
   const [latest, setLatest] = useState<LatestRelease | null>(null);
   const [muted, setMutedState] = useState(false);
@@ -186,9 +186,8 @@ export function useUpdates(): UseUpdates {
     // self-update, but still surfaces OPERATOR-pushed platform notices (partial
     // outage, maintenance, advisories) through the SAME advisory banner —
     // different source (our /api/notices), identical shape + dismissal rules.
-    const desktopOrSelfHosted = isDesktop() || deployInfo?.selfHosted === true;
+    const desktopOrSelfHosted = isDesktop() || deployInfo.selfHosted === true;
     if (!desktopOrSelfHosted) {
-      if (!deployInfo) return; // deploy info still loading — not yet known to be cloud
       const [prefs, manifest] = await Promise.all([getPrefs(), fetchNotices()]);
       setMutedState(prefs.muted);
       const advisories = manifest.advisories
@@ -209,7 +208,7 @@ export function useUpdates(): UseUpdates {
     if (isDesktop() && window.desktop?.app) {
       current = await window.desktop.app.version().catch(() => null);
     } else {
-      current = deployInfo?.version ?? null;
+      current = deployInfo.version ?? null;
     }
     if (!current) return;
     setCurrentVersion(current);
@@ -246,7 +245,7 @@ export function useUpdates(): UseUpdates {
     } else if (compareSemver(current, prefs.lastSeen) > 0) {
       setWhatsNewVersion(current);
     }
-  }, [deployInfo?.version, deployInfo?.selfHosted]);
+  }, [deployInfo.version, deployInfo.selfHosted]);
 
   useEffect(() => {
     void load();

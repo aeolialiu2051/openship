@@ -39,6 +39,7 @@ export const mapRowToDeployment = (row: any): Deployment => {
     isActive: row.isActive ?? false,
     deletionOperationId: row.deletionOperationId ?? null,
     deletionOperationStatus: row.deletionOperationStatus ?? null,
+    deletionOperation: row.deletionOperation ?? null,
   };
 };
 

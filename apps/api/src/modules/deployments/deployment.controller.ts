@@ -19,6 +19,7 @@ import { maybeProxyCloudProject, proxyToSaaS } from "../../lib/cloud/project-rou
 import { promoteProjectToCloud, TransferConflictError } from "../projects/transfer.service";
 import { env } from "../../config";
 import { resourceOperationService } from "../operations/resource-operation.service";
+import { toOperationDto } from "../operations/operation.controller";
 
 export async function list(c: Context) {
   const ctx = getRequestContext(c);
@@ -50,6 +51,7 @@ export async function list(c: Context) {
         ...row,
         deletionOperationId: operation?.id ?? null,
         deletionOperationStatus: operation?.status ?? null,
+        deletionOperation: operation ? toOperationDto(operation) : null,
       };
     }),
     total: result.total,

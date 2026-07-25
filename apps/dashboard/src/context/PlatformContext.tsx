@@ -13,6 +13,7 @@ interface PlatformContextValue {
   userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
+  version?: string;
   cloudAuthUrl: string;
   cloudApiUrl: string;
   machineName?: string;
@@ -57,6 +58,7 @@ interface PlatformProviderProps {
   userServers?: boolean;
   deployMode?: string;
   authMode?: "cloud" | "local" | "none";
+  version?: string;
   cloudAuthUrl?: string;
   cloudApiUrl?: string;
   machineName?: string;
@@ -77,6 +79,7 @@ export function PlatformProvider({
   userServers = initialSelfHosted,
   deployMode = "docker",
   authMode = "local",
+  version,
   cloudAuthUrl = CLOUD_DASHBOARD_URL,
   cloudApiUrl = CLOUD_API_URL,
   machineName,
@@ -93,6 +96,7 @@ export function PlatformProvider({
         userServers,
         deployMode,
         authMode,
+        version,
         cloudAuthUrl,
         cloudApiUrl,
         machineName,

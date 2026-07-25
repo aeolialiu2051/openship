@@ -563,12 +563,31 @@ export async function collectDeploymentManifest(
     ),
   ];
 
+  const meta = (dep.meta ?? {}) as DeploymentMeta;
+  if (meta.serverId) {
+    const reachProbe = createReachabilityProbe();
+    if (!(await reachProbe.isReachable(meta.serverId))) {
+      throw new Error(
+        `Deployment target server ${meta.serverId} is unreachable; runtime cleanup was not started`,
+      );
+    }
+  }
+
   // Resolve the runtime once. Anything below this point that depends on the
   // runtime (containers, images) only fires when the runtime is reachable.
   // A runtime-resolution failure is NOT the same as "no resources". Let the
   // async operation surface needs_action instead of deleting the DB row while
   // a container may still be live on an unreachable/misconfigured target.
-  const runtime: RuntimeAdapter = (await resolveDeploymentRuntime(dep)).runtime;
+  // Runtime resolution can itself hang on a half-open SSH/cloud connection, so
+  // bound it just like container inspection and turn the operation into a
+  // visible needs_action state instead of an endless "Deleting" spinner.
+  const runtime: RuntimeAdapter = (
+    await withTimeout(
+      resolveDeploymentRuntime(dep),
+      INSPECT_TIMEOUT_MS,
+      `resolve deployment runtime ${dep.id}`,
+    )
+  ).runtime;
 
   for (const containerId of containerIds) {
     resources.push({
@@ -734,4 +753,3 @@ async function destroyResourceOnce(
 // executor but as a named, audited, idempotent step sequence with a
 // deletion lock + force-cancel + 207 partial-success support. Anything new
 // should call teardownProject().
-

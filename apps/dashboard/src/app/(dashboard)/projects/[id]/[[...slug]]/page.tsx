@@ -17,18 +17,10 @@ import {
   FilePlus2,
   Trash2,
 } from "lucide-react";
+import dynamic from "next/dynamic";
 
-import { DomainSettings } from "../components/DomainSettings";
-import { GitSettings } from "../components/GitSettings";
-import { BuildSettings } from "../components/BuildSettings";
-import { LogsSettings } from "../components/LogsSettings";
-import { BackupSettings } from "../components/BackupSettings";
-import { Deployments } from "../components/Deployments";
-import { AdvancedSettings } from "../components/AdvancedSettings";
 import { OverviewTab } from "../components/OverviewTab";
-import { AppConfiguration } from "../components/AppConfiguration";
 import { isSchemaAppTemplate } from "@/components/app-settings/AppSettingsForm";
-import { ServicesTab } from "../components/ServicesTab";
 import { ProjectSidebar, ProjectMobileTabs } from "../components/ProjectSidebar";
 import { DraftProjectView } from "../components/DraftProjectView";
 import { getProjectStatus } from "@/utils/project-status";
@@ -51,6 +43,51 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
+
+const ProjectTabLoading = () => (
+  <div className="space-y-4" aria-hidden="true">
+    <div className="h-28 animate-pulse rounded-2xl border border-border/50 bg-card" />
+    <div className="h-52 animate-pulse rounded-2xl border border-border/50 bg-card" />
+  </div>
+);
+
+const ServicesTab = dynamic(
+  () => import("../components/ServicesTab").then((module) => module.ServicesTab),
+  { loading: ProjectTabLoading },
+);
+const DomainSettings = dynamic(
+  () => import("../components/DomainSettings").then((module) => module.DomainSettings),
+  { loading: ProjectTabLoading },
+);
+const Deployments = dynamic(
+  () => import("../components/Deployments").then((module) => module.Deployments),
+  { loading: ProjectTabLoading },
+);
+const GitSettings = dynamic(
+  () => import("../components/GitSettings").then((module) => module.GitSettings),
+  { loading: ProjectTabLoading },
+);
+const BuildSettings = dynamic(
+  () => import("../components/BuildSettings").then((module) => module.BuildSettings),
+  { loading: ProjectTabLoading },
+);
+const LogsSettings = dynamic(
+  () => import("../components/LogsSettings").then((module) => module.LogsSettings),
+  { loading: ProjectTabLoading },
+);
+const BackupSettings = dynamic(
+  () => import("../components/BackupSettings").then((module) => module.BackupSettings),
+  { loading: ProjectTabLoading },
+);
+const AdvancedSettings = dynamic(
+  () => import("../components/AdvancedSettings").then((module) => module.AdvancedSettings),
+  { loading: ProjectTabLoading },
+);
+const AppConfiguration = dynamic(
+  () => import("../components/AppConfiguration").then((module) => module.AppConfiguration),
+  { loading: ProjectTabLoading },
+);
 
 const branchToEnvironmentName = (branch: string) =>
   branch
@@ -494,6 +531,7 @@ const ProjectSettingsContent = () => {
   const { showModal, hideModal } = useModal();
   const router = useRouter();
   const [deletionOperationId, setDeletionOperationId] = useState<string | null>(null);
+  const [deletionOperation, setDeletionOperation] = useState<ResourceOperationView | null>(null);
   const deleteOptionsRef = useRef({
     deleteApp: true,
     wipeVolumes: false,
@@ -511,6 +549,7 @@ const ProjectSettingsContent = () => {
   ) {
     deleteOptionsRef.current = { deleteApp, wipeVolumes, force };
     handledOperationRef.current = null;
+    setDeletionOperation(null);
     // Optimistic - immediately show "Deleting" status
     setProjectData((prev: any) => ({ ...prev, deletedAt: new Date().toISOString() }));
 
@@ -661,6 +700,7 @@ const ProjectSettingsContent = () => {
   function handleCompletedDeletion(operation: ResourceOperationView) {
     if (handledOperationRef.current === operation.id) return;
     handledOperationRef.current = operation.id;
+    invalidateProjectsHomeCache();
     const orphanCount = operation.result?.orphaned?.length ?? 0;
     const failureCount = operation.result?.unrecoverable?.length ?? 0;
     if (orphanCount > 0) {
@@ -699,6 +739,7 @@ const ProjectSettingsContent = () => {
       .then(({ data: operation }) => {
         if (cancelled) return;
         setDeletionOperationId(operation.id);
+        setDeletionOperation(operation);
         if (operation.status === "queued" || operation.status === "running") {
           setProjectData((prev: any) => ({
             ...prev,
@@ -725,9 +766,13 @@ const ProjectSettingsContent = () => {
     if (!id || (!isDeleting && !deletionOperationId)) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    let consecutiveFailures = 0;
 
-    const schedule = () => {
-      if (!cancelled) timer = setTimeout(() => void poll(), 2000);
+    const schedule = (delayMs = 2000) => {
+      if (cancelled) return;
+      const visibilityDelay =
+        document.visibilityState === "hidden" ? Math.max(delayMs, 10_000) : delayMs;
+      timer = setTimeout(() => void poll(), visibilityDelay);
     };
 
     const poll = async () => {
@@ -741,6 +786,8 @@ const ProjectSettingsContent = () => {
         }
 
         if (cancelled) return;
+        consecutiveFailures = 0;
+        setDeletionOperation(operation);
         if (
           operation.status === "completed" ||
           operation.status === "completed_with_warnings"
@@ -780,6 +827,16 @@ const ProjectSettingsContent = () => {
         schedule();
       } catch (err) {
         if (cancelled) return;
+        if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+          setProjectData((prev: any) => ({
+            ...prev,
+            deletedAt: null,
+            deletionInProgress: false,
+          }));
+          setDeletionOperation(null);
+          showToast(t.projects.delete.failed, "error", t.projects.delete.cleanupFailedTitle);
+          return;
+        }
         if (err instanceof ApiError && err.status === 404) {
           try {
             const response = await projectsApi.getInfo(id);
@@ -789,6 +846,7 @@ const ProjectSettingsContent = () => {
                 ...response.data,
                 deletedAt: null,
               }));
+              setDeletionOperation(null);
               showToast(t.projects.delete.failed, "error", t.projects.delete.cleanupFailedTitle);
               return;
             }
@@ -800,7 +858,8 @@ const ProjectSettingsContent = () => {
             }
           }
         }
-        schedule();
+        consecutiveFailures += 1;
+        schedule(Math.min(3000 * 2 ** (consecutiveFailures - 1), 15_000));
       }
     };
 
@@ -974,6 +1033,48 @@ const ProjectSettingsContent = () => {
   // otherwise render empty. In-flight first builds (queued/building/
   // deploying) and live projects fall through to the normal layout.
   const status = getProjectStatus(projectData);
+  const deletionNeedsAction = deletionOperation?.status === "needs_action";
+  const showDeletionProgress =
+    isDeleting ||
+    deletionOperation?.status === "queued" ||
+    deletionOperation?.status === "running" ||
+    deletionNeedsAction;
+  const deletionStep = deletionOperation?.currentStep
+    ? (t.deployments.deletionProgress.steps as Record<string, string>)[
+        deletionOperation.currentStep
+      ] ?? t.projects.delete.cleaningUpTitle
+    : t.projects.delete.cleaningUpTitle;
+  const deletionProgressBanner = showDeletionProgress ? (
+    <div
+      className={`mb-5 flex flex-wrap items-center gap-3 rounded-2xl border px-4 py-3 ${
+        deletionNeedsAction
+          ? "border-warning/25 bg-warning-bg text-warning"
+          : "border-danger/20 bg-danger-bg text-danger"
+      }`}
+    >
+      {deletionNeedsAction ? (
+        <Trash2 className="size-4 shrink-0" />
+      ) : (
+        <Loader2 className="size-4 shrink-0 animate-spin" />
+      )}
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-medium">{deletionStep}</p>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {deletionNeedsAction
+            ? deletionOperation?.error?.message ?? t.deployments.status.cleanupNeedsAction
+            : t.projects.delete.queued}
+        </p>
+      </div>
+      {deletionOperation?.progress.total ? (
+        <span className="text-xs font-medium text-muted-foreground">
+          {interpolate(t.deployments.deletionProgress.stepCount, {
+            current: String(deletionOperation.progress.current),
+            total: String(deletionOperation.progress.total),
+          })}
+        </span>
+      ) : null}
+    </div>
+  ) : null;
   const isNeverDeployed =
     ["draft", "failed", "cancelled"].includes(status) ||
     // A draft mid-delete: the optimistic `deletedAt` masks the draft status
@@ -999,6 +1100,7 @@ const ProjectSettingsContent = () => {
             {projectData.name || t.projects.detail.projectFallback}
           </h1>
         </div>
+        {deletionProgressBanner}
         <DraftProjectView onDeleteProject={() => handleDeleteProject()} />
       </PageContainer>
     );
@@ -1046,6 +1148,8 @@ const ProjectSettingsContent = () => {
           </div>
         </div>
       </div>
+
+      {deletionProgressBanner}
 
       {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">

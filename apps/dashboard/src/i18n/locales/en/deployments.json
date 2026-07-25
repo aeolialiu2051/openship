@@ -69,7 +69,23 @@
     "rejected": "Rejected",
     "verifying": "Verifying",
     "pending": "Pending",
-    "deleting": "Deleting"
+    "deleting": "Deleting",
+    "cleanupNeedsAction": "Cleanup needs attention"
+  },
+  "deletionProgress": {
+    "stepCount": "Step {current} of {total}",
+    "attemptCount": "Attempt {count}",
+    "steps": {
+      "queued": "Waiting for cleanup",
+      "claiming_resource": "Preparing deletion",
+      "dispatching": "Starting cleanup",
+      "validating_resource": "Checking deployment",
+      "tearing_down": "Removing project resources",
+      "destroying_runtime": "Removing runtime resources",
+      "cleanup_blocked": "Cleanup needs attention",
+      "done": "Cleanup complete",
+      "failed": "Cleanup failed"
+    }
   },
   "serviceStatus": {
     "deployed": "Deployed",

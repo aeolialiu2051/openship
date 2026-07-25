@@ -65,17 +65,23 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   const router = useRouter();
   
   const { projects, numbers, loading } = useDashboardHome(initialData);
+  const [localHour, setLocalHour] = useState<number | null>(null);
+
+  useEffect(() => {
+    setLocalHour(new Date().getHours());
+  }, []);
 
   // Split catalog apps out of the projects list — they get their own box.
   const userProjects = projects.filter((p) => !p.isApp);
   const appProjects = projects.filter((p) => p.isApp);
 
   /* ---------- greeting ---------- */
-  const hour = new Date().getHours();
   const greeting =
-    hour < 12
+    localHour == null
+      ? ""
+      : localHour < 12
       ? t.dashboard.home.goodMorning
-      : hour < 18
+      : localHour < 18
         ? t.dashboard.home.goodAfternoon
         : t.dashboard.home.goodEvening;
   const displayName = user?.name?.split(" ")[0] || "";
@@ -89,8 +95,15 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
         
         {/* ── Header ─────────────────────────────────────────────── */}
         <div className="mb-6">
-          <h1 className="text-2xl font-medium text-foreground/80" style={{ letterSpacing: "-0.2px" }}>
-            {displayName ? interpolate(t.dashboard.home.greetingName, { greeting, name: displayName }) : greeting}
+          <h1
+            className="min-h-8 text-2xl font-medium text-foreground/80"
+            style={{ letterSpacing: "-0.2px" }}
+          >
+            {localHour == null
+              ? ""
+              : displayName
+                ? interpolate(t.dashboard.home.greetingName, { greeting, name: displayName })
+                : greeting}
           </h1>
           <p className="text-sm text-muted-foreground/70 mt-1">
             {t.dashboard.home.subtitle}

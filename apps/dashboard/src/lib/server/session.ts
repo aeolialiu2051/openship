@@ -110,6 +110,8 @@ export type DeploymentInfo = {
   userServers: boolean;
   deployMode: string;
   authMode: "cloud" | "local" | "none";
+  /** Running server release, used by the update UI without a client refetch. */
+  version?: string;
   cloudAuthUrl: string;
   cloudApiUrl: string;
   machineName?: string;

@@ -57,6 +57,7 @@ import {
 import { getInstallationIdByOrg, getInstallUrl } from "../github/github.auth";
 import { listProjectRouteRows, resolveProjectRouteState } from "../domains/project-route.service";
 import { resourceOperationService } from "../operations/resource-operation.service";
+import { toOperationDto } from "../operations/operation.controller";
 
 // Track which servers have had Lua scripts deployed this session
 const luaDeployedServers = new Set<string>();
@@ -1912,6 +1913,7 @@ export async function listDeployments(c: Context) {
         ...row,
         deletionOperationId: operation?.id ?? null,
         deletionOperationStatus: operation?.status ?? null,
+        deletionOperation: operation ? toOperationDto(operation) : null,
       };
     }),
     total: result.total,

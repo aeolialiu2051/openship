@@ -85,7 +85,10 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
   return (
     <div
       onClick={() => router.push(clickTarget)}
+      onPointerEnter={() => router.prefetch(clickTarget)}
+      onFocus={() => router.prefetch(clickTarget)}
       className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "68px" }}
     >
       {/* Icon — on the Apps page show the catalog app's brand logo; otherwise
           the project favicon, falling back to the framework/service glyph. */}
@@ -199,4 +202,4 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
   );
 };
 
-export default ProjectCard;
+export default React.memo(ProjectCard);
