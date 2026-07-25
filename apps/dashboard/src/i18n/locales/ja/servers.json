@@ -13,7 +13,7 @@
     "connecting": "認証を待機中…",
     "connectFailed": "接続に失敗しました",
     "connectedToast": "このサーバーで GitHub を接続しました",
-    "patPlaceholder": "ghp_…（トークンを貼り付け）",
+    "patPlaceholder": "github_pat_… / ghp_…（トークンを貼り付け）",
     "patHint": "このサーバー用に暗号化して保存されるパーソナルアクセストークン。",
     "save": "保存",
     "savedToast": "保存しました",

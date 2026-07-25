@@ -6,6 +6,9 @@ export type ServerGithubMode = "token" | "ssh-server-key" | "ssh-deploy-key";
 export interface ServerGithubStatus {
   mode: ServerGithubMode | null;
   connected: boolean;
+  /** Device OAuth is self-hosted-only. PAT entry remains available in cloud
+   *  runtimes that support user-owned servers. */
+  deviceFlowAvailable: boolean;
   tokenSource?: "device-flow" | "pat" | null;
   tokenLogin?: string | null;
   serverKeyPublic?: string | null;
@@ -20,7 +23,7 @@ export interface ServerGithubDeviceFlow {
   interval: number;
 }
 
-/** Per-server GitHub auth (self-hosted). Backs the server detail "GitHub" card. */
+/** Per-server GitHub auth for runtimes with user-owned server support. */
 export const serverGithubApi = {
   get: (id: string) => api.get<ServerGithubStatus>(endpoints.system.serverGithub(id)),
 

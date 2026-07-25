@@ -13,7 +13,7 @@
     "connecting": "في انتظار التفويض…",
     "connectFailed": "فشل الاتصال",
     "connectedToast": "تم ربط GitHub لهذا الخادم",
-    "patPlaceholder": "ghp_… (ألصق رمزًا)",
+    "patPlaceholder": "github_pat_… / ghp_… (ألصق رمزًا)",
     "patHint": "رمز وصول شخصي مُخزَّن مشفّرًا لهذا الخادم.",
     "save": "حفظ",
     "savedToast": "تم الحفظ",

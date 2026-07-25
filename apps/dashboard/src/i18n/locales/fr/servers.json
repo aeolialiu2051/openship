@@ -13,7 +13,7 @@
     "connecting": "En attente d'autorisation…",
     "connectFailed": "Échec de la connexion",
     "connectedToast": "GitHub connecté pour ce serveur",
-    "patPlaceholder": "ghp_… (collez un jeton)",
+    "patPlaceholder": "github_pat_… / ghp_… (collez un jeton)",
     "patHint": "Un jeton d'accès personnel stocké chiffré pour ce serveur.",
     "save": "Enregistrer",
     "savedToast": "Enregistré",

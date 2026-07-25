@@ -13,7 +13,7 @@
     "connecting": "Waiting for authorization…",
     "connectFailed": "Connection failed",
     "connectedToast": "GitHub connected for this server",
-    "patPlaceholder": "ghp_… (paste a token)",
+    "patPlaceholder": "github_pat_… / ghp_… (paste a token)",
     "patHint": "A personal access token stored encrypted for this server.",
     "save": "Save",
     "savedToast": "Saved",

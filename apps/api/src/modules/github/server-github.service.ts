@@ -1,7 +1,7 @@
 /**
  * @module server-github.service
  *
- * Per-server GitHub auth for self-hosted (desktop + remote servers). This is
+ * Per-server GitHub auth for runtimes that support user-owned servers. This is
  * the populator behind the `serverGithubAuth` / `githubDeployKey` tables and
  * the `resolveServerGitCredential` step in `clone-auth.ts`.
  *
@@ -18,8 +18,10 @@
  *                        the GitHub API.
  *
  * Everything here is restricted to runtimes with the user-server capability.
- * Secrets use the same encrypt/decrypt as the existing
- * clone-token pipe; they are decrypted only at deploy time and never logged.
+ * Device OAuth is additionally restricted to non-cloud runtimes; a pasted PAT
+ * works anywhere the user-server capability is enabled. Secrets use the same
+ * encrypt/decrypt as the existing clone-token pipe; they are decrypted only at
+ * deploy time and never logged.
  */
 
 import { execFile } from "node:child_process";
@@ -29,7 +31,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { repos } from "@repo/db";
-import { USER_SERVERS_ENABLED } from "../../config/env";
+import { env, USER_SERVERS_ENABLED } from "../../config/env";
 import { encrypt, decrypt } from "../../lib/encryption";
 import type { RequestContext } from "../../lib/request-context";
 import { startServerDeviceFlow, getDeviceFlowStatus, cancelDeviceFlow } from "./github.local-auth";
@@ -198,8 +200,8 @@ async function ensureDeployKey(
 /**
  * Resolve a per-server GitHub credential for a clone that runs on `serverId`.
  * Returns null when the server has no config (fall through to the shared chain)
- * or in CLOUD_MODE. This is the function `clone-auth.ts` consults FIRST on the
- * remote branch.
+ * or user-owned servers are disabled. This is the function `clone-auth.ts`
+ * consults FIRST on the remote branch.
  */
 export async function resolveServerGitCredential(opts: {
   serverId: string;
@@ -274,7 +276,12 @@ export async function getServerGithubStatus(serverId: string) {
   const row = await repos.serverGithubAuth.getByServer(serverId);
   const deployKeys = await repos.githubDeployKey.listByServer(serverId);
   if (!row) {
-    return { mode: null, connected: false, deployKeyCount: deployKeys.length };
+    return {
+      mode: null,
+      connected: false,
+      deviceFlowAvailable: !env.CLOUD_MODE,
+      deployKeyCount: deployKeys.length,
+    };
   }
   return {
     mode: row.mode,
@@ -282,6 +289,7 @@ export async function getServerGithubStatus(serverId: string) {
       (row.mode === "token" && !!row.tokenEncrypted) ||
       (row.mode === "ssh-server-key" && !!row.serverKeyPrivateEncrypted) ||
       (row.mode === "ssh-deploy-key" && deployKeys.length > 0),
+    deviceFlowAvailable: !env.CLOUD_MODE,
     tokenSource: row.tokenSource ?? null,
     tokenLogin: row.tokenLogin ?? null,
     serverKeyPublic: row.serverKeyPublic ?? null,

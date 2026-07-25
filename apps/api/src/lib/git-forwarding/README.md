@@ -84,7 +84,7 @@ desktop-only + per-deploy opt-in + short build-bounded window + nonce + host-pin
   (returns `{ relay: true }` when no App/PAT + the deploy opted in) + the credential-helper clone branch
   in `packages/adapters/src/runtime/build-pipeline.ts`.
 
-## Per-server GitHub auth (self-hosted)
+## Per-server GitHub auth (user-server runtimes)
 
 The relay is ONE of several ways a clone authenticates. On self-hosted, a server can also carry its own
 GitHub identity so clone-on-server works without the desktop being online. Stored per-server in
@@ -94,10 +94,11 @@ GitHub identity so clone-on-server works without the desktop being online. Store
 
 Modes (a per-server switch, in the server detail → Security → GitHub card):
 
-- **token** — a GitHub OAuth **device-flow** login (URL + code, same UX as `gh auth login`) OR a pasted
-  PAT. The device flow runs once; the resulting token is stored **encrypted in our DB** and injected per
-  clone exactly like a PAT — there is NO lingering live-`gh` dependency after login. The token is never
-  returned to the client (the poll endpoint reports status only).
+- **token** — a pasted PAT in every user-server runtime, or a GitHub OAuth **device-flow** login
+  (URL + code, same UX as `gh auth login`) on non-cloud/self-hosted runtimes. Device flow is hidden in
+  cloud mode; a pasted PAT remains available. The resulting token is stored **encrypted in our DB** and
+  injected per clone exactly like a PAT — there is NO lingering live-`gh` dependency after login. The
+  token is never returned to the client (the poll endpoint reports status only).
 - **ssh-server-key** — one Ed25519 key generated on the host; the operator adds the public key to their
   GitHub account once. Clones over `git@github.com` with `GIT_SSH_COMMAND` + a 0600 key + pinned
   `known_hosts` (`github-known-hosts.ts`, `StrictHostKeyChecking=yes`).
@@ -105,7 +106,8 @@ Modes (a per-server switch, in the server detail → Security → GitHub card):
   (needs repo Administration on the resolved token; 403 → actionable error). Revoked on disconnect.
 
 Precedence: a configured server credential wins for THAT server's clones; App / project-PAT / user-PAT /
-relay remain the fallback when it has none. Cloud (`CLOUD_MODE`) never reads any of this — App-token only.
+relay remain the fallback when it has none. Production `cloud-saas` has no user-server capability and
+therefore remains App-token only; `local-saas` may use per-server credentials but not device flow.
 
 Security: all secrets encrypted at rest (`lib/encryption.ts`), decrypted only at clone time, written to
 0600 files removed in `finally`, and never logged (SSH keys go through `writeSecretFile` / `executor.writeFile`,

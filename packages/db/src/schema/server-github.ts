@@ -11,7 +11,8 @@ import { servers } from "./servers";
  * `tokenFor`/`resolveBuildGitToken` consult this row when a clone runs on this
  * server. One row per server (unique `serverId`). Secrets are encrypted at rest
  * (enc1: field helpers) and decrypted only at deploy time — never logged, never
- * echoed by the API serializer. Cloud (CLOUD_MODE) never reads this table.
+ * echoed by the API serializer. A cloud runtime with the explicit user-server
+ * capability may use pasted PAT rows, while device OAuth remains disabled.
  *
  *   mode = "token"          → tokenEncrypted (from gh device-flow OR a pasted
  *                             per-server PAT); injected per clone like a PAT.
