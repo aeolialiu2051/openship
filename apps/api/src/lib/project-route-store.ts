@@ -1,5 +1,5 @@
 import { repos, type Domain } from "@repo/db";
-import { ConflictError } from "@repo/core";
+import { appendProjectRouteKey, ConflictError } from "@repo/core";
 import { CloudRuntime } from "@repo/adapters";
 import {
   normalizeStoredPublicEndpoints,
@@ -96,8 +96,35 @@ function desiredProjectRoutes(endpoints?: StoredPublicEndpoint[] | null): Desire
 export async function syncProjectPublicRoutes(
   input: SyncProjectPublicRoutesInput,
 ): Promise<StoredPublicEndpoint[]> {
-  const endpoints = normalizeStoredPublicEndpoints(input.endpoints);
   const allExistingDomains = input.currentDomains ?? await repos.domain.listByProject(input.projectId);
+  const project = await repos.project.findById(input.projectId);
+  if (!project) {
+    throw new Error(`Cannot sync routes for missing project ${input.projectId}`);
+  }
+  const routeKey = project.routeKey;
+
+  const existingProjectHostnames = new Set(
+    allExistingDomains
+      .filter((domain) => domain.projectId === input.projectId)
+      .map((domain) => domain.hostname.toLowerCase()),
+  );
+  const baseDomain = getRoutingBaseDomain().toLowerCase();
+  const endpoints = normalizeStoredPublicEndpoints(input.endpoints).map((endpoint) => {
+    if (endpoint.domainType === "custom" || !endpoint.domain) return endpoint;
+
+    // Preserve hostnames created before route keys existed. Projects created
+    // after the migration have a stable key; legacy projects intentionally
+    // remain unsuffixed so an ordinary redeploy cannot change their public URL.
+    const currentHostname = `${endpoint.domain}.${baseDomain}`.toLowerCase();
+    if (existingProjectHostnames.has(currentHostname)) return endpoint;
+
+    return routeKey
+      ? {
+          ...endpoint,
+          domain: appendProjectRouteKey(endpoint.domain, routeKey),
+        }
+      : endpoint;
+  });
   const existingDomains = allExistingDomains
     .filter((domain) => !domain.serviceId);
   const desiredRoutes = desiredProjectRoutes(endpoints);

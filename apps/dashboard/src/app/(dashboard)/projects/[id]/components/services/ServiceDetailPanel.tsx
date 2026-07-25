@@ -15,7 +15,7 @@ import {
   type ServiceInput,
 } from "@/lib/api/services";
 import { deployApi } from "@/lib/api/deploy";
-import { resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
 import {
   Play,
   Square,
@@ -246,7 +246,14 @@ export function ServiceDetailPanel({
   const resolvedUrl = service.exposed
     ? service.domainType === "custom" && service.customDomain
       ? `https://${service.customDomain}`
-      : `https://${resolveServiceHostnameLabel(projectSlugBase, service.name, service.domain, serviceKind(service))}.${baseDomain}`
+      : `https://${
+          projectData.routeKey
+            ? appendProjectRouteKey(
+                resolveServiceHostnameLabel(projectSlugBase, service.name, service.domain, serviceKind(service)),
+                projectData.routeKey,
+              )
+            : resolveServiceHostnameLabel(projectSlugBase, service.name, service.domain, serviceKind(service))
+        }.${baseDomain}`
     : null;
 
   // Hero subtitle: the image, or the build context — but not a bare "." (the

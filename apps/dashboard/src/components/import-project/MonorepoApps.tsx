@@ -25,6 +25,7 @@ import ProjectSettings from "./ProjectSettings";
 import BuildSettings from "./BuildSettings";
 import EnvironmentVariables from "./EnvironmentVariables";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { appendProjectRouteKey } from "@repo/core";
 
 // Tiny class-joining helper to avoid pulling in a util just for the toggle.
 function cn(...parts: Array<string | false | undefined | null>): string {
@@ -39,7 +40,12 @@ function cn(...parts: Array<string | false | undefined | null>): string {
  * gets a visibly distinct host that matches what the backend will mint
  * at deploy time.
  */
-function previewSubAppHost(app: MonorepoAppConfig, projectName: string, baseDomain: string): string | null {
+function previewSubAppHost(
+  app: MonorepoAppConfig,
+  projectName: string,
+  baseDomain: string,
+  routeKey?: string,
+): string | null {
   if (!baseDomain) return null;
   const ep = app.publicEndpoints?.[0];
   if (ep?.domainType === "custom" && ep.customDomain) {
@@ -47,7 +53,10 @@ function previewSubAppHost(app: MonorepoAppConfig, projectName: string, baseDoma
   }
   const slugify = (v: string) =>
     v.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
-  const label = ep?.domain || `${slugify(app.name)}-${slugify(projectName || "app")}`;
+  const rawLabel = ep?.domain || `${slugify(app.name)}-${slugify(projectName || "app")}`;
+  const label = routeKey && ep?.domainType !== "custom"
+    ? appendProjectRouteKey(rawLabel, routeKey)
+    : rawLabel;
   if (!label) return null;
   return `${label}.${baseDomain}`;
 }
@@ -146,17 +155,20 @@ const AppCard: React.FC<{ app: MonorepoAppConfig; index: number }> = ({ app, ind
               (ep.customDomain && ep.customDomain.includes(appSlug)),
           );
           if (existing) return existing;
+          const rawDomain = `${appSlug}-${projectSlug}`;
           return createPublicEndpoint({
             port: a.port || "",
             targetPath: a.hasServer ? "" : "/",
-            domain: `${appSlug}-${projectSlug}`,
+            domain: config.routeKey
+              ? appendProjectRouteKey(rawDomain, config.routeKey)
+              : rawDomain,
             domainType: "free",
           });
         });
 
       updateConfig({ monorepoApps: next, publicEndpoints: nextEndpoints });
     },
-    [apps, app, index, config.projectName, config.publicEndpoints, updateConfig],
+    [apps, app, index, config.projectName, config.publicEndpoints, config.routeKey, updateConfig],
   );
 
   // Preview the host this sub-app will be served on - same logic the
@@ -164,7 +176,12 @@ const AppCard: React.FC<{ app: MonorepoAppConfig; index: number }> = ({ app, ind
   // operator see "→ apps-dashboard-diavira.opsh.io" right in the row
   // header without having to expand the card or look at the right
   // sidebar (which still only shows the PROJECT-level endpoint).
-  const previewHost = previewSubAppHost(app, config.projectName ?? "", baseDomain);
+  const previewHost = previewSubAppHost(
+    app,
+    config.projectName ?? "",
+    baseDomain,
+    config.routeKey,
+  );
 
   return (
     <div className={`bg-card rounded-2xl border ${app.enabled ? "border-border/50" : "border-border/30 opacity-70"} overflow-hidden`}>

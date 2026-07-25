@@ -9,6 +9,8 @@ export interface Project {
   id: string;
   name: string;
   slug: string;
+  /** Stable Base36 suffix for managed/free hostnames. Null on legacy projects. */
+  routeKey?: string | null;
 
   /* ── Source ──────────────────────────────────────────────── */
   localPath?: string | null;

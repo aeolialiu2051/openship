@@ -132,6 +132,24 @@ describe("buildProjectRouteDomains", () => {
     expect(planned?.targetPort).toBe(8080);
     expect(planned?.domainType).toBe("custom");
   });
+
+  it("appends the project route key to managed service hostnames", () => {
+    const planned = buildServiceRouteDomain({
+      project: { slug: "my-app", name: "My App", routeKey: "oo198w" } as any,
+      service: {
+        id: "svc_web",
+        name: "web",
+        exposed: true,
+        exposedPort: "8080",
+        domainType: "free",
+        domain: "my-app",
+      } as any,
+      runtimeName: "bare",
+      usesManagedRouting: true,
+    });
+
+    expect(planned?.hostname).toBe(`my-app-oo198w.${getRoutingBaseDomain()}`);
+  });
 });
 
 describe("buildServiceRouteDomains — custom-domain SSL gate", () => {

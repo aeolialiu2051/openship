@@ -183,6 +183,10 @@ export const CreateProjectBody = Type.Object({
   slug: Type.Optional(
     Type.String({ minLength: 1, maxLength: 63, pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$" }),
   ),
+  /** Stable Base36 suffix reserved by the deployment wizard for managed hostnames. */
+  routeKey: Type.Optional(
+    Type.String({ minLength: 6, maxLength: 6, pattern: "^[a-z0-9]{6}$" }),
+  ),
   // Local source
   localPath: Type.Optional(Type.String({ maxLength: 1000 })),
   // Git source
@@ -263,7 +267,11 @@ export const CreateProjectBody = Type.Object({
   appTemplateId: Type.Optional(Type.String({ maxLength: 100 })),
 });
 
-export const UpdateProjectBody = Type.Partial(CreateProjectBody);
+// routeKey is a routing identity, not editable project configuration. Changing
+// it after routes exist would orphan old hostnames and can create double keys.
+export const UpdateProjectBody = Type.Partial(
+  Type.Omit(CreateProjectBody, ["routeKey"]),
+);
 
 /**
  * POST /projects/ensure — CreateProjectBody plus an optional `projectId` to

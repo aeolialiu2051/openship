@@ -17,7 +17,7 @@ import {
   resolveEffectiveTarget,
   usesManagedRouting as usesManagedRoutingFor,
 } from "../../lib/deployment-runtime";
-import { resolveServiceHostnameLabel, normalizeCustomHostname } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel, normalizeCustomHostname } from "@repo/core";
 import { cloudClient } from "../../lib/cloud/client";
 import { isCloudConnectedForOrg } from "../../lib/cloud/session";
 import { runCloudPreflight, type CloudPreflightData } from "../../lib/cloud-preflight";
@@ -131,6 +131,10 @@ export interface PreflightOptions {
    *  considered as a valid remote-clone source. Optional because the
    *  project row may not exist yet during a first-deploy preflight. */
   projectId?: string;
+  /** Stable project key appended to managed/free hostnames. */
+  projectRouteKey?: string | null;
+  /** Raw project slug used to namespace compose-service hostnames. */
+  projectSlug?: string;
   /** Whether the build runs on the API host (`local`) or on the deploy
    *  target (`server`). For non-App auth modes, only `local` keeps the
    *  user's broad-scope token from leaving the API process. */
@@ -414,6 +418,7 @@ async function checkPublicEndpoints(
   cloud: CloudPreflightData | null,
   ctx?: RequestContext,
   projectId?: string,
+  projectRouteKey?: string | null,
 ): Promise<PreflightCheck[]> {
   const plat = platform();
   const effectiveTarget = resolveEffectiveTarget(plat.target, snapshot);
@@ -525,13 +530,16 @@ async function checkPublicEndpoints(
       return;
     }
 
-    const slug = endpoint.domain?.trim().toLowerCase();
-    if (!slug) {
+    const rawSlug = endpoint.domain?.trim().toLowerCase();
+    if (!rawSlug) {
       checks.push(
         fail(idOf("slug"), `Endpoint subdomain (${label})`, "Free endpoint subdomains cannot be empty."),
       );
       return;
     }
+    const slug = projectRouteKey
+      ? appendProjectRouteKey(rawSlug, projectRouteKey)
+      : rawSlug;
     checks.push({
       ...checkSlugFormat(slug),
       id: idOf("slug"),
@@ -593,6 +601,7 @@ async function checkPublicEndpoints(
 async function checkComposeServiceDomains(
   composeServices: DeployableService[],
   projectSlug: string | undefined,
+  projectRouteKey: string | null | undefined,
   cloud: CloudPreflightData | null,
   snapshot?: DeploymentConfigSnapshot,
 ): Promise<PreflightCheck[]> {
@@ -626,12 +635,15 @@ async function checkComposeServiceDomains(
       continue;
     }
 
-    const subdomain = resolveServiceHostnameLabel(
+    const serviceLabel = resolveServiceHostnameLabel(
       projectSlug || "project",
       service.name,
       service.domain,
       serviceKind(service),
     );
+    const subdomain = projectRouteKey
+      ? appendProjectRouteKey(serviceLabel, projectRouteKey)
+      : serviceLabel;
     const fqdn = `${subdomain}.${baseDomain}`;
 
     // HOST_DOMAIN means the operator owns this managed zone. Validate the
@@ -1394,12 +1406,25 @@ export async function runPreflightChecks(
 
   if (opts?.composeServices?.length) {
     checks.push(
-      ...(await checkComposeServiceDomains(opts.composeServices, opts.slug, cloudPreflight, snapshot)),
+      ...(await checkComposeServiceDomains(
+        opts.composeServices,
+        opts.projectSlug ?? opts.slug,
+        opts.projectRouteKey,
+        cloudPreflight,
+        snapshot,
+      )),
     );
   }
 
   if (opts?.publicEndpoints?.length) {
-    checks.push(...(await checkPublicEndpoints(snapshot, opts.publicEndpoints, cloudPreflight, opts.ctx, opts.projectId)));
+    checks.push(...(await checkPublicEndpoints(
+      snapshot,
+      opts.publicEndpoints,
+      cloudPreflight,
+      opts.ctx,
+      opts.projectId,
+      opts.projectRouteKey,
+    )));
   }
 
   // Catch the "this deploy will have no public URL" foot-gun: self-hosted,

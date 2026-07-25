@@ -24,6 +24,7 @@ import {
   safeErrorMessage,
   getRuntimeImage,
   isReleaseProvider,
+  projectRoutingSlug,
   type StackId,
   type DeployTarget,
   type BuildStrategy,
@@ -107,6 +108,8 @@ export async function runDeploymentPreflight(
     /** Project id — passed to the remote-clone-token preflight check so
      *  project-scoped clone tokens are considered. */
     projectId?: string;
+    projectRouteKey?: string | null;
+    projectSlug?: string;
   },
 ): Promise<void> {
   const preflight = await runPreflightChecks(snapshot, {
@@ -121,6 +124,8 @@ export async function runDeploymentPreflight(
     ...(opts.multiService !== undefined ? { multiService: opts.multiService } : {}),
     ...(opts.gitOwner !== undefined ? { gitOwner: opts.gitOwner } : {}),
     ...(opts.projectId !== undefined ? { projectId: opts.projectId } : {}),
+    ...(opts.projectRouteKey !== undefined ? { projectRouteKey: opts.projectRouteKey } : {}),
+    ...(opts.projectSlug !== undefined ? { projectSlug: opts.projectSlug } : {}),
     buildStrategy: snapshot.buildStrategy as "local" | "server" | undefined,
   });
   if (!preflight.ok) {
@@ -829,12 +834,14 @@ export async function respondToPrompt(
  */
 function defaultFreeEndpoint(project: {
   slug: string;
+  routeKey?: string | null;
   hasServer: boolean;
   port: number | null;
 }): { domain: string; domainType: "free"; port?: string; targetPath?: string } {
+  const domain = projectRoutingSlug(project);
   return project.hasServer && project.port
-    ? { domain: project.slug, domainType: "free", port: String(project.port) }
-    : { domain: project.slug, domainType: "free", targetPath: "/" };
+    ? { domain, domainType: "free", port: String(project.port) }
+    : { domain, domainType: "free", targetPath: "/" };
 }
 
 export async function requestBuildAccess(ctx: RequestContext, input: BuildAccessInput) {
@@ -1043,6 +1050,8 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     multiService: useServicePipeline,
     gitOwner: project.gitOwner,
     projectId: project.id,
+    projectRouteKey: project.routeKey,
+    projectSlug: project.slug,
   });
   const env = environment || "production";
 
@@ -1538,6 +1547,8 @@ export async function triggerDeployment(
     multiService: useServicePipeline,
     gitOwner: project.gitOwner,
     projectId: project.id,
+    projectRouteKey: project.routeKey,
+    projectSlug: project.slug,
   });
 
   // Env: a reused snapshot ships the EXACT encrypted env captured with the

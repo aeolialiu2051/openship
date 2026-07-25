@@ -44,6 +44,7 @@ export interface ManifestDeployment {
 export interface ManifestProjectEntry {
   id: string;
   slug: string;
+  routeKey?: string | null;
   name: string;
   organizationId: string;
   groupId: string;

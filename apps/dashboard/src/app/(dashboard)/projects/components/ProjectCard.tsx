@@ -8,6 +8,7 @@ import { AppLogo } from "@/components/AppLogo";
 import { getFrameworkConfig } from "@/components/import-project/Frameworks";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
 import { usePlatform } from "@/context/PlatformContext";
+import { appendProjectRouteKey } from "@repo/core";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
 
@@ -65,7 +66,14 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
   const hasRepo = !!(project.gitOwner && project.gitRepo);
   const repoSlug = hasRepo ? `${project.gitOwner}/${project.gitRepo}` : null;
   const domain =
-    (project as any).primaryDomain || (project.slug ? `${project.slug}.${baseDomain}` : null);
+    (project as any).primaryDomain ||
+    (project.slug
+      ? `${
+          project.routeKey
+            ? appendProjectRouteKey(project.slug, project.routeKey)
+            : project.slug
+        }.${baseDomain}`
+      : null);
   const hasMultipleServices =
     project.hasMultipleServices === true || Number(project.serviceCount ?? 0) > 1;
 

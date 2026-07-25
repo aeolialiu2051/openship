@@ -16,5 +16,6 @@ export * from "./mail-server";
 export * from "./app-templates";
 export * from "./app-settings";
 export * from "./project-source";
+export * from "./project-route-key";
 export * from "./updates";
 export * from "./proxy-settings";

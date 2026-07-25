@@ -88,6 +88,8 @@ export interface OpenshipProjectGroup {
   suggestedName: string;
   /** Original slug (from the manifest) — preserved on re-import to keep URLs. */
   slug?: string;
+  /** Stable managed-hostname key; absent on manifests written before Base36 routing. */
+  routeKey?: string;
   /** Domains from the manifest — restored as route state on re-import. */
   domains?: string[];
   /** Git source recovered from the manifest (restored on re-import). */
@@ -464,6 +466,7 @@ export function reconcileOpenshipProjects(opts: {
         details.find((d) => d.composeProject)?.composeProject ||
         `openship-${projectId.replace(/^proj_/, "").slice(0, 8)}`,
       slug: entry?.slug,
+      routeKey: entry?.routeKey ?? undefined,
       domains: entry?.domains,
       source: entry
         ? {

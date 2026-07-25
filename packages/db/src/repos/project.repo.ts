@@ -1,5 +1,9 @@
 import { eq, and, isNull, isNotNull, inArray, desc, sql, type SQL } from "drizzle-orm";
-import { generateId } from "@repo/core";
+import {
+  generateId,
+  generateProjectRouteKey,
+  normalizeProjectRouteKey,
+} from "@repo/core";
 import type { Database } from "../client";
 import { project, envVar, deployment } from "../schema";
 import { member } from "../schema/organization";
@@ -12,6 +16,16 @@ export type EnvVar = typeof envVar.$inferSelect;
 export type NewEnvVar = typeof envVar.$inferInsert;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function isProjectRouteKeyConflict(err: unknown): boolean {
+  let current: unknown = err;
+  for (let depth = 0; depth < 6 && current && typeof current === "object"; depth += 1) {
+    const pg = current as { code?: unknown; constraint?: unknown; cause?: unknown };
+    if (pg.code === "23505" && pg.constraint === "uq_project_route_key") return true;
+    current = pg.cause;
+  }
+  return false;
+}
 
 /** Build Drizzle conditions for env var queries scoped by project/environment/service */
 function envVarScope(projectId: string, environment?: string, serviceId?: string | null): SQL[] {
@@ -228,9 +242,32 @@ export function createProjectRepo(db: Database) {
       // still-running containers' `openship.project` labels re-attach immediately.
       const { id: providedId, ...rest } = data;
       const id = providedId ?? generateId("proj");
-      const row = { id, ...rest };
-      await db.insert(project).values(row);
-      return { ...row, createdAt: new Date(), updatedAt: new Date() } as Project;
+      // Omitted/undefined means a normal new project and receives a key.
+      // Explicit null is reserved for restoring a pre-route-key project whose
+      // existing public hostnames must not change after import.
+      let routeKey = typeof rest.routeKey === "string"
+        ? normalizeProjectRouteKey(rest.routeKey)
+        : rest.routeKey === null
+          ? null
+          : generateProjectRouteKey();
+
+      for (let attempt = 0; attempt < 10; attempt += 1) {
+        try {
+          const [created] = await db
+            .insert(project)
+            .values({ id, ...rest, routeKey })
+            .returning();
+          return created!;
+        } catch (err) {
+          if (isProjectRouteKeyConflict(err)) {
+            routeKey = generateProjectRouteKey();
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      throw new Error("Could not allocate a unique project route key");
     },
 
     async update(id: string, data: Partial<NewProject>) {

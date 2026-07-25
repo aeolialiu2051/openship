@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ConflictError } from "@repo/core";
+import { appendProjectRouteKey, ConflictError } from "@repo/core";
 
 const domainRepo = vi.hoisted(() => ({
   update: vi.fn(),
@@ -39,6 +39,11 @@ describe("syncProjectPublicRoutes", () => {
     domainRepo.listByProject.mockReset();
     domainRepo.findByHostname.mockReset();
     projectRepo.findById.mockReset();
+    projectRepo.findById.mockResolvedValue({
+      id: "proj_123",
+      slug: "business-servio",
+      routeKey: "oo198w",
+    });
     domainRepo.create.mockImplementation(async (data: any) => ({
       id: "dom_created",
       ...data,
@@ -78,7 +83,8 @@ describe("syncProjectPublicRoutes", () => {
   });
 
   it("dedupes repeated hostnames from the desired endpoint list", async () => {
-    const hostname = `business-servio.${getRoutingBaseDomain()}`;
+    const routeSlug = appendProjectRouteKey("business-servio", "oo198w");
+    const hostname = `${routeSlug}.${getRoutingBaseDomain()}`;
 
     await syncProjectPublicRoutes({
       projectId: "proj_123",
@@ -109,10 +115,15 @@ describe("syncProjectPublicRoutes", () => {
   });
 
   it("throws a conflict when the hostname already belongs to another project", async () => {
-    const hostname = `business-servio.${getRoutingBaseDomain()}`;
+    const routeSlug = appendProjectRouteKey("business-servio", "oo198w");
+    const hostname = `${routeSlug}.${getRoutingBaseDomain()}`;
     // The conflicting row's owner project still exists → a real conflict
     // (resolveLocalConflict returns the row instead of treating it as an orphan).
-    projectRepo.findById.mockResolvedValue({ id: "proj_other" });
+    projectRepo.findById.mockImplementation(async (id: string) =>
+      id === "proj_123"
+        ? { id: "proj_123", slug: "business-servio", routeKey: "oo198w" }
+        : { id: "proj_other", slug: "business-servio", routeKey: "wkf0zl" },
+    );
     domainRepo.findByHostname.mockResolvedValue({
       id: "dom_other",
       projectId: "proj_other",
@@ -139,5 +150,61 @@ describe("syncProjectPublicRoutes", () => {
     expect(domainRepo.create).not.toHaveBeenCalled();
     expect(domainRepo.update).not.toHaveBeenCalled();
     expect(domainRepo.remove).not.toHaveBeenCalled();
+  });
+
+  it("preserves a legacy unsuffixed hostname already owned by the project", async () => {
+    const hostname = `business-servio.${getRoutingBaseDomain()}`;
+    projectRepo.findById.mockResolvedValue({
+      id: "proj_123",
+      slug: "business-servio",
+      routeKey: null,
+    });
+
+    await syncProjectPublicRoutes({
+      projectId: "proj_123",
+      endpoints: [{
+        port: 7000,
+        domain: "business-servio",
+        domainType: "free",
+      }],
+      currentDomains: [{
+        id: "dom_legacy",
+        projectId: "proj_123",
+        serviceId: null,
+        hostname,
+        targetPort: 7000,
+        targetPath: null,
+        domainType: "free",
+        isPrimary: true,
+        verified: true,
+        status: "active",
+      } as any],
+    });
+
+    expect(domainRepo.create).not.toHaveBeenCalled();
+    expect(domainRepo.remove).not.toHaveBeenCalled();
+  });
+
+  it("does not silently migrate a legacy project's new free hostname", async () => {
+    const hostname = `business-servio.${getRoutingBaseDomain()}`;
+    projectRepo.findById.mockResolvedValue({
+      id: "proj_123",
+      slug: "business-servio",
+      routeKey: null,
+    });
+
+    await syncProjectPublicRoutes({
+      projectId: "proj_123",
+      endpoints: [{
+        port: 7000,
+        domain: "business-servio",
+        domainType: "free",
+      }],
+      currentDomains: [],
+    });
+
+    expect(domainRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({ hostname }),
+    );
   });
 });

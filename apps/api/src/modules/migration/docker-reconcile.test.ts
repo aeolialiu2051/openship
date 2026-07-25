@@ -46,13 +46,25 @@ describe("reconcileOpenshipProjects", () => {
       }),
     ];
     const manifestById = new Map<string, ManifestProjectEntry>([
-      ["proj_abc", manifestEntry({ id: "proj_abc", name: "Shop", slug: "shop", domains: ["shop.example.com"] })],
+      ["proj_abc", manifestEntry({
+        id: "proj_abc",
+        name: "Shop",
+        slug: "shop",
+        routeKey: "oo198w",
+        domains: ["shop.example.com"],
+      })],
     ]);
 
     const out = reconcileOpenshipProjects({ managedDetails: details, manifestById, knownHereIds: new Set() });
     expect(out).toHaveLength(1);
     const p = out[0]!;
-    expect(p).toMatchObject({ projectId: "proj_abc", knownHere: false, suggestedName: "Shop", slug: "shop" });
+    expect(p).toMatchObject({
+      projectId: "proj_abc",
+      knownHere: false,
+      suggestedName: "Shop",
+      slug: "shop",
+      routeKey: "oo198w",
+    });
     expect(p.domains).toEqual(["shop.example.com"]);
     expect(p.deploymentId).toBe("dep_1");
     expect(p.services.map((s) => s.name).sort()).toEqual(["db", "web"]);

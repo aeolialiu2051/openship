@@ -55,6 +55,7 @@ export async function syncProjectToServerManifest(input: {
     const entry: ManifestProjectEntry = {
       id: project.id,
       slug: project.slug,
+      routeKey: project.routeKey,
       name: project.name,
       organizationId: project.organizationId,
       groupId: project.groupId,

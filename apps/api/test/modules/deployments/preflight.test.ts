@@ -112,6 +112,37 @@ describe("runPreflightChecks", () => {
     ).toBe(true);
   });
 
+  it("checks the canonical keyed hostname instead of the raw project slug", async () => {
+    const result = await runPreflightChecks({
+      repoUrl: "https://github.com/acme/app.git",
+      branch: "main",
+      buildImage: "node:22",
+      installCommand: "npm install",
+      buildCommand: "npm run build",
+      startCommand: "npm start",
+      port: 3000,
+      hasBuild: true,
+      hasServer: true,
+      deployTarget: "server",
+      organizationId: "org-1",
+    } as any, {
+      ctx: { userId: "user-1", organizationId: "org-1" } as any,
+      buildStrategy: "local",
+      projectRouteKey: "oo198w",
+      publicEndpoints: [
+        { port: 3000, domain: "taken-endpoint", domainType: "free" },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(
+      preflightFn.mock.calls.some(([input]) => input?.slug === "taken-endpoint-oo198w"),
+    ).toBe(true);
+    expect(
+      preflightFn.mock.calls.some(([input]) => input?.slug === "taken-endpoint"),
+    ).toBe(false);
+  });
+
   it("accepts static path-targeted public endpoints", async () => {
     const result = await runPreflightChecks({
       repoUrl: "https://github.com/acme/docs.git",

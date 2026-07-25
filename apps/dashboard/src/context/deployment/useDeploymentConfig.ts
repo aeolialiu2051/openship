@@ -9,7 +9,7 @@ import type { Service } from "@/lib/api/services";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
 import type { BuildMode } from "@/lib/api/settings";
-import { STACKS, getBuildImage, type StackDefinition, type StackId } from "@repo/core";
+import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STACKS, getBuildImage, type StackDefinition, type StackId } from "@repo/core";
 import type { BuildStrategy, DeploymentConfig, DeploymentModeSnapshot, MonorepoAppConfig, MonorepoWorkspaceConfig, PublicEndpoint } from "./types";
 import {
   DEFAULT_CONFIG,
@@ -363,11 +363,15 @@ function resolvePreparedRoutingState(
   project: PersistedProject,
   repoName: string,
   context: Pick<PreparedProjectContext, "projectType" | "preparedOptions" | "monorepoApps">,
+  routeKey?: string,
 ): PreparedRoutingState {
   const effectiveHasServer = context.projectType === "services"
     ? context.preparedOptions.hasServer
     : project?.hasServer ?? context.preparedOptions.hasServer;
-  const primaryDomain = project?.slug || normalizeSubdomain(repoName);
+  const rawPrimaryDomain = project?.slug || normalizeSubdomain(repoName);
+  const primaryDomain = routeKey
+    ? appendProjectRouteKey(rawPrimaryDomain, routeKey)
+    : rawPrimaryDomain;
   const primaryPort = context.projectType === "services"
     ? context.preparedOptions.productionPort
     : String(project?.port ?? response.port ?? "");
@@ -385,7 +389,10 @@ function resolvePreparedRoutingState(
       v.toLowerCase().replace(/^@/, "").replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "");
     const stored: PublicEndpoint[] = mapStoredPublicEndpoints(project) ?? [];
     const seeded = context.monorepoApps.map((app) => {
-      const label = `${slugify(app.name)}-${slugify(primaryDomain)}`;
+      const rawLabel = `${slugify(app.name)}-${slugify(rawPrimaryDomain)}`;
+      const label = routeKey
+        ? appendProjectRouteKey(rawLabel, routeKey)
+        : rawLabel;
       // Inherit if the user already saved a per-app endpoint for this
       // sub-app (matched by domain label). Otherwise auto-derive.
       const prior = stored.find((s: PublicEndpoint) => s.domain === label);
@@ -414,7 +421,10 @@ function resolvePreparedRoutingState(
       hasStoredPort,
       publicEndpoints: response.publicEndpoints.map((e) =>
         createPublicEndpoint({
-          domain: e.domain ?? "",
+          domain:
+            e.domainType === "custom" || e.customDomain || !routeKey || !e.domain
+              ? e.domain ?? ""
+              : appendProjectRouteKey(e.domain, routeKey),
           customDomain: e.customDomain ?? "",
           domainType: e.domainType ?? (e.customDomain ? "custom" : "free"),
           port: e.port != null ? String(e.port) : effectiveHasServer ? primaryPort : "",
@@ -430,6 +440,55 @@ function resolvePreparedRoutingState(
     hasStoredPort,
     publicEndpoints: buildSingleAppEndpoints(project, primaryDomain, effectiveHasServer, primaryPort),
   };
+}
+
+function applyRouteKeyToComposeServices(
+  services: PrepareComposeService[],
+  projectLabel: string,
+  routeKey?: string,
+): PrepareComposeService[] {
+  if (!routeKey) return services;
+
+  return services.map((service) => {
+    const defaultDomain = resolveServiceHostnameLabel(
+      projectLabel,
+      service.name,
+      undefined,
+      "compose",
+    );
+    const baseDomain = service.domain || defaultDomain;
+    const domain = service.domainType === "custom"
+      ? service.domain
+      : appendProjectRouteKey(baseDomain, routeKey);
+    const publicEndpoints = service.publicEndpoints?.map((endpoint) => (
+      endpoint.domainType === "custom"
+        ? endpoint
+        : {
+            ...endpoint,
+            domain: appendProjectRouteKey(endpoint.domain || baseDomain, routeKey),
+          }
+    ));
+
+    return {
+      ...service,
+      domain,
+      ...(publicEndpoints ? { publicEndpoints } : {}),
+    };
+  });
+}
+
+function applyRoutingToMonorepoApps(
+  apps: MonorepoAppConfig[] | undefined,
+  endpoints: PublicEndpoint[],
+): MonorepoAppConfig[] | undefined {
+  if (!apps) return undefined;
+
+  return apps.map((app, index) => {
+    const endpoint = endpoints[index];
+    return endpoint
+      ? { ...app, publicEndpoints: [{ ...endpoint }] }
+      : app;
+  });
 }
 
 function resolvePreparedRuntimeConfig(
@@ -594,8 +653,16 @@ export function useDeploymentConfig() {
         localPath,
         uploadSessionId,
       } = args;
+      const routeKey = project?.routeKey || (projectId ? undefined : (prev.routeKey || generateProjectRouteKey()));
+      const projectName = project?.name || prev.projectName || repoName;
       const preparedContext = resolvePreparedProjectContext(response);
-      const routingState = resolvePreparedRoutingState(response, project, repoName, preparedContext);
+      const routingState = resolvePreparedRoutingState(
+        response,
+        project,
+        repoName,
+        preparedContext,
+        routeKey,
+      );
       const runtimeConfig = resolvePreparedRuntimeConfig(
         response,
         project,
@@ -606,16 +673,20 @@ export function useDeploymentConfig() {
       return normalizePreparedConfig({
         ...prev,
         projectId,
+        routeKey,
         repo: repoName,
         owner,
         localPath,
         uploadSessionId,
-        projectName: project?.name || prev.projectName || repoName,
+        projectName,
         projectType: preparedContext.projectType,
         serviceDeploymentMode: preparedContext.serviceDeploymentMode,
         composeDefaults: preparedContext.composeDefaults,
         singleAppCandidate: preparedContext.singleAppCandidate,
-        monorepoApps: preparedContext.monorepoApps,
+        monorepoApps: applyRoutingToMonorepoApps(
+          preparedContext.monorepoApps,
+          routingState.publicEndpoints,
+        ),
         monorepoWorkspace: preparedContext.monorepoWorkspace,
         routingConfig: response.routing ?? undefined,
         modeSnapshots: undefined,
@@ -655,7 +726,11 @@ export function useDeploymentConfig() {
         buildImage: runtimeConfig.buildImage,
         branch,
         branches,
-        services: response.services || [],
+        services: applyRouteKeyToComposeServices(
+          response.services || [],
+          project?.slug || projectName,
+          routeKey,
+        ),
         publicEndpoints: routingState.publicEndpoints,
         rootEnvVars: envMapToRows(response.rootEnv),
         productionPortTouched: routingState.hasStoredPort,

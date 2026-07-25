@@ -73,6 +73,7 @@ export const projectsApi = {
   /** Create or update a project (mandatory before build access) */
   ensure: (body: {
     projectId?: string;
+    routeKey?: string;
     name: string;
     slug?: string;
     gitOwner?: string;
@@ -127,7 +128,13 @@ export const projectsApi = {
     };
     /** Routing config parsed from the repo's vercel.json (opaque passthrough). */
     routingConfig?: RoutingConfig | null;
-  }) => api.post<any>(endpoints.projects.ensure, body),
+  }) => api.post<{
+    success: boolean;
+    project_id?: string;
+    route_key?: string | null;
+    created?: boolean;
+    error?: string;
+  }>(endpoints.projects.ensure, body),
 
   /** List local projects only */
   getLocal: () => api.get<{ success: boolean; projects: any[] }>(endpoints.projects.local),

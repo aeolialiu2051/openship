@@ -6,7 +6,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { serviceKind, serviceCanStartWithoutBuild, servicesApi, sortServicesByPublicFirst, type Service, type ServiceContainer, type ServiceInput } from "@/lib/api/services";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
-import { resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
 import { useRouter } from "next/navigation";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
@@ -99,7 +99,10 @@ export const ServicesTab = () => {
       service.domain,
       serviceKind(service),
     );
-    return `https://${subdomain}.${baseDomain}`;
+    const managedSubdomain = projectData.routeKey
+      ? appendProjectRouteKey(subdomain, projectData.routeKey)
+      : subdomain;
+    return `https://${managedSubdomain}.${baseDomain}`;
   };
 
   const openService = (serviceId: string) => {

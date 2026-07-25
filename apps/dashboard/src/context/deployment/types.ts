@@ -232,6 +232,8 @@ export interface CloudResourceCustom {
 export interface DeploymentConfig {
   /** Existing deployable environment to update/deploy, when launched from a project page. */
   projectId?: string;
+  /** Stable six-character Base36 suffix reserved for managed hostnames. */
+  routeKey?: string;
   /** One-click catalog app (repo-less services project). Deploys from its saved
    *  rows with no git source — treated like local/upload in the deploy guards. */
   isApp?: boolean;
@@ -327,6 +329,7 @@ export interface DeploymentConfig {
 
 export const DEFAULT_CONFIG: DeploymentConfig = {
   projectId: undefined,
+  routeKey: undefined,
   projectName: "",
   repo: "",
   owner: "",

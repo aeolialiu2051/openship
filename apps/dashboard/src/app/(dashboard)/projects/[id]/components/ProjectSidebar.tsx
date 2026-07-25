@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { usePlatform } from "@/context/PlatformContext";
+import { appendProjectRouteKey } from "@repo/core";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { DomainSwitcher } from "@/components/routing/DomainSwitcher";
 import { formatDate } from "@/utils/date";
@@ -57,7 +58,13 @@ export const ProjectSidebar = () => {
   const meta = PROJECT_STATUS_META[status];
   const localPort = projectData.port || 3000;
   const localUrl = `localhost:${localPort}`;
-  const slugDomain = projectData.slug && baseDomain ? `${projectData.slug}.${baseDomain}` : "";
+  const slugDomain = projectData.slug && baseDomain
+    ? `${
+        projectData.routeKey
+          ? appendProjectRouteKey(projectData.slug, projectData.routeKey)
+          : projectData.slug
+      }.${baseDomain}`
+    : "";
 
   // Route switch: pick which domain the Production line shows/opens (shared via
   // context so switching here also refetches the overview analytics).

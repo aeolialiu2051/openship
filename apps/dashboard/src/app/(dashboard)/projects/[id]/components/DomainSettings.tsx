@@ -29,7 +29,7 @@ import { useToast } from "@/context/ToastContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
 import { usePlatform } from "@/context/PlatformContext";
-import { resolveServiceHostnameLabel } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
@@ -98,6 +98,10 @@ function createProjectEndpointDrafts(
   hasServer: boolean,
   runtimePort: string,
 ): PublicEndpoint[] {
+  const rawDefaultDomain = projectData.slug || projectData.name || "project";
+  const defaultDomain = projectData.routeKey
+    ? appendProjectRouteKey(rawDefaultDomain, projectData.routeKey)
+    : rawDefaultDomain;
   return ensurePublicEndpoints(
     Array.isArray(projectData.publicEndpoints)
       ? projectData.publicEndpoints.map((endpoint) => toEditablePublicEndpoint(endpoint))
@@ -105,12 +109,12 @@ function createProjectEndpointDrafts(
     hasServer
       ? {
           port: runtimePort,
-          domain: projectData.slug || projectData.name || "project",
+          domain: defaultDomain,
           domainType: "free",
         }
       : {
           targetPath: "/",
-          domain: projectData.slug || projectData.name || "project",
+          domain: defaultDomain,
           domainType: "free",
         },
   );
@@ -1016,7 +1020,16 @@ export const DomainSettings = () => {
     if (service.domainType === "custom" && service.customDomain) {
       return service.customDomain;
     }
-    return `${resolveServiceHostnameLabel(projectLabel, service.name, service.domain, serviceKind(service))}.${baseDomain}`;
+    const label = resolveServiceHostnameLabel(
+      projectLabel,
+      service.name,
+      service.domain,
+      serviceKind(service),
+    );
+    const managedLabel = projectData.routeKey
+      ? appendProjectRouteKey(label, projectData.routeKey)
+      : label;
+    return `${managedLabel}.${baseDomain}`;
   };
 
   const getServiceRouteSummary = (service: Service) => {
@@ -2258,4 +2271,3 @@ function DnsRecordRow({
     </div>
   );
 }
-

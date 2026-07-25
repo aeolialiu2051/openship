@@ -1,6 +1,6 @@
 import { repos, type Domain, type Project, type Service } from "@repo/db";
 import type { RoutedDomainInput, SslProvider, SslResult } from "@repo/adapters";
-import { SYSTEM, ConflictError, resolveServiceHostnameLabel, normalizeCustomHostname } from "@repo/core";
+import { SYSTEM, ConflictError, resolveServiceHostnameLabel, normalizeCustomHostname, appendProjectRouteKey } from "@repo/core";
 import { env } from "../config/env";
 import { serviceKind } from "./deployable-service";
 import { resolveServicePublicEndpoints } from "./public-endpoints";
@@ -239,10 +239,19 @@ export function buildServiceRouteDomains(opts: {
     // Compose services keep the "frontend"/"web"/"app" → bare-project-label
     // shortcut (see defaultServiceHostnameLabel). Each endpoint's own free slug
     // overrides that default, so secondary ports get distinct hostnames.
+    const serviceLabel = resolveServiceHostnameLabel(
+      project.slug ?? project.name,
+      service.name,
+      endpoint.domain,
+      serviceKind(service),
+    );
+    const managedLabel = project.routeKey
+      ? appendProjectRouteKey(serviceLabel, project.routeKey)
+      : serviceLabel;
     const hostname = endpoint.domainType === "custom"
       ? (endpoint.customDomain ? normalizeCustomHostname(endpoint.customDomain) : null)
       : usesManagedRouting
-        ? `${resolveServiceHostnameLabel(project.slug ?? project.name, service.name, endpoint.domain, serviceKind(service))}.${getRoutingBaseDomain()}`
+        ? `${managedLabel}.${getRoutingBaseDomain()}`
         : null;
 
     if (!hostname) continue;

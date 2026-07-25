@@ -124,3 +124,61 @@ describe("project.repo env writes (PGlite)", () => {
     expect(rows).toHaveLength(0);
   });
 });
+
+describe("project route keys (PGlite)", () => {
+  it("allocates distinct six-character Base36 keys for new projects", async () => {
+    const ctx = await freshRepo();
+    const first = await ctx.repo.create({
+      organizationId: "org_1",
+      groupId: "app_1",
+      name: "ABC",
+      slug: "abc",
+    });
+    const second = await ctx.repo.create({
+      organizationId: "org_2",
+      groupId: "app_2",
+      name: "ABC",
+      slug: "abc",
+    });
+
+    expect(first.routeKey).toMatch(/^[a-z0-9]{6}$/);
+    expect(second.routeKey).toMatch(/^[a-z0-9]{6}$/);
+    expect(second.routeKey).not.toBe(first.routeKey);
+  }, 30_000);
+
+  it("falls back to a fresh key when a client-reserved key already exists", async () => {
+    const ctx = await freshRepo();
+    const first = await ctx.repo.create({
+      organizationId: "org_1",
+      groupId: "app_1",
+      name: "First",
+      slug: "first",
+      routeKey: "oo198w",
+    });
+    const second = await ctx.repo.create({
+      organizationId: "org_2",
+      groupId: "app_2",
+      name: "Second",
+      slug: "second",
+      routeKey: "oo198w",
+    });
+
+    expect(first.routeKey).toBe("oo198w");
+    expect(second.routeKey).toMatch(/^[a-z0-9]{6}$/);
+    expect(second.routeKey).not.toBe(first.routeKey);
+  }, 30_000);
+
+  it("preserves an explicit null key when restoring a legacy project", async () => {
+    const ctx = await freshRepo();
+    const restored = await ctx.repo.create({
+      id: "proj_legacy",
+      organizationId: "org_legacy",
+      groupId: "app_legacy",
+      name: "Legacy",
+      slug: "legacy",
+      routeKey: null,
+    });
+
+    expect(restored.routeKey).toBeNull();
+  }, 30_000);
+});

@@ -272,6 +272,7 @@ export async function reimportOpenshipProject(opts: {
     id: projectId,
     name,
     slug: group.slug || slugify(name),
+    routeKey: group.routeKey ?? null,
     organizationId,
     hasBuild: anyBuild,
     runtimeMode: group.runtimeMode === "bare" ? "bare" : "docker",

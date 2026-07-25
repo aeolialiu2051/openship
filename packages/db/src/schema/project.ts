@@ -75,6 +75,8 @@ export const project = pgTable(
     name: text("name").notNull(),
     /** URL-safe slug derived from name */
     slug: text("slug").notNull(),
+    /** Stable six-character Base36 suffix used by managed hostnames. */
+    routeKey: text("route_key"),
 
     /* ── Environment identity ─────────────────────────────────────────── */
     /** Display label for this deployable environment */
@@ -329,6 +331,9 @@ export const project = pgTable(
     uniqueIndex("uq_project_app_environment_slug_active")
       .on(table.groupId, table.environmentSlug)
       .where(sql`${table.deletedAt} IS NULL`),
+    uniqueIndex("uq_project_route_key")
+      .on(table.routeKey)
+      .where(sql`${table.routeKey} IS NOT NULL`),
     // One local project per Oblien workspace. Two project rows pointing
     // at the same workspace would race on deploy + confuse drift
     // detection. Partial unique — NULL allowed (self-hosted projects

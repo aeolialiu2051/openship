@@ -253,6 +253,7 @@ function buildProductionProjectInput(
     groupId,
     name: data.name,
     slug,
+    routeKey: data.routeKey,
     environmentName: "Production",
     environmentSlug: "production",
     environmentType: "production",
@@ -374,6 +375,7 @@ export async function createServicesProjectWithId(opts: {
   id: string;
   name: string;
   slug: string;
+  routeKey?: string | null;
   organizationId: string;
   hasBuild?: boolean;
   runtimeMode?: "bare" | "docker";
@@ -404,6 +406,7 @@ export async function createServicesProjectWithId(opts: {
       groupId: group.id,
       name: opts.name,
       slug,
+      routeKey: opts.routeKey ?? null,
       environmentName: "Production",
       environmentSlug: "production",
       environmentType: "production",
@@ -427,7 +430,6 @@ export async function createServicesProjectWithId(opts: {
     throw err;
   }
 }
-
 async function uniqueProjectSlug(organizationId: string, baseSlug: string) {
   let slug = baseSlug;
   let suffix = 2;
@@ -663,7 +665,12 @@ export async function ensureProject(
     await persistMonorepoApps(project.id, data);
   }
 
-  return { success: true, project_id: project.id, created };
+  return {
+    success: true,
+    project_id: project.id,
+    route_key: project.routeKey,
+    created,
+  };
 }
 
 // ─── List projects ───────────────────────────────────────────────────────────
@@ -748,6 +755,9 @@ export async function updateProject(
   assertResourceInOrg(p, "Project", organizationId, projectId);
 
   const update: Record<string, unknown> = { ...data };
+  // Defense in depth for internal/programmatic callers that bypass the HTTP
+  // TypeBox validator. A project's routing identity is immutable after create.
+  delete update.routeKey;
   if (data.name && data.name !== p.name) {
     const newSlug = slugify(data.name);
     const existing = await repos.project.findBySlugInOrg(organizationId, newSlug);
@@ -1358,5 +1368,3 @@ export async function getLatestDeploymentSession(
       : null,
   };
 }
-
-

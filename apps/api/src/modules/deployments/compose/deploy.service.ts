@@ -10,7 +10,7 @@
  */
 
 import { repos, type Deployment, type Domain, type Project, type Service } from "@repo/db";
-import { resolveServiceHostnameLabel, resolvePublicUrlPlaceholders, type ComposeAdvanced } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel, resolvePublicUrlPlaceholders, type ComposeAdvanced } from "@repo/core";
 import {
   BuildLogger,
   DEFAULT_RESOURCE_CONFIG,
@@ -116,12 +116,13 @@ function resolveServicePublicPort(service: Service): number | undefined {
 
 function resolveServicePublicSlug(project: Project, service: Service): string | undefined {
   if (!service.exposed || service.domainType === "custom") return undefined;
-  return resolveServiceHostnameLabel(
+  const label = resolveServiceHostnameLabel(
     project.slug ?? project.name,
     service.name,
     service.domain ?? undefined,
     serviceKind(service),
   );
+  return project.routeKey ? appendProjectRouteKey(label, project.routeKey) : label;
 }
 
 function resolveServiceCustomDomain(service: Service): string | undefined {
@@ -149,12 +150,13 @@ function resolveServiceEndpointUrls(project: Project, service: Service): Array<{
       if (endpoint.customDomain) urls.push({ port: endpoint.port, url: `https://${endpoint.customDomain}` });
       continue;
     }
-    const slug = resolveServiceHostnameLabel(
+    const label = resolveServiceHostnameLabel(
       project.slug ?? project.name,
       service.name,
       endpoint.domain ?? undefined,
       serviceKind(service),
     );
+    const slug = project.routeKey ? appendProjectRouteKey(label, project.routeKey) : label;
     if (slug) urls.push({ port: endpoint.port, url: `https://${slug}.${getRoutingBaseDomain()}` });
   }
   return urls;
@@ -173,12 +175,13 @@ function serviceDeployPublicEndpoints(
       out.push({ port: endpoint.port, customDomain: endpoint.customDomain, domainType: "custom" });
       continue;
     }
-    const slug = resolveServiceHostnameLabel(
+    const label = resolveServiceHostnameLabel(
       project.slug ?? project.name,
       service.name,
       endpoint.domain ?? undefined,
       serviceKind(service),
     );
+    const slug = project.routeKey ? appendProjectRouteKey(label, project.routeKey) : label;
     out.push({ port: endpoint.port, domain: slug, domainType: "free" });
   }
   return out;

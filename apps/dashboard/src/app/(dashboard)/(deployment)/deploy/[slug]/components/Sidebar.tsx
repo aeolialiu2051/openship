@@ -25,6 +25,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
 import { projectsApi, githubApi, serverGithubApi, getApiErrorMessage } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 
 // ─── Deploy checklist for compose ────────────────────────────────────────────
 
@@ -125,10 +126,20 @@ const ComposeChecklist: React.FC = () => {
             {t.deploy.checklist.domains}
           </p>
           {exposedServices.map((svc) => {
+            const managedLabel = resolveServiceHostnameLabel(
+              config.projectName || config.repo || "project",
+              svc.name,
+              svc.domain,
+              "compose",
+            );
             const domain =
               svc.domainType === "custom" && svc.customDomain
                 ? svc.customDomain
-                : `${svc.domain || svc.name}.${baseDomain}`;
+                : `${
+                    config.routeKey
+                      ? appendProjectRouteKey(managedLabel, config.routeKey)
+                      : managedLabel
+                  }.${baseDomain}`;
             return (
               <div key={svc.name} className="flex items-center gap-2">
                 <Globe className="size-3 text-primary" />
