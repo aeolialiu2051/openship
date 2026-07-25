@@ -91,6 +91,14 @@ export interface MailWebmailSummary {
 export interface MailSetupStatus {
   active: boolean;
   serverId?: string;
+  /** False when the remote server could not be checked. Distinct from a
+   * reachable server that simply has no mail-state file yet. */
+  statusAvailable?: boolean;
+  reachable?: boolean | null;
+  statusError?: {
+    code: "server_unreachable" | "state_read_timeout" | "state_read_failed";
+    message: string;
+  };
   domain?: string;
   currentStep?: number;
   startedAt?: number;

@@ -12,6 +12,7 @@ import {
   Eye,
   EyeOff,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import ServerSelector, { type ServerOption } from "@/components/shared/ServerSelector";
 import { AdoptMailModal } from "./adopt-mail-modal";
@@ -44,6 +45,8 @@ interface MailSetupFormProps {
   domain: string;
   adminPassword: string;
   running: boolean;
+  serverConnecting?: boolean;
+  serverConnectingLabel?: string;
   selectedServerId: string | null;
   relay: SetupRelay;
   onRelayChange: (r: SetupRelay) => void;
@@ -59,6 +62,8 @@ export function MailSetupForm({
   domain,
   adminPassword,
   running,
+  serverConnecting = false,
+  serverConnectingLabel,
   selectedServerId,
   relay,
   onRelayChange,
@@ -95,6 +100,17 @@ export function MailSetupForm({
             selector's built-in "Add server" → /servers/new). Auto-select is a
             convenient default, not a reason to hide the choice. */}
         <ServerSelector value={selectedServerId} onSelect={onServerSelect} />
+
+        {serverConnecting && selectedServerId && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="-mt-3 mb-5 flex items-center gap-2 rounded-xl border border-primary/15 bg-primary/[0.04] px-3.5 py-2.5 text-sm text-muted-foreground"
+          >
+            <Loader2 className="size-4 shrink-0 animate-spin text-primary" />
+            <span>{serverConnectingLabel}</span>
+          </div>
+        )}
 
         <div className="space-y-4 mb-6">
           <div>
@@ -163,7 +179,7 @@ export function MailSetupForm({
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <button
             onClick={onStart}
-            disabled={!domain || !adminPassword || !selectedServerId || !relayReady || running}
+            disabled={!domain || !adminPassword || !selectedServerId || !relayReady || running || serverConnecting}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Play className="size-4" />
@@ -174,7 +190,7 @@ export function MailSetupForm({
           <button
             type="button"
             onClick={() => setAdoptOpen(true)}
-            disabled={running}
+            disabled={running || serverConnecting}
             className="text-sm text-muted-foreground hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50"
           >
             {t.emails.setup.adoptCta}

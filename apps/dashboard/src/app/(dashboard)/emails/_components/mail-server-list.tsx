@@ -7,6 +7,8 @@ export interface MailServerListItem {
   id: string;
   name: string;
   host: string;
+  port: number;
+  user: string;
   domain: string | null;
   completed: boolean;
   active: boolean;

@@ -2,6 +2,12 @@
   "page": {
     "title": "Email Server",
     "subtitle": "Set up a self-hosted mail server with a few clicks",
+    "loadingServers": "Loading mail servers…",
+    "syncingStatus": "Syncing mail server status…",
+    "statusUnavailableTitle": "Mail server status is unavailable",
+    "statusUnavailableBody": "The server responded, but its mail status could not be read. Your existing installation has not been changed.",
+    "serverUnreachable": "The mail server is currently unreachable. Your existing installation has not been changed.",
+    "retryStatus": "Check again",
     "backToServers": "Back to mail servers",
     "addServer": "Add mail server",
     "removeModal": {

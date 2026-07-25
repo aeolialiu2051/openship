@@ -2,6 +2,12 @@
   "page": {
     "title": "邮件服务器",
     "subtitle": "几次点击即可搭建自托管邮件服务器",
+    "loadingServers": "正在加载邮件服务器……",
+    "syncingStatus": "正在同步邮件服务器状态……",
+    "statusUnavailableTitle": "暂时无法获取邮件服务器状态",
+    "statusUnavailableBody": "服务器有响应，但暂时无法读取邮件状态。现有安装没有被更改。",
+    "serverUnreachable": "当前无法连接邮件服务器。现有安装没有被更改。",
+    "retryStatus": "重新检查",
     "backToServers": "返回邮件服务器",
     "addServer": "添加邮件服务器",
     "removeModal": {

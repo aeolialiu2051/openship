@@ -58,6 +58,10 @@ import { checkMailHealth, MAIL_COMPONENTS } from "./mail-health.service";
 import { updatePostmasterPassword } from "./mail-credentials.service";
 import { reserveMailSetup } from "./mail-setup-lease";
 import {
+  readMailStatusState,
+  type MailStatusReadErrorCode,
+} from "./mail-status.service";
+import {
   readState,
   writeState,
   mutateState,
@@ -96,6 +100,8 @@ function statusFromState(state: MailServerState | null, serverId: string) {
     return {
       active: false,
       serverId,
+      statusAvailable: true,
+      reachable: true,
       steps: MAIL_SETUP_STEPS.map((s) => ({ ...s, status: "pending" as const })),
     };
   }
@@ -152,6 +158,8 @@ function statusFromState(state: MailServerState | null, serverId: string) {
   return {
     active: isActive,
     serverId: state.serverId,
+    statusAvailable: true,
+    reachable: true,
     domain: state.domain,
     currentStep: runningStep ?? deriveCurrentStep(state),
     startedAt: Date.parse(state.startedAt),
@@ -168,6 +176,22 @@ function statusFromState(state: MailServerState | null, serverId: string) {
     logs: state.logs ?? [],
     resumeStep: state.resumeStep ?? undefined,
     errorMessage: state.errorMessage ?? undefined,
+  };
+}
+
+function unavailableStatus(
+  serverId: string,
+  reachable: boolean | null,
+  code: MailStatusReadErrorCode,
+  message: string,
+) {
+  return {
+    active: false,
+    serverId,
+    statusAvailable: false,
+    reachable,
+    statusError: { code, message },
+    steps: MAIL_SETUP_STEPS.map((s) => ({ ...s, status: "pending" as const })),
   };
 }
 
@@ -229,8 +253,9 @@ export async function getSteps(c: Context) {
  * GET /mail/status?serverId=… - render the on-server state file as a status.
  *
  * If `serverId` is missing, returns the "no install" shell so the welcome
- * form still works. If the server is unreachable or the state file is
- * missing, returns "no install" - same shell.
+ * form still works. A missing state file is a valid fresh-install result;
+ * unreachable/failed reads are explicitly marked unavailable so the UI never
+ * mistakes an existing but offline mail server for a fresh server.
  */
 export async function getStatus(c: Context) {
   if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
@@ -252,10 +277,20 @@ export async function getStatus(c: Context) {
     return c.json({ error: "Server not found" }, 404);
   }
 
-  try {
-    let state = await sshManager.withExecutor(serverId, (executor) =>
-      readState(executor),
+  const result = await readMailStatusState(serverId);
+  if (!result.ok) {
+    return c.json(
+      unavailableStatus(
+        serverId,
+        result.reachable,
+        result.code,
+        result.message,
+      ),
     );
+  }
+
+  try {
+    let state = result.state;
     // Older state files (pre-IP-detection) don't carry A/AAAA records.
     // Backfill from the server's sshHost so the DNS banner doesn't have
     // a hole where the host records should be.
@@ -264,10 +299,15 @@ export async function getStatus(c: Context) {
       state = await reconcileWebmailInstalled(state, serverId);
     }
     return c.json(statusFromState(state, serverId));
-  } catch {
-    // SSH unreachable - treat as no-state. The dashboard handles this
-    // gracefully and shows the empty form.
-    return c.json({ active: false, serverId, steps: MAIL_SETUP_STEPS });
+  } catch (err) {
+    return c.json(
+      unavailableStatus(
+        serverId,
+        true,
+        "state_read_failed",
+        `Could not prepare mail status: ${safeErrorMessage(err)}`,
+      ),
+    );
   }
 }
 
@@ -280,10 +320,10 @@ export async function getStatus(c: Context) {
  * and stays consistent with the install lifecycle (rows inserted on
  * install start, stamped on completion, removed on reset).
  *
- * Backfill: if the table is empty, we one-time SSH-scan all servers for
- * `mail-state.json` files written by older installs that predate this
- * table, and import them. After the first /emails load post-upgrade,
- * subsequent loads are pure DB reads.
+ * Legacy installs that predate this table are recovered explicitly through
+ * POST /mail/scan + POST /mail/adopt for one selected server. The list hot
+ * path must stay DB-only: an empty table is a valid, common state and must not
+ * turn every /emails visit into an unbounded SSH sweep of the organization.
  *
  * Result shape per row:
  *   { id, name, host, port, user, domain, completed, active }
@@ -298,52 +338,14 @@ export async function listMailServers(c: Context) {
   const ctx = getRequestContext(c);
   const organizationId = ctx.organizationId;
 
-  let mailRows = await repos.mailServer.list();
-
-  // Backfill from on-disk mail-state.json. Only runs when the table is
-  // empty - otherwise the table is canonical and we never SSH-scan again.
-  // Backfill is scoped to the caller's org (plus NULL-org rows) so we
-  // don't import other tenants' rows.
-  if (mailRows.length === 0) {
-    const all = await repos.server.listByOrganization(organizationId);
-    const scanned = await Promise.all(
-      all.map(async (s) => {
-        try {
-          const state = await sshManager.withExecutor(s.id, (exec) => readState(exec));
-          if (!state?.domain) return null;
-          const completed =
-            MAIL_SETUP_STEPS.length > 0 &&
-            MAIL_SETUP_STEPS.every(
-              (step) => state.completedSteps[String(step.id)]?.success === true,
-            );
-          return { serverId: s.id, domain: state.domain, completed };
-        } catch {
-          return null;
-        }
-      }),
-    );
-    for (const found of scanned) {
-      if (!found) continue;
-      try {
-        await repos.mailServer.upsert({
-          serverId: found.serverId,
-          domain: found.domain,
-          installedAt: found.completed ? new Date() : null,
-        });
-      } catch (err) {
-        console.warn(
-          "[mail] backfill upsert failed:",
-          safeErrorMessage(err),
-        );
-      }
-    }
-    mailRows = await repos.mailServer.list();
-  }
+  const [mailRows, allServers] = await Promise.all([
+    repos.mailServer.list(),
+    repos.server.listByOrganization(organizationId),
+  ]);
 
   // Join with the org-scoped servers table to surface host/user/port for
   // the UI. The Map filter implicitly drops any mail_server row whose
   // underlying server is outside this org — that's the cross-tenant gate.
-  const allServers = await repos.server.listByOrganization(organizationId);
   const serverById = new Map(allServers.map((s) => [s.id, s]));
   const out = mailRows
     .map((row) => {

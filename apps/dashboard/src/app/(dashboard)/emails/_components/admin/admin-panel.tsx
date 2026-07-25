@@ -20,6 +20,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   LayoutDashboard,
@@ -37,16 +38,51 @@ import type { MailSetupStatus } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/components/i18n-provider";
 import { OverviewTab } from "./overview-tab";
-import { DomainsTab } from "./domains-tab";
-import { MailboxesTab } from "./mailboxes-tab";
-import { DnsTab } from "./dns-tab";
-import { HealthTab } from "./health-tab";
-import { TestTab } from "./test-tab";
-import { BackupTab } from "./backup-tab";
-import { SendingTab } from "./sending-tab";
-import { AdvancedTab } from "./advanced-tab";
-import { WelcomeModal } from "./welcome-modal";
-import { ReputationBanner } from "./reputation-banner";
+
+// Keep the overview in the route's initial bundle and load the heavier,
+// lower-frequency admin surfaces only when their tab (or UI state) is used.
+// A shared, height-stable placeholder prevents the content area from jumping
+// while a tab chunk is fetched on first visit.
+const DomainsTab = dynamic(
+  () => import("./domains-tab").then((module) => module.DomainsTab),
+  { loading: AdminTabLoading },
+);
+const MailboxesTab = dynamic(
+  () => import("./mailboxes-tab").then((module) => module.MailboxesTab),
+  { loading: AdminTabLoading },
+);
+const DnsTab = dynamic(
+  () => import("./dns-tab").then((module) => module.DnsTab),
+  { loading: AdminTabLoading },
+);
+const HealthTab = dynamic(
+  () => import("./health-tab").then((module) => module.HealthTab),
+  { loading: AdminTabLoading },
+);
+const TestTab = dynamic(
+  () => import("./test-tab").then((module) => module.TestTab),
+  { loading: AdminTabLoading },
+);
+const BackupTab = dynamic(
+  () => import("./backup-tab").then((module) => module.BackupTab),
+  { loading: AdminTabLoading },
+);
+const SendingTab = dynamic(
+  () => import("./sending-tab").then((module) => module.SendingTab),
+  { loading: AdminTabLoading },
+);
+const AdvancedTab = dynamic(
+  () => import("./advanced-tab").then((module) => module.AdvancedTab),
+  { loading: AdminTabLoading },
+);
+const WelcomeModal = dynamic(
+  () => import("./welcome-modal").then((module) => module.WelcomeModal),
+  { loading: WelcomeModalLoading },
+);
+const ReputationBanner = dynamic(
+  () => import("./reputation-banner").then((module) => module.ReputationBanner),
+  { loading: ReputationBannerLoading },
+);
 
 const WELCOME_SEEN_PREFIX = "openship:mail:welcome-seen:";
 
@@ -87,6 +123,58 @@ const TABS: TabDef[] = [
 ];
 
 const VALID_TABS: TabKey[] = TABS.map((t) => t.key);
+
+function AdminTabLoading() {
+  return (
+    <div
+      aria-hidden
+      className="min-h-[360px] rounded-2xl border border-border/60 bg-card p-5"
+    >
+      <div className="animate-pulse space-y-5">
+        <div className="space-y-2">
+          <div className="h-5 w-36 rounded bg-muted" />
+          <div className="h-3.5 w-64 max-w-full rounded bg-muted/70" />
+        </div>
+        <div className="h-10 w-full rounded-lg bg-muted/70" />
+        <div className="space-y-3 pt-1">
+          <div className="h-12 w-full rounded-lg bg-muted/60" />
+          <div className="h-12 w-full rounded-lg bg-muted/60" />
+          <div className="h-12 w-full rounded-lg bg-muted/60" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ReputationBannerLoading() {
+  return (
+    <div
+      aria-hidden
+      className="h-[90px] animate-pulse rounded-2xl border border-border/50 bg-muted/35"
+    />
+  );
+}
+
+function WelcomeModalLoading() {
+  return (
+    <div
+      aria-hidden
+      className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 p-4"
+    >
+      <div className="h-[280px] w-full max-w-[460px] animate-pulse rounded-2xl border border-border bg-card shadow-xl">
+        <div className="space-y-3 px-7 pb-6 pt-8">
+          <div className="h-7 w-64 max-w-full rounded bg-muted" />
+          <div className="h-4 w-52 max-w-full rounded bg-muted/70" />
+        </div>
+        <div className="h-px bg-border" />
+        <div className="space-y-3 px-7 py-6">
+          <div className="h-4 w-28 rounded bg-muted/70" />
+          <div className="h-10 w-full rounded-lg bg-muted/70" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function MailAdminPanel({ status, serverId, onRefresh, onForgotten }: MailAdminPanelProps) {
   const router = useRouter();

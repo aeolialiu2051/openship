@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Loader2, ArrowLeft, Plus } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, AlertTriangle, RefreshCw } from "lucide-react";
+import dynamic from "next/dynamic";
 import {
   mailApi,
   mailAdminApi,
@@ -23,8 +24,64 @@ import { MailProgress } from "./_components/mail-progress";
 import { MailSidebar } from "./_components/mail-sidebar";
 import { DnsHoldBanner } from "./_components/dns-hold-banner";
 import { PtrHoldBanner } from "./_components/ptr-hold-banner";
-import { MailAdminPanel } from "./_components/admin/admin-panel";
 import { MailServerList, type MailServerListItem } from "./_components/mail-server-list";
+
+const MailAdminPanel = dynamic(
+  () => import("./_components/admin/admin-panel").then((module) => module.MailAdminPanel),
+  {
+    loading: () => (
+      <div className="space-y-4" aria-hidden="true">
+        <div className="h-14 animate-pulse rounded-2xl border border-border/50 bg-card" />
+        <div className="h-72 animate-pulse rounded-2xl border border-border/50 bg-card" />
+      </div>
+    ),
+  },
+);
+
+function MailContentSkeleton({ label }: { label: string }) {
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      <div className="space-y-4 rounded-2xl border border-border/50 bg-card p-6">
+        <div className="flex items-center gap-3">
+          <div className="size-10 animate-pulse rounded-xl bg-muted" />
+          <div className="space-y-2">
+            <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+            <div className="h-3 w-64 max-w-full animate-pulse rounded bg-muted/60" />
+          </div>
+        </div>
+        <div className="h-11 animate-pulse rounded-xl bg-muted/50" />
+        <div className="h-11 animate-pulse rounded-xl bg-muted/40" />
+        <div className="h-28 animate-pulse rounded-xl bg-muted/30" />
+      </div>
+      <div className="hidden h-80 animate-pulse rounded-2xl border border-border/50 bg-card lg:block" />
+    </div>
+  );
+}
+
+function MailServerConnectionNotice({
+  server,
+  label,
+}: {
+  server: ServerOption;
+  label: string;
+}) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card px-4 py-3.5"
+    >
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <Loader2 className="size-4 animate-spin" />
+      </div>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium text-foreground">{server.name}</p>
+        <p className="text-xs text-muted-foreground">{label}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function EmailsPage() {
   const { t } = useI18n();
@@ -40,6 +97,8 @@ export default function EmailsPage() {
 
   const [status, setStatus] = useState<MailSetupStatus | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusSyncFailed, setStatusSyncFailed] = useState(false);
   const [running, setRunning] = useState(false);
   const [domain, setDomain] = useState("");
   const [adminPassword, setAdminPassword] = useState("");
@@ -76,6 +135,7 @@ export default function EmailsPage() {
   const [mailServers, setMailServers] = useState<MailServerListItem[]>([]);
   const [addingNew, setAddingNew] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const statusRequestIdRef = useRef(0);
   // Guards the count-based auto-open logic to the FIRST mount only. After
   // init, opens are URL-driven and clearing the URL shows the list/add flow
   // rather than re-auto-opening a server.
@@ -112,6 +172,23 @@ export default function EmailsPage() {
     }
   }, []);
 
+  const registryServerToOption = useCallback((server: MailServerListItem): ServerOption => ({
+    id: server.id,
+    name: server.name || server.host,
+    host: server.host,
+    user: server.user || "root",
+    port: server.port ?? 22,
+    // The registry endpoint intentionally returns only the fields needed by
+    // the mail surface. Consumers here only read the normalized fields above.
+    raw: {
+      id: server.id,
+      name: server.name,
+      sshHost: server.host,
+      sshUser: server.user,
+      sshPort: server.port,
+    } as ServerOption["raw"],
+  }), []);
+
   // Status now lives on the TARGET server (one JSON file per VPS), so we
   // need to know which server to ask about. The URL hint from the Mail tab
   // gives us that; otherwise we wait for the user to pick from the
@@ -119,13 +196,16 @@ export default function EmailsPage() {
   // mail-capable server).
   const fetchStatusForServer = useCallback(
     async (serverId: string | null) => {
+      const requestId = ++statusRequestIdRef.current;
       try {
-        setLoading(true);
+        setStatusLoading(true);
+        setStatusSyncFailed(false);
         if (!serverId) {
           setStatus(null);
           return;
         }
         const s = await mailApi.getStatus(serverId);
+        if (statusRequestIdRef.current !== requestId) return;
         setStatus(s);
         if (s.domain) setDomain(s.domain);
         if (s.dnsRecords) setDnsRecords(s.dnsRecords as unknown as DnsRecords);
@@ -209,10 +289,13 @@ export default function EmailsPage() {
           }
         }
       } catch {
-        // Server unreachable or no state - treat as fresh setup.
+        if (statusRequestIdRef.current !== requestId) return;
         setStatus(null);
+        setStatusSyncFailed(true);
       } finally {
-        setLoading(false);
+        if (statusRequestIdRef.current === requestId) {
+          setStatusLoading(false);
+        }
       }
     },
     [],
@@ -235,9 +318,27 @@ export default function EmailsPage() {
   const openMailServer = useCallback(
     (serverId: string) => {
       setAddingNew(false);
+      const registered = mailServers.find((server) => server.id === serverId);
+      if (registered) {
+        setStatus(null);
+        setStatusLoading(true);
+        setStatusSyncFailed(false);
+        setSelectedServer(registryServerToOption(registered));
+      }
       setServerInUrl(serverId);
     },
-    [setServerInUrl],
+    [mailServers, registryServerToOption, setServerInUrl],
+  );
+
+  const handleServerSelect = useCallback(
+    (server: ServerOption | null) => {
+      if (server?.id === selectedServer?.id) return;
+      setStatus(null);
+      setStatusLoading(!!server);
+      setStatusSyncFailed(false);
+      setSelectedServer(server);
+    },
+    [selectedServer?.id],
   );
 
   // Enter the provision/adopt flow from anywhere. Drops any state left over
@@ -312,12 +413,20 @@ export default function EmailsPage() {
     let cancelled = false;
     (async () => {
       if (hintedServerId) {
-        const opt = await loadServerOption(hintedServerId);
+        const servers = await mailApi
+          .listMailServers()
+          .then((result) => result.servers)
+          .catch(() => [] as MailServerListItem[]);
+        if (cancelled) return;
+        setMailServers(servers);
+        const registered = servers.find((server) => server.id === hintedServerId);
+        const opt = registered
+          ? registryServerToOption(registered)
+          : await loadServerOption(hintedServerId);
         if (cancelled) return;
         if (opt) setSelectedServer(opt);
-        await fetchStatusForServer(hintedServerId);
-        refreshMailServers();
         didInit.current = true;
+        setLoading(false);
         return;
       }
 
@@ -336,23 +445,9 @@ export default function EmailsPage() {
       didInit.current = true;
 
       if (servers.length === 1) {
-        const opt = await loadServerOption(servers[0].id);
-        if (cancelled) return;
-        if (opt) setSelectedServer(opt);
-        await fetchStatusForServer(servers[0].id);
+        setSelectedServer(registryServerToOption(servers[0]));
+        setLoading(false);
         return;
-      }
-
-      if (servers.length === 0) {
-        const allServers = await systemApi.listServers().catch(() => []);
-        if (cancelled) return;
-        if (allServers.length === 1) {
-          const opt = await loadServerOption(allServers[0].id);
-          if (cancelled) return;
-          if (opt) setSelectedServer(opt);
-          await fetchStatusForServer(allServers[0].id);
-          return;
-        }
       }
 
       // Several mail servers (list view) or several bare servers (add form):
@@ -362,14 +457,18 @@ export default function EmailsPage() {
     return () => {
       cancelled = true;
     };
-  }, [hintedServerId, loadServerOption, fetchStatusForServer, refreshMailServers]);
+  }, [hintedServerId, loadServerOption, refreshMailServers, registryServerToOption]);
 
   // Whenever the user picks a different server, refetch its state.
   useEffect(() => {
-    if (!selectedServer?.id) return;
-    if (selectedServer.id === hintedServerId) return; // already loaded above
-    fetchStatusForServer(selectedServer.id);
-  }, [selectedServer?.id, hintedServerId, fetchStatusForServer]);
+    if (!selectedServer?.id) {
+      statusRequestIdRef.current += 1;
+      setStatusLoading(false);
+      return;
+    }
+    setStatus(null);
+    void fetchStatusForServer(selectedServer.id);
+  }, [selectedServer?.id, fetchStatusForServer]);
 
   // Start setup
   const handleStart = useCallback(
@@ -741,12 +840,16 @@ export default function EmailsPage() {
 
   // Several registered mail servers, none opened → the registry cards list.
   const showList = !addingNew && !selectedServer && mailServers.length > 1;
+  const statusUnavailable =
+    !!selectedServer && (statusSyncFailed || status?.statusAvailable === false);
 
   // The provision/adopt wizard: adding a new one, none registered yet, or a
   // picked server that isn't a registered mail server — and no install active.
   const showSetupForm =
     !showAdmin &&
     !showList &&
+    (!statusLoading || !selectedMailRow) &&
+    !statusUnavailable &&
     !running &&
     !hasStarted &&
     !gatesActive &&
@@ -775,9 +878,15 @@ export default function EmailsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="size-5 animate-spin text-muted-foreground" />
-      </div>
+      <PageContainer>
+        <div className="mb-6">
+          <h1 className="text-2xl font-medium text-foreground/80" style={{ letterSpacing: "-0.2px" }}>
+            {t.emails.page.title}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground/70">{t.emails.page.subtitle}</p>
+        </div>
+        <MailContentSkeleton label={t.emails.page.loadingServers} />
+      </PageContainer>
     );
   }
 
@@ -835,18 +944,54 @@ export default function EmailsPage() {
           />
         )}
 
+        {statusLoading && selectedServer && !status && selectedMailRow && (
+          <MailServerConnectionNotice
+            server={selectedServer}
+            label={t.emails.page.syncingStatus}
+          />
+        )}
+
+        {statusUnavailable && selectedServer && (
+          <div className="flex flex-col gap-4 rounded-2xl border border-warning/25 bg-warning-bg p-5 sm:flex-row sm:items-center">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+              <AlertTriangle className="size-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-sm font-semibold text-foreground">
+                {t.emails.page.statusUnavailableTitle}
+              </h2>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {status?.reachable === false
+                  ? t.emails.page.serverUnreachable
+                  : t.emails.page.statusUnavailableBody}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => void fetchStatusForServer(selectedServer.id)}
+              disabled={statusLoading}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-border/60 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+            >
+              <RefreshCw className={`size-3.5 ${statusLoading ? "animate-spin" : ""}`} />
+              {t.emails.page.retryStatus}
+            </button>
+          </div>
+        )}
+
         {/* ── Provision / adopt entry - server selector + setup form ── */}
         {showSetupForm && (
           <MailSetupForm
             domain={domain}
             adminPassword={adminPassword}
             running={running}
+            serverConnecting={statusLoading}
+            serverConnectingLabel={t.emails.page.syncingStatus}
             selectedServerId={selectedServer?.id ?? null}
             relay={setupRelay}
             onRelayChange={setSetupRelay}
             onDomainChange={setDomain}
             onPasswordChange={setAdminPassword}
-            onServerSelect={setSelectedServer}
+            onServerSelect={handleServerSelect}
             onStart={() => handleStart()}
             onAdopted={async (serverId) => {
               // Re-adopted an existing mail server — register it in the
