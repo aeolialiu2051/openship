@@ -68,7 +68,8 @@
     "partial": "Partial",
     "rejected": "Rejected",
     "verifying": "Verifying",
-    "pending": "Pending"
+    "pending": "Pending",
+    "deleting": "Deleting"
   },
   "serviceStatus": {
     "deployed": "Deployed",
@@ -168,6 +169,10 @@
     "confirmRedeploy": "Redeploy commit {hash}?\n\nRebuilds this exact commit from source. Slower than rollback (full build runs again), but works even after the rollback artifact has been pruned. A new deployment will appear in the list.",
     "redeployFailed": "Redeploy failed",
     "pinFailed": "Failed to pin deployment",
-    "unpinFailed": "Failed to unpin deployment"
+    "unpinFailed": "Failed to unpin deployment",
+    "confirmDelete": "Delete this deployment? Runtime resources will be cleaned up in the background.",
+    "deleteQueued": "Deployment deletion started",
+    "deleteSuccess": "Deployment deleted",
+    "deleteFailed": "Failed to delete deployment"
   }
 }

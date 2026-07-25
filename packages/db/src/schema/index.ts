@@ -4,6 +4,7 @@ export { auditEvent } from "./audit-event";
 export { jobRun } from "./job-run";
 export { job } from "./job";
 export { orphanedResource } from "./orphaned-resource";
+export { resourceOperation } from "./resource-operation";
 export { resourceGrant } from "./resource-grant";
 export { invitationPendingGrant } from "./invitation-pending-grant";
 export { gitInstallation } from "./github";

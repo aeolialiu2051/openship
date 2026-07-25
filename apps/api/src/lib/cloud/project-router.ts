@@ -231,6 +231,47 @@ export async function cloudDomainProxy(c: Context, next: Next): Promise<Response
 }
 
 /**
+ * Operation status follows the resource deletion to its canonical source. A
+ * self-hosted gateway has no local operation row for a cloud-owned project or
+ * deployment, so a local miss plus an org cloud link is proxied to the SaaS.
+ */
+export async function cloudOperationProxy(c: Context, next: Next): Promise<Response | void> {
+  const id = c.req.param("id");
+  if (!id || env.CLOUD_MODE) return next();
+  const organizationId = getRequestContext(c).organizationId;
+  const local = await repos.resourceOperation
+    .findByIdForOrganization(id, organizationId)
+    .catch(() => null);
+  if (local) return next();
+  const ownerUserId = await resolveOrgCloudUserId(organizationId).catch(() => null);
+  if (!ownerUserId) return next();
+  return proxyToSaaS(c, organizationId);
+}
+
+/** Active-operation lookup carries a resource id in the query rather than an
+ * operation id in the path. Proxy only after a local active-operation miss. */
+export async function cloudOperationProxyByQuery(
+  c: Context,
+  next: Next,
+): Promise<Response | void> {
+  if (env.CLOUD_MODE) return next();
+  const kind = c.req.query("kind");
+  const resourceId = c.req.query("resourceId");
+  if (
+    (kind !== "project_delete" && kind !== "deployment_delete") ||
+    !resourceId
+  ) return next();
+  const organizationId = getRequestContext(c).organizationId;
+  const local = await repos.resourceOperation
+    .findActive(organizationId, kind, resourceId)
+    .catch(() => null);
+  if (local) return next();
+  const ownerUserId = await resolveOrgCloudUserId(organizationId).catch(() => null);
+  if (!ownerUserId) return next();
+  return proxyToSaaS(c, organizationId);
+}
+
+/**
  * For routes that carry the project id in the QUERY (?projectId=) rather than a
  * URL param — e.g. /api/analytics/* and /api/deployments?projectId=. Proxies to
  * the SaaS when that project is cloud-owned; no-ops (runs locally) for org-wide

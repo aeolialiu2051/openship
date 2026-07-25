@@ -29,6 +29,13 @@ export interface JobRunner {
    *  no-op on the second call. */
   start(opts: { processRun: (runId: string) => Promise<void> }): Promise<void>;
 
+  /** Register the processor for durable resource operations (project/deployment
+   * deletion). Kept separate from backup start() so the existing backup queue
+   * contract and recovery behavior remain isolated. */
+  startResourceOperations(opts: {
+    processOperation: (operationId: string) => Promise<void>;
+  }): Promise<void>;
+
   /** Stop the runner gracefully. Waits up to `deadlineMs` for in-flight
    *  jobs to finish. SIGTERM handler calls this. */
   shutdown(deadlineMs?: number): Promise<void>;
@@ -38,6 +45,9 @@ export interface JobRunner {
    *  BullMQ (survives restart); on in-process the run survives in the
    *  DB and the next boot's poller picks it up. */
   enqueueRun(runId: string): Promise<void>;
+
+  /** Enqueue a durable resource_operation row by id. */
+  enqueueResourceOperation(operationId: string): Promise<void>;
 
   /** Register a recurring cron-scheduled job. Idempotent — registering
    *  the same jobId replaces any existing schedule (so policy cron

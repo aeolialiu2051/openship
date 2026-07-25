@@ -39,7 +39,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
 import { useModal } from "@/context/ModalContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
-import { ApiError, getApiErrorMessage, projectsApi } from "@/lib/api";
+import {
+  ApiError,
+  getApiErrorMessage,
+  operationsApi,
+  projectsApi,
+  type ResourceOperationView,
+} from "@/lib/api";
 import ErrorState from "@/components/shared/ErrorState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
@@ -487,34 +493,24 @@ const ProjectSettingsContent = () => {
   const { showToast } = useToast();
   const { showModal, hideModal } = useModal();
   const router = useRouter();
+  const [deletionOperationId, setDeletionOperationId] = useState<string | null>(null);
+  const deleteOptionsRef = useRef({
+    deleteApp: true,
+    wipeVolumes: false,
+    force: false,
+  });
+  const handledOperationRef = useRef<string | null>(null);
 
-  // Keep the delete state honest: while this project reads as "deleting"
-  // (server flag or optimistic), poll for completion so a finished teardown
-  // (row gone) navigates away instead of leaving a stale "Deleting" page open.
-  // Read-only — never overwrites the in-flight optimistic state.
   const isDeleting = getProjectStatus(projectData) === "deleting";
-  useEffect(() => {
-    if (!id || !isDeleting) return;
-    const iv = setInterval(async () => {
-      try {
-        await projectsApi.getInfo(id);
-      } catch (err) {
-        if (err instanceof ApiError && err.status === 404) {
-          clearInterval(iv);
-          showToast(t.projects.delete.alreadyDeleted, "success");
-          router.push("/");
-        }
-      }
-    }, 3000);
-    return () => clearInterval(iv);
-  }, [id, isDeleting, router, showToast, t.projects.delete.alreadyDeleted]);
 
-  const handleDeleteProject = async (
+  async function handleDeleteProject(
     deleteApp = true,
     wipeVolumes = false,
     force = false,
     forceOrphan = false,
-  ) => {
+  ) {
+    deleteOptionsRef.current = { deleteApp, wipeVolumes, force };
+    handledOperationRef.current = null;
     // Optimistic - immediately show "Deleting" status
     setProjectData((prev: any) => ({ ...prev, deletedAt: new Date().toISOString() }));
 
@@ -525,52 +521,13 @@ const ProjectSettingsContent = () => {
         force,
         forceOrphan,
       });
-      // 200: full success. 207 (partial success — row deleted but some
-      // external cleanup failed) lands here too because ApiClient only
-      // throws on >=400. Surface it as a warning toast and STILL leave
-      // the project page so the user doesn't dwell on a half-deleted
-      // resource.
-      if (response.ok) {
-        // Enforced delete: the server was unreachable, so its resources were
-        // recorded for GC and will be reclaimed once it's back.
-        const orphanCount = Array.isArray(response.orphaned) ? response.orphaned.length : 0;
-        if (orphanCount > 0) {
-          showToast(
-            interpolate(t.projects.delete.orphanCleanup, { count: String(orphanCount) }),
-            "success",
-            t.projects.delete.orphanCleanupTitle,
-          );
-        } else {
-          showToast(
-            deleteApp ? t.projects.delete.successProject : t.projects.delete.successEnvironment,
-            "success",
-          );
-        }
-        router.push("/");
-        return;
-      }
-      // 207: rowDeleted=true but unrecoverable steps surfaced. Toast as
-      // "success" because the row IS gone — the warning content lives in
-      // the title + body. router.push so the user doesn't see a ghost.
-      if (Array.isArray(response.unrecoverable) && response.unrecoverable.length > 0) {
-        console.warn("[delete-project] partial cleanup", response.unrecoverable);
-        showToast(
-          interpolate(t.projects.delete.partialCleanup, {
-            count: String(response.unrecoverable.length),
-          }),
-          "success",
-          t.projects.delete.partialCleanupTitle,
-        );
-        router.push("/");
-        return;
-      }
-      // Defensive: 2xx with ok=false but no unrecoverable list. Treat as failure.
-      setProjectData((prev: any) => ({ ...prev, deletedAt: null }));
+      setDeletionOperationId(response.operationId);
       showToast(
-        response.message || response.error || t.projects.delete.failed,
-        "error",
-        t.projects.delete.failed,
+        t.projects.delete.queued,
+        "success",
+        t.projects.delete.cleaningUpTitle,
       );
+      return;
     } catch (err) {
       // Always revert optimistic deletion on any failure - project still exists.
       setProjectData((prev: any) => ({ ...prev, deletedAt: null }));
@@ -622,50 +579,7 @@ const ProjectSettingsContent = () => {
         // themed module offering the storage-only delete (forceOrphan) — atomic
         // delete stays the default; this is the explicit bypass.
         if (body.canForceOrphan) {
-          let modalId = "";
-          modalId = showModal({
-            maxWidth: "480px",
-            customContent: (
-              <div className="p-6 space-y-5">
-                <div className="flex items-start gap-3">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-danger-bg text-danger">
-                    <Trash2 className="size-4" />
-                  </div>
-                  <div className="min-w-0">
-                    <h3 className="text-base font-semibold text-foreground">
-                      {t.projects.delete.forceModalTitle}
-                    </h3>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      {t.projects.delete.forceModalBody}
-                    </p>
-                    {reasons && (
-                      <p className="mt-2 text-xs text-muted-foreground/70">{reasons}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-end gap-2">
-                  <button
-                    type="button"
-                    onClick={() => hideModal(modalId)}
-                    className="inline-flex h-9 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-                  >
-                    {t.projects.delete.forceModalCancel}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      hideModal(modalId);
-                      void handleDeleteProject(deleteApp, wipeVolumes, force, true);
-                    }}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-danger-solid px-4 text-sm font-medium text-white transition-colors hover:bg-danger-solid/90"
-                  >
-                    <Trash2 className="size-3.5" />
-                    {t.projects.delete.forceModalConfirm}
-                  </button>
-                </div>
-              </div>
-            ),
-          });
+          openForceOrphanModal(reasons, { deleteApp, wipeVolumes, force });
           return;
         }
         showToast(
@@ -687,7 +601,215 @@ const ProjectSettingsContent = () => {
 
       showToast(getApiErrorMessage(err, t.projects.delete.failed), "error", t.projects.delete.failed);
     }
-  };
+  }
+
+  function openForceOrphanModal(
+    reasons: string,
+    options = deleteOptionsRef.current,
+  ) {
+    let modalId = "";
+    modalId = showModal({
+      maxWidth: "480px",
+      customContent: (
+        <div className="p-6 space-y-5">
+          <div className="flex items-start gap-3">
+            <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-danger-bg text-danger">
+              <Trash2 className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-base font-semibold text-foreground">
+                {t.projects.delete.forceModalTitle}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                {t.projects.delete.forceModalBody}
+              </p>
+              {reasons && (
+                <p className="mt-2 text-xs text-muted-foreground/70">{reasons}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => hideModal(modalId)}
+              className="inline-flex h-9 items-center rounded-xl px-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            >
+              {t.projects.delete.forceModalCancel}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                hideModal(modalId);
+                void handleDeleteProject(
+                  options.deleteApp,
+                  options.wipeVolumes,
+                  true,
+                  true,
+                );
+              }}
+              className="inline-flex h-9 items-center gap-1.5 rounded-xl bg-danger-solid px-4 text-sm font-medium text-white transition-colors hover:bg-danger-solid/90"
+            >
+              <Trash2 className="size-3.5" />
+              {t.projects.delete.forceModalConfirm}
+            </button>
+          </div>
+        </div>
+      ),
+    });
+  }
+
+  function handleCompletedDeletion(operation: ResourceOperationView) {
+    if (handledOperationRef.current === operation.id) return;
+    handledOperationRef.current = operation.id;
+    const orphanCount = operation.result?.orphaned?.length ?? 0;
+    const failureCount = operation.result?.unrecoverable?.length ?? 0;
+    if (orphanCount > 0) {
+      showToast(
+        interpolate(t.projects.delete.orphanCleanup, { count: String(orphanCount) }),
+        "success",
+        t.projects.delete.orphanCleanupTitle,
+      );
+    } else if (failureCount > 0) {
+      showToast(
+        interpolate(t.projects.delete.partialCleanup, { count: String(failureCount) }),
+        "success",
+        t.projects.delete.partialCleanupTitle,
+      );
+    } else {
+      showToast(
+        deleteOptionsRef.current.deleteApp
+          ? t.projects.delete.successProject
+          : t.projects.delete.successEnvironment,
+        "success",
+      );
+    }
+    router.push("/");
+  }
+
+  // Discover a durable operation independently from the project's boolean
+  // deletion lock. needs_action intentionally releases that lock so a retry is
+  // possible; after a browser refresh the operation row is therefore the only
+  // reliable source for restoring the cleanup UI.
+  useEffect(() => {
+    if (!id || deletionOperationId) return;
+    let cancelled = false;
+
+    void operationsApi
+      .getActive("project_delete", String(id))
+      .then(({ data: operation }) => {
+        if (cancelled) return;
+        setDeletionOperationId(operation.id);
+        if (operation.status === "queued" || operation.status === "running") {
+          setProjectData((prev: any) => ({
+            ...prev,
+            deletedAt: prev.deletedAt ?? new Date().toISOString(),
+            deletionInProgress: true,
+          }));
+        }
+      })
+      .catch((err) => {
+        // No active operation is the normal state for most project visits.
+        if (!(err instanceof ApiError && err.status === 404)) {
+          console.warn("[delete-project] active operation lookup failed", err);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [deletionOperationId, id, setProjectData]);
+
+  // Poll the durable operation rather than holding the DELETE request open.
+  // On refresh, recover the operation id from the resource lookup endpoint.
+  useEffect(() => {
+    if (!id || (!isDeleting && !deletionOperationId)) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const schedule = () => {
+      if (!cancelled) timer = setTimeout(() => void poll(), 2000);
+    };
+
+    const poll = async () => {
+      try {
+        let operation: ResourceOperationView;
+        if (deletionOperationId) {
+          operation = (await operationsApi.get(deletionOperationId)).data;
+        } else {
+          operation = (await operationsApi.getActive("project_delete", String(id))).data;
+          if (!cancelled) setDeletionOperationId(operation.id);
+        }
+
+        if (cancelled) return;
+        if (
+          operation.status === "completed" ||
+          operation.status === "completed_with_warnings"
+        ) {
+          handleCompletedDeletion(operation);
+          return;
+        }
+        if (operation.status === "needs_action") {
+          if (handledOperationRef.current === operation.id) return;
+          handledOperationRef.current = operation.id;
+          setProjectData((prev: any) => ({
+            ...prev,
+            deletedAt: null,
+            deletionInProgress: false,
+          }));
+          const reasons = (operation.result?.unrecoverable ?? [])
+            .map((item) => item.step)
+            .join(", ");
+          openForceOrphanModal(reasons);
+          return;
+        }
+        if (operation.status === "failed") {
+          if (handledOperationRef.current === operation.id) return;
+          handledOperationRef.current = operation.id;
+          setProjectData((prev: any) => ({
+            ...prev,
+            deletedAt: null,
+            deletionInProgress: false,
+          }));
+          showToast(
+            operation.error?.message || t.projects.delete.failed,
+            "error",
+            t.projects.delete.cleanupFailedTitle,
+          );
+          return;
+        }
+        schedule();
+      } catch (err) {
+        if (cancelled) return;
+        if (err instanceof ApiError && err.status === 404) {
+          try {
+            const response = await projectsApi.getInfo(id);
+            if (response?.success && response.data) {
+              setProjectData((prev: any) => ({
+                ...prev,
+                ...response.data,
+                deletedAt: null,
+              }));
+              showToast(t.projects.delete.failed, "error", t.projects.delete.cleanupFailedTitle);
+              return;
+            }
+          } catch (projectErr) {
+            if (projectErr instanceof ApiError && projectErr.status === 404) {
+              showToast(t.projects.delete.alreadyDeleted, "success");
+              router.push("/");
+              return;
+            }
+          }
+        }
+        schedule();
+      }
+    };
+
+    void poll();
+    return () => {
+      cancelled = true;
+      if (timer) clearTimeout(timer);
+    };
+  }, [deletionOperationId, id, isDeleting]);
 
   const helpMenuActions: MenuAction[] = [
     {

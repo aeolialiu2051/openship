@@ -27,6 +27,8 @@ import { safeErrorMessage } from "@repo/core";
 import type { JobRunner } from "./types";
 
 const POLL_INTERVAL_MS = 30_000;
+const OPERATION_POLL_INTERVAL_MS = 5_000;
+const STALE_OPERATION_MS = 2 * 60_000;
 const DEFAULT_CONCURRENCY = 2;
 
 interface RecurringSchedule {
@@ -40,10 +42,14 @@ export class InProcessJobRunner implements JobRunner {
   readonly name = "in-process" as const;
 
   private processRun: ((runId: string) => Promise<void>) | null = null;
+  private processOperation: ((operationId: string) => Promise<void>) | null = null;
   private pollTimer: NodeJS.Timeout | null = null;
+  private operationPollTimer: NodeJS.Timeout | null = null;
   private readonly recurring = new Map<string, RecurringSchedule>();
   private readonly inFlight = new Set<string>();
   private readonly enqueueQueue: string[] = [];
+  private readonly operationInFlight = new Set<string>();
+  private readonly operationQueue: string[] = [];
   private readonly maxConcurrency = DEFAULT_CONCURRENCY;
   private shuttingDown = false;
   private started = false;
@@ -52,6 +58,7 @@ export class InProcessJobRunner implements JobRunner {
     if (this.started) return;
     this.started = true;
     this.processRun = opts.processRun;
+    this.shuttingDown = false;
 
     // Sweep any queued runs left over from a previous boot (BullMQ would
     // pick these up automatically; here we have to scan + enqueue).
@@ -66,11 +73,34 @@ export class InProcessJobRunner implements JobRunner {
     this.pollTimer.unref();
   }
 
+  async startResourceOperations(opts: {
+    processOperation: (operationId: string) => Promise<void>;
+  }): Promise<void> {
+    this.processOperation = opts.processOperation;
+    this.shuttingDown = false;
+
+    // In-process work cannot survive this process restarting, so every running
+    // row is stale at boot regardless of its last heartbeat age.
+    await repos.resourceOperation.requeueStaleRunning(new Date());
+    await this.pollOperations();
+    if (this.operationPollTimer) return;
+    this.operationPollTimer = setInterval(() => {
+      void this.pollOperations().catch((err) =>
+        console.warn("[job-runner:in-process] operation poll error:", err),
+      );
+    }, OPERATION_POLL_INTERVAL_MS);
+    this.operationPollTimer.unref();
+  }
+
   async shutdown(deadlineMs = 30_000): Promise<void> {
     this.shuttingDown = true;
     if (this.pollTimer) {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
+    }
+    if (this.operationPollTimer) {
+      clearInterval(this.operationPollTimer);
+      this.operationPollTimer = null;
     }
     // Stop every recurring timer.
     for (const r of this.recurring.values()) {
@@ -79,12 +109,15 @@ export class InProcessJobRunner implements JobRunner {
     }
     // Wait for in-flight jobs to finish or the deadline.
     const start = Date.now();
-    while (this.inFlight.size > 0 && Date.now() - start < deadlineMs) {
+    while (
+      (this.inFlight.size > 0 || this.operationInFlight.size > 0) &&
+      Date.now() - start < deadlineMs
+    ) {
       await new Promise((r) => setTimeout(r, 100));
     }
-    if (this.inFlight.size > 0) {
+    if (this.inFlight.size > 0 || this.operationInFlight.size > 0) {
       console.warn(
-        `[job-runner:in-process] shutdown deadline passed with ${this.inFlight.size} in-flight jobs`,
+        `[job-runner:in-process] shutdown deadline passed with ${this.inFlight.size} backup and ${this.operationInFlight.size} operation job(s) in flight`,
       );
     }
     this.started = false;
@@ -97,6 +130,17 @@ export class InProcessJobRunner implements JobRunner {
     // up if we crash before fire.
     this.enqueueQueue.push(runId);
     setImmediate(() => void this.drainQueue());
+  }
+
+  async enqueueResourceOperation(operationId: string): Promise<void> {
+    if (this.shuttingDown) return;
+    if (
+      !this.operationInFlight.has(operationId) &&
+      !this.operationQueue.includes(operationId)
+    ) {
+      this.operationQueue.push(operationId);
+    }
+    setImmediate(() => void this.drainOperationQueue());
   }
 
   async scheduleRecurring(opts: {
@@ -210,6 +254,48 @@ export class InProcessJobRunner implements JobRunner {
         safeErrorMessage(err),
       );
     }
+  }
+
+  private async drainOperationQueue(): Promise<void> {
+    if (this.shuttingDown || !this.processOperation) return;
+    while (
+      this.operationQueue.length > 0 &&
+      this.operationInFlight.size < this.maxConcurrency
+    ) {
+      const operationId = this.operationQueue.shift();
+      if (!operationId || this.operationInFlight.has(operationId)) continue;
+      this.operationInFlight.add(operationId);
+      void this.processOperation(operationId)
+        .catch((err) =>
+          console.error(
+            `[job-runner:in-process] operation ${operationId} crashed:`,
+            safeErrorMessage(err),
+          ),
+        )
+        .finally(() => {
+          this.operationInFlight.delete(operationId);
+          if (this.operationQueue.length > 0) {
+            setImmediate(() => void this.drainOperationQueue());
+          }
+        });
+    }
+  }
+
+  private async pollOperations(): Promise<void> {
+    if (this.shuttingDown || !this.processOperation) return;
+    await repos.resourceOperation.requeueStaleRunning(
+      new Date(Date.now() - STALE_OPERATION_MS),
+    );
+    const queued = await repos.resourceOperation.listQueued(50);
+    for (const operation of queued) {
+      if (
+        !this.operationInFlight.has(operation.id) &&
+        !this.operationQueue.includes(operation.id)
+      ) {
+        this.operationQueue.push(operation.id);
+      }
+    }
+    if (this.operationQueue.length > 0) void this.drainOperationQueue();
   }
 
   /** Boot-time: re-queue any runs that were left in 'queued' state by

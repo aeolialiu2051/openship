@@ -68,7 +68,8 @@
     "partial": "部分完成",
     "rejected": "已拒绝",
     "verifying": "验证中",
-    "pending": "待处理"
+    "pending": "待处理",
+    "deleting": "删除中"
   },
   "serviceStatus": {
     "deployed": "已部署",
@@ -168,6 +169,10 @@
     "confirmRedeploy": "重新部署提交 {hash}？\n\n从源码重新构建此提交。比回滚慢（会重新执行完整构建），但即使回滚产物已被清理仍然可用。列表中将出现一次新的部署。",
     "redeployFailed": "重新部署失败",
     "pinFailed": "固定部署失败",
-    "unpinFailed": "取消固定部署失败"
+    "unpinFailed": "取消固定部署失败",
+    "confirmDelete": "删除此部署？运行资源将在后台清理。",
+    "deleteQueued": "部署删除任务已开始",
+    "deleteSuccess": "部署已删除",
+    "deleteFailed": "删除部署失败"
   }
 }

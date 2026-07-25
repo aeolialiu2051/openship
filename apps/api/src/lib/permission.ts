@@ -64,6 +64,7 @@ const GRANTABLE_ROOTS: ResourceType[] = [
 /** Resource types accepted by permission.check — includes leaves. */
 export type CheckedResourceType =
   | ResourceType
+  | "operation"
   | "deployment"
   | "domain"
   | "service"

@@ -106,7 +106,16 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
   const { t } = useI18n();
   const router = useRouter();
   const [isCommitModalOpen, setIsCommitModalOpen] = useState(false);
-  const statusConfig = getStatusConfig(deployment.status);
+  const deletionInProgress =
+    deployment.deletionOperationStatus === "queued" ||
+    deployment.deletionOperationStatus === "running";
+  const statusConfig = deletionInProgress
+    ? {
+        ...getStatusConfig("pending"),
+        color: "var(--color-danger)",
+        bgColor: "bg-danger-bg",
+      }
+    : getStatusConfig(deployment.status);
   const frameworkConfig = getFrameworkConfig(deployment.framework);
 
   const statusLabelMap: Record<string, string> = {
@@ -120,7 +129,9 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = ({ deployment, onSt
     rejected: t.deployments.status.rejected,
     reconciling: t.deployments.status.verifying,
   };
-  const statusLabel = statusLabelMap[deployment.status] ?? t.deployments.status.pending;
+  const statusLabel = deletionInProgress
+    ? t.deployments.status.deleting
+    : statusLabelMap[deployment.status] ?? t.deployments.status.pending;
 
   const hasCommitData = deployment.commit?.hash && deployment.commit.hash !== "N/A";
   const hasCommitMessage = deployment.commit?.message && deployment.commit.message !== "Manual deployment";

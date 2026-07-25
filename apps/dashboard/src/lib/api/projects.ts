@@ -2,6 +2,7 @@ import { api } from "./client";
 import type { PrepareComposeService, PrepareProjectResponse } from "./deploy";
 import type { RoutingConfig, RouteRuleSpec } from "@repo/core";
 import { endpoints } from "./endpoints";
+import type { OperationStatus } from "./operations";
 
 /* ------------------------------------------------------------------ */
 /*  Projects API                                                      */
@@ -212,11 +213,15 @@ export const projectsApi = {
     if (forceOrphan) query.set("forceOrphan", "true");
     const qs = query.toString();
     const path = qs ? `${endpoints.projects.item(id)}?${qs}` : endpoints.projects.item(id);
-    // Teardown destroys containers/images/volumes over SSH (round-trips + per-
-    // resource server-side timeouts) — far longer than the 15s default. A short
-    // client timeout aborts the fetch mid-teardown (server still finishes, so
-    // the project vanishes) and surfaces a spurious AbortError.
-    return api.delete<any>(path, { body: rest, timeout: 120_000 });
+    // The API persists the operation and returns 202 immediately; Docker/SSH
+    // teardown runs in the background and is observed through operationsApi.
+    return api.delete<{
+      ok: true;
+      operationId: string;
+      status: OperationStatus;
+      currentStep: string | null;
+      created: boolean;
+    }>(path, { body: rest });
   },
 
   /** Read-only snapshot of what `delete(id)` will remove - services and their

@@ -87,6 +87,7 @@
     "partialCleanup": "项目已删除，但有 {count} 个清理步骤失败。需要运维人员核实。",
     "partialCleanupTitle": "部分清理",
     "failed": "删除项目失败",
+    "queued": "删除任务已开始。后台会继续清理，你可以离开此页面。",
     "cancellingActiveWork": "正在取消进行中的任务，然后删除……",
     "cleaningUpTitle": "清理中",
     "hasActiveWork": "项目有进行中的任务——请稍后再试",

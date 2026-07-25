@@ -12,7 +12,11 @@ import type { LogEntry } from "@repo/adapters";
 import type { RequestContext } from "../../lib/request-context";
 import { resolveDeploymentRuntime, type DeploymentMeta } from "../../lib/deployment-runtime";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
-import { collectDeploymentManifest, executeCleanup } from "../projects/project-cleanup.service";
+import {
+  collectDeploymentManifest,
+  executeCleanup,
+  type CleanupResult,
+} from "../projects/project-cleanup.service";
 import { assertGitHubRepoAccess } from "../github/github-access";
 import { rollback, setPin } from "./rollback";
 
@@ -132,23 +136,41 @@ async function assertNotControlPlaneDeployment(dep: { projectId: string }): Prom
   }
 }
 
-export async function deleteDeployment(
+export class DeploymentCleanupError extends Error {
+  constructor(readonly cleanup: CleanupResult) {
+    super(
+      cleanup.failed.map((item) => `${item.label}: ${item.error}`).join("; ") ||
+        "Deployment runtime cleanup failed",
+    );
+    this.name = "DeploymentCleanupError";
+  }
+}
+
+export async function validateDeploymentDeletion(
   deploymentId: string,
   organizationId: string,
 ) {
   const dep = await getDeployment(deploymentId, organizationId);
   await assertNotControlPlaneDeployment(dep);
-
   if (["queued", "building", "deploying"].includes(dep.status)) {
     throw new ForbiddenError("Cannot delete a deployment that is in progress. Cancel it first.");
   }
+  return dep;
+}
+
+export async function deleteDeployment(
+  deploymentId: string,
+  organizationId: string,
+) {
+  const dep = await validateDeploymentDeletion(deploymentId, organizationId);
 
   const project = await repos.project.findById(dep.projectId);
 
   const manifest = await collectDeploymentManifest(dep, project ?? null);
-  if (manifest.resources.length > 0) {
-    await executeCleanup(manifest);
-  }
+  const cleanup = manifest.resources.length > 0
+    ? await executeCleanup(manifest)
+    : { total: 0, succeeded: 0, failed: [] };
+  if (cleanup.failed.length > 0) throw new DeploymentCleanupError(cleanup);
 
   // Deleting the active release clears the live pointer → project reads draft.
   // We deliberately do NOT auto-point at an older successful deploy: its runtime
@@ -161,6 +183,7 @@ export async function deleteDeployment(
   }
 
   await repos.deployment.deleteDeployment(deploymentId);
+  return { cleanup };
 }
 
 // Thin wrapper around the RollbackOrchestrator. The orchestrator owns
@@ -429,5 +452,4 @@ export async function getBuildLogs(
   }
   return buildSession.logs as LogEntry[];
 }
-
 

@@ -89,6 +89,7 @@
     "partialCleanup": "Project deleted, but {count} cleanup step(s) failed. Ops will need to verify.",
     "partialCleanupTitle": "Partial cleanup",
     "failed": "Failed to delete project",
+    "queued": "Deletion started. You can leave this page while cleanup continues.",
     "cancellingActiveWork": "Cancelling active work, then deleting…",
     "cleaningUpTitle": "Cleaning up",
     "hasActiveWork": "Project has active work — try again in a moment",

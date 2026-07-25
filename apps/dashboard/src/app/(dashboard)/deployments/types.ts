@@ -58,6 +58,8 @@ export interface Deployment {
   artifactRetainedAt?: string | null;
   pinned?: boolean;
   isActive?: boolean;
+  deletionOperationId?: string | null;
+  deletionOperationStatus?: "queued" | "running" | "needs_action" | null;
   /**
    * Per-service deploy fan-out for this deployment. Populated when the
    * orchestrator-aware listing endpoint can resolve service_deployment
@@ -79,4 +81,3 @@ export interface DeploymentStats {
   pending?: number;
   canceled?: number;
 }
-

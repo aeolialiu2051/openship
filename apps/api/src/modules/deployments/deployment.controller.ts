@@ -4,6 +4,7 @@
 
 import type { Context } from "hono";
 import { AppError } from "@repo/core";
+import { repos } from "@repo/db";
 import { streamSSE } from "../../lib/sse";
 import { param } from "../../lib/controller-helpers";
 import { getRequestContext } from "../../lib/request-context";
@@ -17,6 +18,7 @@ import * as prepareService from "./prepare.service";
 import { maybeProxyCloudProject, proxyToSaaS } from "../../lib/cloud/project-router";
 import { promoteProjectToCloud, TransferConflictError } from "../projects/transfer.service";
 import { env } from "../../config";
+import { resourceOperationService } from "../operations/resource-operation.service";
 
 export async function list(c: Context) {
   const ctx = getRequestContext(c);
@@ -31,10 +33,25 @@ export async function list(c: Context) {
     page,
     perPage,
   });
+  const deletionOperations = await repos.resourceOperation.listActiveForResources(
+    ctx.organizationId,
+    "deployment_delete",
+    result.rows.map((row) => row.id),
+  );
+  const deletionByDeployment = new Map(
+    deletionOperations.map((operation) => [operation.resourceId, operation]),
+  );
 
   return c.json({
     success: true,
-    data: result.rows,
+    data: result.rows.map((row) => {
+      const operation = deletionByDeployment.get(row.id);
+      return {
+        ...row,
+        deletionOperationId: operation?.id ?? null,
+        deletionOperationStatus: operation?.status ?? null,
+      };
+    }),
     total: result.total,
     page: result.page,
     perPage: result.perPage,
@@ -263,8 +280,24 @@ export async function remove(c: Context) {
   const id = param(c, "id");
   await permission.assert(getRequestContext(c), { resourceType: "deployment", resourceId: id, action: "admin" });
   try {
-    await deploymentService.deleteDeployment(id, ctx.organizationId);
-    return c.json({ success: true, message: "Deployment deleted" });
+    const deployment = await deploymentService.validateDeploymentDeletion(
+      id,
+      ctx.organizationId,
+    );
+    const queued = await resourceOperationService.enqueueDeploymentDeletion(
+      ctx,
+      deployment,
+    );
+    return c.json(
+      {
+        success: true,
+        operationId: queued.operation.id,
+        status: queued.operation.status,
+        currentStep: queued.operation.currentStep,
+        created: queued.created,
+      },
+      202,
+    );
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to delete deployment";
     return c.json({ success: false, error: message }, 400);

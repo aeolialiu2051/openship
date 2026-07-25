@@ -142,7 +142,13 @@ export const deployApi = {
 
   /** Delete a deployment */
   deleteDeployment: (id: string) =>
-    api.delete<any>(endpoints.deploy.delete(id)),
+    api.delete<{
+      success: true;
+      operationId: string;
+      status: string;
+      currentStep: string | null;
+      created: boolean;
+    }>(endpoints.deploy.delete(id)),
 
   /** Reject a partial deployment and restore previous active deployment if available */
   reject: (id: string) =>

@@ -6,6 +6,10 @@
  */
 
 export const endpoints = {
+  operations: {
+    item: (id: string) => `operations/${id}`,
+    active: "operations/active",
+  },
   /* ---------------------------------------------------------------- */
   /*  Projects                                                        */
   /* ---------------------------------------------------------------- */

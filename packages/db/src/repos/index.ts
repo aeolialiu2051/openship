@@ -152,6 +152,16 @@ export {
   type NewOrphanedResource,
 } from "./orphaned-resource.repo";
 export {
+  createResourceOperationRepo,
+  type ResourceOperation,
+  type NewResourceOperation,
+  type ResourceOperationKind,
+  type ResourceOperationType,
+  type ResourceOperationStatus,
+  ACTIVE_RESOURCE_OPERATION_STATUSES,
+  TERMINAL_RESOURCE_OPERATION_STATUSES,
+} from "./resource-operation.repo";
+export {
   createResourceGrantRepo,
   type ResourceGrant,
   type Permission,
@@ -237,6 +247,7 @@ import { createAuditEventRepo } from "./audit-event.repo";
 import { createJobRunRepo } from "./job-run.repo";
 import { createJobRepo } from "./job.repo";
 import { createOrphanedResourceRepo } from "./orphaned-resource.repo";
+import { createResourceOperationRepo } from "./resource-operation.repo";
 import { createResourceGrantRepo } from "./resource-grant.repo";
 import { createInvitationPendingGrantRepo } from "./invitation-pending-grant.repo";
 import { createOrganizationRepo } from "./organization.repo";
@@ -302,6 +313,7 @@ export const repos = {
   jobRun: createJobRunRepo(db),
   job: createJobRepo(db),
   orphanedResource: createOrphanedResourceRepo(db),
+  resourceOperation: createResourceOperationRepo(db),
   resourceGrant: createResourceGrantRepo(db),
   invitationPendingGrant: createInvitationPendingGrantRepo(db),
   organization: createOrganizationRepo(db),

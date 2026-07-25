@@ -49,6 +49,8 @@ import { backfillWebhookSecrets } from "./modules/github/github.service";
 import { backupOrchestrator } from "./modules/backups/backup.orchestrator";
 import { getJobRunner } from "./lib/job-runner";
 import { repos } from "@repo/db";
+import { resourceOperationService } from "./modules/operations/resource-operation.service";
+import { operationRoutes } from "./modules/operations/operation.routes";
 
 /* ---------- Initialize platform (runtime + infra + system) ---------- */
 await initPlatform(resolvePlatformConfig());
@@ -137,6 +139,7 @@ app.route("/api/permissions", permissionsRoutes);
 app.route("/api/notifications", notificationsRoutes);
 app.route("/api/updates", updatesRoutes);
 app.route("/api/jobs", jobRoutes);
+app.route("/api/operations", operationRoutes);
 // Platform status notices — banner feed (public read) + operator push (internal).
 // Both modes; primarily consumed on the SaaS.
 app.route("/api/notices", noticeRoutes);
@@ -272,13 +275,14 @@ if (USER_SERVERS_ENABLED) {
       if (n > 0) console.log(`[boot] cancelled ${n} stale in-flight deployment(s)`);
     })
     .catch((err) => console.warn("[boot] sweepStaleInFlight failed:", err));
-  // A project's deletionInProgress flag can only survive from a teardown that
-  // died mid-flight (no teardown outlives a restart), so clear stuck locks at
-  // boot — otherwise the project refuses all deletes forever ("Another delete
-  // is already running"). Fire-and-forget; logs the count if any were stuck.
-  void repos.project.clearStaleDeletions().then((n) => {
-    if (n > 0) console.log(`[boot] cleared ${n} stale project deletion lock(s)`);
-  }).catch((err) => console.warn("[boot] clearStaleDeletions failed:", err));
+  // Legacy synchronous deletions could leave a boolean lock behind after a
+  // single-box process crash. A cloud replica must NEVER clear another
+  // replica's live lock; durable resource operations own recovery there.
+  if (!env.CLOUD_MODE) {
+    void repos.project.clearStaleDeletions().then((n) => {
+      if (n > 0) console.log(`[boot] cleared ${n} stale project deletion lock(s)`);
+    }).catch((err) => console.warn("[boot] clearStaleDeletions failed:", err));
+  }
   // A Docker migration is an in-memory FSM that quiesces (stops) the source
   // containers before the target deploy — a restart mid-migration would strand
   // a stopped production stack forever. Restart the originals + roll back any
@@ -293,6 +297,9 @@ if (USER_SERVERS_ENABLED) {
   const runner = await getJobRunner();
   await runner.start({
     processRun: (runId) => backupOrchestrator.execute(runId),
+  });
+  await runner.startResourceOperations({
+    processOperation: (operationId) => resourceOperationService.process(operationId),
   });
   console.log(`[boot] backup runner: ${runner.describe()}`);
 

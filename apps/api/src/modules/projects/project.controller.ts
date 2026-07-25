@@ -56,6 +56,7 @@ import {
 } from "../github/github.service";
 import { getInstallationIdByOrg, getInstallUrl } from "../github/github.auth";
 import { listProjectRouteRows, resolveProjectRouteState } from "../domains/project-route.service";
+import { resourceOperationService } from "../operations/resource-operation.service";
 
 // Track which servers have had Lua scripts deployed this session
 const luaDeployedServers = new Set<string>();
@@ -462,19 +463,12 @@ export async function update(c: Context) {
 }
 
 /**
- * Atomic project delete.
+ * Asynchronous project delete.
  *
- * Two paths:
- *   - graceful (default):  refuse with 409 if any deployment / build /
- *                          backup is still in flight. The dashboard
- *                          surfaces `active` so the user can cancel
- *                          and retry.
- *   - force=true (query):  cancel active work, wait up to 5s for
- *                          confirmed quiescence, then teardown.
- *
- * Both paths converge into `teardownProject`, which runs a named,
- * audited step sequence and reports per-step success/failure. The DB
- * row only drops after remote cleanup; FK CASCADE handles dependents.
+ * The request performs only authorization/preflight, creates (or reuses) a
+ * durable resource_operation, marks the project as deleting, and returns 202.
+ * Docker/SSH/cloud teardown runs in the JobRunner and remains observable after
+ * the browser disconnects or an API/proxy timeout would previously have fired.
  */
 export async function remove(c: Context) {
   const ctx = getRequestContext(c);
@@ -521,6 +515,23 @@ export async function remove(c: Context) {
     );
   }
   if (proj.deletionInProgress) {
+    const operation = await repos.resourceOperation.findActive(
+      organizationId,
+      "project_delete",
+      id,
+    );
+    if (operation) {
+      return c.json(
+        {
+          ok: true,
+          operationId: operation.id,
+          status: operation.status,
+          currentStep: operation.currentStep,
+          created: false,
+        },
+        202,
+      );
+    }
     audit.recordAsync(auditContextFrom(c, organizationId, userId), {
       eventType: "project.deletion.rejected",
       resourceType: "project",
@@ -578,22 +589,14 @@ export async function remove(c: Context) {
     }
   }
 
-  // ── Run the atomic teardown. ──────────────────────────────────────
-  const result = await projectTeardown.teardownProject(ctx, id, {
+  // Persist + enqueue only. Runtime teardown happens outside this HTTP request,
+  // so browser/proxy timeouts cannot turn a running deletion into a false error.
+  const queued = await resourceOperationService.enqueueProjectDeletion(ctx, proj, {
     force,
     forceOrphan,
     wipeVolumes,
   });
-
-  // Typed pre-step rejections short-circuit before we record a
-  // `project.deleted` row. Each gets its own audit event + HTTP code.
-  if (result.rejection === "claim_lock_held") {
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
-      eventType: "project.deletion.rejected",
-      resourceType: "project",
-      resourceId: id,
-      after: { code: "PROJECT_DELETION_IN_PROGRESS", force, wipeVolumes },
-    });
+  if (!queued.accepted) {
     return c.json(
       {
         ok: false,
@@ -603,82 +606,14 @@ export async function remove(c: Context) {
       409,
     );
   }
-  if (result.rejection === "already_deleted") {
-    // Idempotent: row's already gone, treat as success so the dashboard
-    // navigates the user away. No audit row for a "deletion of a thing
-    // that wasn't there" — matches the controller's 404 behavior.
-    return c.json({ ok: true, message: "already deleted", steps: result.steps });
-  }
-  if (result.rejection === "org_mismatch") {
-    // Belt-and-suspenders against a future caller skipping the
-    // controller's org check. We DO emit a rejection event because the
-    // actor was authenticated and the org check was bypassed somehow —
-    // a real security signal.
-    audit.recordAsync(auditContextFrom(c, organizationId, userId), {
-      eventType: "project.deletion.rejected",
-      resourceType: "project",
-      resourceId: id,
-      after: { code: "PROJECT_ORG_MISMATCH", force, wipeVolumes },
-    });
-    return c.json({ ok: false, code: "PROJECT_ORG_MISMATCH", error: "Project not found" }, 404);
-  }
-
-  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
-    eventType: "project.deleted",
-    resourceType: "project",
-    resourceId: id,
-    after: {
-      force,
-      wipeVolumes,
-      ok: result.ok,
-      rowDeleted: result.rowDeleted,
-      steps: result.steps,
-    },
-  });
-
-  // The row is gone but a non-empty `unrecoverable` means ops needs to
-  // clean up stragglers (a leaked container, a webmail dir we couldn't
-  // wipe). 207 surfaces this so the dashboard can warn the user.
-  if (result.rowDeleted && result.unrecoverable.length > 0) {
-    return c.json(
-      {
-        ok: false,
-        message: "Project deleted, but some external cleanup failed",
-        steps: result.steps,
-        unrecoverable: result.unrecoverable,
-      },
-      207,
-    );
-  }
-
-  // Row still around — teardown couldn't complete. This is now ONLY the
-  // "reachable server but destroy kept failing" case (unreachable resources are
-  // orphaned and the row drops). 409 so the caller can retry, and
-  // `canForceOrphan` tells the dashboard it may offer a force-orphan delete
-  // that records the leaked resources for GC and drops the row anyway.
-  if (!result.rowDeleted) {
-    return c.json(
-      {
-        ok: false,
-        code: "PROJECT_TEARDOWN_FAILED",
-        canForceOrphan: true,
-        message: result.unrecoverable[0]?.error ?? "Teardown failed",
-        steps: result.steps,
-        unrecoverable: result.unrecoverable,
-      },
-      409,
-    );
-  }
 
   return c.json({
     ok: true,
-    message: "deleted",
-    steps: result.steps,
-    // Resources that couldn't be reached at delete time — recorded for GC to
-    // reclaim once the server is back. Drives the "will be cleaned up when the
-    // server is reachable" toast. Empty on a fully-clean delete.
-    orphaned: result.orphaned,
-  });
+    operationId: queued.operation.id,
+    status: queued.operation.status,
+    currentStep: queued.operation.currentStep,
+    created: queued.created,
+  }, 202);
 }
 
 export async function deletionPreview(c: Context) {
@@ -1962,8 +1897,23 @@ export async function listDeployments(c: Context) {
     perPage,
     environment,
   });
+  const deletionOperations = await repos.resourceOperation.listActiveForResources(
+    organizationId,
+    "deployment_delete",
+    result.rows.map((row) => row.id),
+  );
+  const deletionByDeployment = new Map(
+    deletionOperations.map((operation) => [operation.resourceId, operation]),
+  );
   return c.json({
-    data: result.rows,
+    data: result.rows.map((row) => {
+      const operation = deletionByDeployment.get(row.id);
+      return {
+        ...row,
+        deletionOperationId: operation?.id ?? null,
+        deletionOperationStatus: operation?.status ?? null,
+      };
+    }),
     total: result.total,
     page: result.page,
     perPage: result.perPage,

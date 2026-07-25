@@ -37,6 +37,8 @@ export const mapRowToDeployment = (row: any): Deployment => {
     artifactRetainedAt: row.artifactRetainedAt ?? null,
     pinned: row.pinned ?? false,
     isActive: row.isActive ?? false,
+    deletionOperationId: row.deletionOperationId ?? null,
+    deletionOperationStatus: row.deletionOperationStatus ?? null,
   };
 };
 
@@ -221,4 +223,3 @@ export const calculateDeploymentStats = (deployments: Deployment[]) => {
     canceled: deployments.filter((d) => d.status === "canceled" || d.status === "cancelled").length,
   };
 };
-

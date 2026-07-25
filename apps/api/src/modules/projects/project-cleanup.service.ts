@@ -565,12 +565,10 @@ export async function collectDeploymentManifest(
 
   // Resolve the runtime once. Anything below this point that depends on the
   // runtime (containers, images) only fires when the runtime is reachable.
-  let runtime: RuntimeAdapter | null = null;
-  try {
-    runtime = (await resolveDeploymentRuntime(dep)).runtime;
-  } catch {
-    return { projectId: dep.projectId, resources };
-  }
+  // A runtime-resolution failure is NOT the same as "no resources". Let the
+  // async operation surface needs_action instead of deleting the DB row while
+  // a container may still be live on an unreachable/misconfigured target.
+  const runtime: RuntimeAdapter = (await resolveDeploymentRuntime(dep)).runtime;
 
   for (const containerId of containerIds) {
     resources.push({
@@ -736,5 +734,4 @@ async function destroyResourceOnce(
 // executor but as a named, audited, idempotent step sequence with a
 // deletion lock + force-cancel + 207 partial-success support. Anything new
 // should call teardownProject().
-
 

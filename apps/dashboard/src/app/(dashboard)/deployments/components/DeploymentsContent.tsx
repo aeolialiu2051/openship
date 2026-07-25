@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   Rocket,
@@ -44,6 +44,7 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const hasLoadedRef = useRef(false);
   const [filter, setFilter] = useState<
     "all" | "success" | "failed" | "building" | "pending" | "canceled"
   >("all");
@@ -53,7 +54,10 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
   );
 
   const fetchDeployments = useCallback(async () => {
-    setIsLoading(true);
+    // Keep existing cards visible during status refreshes. Replacing the whole
+    // list with skeletons every time a background operation changes state made
+    // otherwise-fast actions feel janky.
+    if (!hasLoadedRef.current) setIsLoading(true);
     try {
       if (isProject && projectId) {
         const res = await projectsApi.getDeployments(projectId);
@@ -87,6 +91,7 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
     } catch {
       /* silent */
     } finally {
+      hasLoadedRef.current = true;
       setIsLoading(false);
     }
   }, [isProject, projectId, projectName]);

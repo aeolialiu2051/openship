@@ -134,6 +134,12 @@ export interface TeardownOptions {
    * are ALWAYS orphaned (enforced delete) regardless of this flag.
    */
   forceOrphan?: boolean;
+  /**
+   * The async deletion API claims project.deletionInProgress before returning
+   * 202 so every reader immediately sees the tombstone. Its worker passes this
+   * flag to reuse that lock instead of trying to claim it a second time.
+   */
+  deletionLockClaimed?: boolean;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -215,7 +221,9 @@ export async function teardownProject(
   //   (c) Real DB error
   // We re-read the row to tell them apart so the controller emits the
   // right code + audit event.
-  const claimed = await repos.project.claimDeletion(projectId);
+  const claimed = opts.deletionLockClaimed
+    ? true
+    : await repos.project.claimDeletion(projectId);
   if (!claimed) {
     let existing: Project | undefined;
     try {
