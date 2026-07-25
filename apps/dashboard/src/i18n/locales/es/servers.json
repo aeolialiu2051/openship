@@ -13,7 +13,7 @@
     "connecting": "Esperando autorización…",
     "connectFailed": "Error de conexión",
     "connectedToast": "GitHub conectado para este servidor",
-    "patPlaceholder": "ghp_… (pega un token)",
+    "patPlaceholder": "github_pat_… / ghp_… (pega un token)",
     "patHint": "Un token de acceso personal guardado cifrado para este servidor.",
     "save": "Guardar",
     "savedToast": "Guardado",

@@ -1,7 +1,8 @@
 /**
- * HTTP handlers for per-server GitHub auth (self-hosted only), mounted under
+ * HTTP handlers for per-server GitHub auth, mounted under
  * /api/servers/:id/github. Gating mirrors servers.controller.ts: the runtime
- * must explicitly support user-owned SSH servers.
+ * must explicitly support user-owned SSH servers. Device flow is self-hosted
+ * only; cloud user-server runtimes can still store a pasted PAT.
  * + permission.assert({ resourceType: "server" }) + org-scoped existence check.
  * Secrets are never echoed — the service returns masked status.
  */

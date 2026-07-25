@@ -12,10 +12,20 @@ describe("deployment default target selection", () => {
     expect(displayedDeployTarget("cloud", true)).toBe("server");
   });
 
-  it("saves targets that do not require an additional choice immediately", () => {
+  it("marks OpenShip Cloud as coming soon instead of saving it", () => {
     expect(resolveDeployTargetClick("cloud")).toEqual({
+      kind: "coming-soon",
+    });
+  });
+
+  it("does not present a previously saved cloud target as active", () => {
+    expect(displayedDeployTarget("cloud", false)).toBeNull();
+  });
+
+  it("saves available targets that do not require an additional choice immediately", () => {
+    expect(resolveDeployTargetClick("local")).toEqual({
       kind: "save-target",
-      target: "cloud",
+      target: "local",
       serverId: null,
     });
   });

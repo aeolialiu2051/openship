@@ -13,7 +13,7 @@
     "connecting": "Yetkilendirme bekleniyor…",
     "connectFailed": "Bağlantı başarısız oldu",
     "connectedToast": "Bu sunucu için GitHub bağlandı",
-    "patPlaceholder": "ghp_… (bir jeton yapıştırın)",
+    "patPlaceholder": "github_pat_… / ghp_… (bir jeton yapıştırın)",
     "patHint": "Bu sunucu için şifrelenmiş olarak saklanan kişisel erişim jetonu (PAT).",
     "save": "Kaydet",
     "savedToast": "Kaydedildi",

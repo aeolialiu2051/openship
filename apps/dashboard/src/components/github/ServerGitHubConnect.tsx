@@ -13,10 +13,10 @@ import { useModal } from "@/context/ModalContext";
 import { useI18n } from "@/components/i18n-provider";
 
 /**
- * The ONE per-server GitHub connect model (self-hosted). How THIS server
- * authenticates to GitHub to clone private repos — device-login token, pasted
- * PAT, an SSH server key, or per-repo deploy keys. Wins over the account /
- * App / relay chain for clones that run on this server.
+ * The ONE per-server GitHub connect model. How THIS server authenticates to
+ * GitHub to clone private repos — a pasted PAT, an SSH server key, per-repo
+ * deploy keys, and (on self-hosted runtimes) device login. Wins over the
+ * account / App / relay chain for clones that run on this server.
  *
  * Reused verbatim in three places so the flow never forks:
  *   - the server detail "GitHub" tab (`variant="card"`),
@@ -251,14 +251,6 @@ export function ServerGitHubConnect({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={startDevice}
-                      disabled={busy}
-                      className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-                    >
-                      <Github className="size-4" /> {g.connectDevice}
-                    </button>
                     <div className="flex items-center gap-2">
                       <input
                         type="password"
@@ -277,6 +269,16 @@ export function ServerGitHubConnect({
                       </button>
                     </div>
                     <p className="text-xs text-muted-foreground/70">{g.patHint}</p>
+                    {status?.deviceFlowAvailable && (
+                      <button
+                        type="button"
+                        onClick={startDevice}
+                        disabled={busy}
+                        className="inline-flex items-center gap-2 rounded-lg bg-foreground px-4 py-2 text-[13px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                      >
+                        <Github className="size-4" /> {g.connectDevice}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

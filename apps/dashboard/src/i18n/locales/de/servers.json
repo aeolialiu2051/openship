@@ -13,7 +13,7 @@
     "connecting": "Warte auf Autorisierung…",
     "connectFailed": "Verbindung fehlgeschlagen",
     "connectedToast": "GitHub für diesen Server verbunden",
-    "patPlaceholder": "ghp_… (Token einfügen)",
+    "patPlaceholder": "github_pat_… / ghp_… (Token einfügen)",
     "patHint": "Ein Personal Access Token, verschlüsselt für diesen Server gespeichert.",
     "save": "Speichern",
     "savedToast": "Gespeichert",

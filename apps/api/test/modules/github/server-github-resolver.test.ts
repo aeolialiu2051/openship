@@ -2,20 +2,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GITHUB_KNOWN_HOSTS } from "../../../src/modules/github/github-known-hosts";
 
 // Mutable capability so a single suite can exercise enabled and locked modes.
-const { capability, getByServer, listByServer } = vi.hoisted(() => ({
-  capability: { enabled: true },
-  getByServer: vi.fn(),
-  listByServer: vi.fn(),
-}));
+const { capability, runtimeEnv, getByServer, upsert, listByServer, ghFetchSoft } = vi.hoisted(
+  () => ({
+    capability: { enabled: true },
+    runtimeEnv: { CLOUD_MODE: false },
+    getByServer: vi.fn(),
+    upsert: vi.fn(),
+    listByServer: vi.fn(),
+    ghFetchSoft: vi.fn(),
+  }),
+);
 
 vi.mock("../../../src/config/env", () => ({
+  env: runtimeEnv,
   get USER_SERVERS_ENABLED() {
     return capability.enabled;
   },
 }));
 vi.mock("@repo/db", () => ({
   repos: {
-    serverGithubAuth: { getByServer, deleteByServer: vi.fn() },
+    serverGithubAuth: { getByServer, upsert, deleteByServer: vi.fn() },
     githubDeployKey: { listByServer, deleteByServer: vi.fn() },
   },
 }));
@@ -29,7 +35,7 @@ vi.mock("../../../src/modules/github/github.local-auth", () => ({
   getDeviceFlowStatus: vi.fn(),
   cancelDeviceFlow: vi.fn(),
 }));
-vi.mock("../../../src/modules/github/github.http", () => ({ ghFetchSoft: vi.fn() }));
+vi.mock("../../../src/modules/github/github.http", () => ({ ghFetchSoft }));
 vi.mock("../../../src/modules/github/github.service", () => ({
   createDeployKey: vi.fn(),
   revokeDeployKey: vi.fn(),
@@ -39,6 +45,8 @@ import {
   resolveServerGitCredential,
   canResolveServerGitCredential,
   disconnectServerGithub,
+  getServerGithubStatus,
+  setServerToken,
 } from "../../../src/modules/github/server-github.service";
 
 const ctx = { userId: "u1", organizationId: "o1" } as any;
@@ -48,7 +56,39 @@ const resolve = (owner: string | null = "acme", repo: string | null = "app") =>
 beforeEach(() => {
   vi.clearAllMocks();
   capability.enabled = true;
+  runtimeEnv.CLOUD_MODE = false;
   listByServer.mockResolvedValue([]);
+});
+
+describe("per-server token capability", () => {
+  it("reports device flow unavailable in cloud mode while keeping PAT storage usable", async () => {
+    runtimeEnv.CLOUD_MODE = true;
+    getByServer.mockResolvedValue(null);
+    ghFetchSoft.mockResolvedValue({ login: "octocat" });
+
+    await expect(getServerGithubStatus("s1")).resolves.toMatchObject({
+      connected: false,
+      deviceFlowAvailable: false,
+    });
+    await expect(setServerToken(ctx, "s1", "github_pat_example")).resolves.toEqual({
+      login: "octocat",
+    });
+    expect(upsert).toHaveBeenCalledWith({
+      serverId: "s1",
+      organizationId: "o1",
+      mode: "token",
+      tokenEncrypted: "ENC:github_pat_example",
+      tokenSource: "pat",
+      tokenLogin: "octocat",
+    });
+  });
+
+  it("reports device flow available outside cloud mode", async () => {
+    getByServer.mockResolvedValue(null);
+    await expect(getServerGithubStatus("s1")).resolves.toMatchObject({
+      deviceFlowAvailable: true,
+    });
+  });
 });
 
 describe("resolveServerGitCredential — capability guard", () => {

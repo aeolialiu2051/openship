@@ -13,7 +13,7 @@
     "connecting": "等待授权…",
     "connectFailed": "连接失败",
     "connectedToast": "已为此服务器连接 GitHub",
-    "patPlaceholder": "ghp_…（粘贴令牌）",
+    "patPlaceholder": "github_pat_… / ghp_…（粘贴令牌）",
     "patHint": "为此服务器加密存储的个人访问令牌。",
     "save": "保存",
     "savedToast": "已保存",

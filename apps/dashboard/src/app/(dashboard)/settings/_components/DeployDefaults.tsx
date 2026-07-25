@@ -116,6 +116,15 @@ export function DeployDefaults() {
       return;
     }
 
+    if (intent.kind === "coming-soon") {
+      showToast(
+        t.deploy.targetStep.comingSoon,
+        "info",
+        t.settings.deployDefaults.targets.cloud.label,
+      );
+      return;
+    }
+
     void save(intent.target, intent.serverId);
   }
 
@@ -145,15 +154,19 @@ export function DeployDefaults() {
           >
             {targetOptions.map(({ value, icon: ModeIcon }) => {
               const active = displayedTarget === value;
+              const comingSoon = value === "cloud";
               return (
                 <button
                   key={value}
+                  type="button"
                   onClick={() => selectTarget(value)}
                   disabled={saving}
                   className={`relative text-start rounded-xl border p-4 transition-all ${
                     active
                       ? "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
-                      : "border-border/50 bg-card hover:bg-muted/40 hover:border-border"
+                      : comingSoon
+                        ? "border-border/40 bg-card/60 hover:bg-muted/30"
+                        : "border-border/50 bg-card hover:bg-muted/40 hover:border-border"
                   } disabled:opacity-50`}
                 >
                   <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center mb-3">
@@ -165,11 +178,15 @@ export function DeployDefaults() {
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {t.settings.deployDefaults.targets[value].desc}
                   </p>
-                  {active && (
+                  {comingSoon ? (
+                    <span className="absolute top-3 end-3 rounded-full border border-border/60 bg-muted/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {t.deploy.targetStep.comingSoon}
+                    </span>
+                  ) : active ? (
                     <div className="absolute top-3 end-3">
                       <Check className="size-4 text-primary" />
                     </div>
-                  )}
+                  ) : null}
                 </button>
               );
             })}
