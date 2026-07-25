@@ -52,7 +52,7 @@ async function resolveRequestLocale(): Promise<Locale> {
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Openship",
+  title: "Vibrail",
   description: "Manage your deployments, domains, and infrastructure.",
   icons: {
     icon: [
