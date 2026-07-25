@@ -3,7 +3,46 @@ import {
   removeProjectRouteKey,
   replaceProjectRouteKey,
 } from "@repo/core";
+import { normalizeSubdomainInput } from "../../utils/subdomain";
 import type { DeploymentConfig } from "./types";
+
+function stripManagedBaseDomain(domain: string, baseDomain?: string): string {
+  const value = domain.trim().toLowerCase().replace(/\.$/, "");
+  const normalizedBaseDomain = baseDomain
+    ?.trim()
+    .toLowerCase()
+    .replace(/^\.+|\.+$/g, "");
+
+  if (!normalizedBaseDomain) return value;
+  const suffix = `.${normalizedBaseDomain}`;
+  return value.endsWith(suffix) ? value.slice(0, -suffix.length) : value;
+}
+
+/** Return only the user-editable part of a managed hostname. */
+export function managedDomainForEditing(
+  domain: string,
+  domainType: "free" | "custom",
+  routeKey?: string,
+  baseDomain?: string,
+): string {
+  if (domainType === "custom" || !routeKey) return domain;
+  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain))
+    .replace(/^-+|-+$/g, "");
+  return label ? removeProjectRouteKey(label, routeKey) : "";
+}
+
+/** Reattach the immutable route key before writing a managed label to state. */
+export function managedDomainFromEditing(
+  domain: string,
+  domainType: "free" | "custom",
+  routeKey?: string,
+  baseDomain?: string,
+): string {
+  if (domainType === "custom" || !routeKey) return domain;
+  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain))
+    .replace(/^-+|-+$/g, "");
+  return appendProjectRouteKey(label, routeKey);
+}
 
 export function managedDomainForApi(
   domain: string | undefined,

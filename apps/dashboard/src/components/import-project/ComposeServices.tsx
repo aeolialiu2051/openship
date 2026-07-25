@@ -172,8 +172,9 @@ const SkeletonBlock: React.FC<{ className: string }> = ({ className }) => (
 const ServiceDomainSection: React.FC<{
   service: ComposeServiceInfo;
   projectName: string;
+  routeKey?: string;
   onChange: (updates: Partial<ComposeServiceInfo>) => void;
-}> = ({ service, projectName, onChange }) => {
+}> = ({ service, projectName, routeKey, onChange }) => {
   const { t } = useI18n();
   const d = t.importProject.composeServices.domain;
   const hasPorts = service.ports.length > 0;
@@ -262,6 +263,7 @@ const ServiceDomainSection: React.FC<{
         <div className="animate-in fade-in slide-in-from-top-1 duration-200">
           <PublicEndpointsCard
             projectName={projectName}
+            routeKey={routeKey}
             endpoints={endpoints}
             hasServer
             runtimePort={primaryPort}
@@ -697,10 +699,11 @@ const ServiceConfigSection: React.FC<{
 const ServiceCard: React.FC<{
   service: ComposeServiceInfo;
   projectName: string;
+  routeKey?: string;
   onUpdate: (updates: Partial<ComposeServiceInfo>) => void;
   onEnvChange: (env: Record<string, string>) => void;
   onDelete: () => void;
-}> = ({ service, projectName, onUpdate, onEnvChange, onDelete }) => {
+}> = ({ service, projectName, routeKey, onUpdate, onEnvChange, onDelete }) => {
   const { t } = useI18n();
   const cs = t.importProject.composeServices;
   const cnt = t.importProject.counts;
@@ -840,6 +843,7 @@ const ServiceCard: React.FC<{
             <ServiceDomainSection
               service={service}
               projectName={projectName}
+              routeKey={routeKey}
               onChange={onUpdate}
             />
           </div>
@@ -1040,6 +1044,7 @@ const ComposeServices: React.FC = () => {
                     key={svc.name}
                     service={svc}
                     projectName={config.projectName || config.repo}
+                    routeKey={config.routeKey}
                     onUpdate={(updates) => updateService(i, updates)}
                     onEnvChange={(env) => updateServiceEnv(i, env)}
                     onDelete={() => deleteService(i)}

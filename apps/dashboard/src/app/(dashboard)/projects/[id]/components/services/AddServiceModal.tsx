@@ -34,6 +34,7 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 interface AddServiceModalProps {
   open: boolean;
   projectName: string;
+  routeKey?: string;
   // True when the *project itself* deploys to openship cloud, regardless of
   // the dashboard install mode. A self-hosted dashboard can still manage a
   // cloud project — in that case only cloud (Oblien) images are valid and
@@ -208,7 +209,7 @@ function bucketEntry(entry: ImageCatalogEntry): string {
   return OTHER_CATEGORY_ID;
 }
 
-export function AddServiceModal({ open, projectName, isCloudProject, onClose, onSubmit }: AddServiceModalProps) {
+export function AddServiceModal({ open, projectName, routeKey, isCloudProject, onClose, onSubmit }: AddServiceModalProps) {
   const { t } = useI18n();
   const { deployMode } = usePlatform();
   const cloud = useCloud();
@@ -534,6 +535,7 @@ export function AddServiceModal({ open, projectName, isCloudProject, onClose, on
         ) : (
           <ConfigureStep
             projectName={projectName}
+            routeKey={routeKey}
             selected={selected}
             name={name}
             setName={setName}
@@ -879,6 +881,7 @@ function CatalogCard({
 
 function ConfigureStep({
   projectName,
+  routeKey,
   selected,
   name,
   setName,
@@ -906,6 +909,7 @@ function ConfigureStep({
   onSubmit,
 }: {
   projectName: string;
+  routeKey?: string;
   selected: ImageCatalogEntry | null;
   name: string;
   setName: (v: string) => void;
@@ -1092,6 +1096,7 @@ function ConfigureStep({
         <div className="rounded-2xl border border-border/50 bg-muted/10 p-4">
           <RoutingSettingsCard
             projectName={projectName}
+            routeKey={routeKey}
             domain={domain}
             customDomain={customDomain}
             domainType={domainType}
@@ -1162,4 +1167,3 @@ function ModeBadge({ mode }: { mode: "cloud" | "local" }) {
     </span>
   );
 }
-

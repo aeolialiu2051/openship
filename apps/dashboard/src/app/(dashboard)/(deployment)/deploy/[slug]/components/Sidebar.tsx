@@ -591,6 +591,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
         <DomainSettings
           projectId={config.projectId}
           projectName={config.projectName}
+          routeKey={config.routeKey}
           endpoints={config.publicEndpoints}
           hasServer={config.options.hasServer}
           runtimePort={config.options.productionPort}

@@ -10,6 +10,7 @@ import type { PublicEndpoint } from "@/context/deployment/types";
 interface DomainSettingsProps {
   projectId?: string;
   projectName: string;
+  routeKey?: string;
   endpoints: PublicEndpoint[];
   hasServer: boolean;
   runtimePort: string;
@@ -61,6 +62,7 @@ function buildPublicEndpointPayload(
 const DomainSettings: React.FC<DomainSettingsProps> = ({
   projectId,
   projectName,
+  routeKey,
   endpoints,
   hasServer,
   runtimePort,
@@ -103,6 +105,7 @@ const DomainSettings: React.FC<DomainSettingsProps> = ({
   return (
     <PublicEndpointsCard
       projectName={projectName}
+      routeKey={routeKey}
       endpoints={endpoints}
       hasServer={hasServer}
       runtimePort={runtimePort}

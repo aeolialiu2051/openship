@@ -9,6 +9,7 @@ import { createPublicEndpoint } from "@/context/deployment/types";
 
 interface PublicEndpointsCardProps {
   projectName: string;
+  routeKey?: string;
   endpoints: PublicEndpoint[];
   hasServer: boolean;
   runtimePort: string;
@@ -25,6 +26,7 @@ interface PublicEndpointsCardProps {
 
 const PublicEndpointsCard: React.FC<PublicEndpointsCardProps> = ({
   projectName,
+  routeKey,
   endpoints,
   hasServer,
   runtimePort,
@@ -143,6 +145,7 @@ const PublicEndpointsCard: React.FC<PublicEndpointsCardProps> = ({
     return (
       <RoutingSettingsCard
         projectName={projectName}
+        routeKey={routeKey}
         domain={endpoint.domain}
         customDomain={endpoint.customDomain}
         domainType={endpoint.domainType}

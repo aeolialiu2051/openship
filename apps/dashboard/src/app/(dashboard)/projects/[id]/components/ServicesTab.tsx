@@ -357,6 +357,7 @@ export const ServicesTab = () => {
         <AddServiceModal
           open={createOpen}
           projectName={projectSlugBase}
+          routeKey={projectData?.routeKey}
           isCloudProject={projectData?.deployTarget === "cloud"}
           onClose={() => setCreateOpen(false)}
           onSubmit={handleCreateService}
@@ -599,6 +600,7 @@ export const ServicesTab = () => {
       <AddServiceModal
         open={createOpen}
         projectName={projectSlugBase}
+        routeKey={projectData?.routeKey}
         isCloudProject={projectData?.deployTarget === "cloud"}
         onClose={() => setCreateOpen(false)}
         onSubmit={handleCreateService}

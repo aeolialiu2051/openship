@@ -3,7 +3,71 @@ import type { DeploymentConfig } from "./types";
 import {
   canonicalizeDeploymentRouteKey,
   managedDomainForApi,
+  managedDomainForEditing,
+  managedDomainFromEditing,
 } from "./project-route-key";
+
+describe("managed domain editing", () => {
+  it("separates the immutable route key from the editable label", () => {
+    expect(managedDomainForEditing(
+      "seekpeace-backend-1lci64",
+      "free",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("seekpeace-backend");
+    expect(managedDomainFromEditing(
+      "renamed-backend",
+      "free",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("renamed-backend-1lci64");
+  });
+
+  it("keeps the key when the editable label is cleared", () => {
+    expect(managedDomainFromEditing(
+      "",
+      "free",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("project-1lci64");
+  });
+
+  it("accepts a keyed label or full managed hostname without duplicating suffixes", () => {
+    expect(managedDomainFromEditing(
+      "renamed-1lci64",
+      "free",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("renamed-1lci64");
+    expect(managedDomainFromEditing(
+      "renamed-1lci64.vibrail.warpgateapi.com",
+      "free",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("renamed-1lci64");
+  });
+
+  it("does not rewrite custom domains", () => {
+    expect(managedDomainForEditing(
+      "app.example.com",
+      "custom",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("app.example.com");
+    expect(managedDomainFromEditing(
+      "app.example.com",
+      "custom",
+      "1lci64",
+      "vibrail.warpgateapi.com",
+    )).toBe("app.example.com");
+  });
+
+  it("preserves the full key at the DNS label length limit", () => {
+    const domain = managedDomainFromEditing("a".repeat(80), "free", "1lci64");
+    expect(domain).toHaveLength(63);
+    expect(domain.endsWith("-1lci64")).toBe(true);
+  });
+});
 
 describe("deployment route key handoff", () => {
   it("sends raw managed labels to the API while leaving custom domains unchanged", () => {

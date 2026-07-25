@@ -1,10 +1,14 @@
 "use client";
 
-import React, { useCallback, useEffect, useId, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Globe, Shield, Server, X, Copy, Check, Info, Eye, EyeOff, Link2, Hash } from "lucide-react";
 import { domainsApi } from "@/lib/api";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import {
+  managedDomainForEditing,
+  managedDomainFromEditing,
+} from "@/context/deployment/project-route-key";
 import { normalizeSubdomain, normalizeSubdomainInput } from "@/utils/subdomain";
 
 interface DnsRecord {
@@ -15,6 +19,7 @@ interface DnsRecord {
 
 export interface RoutingSettingsCardProps {
   projectName: string;
+  routeKey?: string;
   domain: string;
   customDomain: string;
   domainType: "free" | "custom";
@@ -47,6 +52,7 @@ export interface RoutingSettingsCardProps {
 
 export function RoutingSettingsCard({
   projectName,
+  routeKey,
   domain,
   customDomain,
   domainType,
@@ -76,14 +82,24 @@ export function RoutingSettingsCard({
   const [dnsMode, setDnsMode] = useState<"cloud" | "selfhosted" | "external">("cloud");
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [draftDomain, setDraftDomain] = useState(domain);
+  const [draftDomain, setDraftDomain] = useState(() => managedDomainForEditing(
+    domain,
+    "free",
+    routeKey,
+    baseDomain,
+  ));
+  const lastEmittedDomain = useRef<string | null>(null);
   const [draftCustomDomain, setDraftCustomDomain] = useState(customDomain);
   const [draftPort, setDraftPort] = useState(exposedPort ?? "");
   const [draftTargetPath, setDraftTargetPath] = useState(targetPath ?? "/");
 
   useEffect(() => {
-    setDraftDomain(domain);
-  }, [domain]);
+    if (lastEmittedDomain.current === domain) {
+      lastEmittedDomain.current = null;
+      return;
+    }
+    setDraftDomain(managedDomainForEditing(domain, "free", routeKey, baseDomain));
+  }, [domain, routeKey, baseDomain]);
 
   useEffect(() => {
     setDraftCustomDomain(customDomain);
@@ -111,7 +127,11 @@ export function RoutingSettingsCard({
   );
 
   const previewHostname = domainType === "custom" ? draftCustomDomain : "";
-  const freePreview = `${draftDomain || projectName || "my-project"}.${baseDomain}`;
+  const normalizedDraftDomain = routeKey
+    ? managedDomainFromEditing(draftDomain, "free", routeKey, baseDomain)
+    : normalizeSubdomain(draftDomain);
+  const freeDomainDirty = normalizedDraftDomain !== domain;
+  const freePreview = `${normalizedDraftDomain || projectName || "my-project"}.${baseDomain}`;
 
   const copy = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
@@ -149,7 +169,8 @@ export function RoutingSettingsCard({
   const hasRecords = dnsRecords.length > 0 && dnsRecords.every((record) => record.value);
 
   const commitFreeDomain = () => {
-    const next = normalizeSubdomain(draftDomain);
+    const next = normalizedDraftDomain;
+    lastEmittedDomain.current = next;
     void onDomainChange(next);
   };
 
@@ -256,26 +277,32 @@ export function RoutingSettingsCard({
               <div className="min-w-0 flex-1 flex items-center gap-2">
                 <div className="flex-1 flex items-center rounded-2xl border border-border/50 bg-background/60 overflow-hidden h-11">
                   <input
-                    value={saveMode === "explicit" ? draftDomain : domain}
+                    value={draftDomain}
                     onChange={(event) => {
-                      const next = normalizeSubdomainInput(event.target.value);
-                      if (saveMode === "explicit") {
-                        setDraftDomain(next);
-                      } else {
+                      const nextDraft = normalizeSubdomainInput(event.target.value);
+                      setDraftDomain(nextDraft);
+                      if (saveMode !== "explicit") {
+                        const next = routeKey
+                          ? managedDomainFromEditing(nextDraft, "free", routeKey, baseDomain)
+                          : nextDraft;
+                        lastEmittedDomain.current = next;
                         void onDomainChange(next);
                       }
                     }}
                     onBlur={() => {
                       // Commit on blur so a typed change isn't silently lost if the
                       // modal is closed without clicking the inline Save pill.
-                      if (saveMode === "explicit" && draftDomain !== domain) commitFreeDomain();
+                      if (saveMode === "explicit" && freeDomainDirty) commitFreeDomain();
                     }}
                     placeholder={projectName || "my-project"}
+                    disabled={disabled}
                     className="min-w-0 flex-1 h-full ps-3.5 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40"
                   />
-                  <span className="shrink-0 ps-2 pe-3.5 text-sm text-muted-foreground">.{baseDomain}</span>
+                  <span className="shrink-0 select-none ps-2 pe-3.5 text-sm text-muted-foreground">
+                    {routeKey ? `-${routeKey}` : ""}.{baseDomain}
+                  </span>
                 </div>
-                {saveMode === "explicit" && draftDomain !== domain && (
+                {saveMode === "explicit" && freeDomainDirty && (
                   <button
                     type="button"
                     onClick={commitFreeDomain}

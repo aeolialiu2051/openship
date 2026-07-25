@@ -40,6 +40,8 @@ import {
   type PortCheckUI,
   type OutputCheckUI,
 } from "@/context/deployment/types";
+import { managedDomainFromEditing } from "@/context/deployment/project-route-key";
+import { normalizeSubdomainInput } from "@/utils/subdomain";
 
 interface DnsRecord {
   type: "CNAME" | "A" | "TXT";
@@ -548,9 +550,12 @@ export const DomainSettings = () => {
   // and must be DNS-verified before they go live; we surface their records +
   // Verify via the connect call, which returns the real domain-row id.
   const handleSubmitDomains = async () => {
-    const host = newDomain.trim().toLowerCase();
-    if (!host) return;
     const isCustom = newDomainType === "custom";
+    const rawHost = newDomain.trim().toLowerCase();
+    if (!rawHost) return;
+    const host = isCustom
+      ? rawHost
+      : managedDomainFromEditing(rawHost, "free", projectData.routeKey, baseDomain);
     const portValue = newDomainPort.trim();
 
     // The "Include www" toggle owns the www record — a hand-typed "www."
@@ -1123,11 +1128,14 @@ export const DomainSettings = () => {
       setAddRouteError(interpolate(t.projectSettings.domains.toast.noServicePort, { port: cleanPort }));
       return;
     }
-    const domainValue = domain.trim();
-    if (!domainValue) {
+    const rawDomainValue = domain.trim();
+    if (!rawDomainValue) {
       setAddRouteError(domainType === "custom" ? t.projectSettings.domains.toast.enterCustom : t.projectSettings.domains.toast.enterSubdomain);
       return;
     }
+    const domainValue = domainType === "free"
+      ? managedDomainFromEditing(rawDomainValue, "free", projectData.routeKey, baseDomain)
+      : rawDomainValue;
     setAddRouteSaving(true);
     try {
       await handleServiceRouteUpdate(target.id, {
@@ -1394,11 +1402,17 @@ export const DomainSettings = () => {
                   <input
                     placeholder={newDomainType === "custom" ? t.projectSettings.domains.add.customPlaceholder : projectLabel || t.projectSettings.domains.add.defaultAppName}
                     value={newDomain}
-                    onChange={(e) => setNewDomain(e.target.value)}
+                    onChange={(e) => setNewDomain(
+                      newDomainType === "free"
+                        ? normalizeSubdomainInput(e.target.value)
+                        : e.target.value,
+                    )}
                     className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
                   />
                   {newDomainType === "free" && (
-                    <span className="shrink-0 pe-4 text-sm text-muted-foreground">.{baseDomain}</span>
+                    <span className="shrink-0 select-none pe-4 text-sm text-muted-foreground">
+                      {projectData.routeKey ? `-${projectData.routeKey}` : ""}.{baseDomain}
+                    </span>
                   )}
                 </div>
                 {newDomainHasWww && (
@@ -1655,6 +1669,7 @@ export const DomainSettings = () => {
 
           <PublicEndpointsCard
             projectName={projectLabel}
+            routeKey={projectData.routeKey}
             endpoints={publicEndpoints}
             hasServer={hasProjectServer}
             runtimePort={publicEndpoints[0]?.port || projectRuntimePort}
@@ -1697,12 +1712,19 @@ export const DomainSettings = () => {
                 <div className="flex flex-1 items-center overflow-hidden rounded-xl border border-border/50 bg-background">
                   <input
                     value={addRouteDraft.domain}
-                    onChange={(e) => setAddRouteDraft((d) => ({ ...d, domain: e.target.value }))}
+                    onChange={(e) => setAddRouteDraft((d) => ({
+                      ...d,
+                      domain: d.domainType === "free"
+                        ? normalizeSubdomainInput(e.target.value)
+                        : e.target.value,
+                    }))}
                     placeholder={addRouteDraft.domainType === "custom" ? t.projectSettings.domains.addRoute.customPlaceholder : projectLabel || t.projectSettings.domains.addRoute.defaultServiceName}
                     className="flex-1 bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
                   />
                   {addRouteDraft.domainType === "free" && (
-                    <span className="shrink-0 pe-3 text-sm text-muted-foreground">.{baseDomain}</span>
+                    <span className="shrink-0 select-none pe-3 text-sm text-muted-foreground">
+                      {projectData.routeKey ? `-${projectData.routeKey}` : ""}.{baseDomain}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -1818,6 +1840,7 @@ export const DomainSettings = () => {
             <div className="px-5 py-5">
               <RoutingSettingsCard
                 projectName={projectLabel}
+                routeKey={projectData.routeKey}
                 domain={routeDraft.domain}
                 customDomain={routeDraft.customDomain}
                 domainType={routeDraft.domainType}
