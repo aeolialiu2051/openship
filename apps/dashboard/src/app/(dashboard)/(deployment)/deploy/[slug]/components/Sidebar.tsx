@@ -153,7 +153,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   const { config, state, updateConfig, initializeFromRepo, startDeployment } = useDeployment();
   const { t } = useI18n();
   const { requireCloud } = useCloud();
-  const { baseDomain, selfHosted, deployMode } = usePlatform();
+  const { baseDomain, hostDomain, selfHosted, deployMode } = usePlatform();
   const { installUrl, state: githubState } = useGitHub();
   const { showModal, hideModal } = useModal();
   const { showToast } = useToast();
@@ -393,6 +393,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
 
     if (
       !isServices &&
+      !hostDomain &&
       canConnectCloud &&
       config.deployTarget !== "cloud" &&
       publicEndpointsNeedCloud(config.publicEndpoints)
@@ -405,7 +406,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     }
 
     // Compose services with free managed domains require cloud
-    if (isServices && servicesNeedCloud(config.services)) {
+    if (!hostDomain && isServices && servicesNeedCloud(config.services)) {
       if (!requireCloud({
         feature: interpolate(t.deploy.sidebar.servicesFreeDomainFeature, { domain: baseDomain }),
         description: interpolate(t.deploy.sidebar.servicesFreeDomainDesc, { domain: baseDomain }),
@@ -461,7 +462,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     }
 
     await continueDeploy(buildStrategyOverride ? { buildStrategy: buildStrategyOverride } : undefined);
-  }, [baseDomain, canConnectCloud, cloneGate.hasGlobalToken, cloneGate.preference, config.buildStrategy, config.deployTarget, config.owner, config.projectId, config.serverId, config.publicEndpoints, config.services, continueDeploy, githubState, hideModal, installUrl, isServices, openGithubConnect, requireCloud, selfHosted, showModal, showToast, updateConfig, t]);
+  }, [baseDomain, canConnectCloud, cloneGate.hasGlobalToken, cloneGate.preference, config.buildStrategy, config.deployTarget, config.owner, config.projectId, config.serverId, config.publicEndpoints, config.services, continueDeploy, githubState, hideModal, hostDomain, installUrl, isServices, openGithubConnect, requireCloud, selfHosted, showModal, showToast, updateConfig, t]);
 
   // Edit mode (opened from the project Runtime page with ?mode=config): the
   // finish button SAVES the config to the project and returns — no deploy, no

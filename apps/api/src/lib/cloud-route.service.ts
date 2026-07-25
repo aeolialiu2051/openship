@@ -24,8 +24,9 @@
 
 import { Oblien, PAGE_CONTAINER_PREFIX } from "@repo/adapters";
 import { repos } from "@repo/db";
-import { safeErrorMessage, SYSTEM } from "@repo/core";
+import { safeErrorMessage } from "@repo/core";
 import { getOrgCloudToken } from "./cloud/client";
+import { getRoutingBaseDomain } from "./routing-domains";
 
 /** Minimal project shape needed to locate the cloud handle. */
 export interface CloudRouteProject {
@@ -68,10 +69,7 @@ async function resolveCloudHandle(project: CloudRouteProject): Promise<CloudHand
 }
 
 function managedSlugFromHostname(hostname: string): string {
-  // A cloud project's managed subdomain is always slug.<CLOUD_DOMAIN> (Oblien's
-  // opsh.io) — NOT the self-hosted HOST_DOMAIN. Use the cloud constant so this
-  // matches the deploy path (which exposes on the same domain).
-  const base = `.${SYSTEM.DOMAINS.CLOUD_DOMAIN.toLowerCase()}`;
+  const base = `.${getRoutingBaseDomain().toLowerCase()}`;
   const normalized = hostname.trim().toLowerCase();
   return normalized.endsWith(base) ? normalized.slice(0, -base.length) : normalized;
 }
@@ -126,7 +124,7 @@ export async function reapplyCloudProjectRoute(
     }
     await ws.publicAccess.expose({
       port: input.port,
-      domain: SYSTEM.DOMAINS.CLOUD_DOMAIN,
+      domain: getRoutingBaseDomain(),
       slug: managedSlugFromHostname(input.hostname),
     });
   } catch (err) {

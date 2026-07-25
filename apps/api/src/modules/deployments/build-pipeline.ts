@@ -36,6 +36,8 @@ import {
   buildProjectRouteDomains,
   createTrackedSslProvider,
   ensureRouteDomainRecord,
+  getRoutingBaseDomain,
+  managedDomainsUseCloudEdge,
   toRoutedDomainInputs,
 } from "../../lib/routing-domains";
 import { normalizeTargetPath } from "../../lib/public-endpoints";
@@ -884,6 +886,7 @@ async function executeStaticEdgeDeploy(
     resources: prodResources,
     restartPolicy: "no",
     runtimeName: project.slug ?? project.id,
+    managedDomain: getRoutingBaseDomain(),
     publicEndpoints: routeState.publicEndpoints,
     outputDirectory: resolveStaticOutputDirectory(
       snapshot.outputDirectory,
@@ -1096,6 +1099,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     resources: prodResources,
     restartPolicy: isStaticSelfHosted ? "no" : "always",
     runtimeName: project.slug ?? project.id,
+    managedDomain: getRoutingBaseDomain(),
     publicEndpoints: routeState.publicEndpoints,
     outputDirectory: snapshot.outputDirectory,
     productionPaths: snapshot.productionPaths.length ? snapshot.productionPaths : undefined,
@@ -1378,7 +1382,7 @@ async function runPostDeploySync(opts: {
   // standalone "retry routing" action via syncManagedEdgeRoutes.
   const edgeFailures: string[] = [];
 
-  if (usesManagedRouting) {
+  if (usesManagedRouting && managedDomainsUseCloudEdge()) {
     const managedTargets = plannedDomains
       .filter((d) => d.isCloud && d.managedSubdomain)
       .map((d) => ({ hostname: d.hostname, subdomain: d.managedSubdomain! }));

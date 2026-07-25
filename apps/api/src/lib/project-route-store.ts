@@ -7,7 +7,7 @@ import {
   type StoredPublicEndpoint,
 } from "./public-endpoints";
 import { platform } from "./controller-helpers";
-import { getRoutingBaseDomain } from "./routing-domains";
+import { getRoutingBaseDomain, managedDomainsUseCloudEdge } from "./routing-domains";
 import { generateToken } from "./domain-token";
 
 interface SyncProjectPublicRoutesInput {
@@ -43,6 +43,7 @@ function managedSlug(hostname: string): string | null {
  * reach Oblien - callers treat null as "fall back to local DB".
  */
 async function checkManagedSlugAvailable(hostname: string): Promise<boolean | null> {
+  if (!managedDomainsUseCloudEdge()) return null;
   const slug = managedSlug(hostname);
   if (!slug) return null;
 

@@ -1,6 +1,7 @@
 import { safeErrorMessage } from "@repo/core";
 import { cloudClient } from "./cloud/client";
 import { resolveServerHost } from "./server-target";
+import { getRoutingBaseDomain } from "./routing-domains";
 
 const NO_CLOUD_MEMBER =
   "Cannot sync edge proxy: no member of this organization has linked Openship Cloud";
@@ -68,9 +69,10 @@ export async function syncManagedEdgeRoutes(
  *  closing call-to-action ("redeploy to retry" from a deploy, "retry" from the
  *  standalone retry action). */
 export function edgeUnsyncedWarning(failures: string[], retryHint: string): string {
+  const baseDomain = getRoutingBaseDomain();
   return (
     `Deployed, but the free domain routing didn't sync for ${failures.join(", ")}. ` +
-    `The app is live on the server; the free .opsh.io URL won't resolve until the edge route is created. ` +
+    `The app is live on the server; the free .${baseDomain} URL won't resolve until the edge route is created. ` +
     `Check that the server is reachable from Openship Cloud on port 80, then ${retryHint}.`
   );
 }

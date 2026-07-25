@@ -27,6 +27,19 @@ export function getRoutingBaseDomain(): string {
 }
 
 /**
+ * Whether managed free subdomains need the legacy Openship Cloud edge bridge.
+ *
+ * With no HOST_DOMAIN, `*.opsh.io` is owned by the Openship Cloud edge and a
+ * user-VPS deploy must sync slug -> VPS through that service. A configured
+ * HOST_DOMAIN belongs to the operator instead: DNS, wildcard TLS, and any
+ * cross-VPS ingress are supplied by the operator's own infrastructure, while
+ * Openship still installs the concrete hostname route on the target VPS.
+ */
+export function managedDomainsUseCloudEdge(): boolean {
+  return !env.HOST_DOMAIN?.trim();
+}
+
+/**
  * Self-hosted runtimes whose custom-domain routes are fronted by OpenResty
  * and need a certbot-issued cert (the NginxProvider SSL path). Both `bare`
  * and `docker` self-hosted deploys go through the SAME OpenResty + certbot

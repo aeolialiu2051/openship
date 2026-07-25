@@ -6,8 +6,8 @@
  * independent of the HTTP layer.
  */
 
-import { SYSTEM } from "@repo/core";
 import { getNamespaceClient } from "../../lib/openship-cloud";
+import { getRoutingBaseDomain } from "../../lib/routing-domains";
 
 export async function syncCloudEdgeProxy(
   organizationId: string,
@@ -22,7 +22,7 @@ export async function syncCloudEdgeProxy(
     return { ok: false, status: 400, error: "Invalid slug" };
   }
 
-  const baseDomain = SYSTEM.DOMAINS.CLOUD_DOMAIN;
+  const baseDomain = getRoutingBaseDomain();
   const hostname = `${slug}.${baseDomain}`;
   const target =
     input.target.startsWith("http://") || input.target.startsWith("https://")

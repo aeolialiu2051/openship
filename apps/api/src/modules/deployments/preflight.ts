@@ -26,7 +26,7 @@ import { isStaticService, type DeployableService } from "../../lib/deployable-se
 import { serviceKind } from "./compose/project-services";
 import { resolveClonePlan } from "./clone-plan";
 import { isPublicRepo } from "../github/github.http";
-import { getRoutingBaseDomain } from "../../lib/routing-domains";
+import { getRoutingBaseDomain, managedDomainsUseCloudEdge } from "../../lib/routing-domains";
 import { resolveServerHost } from "../../lib/server-target";
 import { normalizeTargetPath } from "../../lib/public-endpoints";
 import {
@@ -545,8 +545,12 @@ async function checkPublicEndpoints(
       return;
     }
     seenHostnames.add(hostname);
-    // Availability is only verifiable when we can bridge to the SaaS.
-    if (canBridgeCloud) lookups.push({ kind: "slug", index, label, slug });
+    // User-VPS deployments under an operator-owned HOST_DOMAIN are routed by
+    // the operator, so there is no Openship Cloud shared-zone availability
+    // lookup. Cloud-target deployments still ask their runtime provider.
+    if (canBridgeCloud && (effectiveTarget === "cloud" || managedDomainsUseCloudEdge())) {
+      lookups.push({ kind: "slug", index, label, slug });
+    }
   });
 
   // Subdomains this project already holds live — fetched once, not per endpoint.
@@ -595,6 +599,7 @@ async function checkComposeServiceDomains(
   const checks: PreflightCheck[] = [];
   const seen = new Set<string>();
   const baseDomain = getRoutingBaseDomain();
+  const effectiveTarget = resolveEffectiveTarget(platform().target, snapshot ?? {});
 
   for (const service of composeServices) {
     if (!service.exposed) continue;
@@ -629,11 +634,33 @@ async function checkComposeServiceDomains(
     );
     const fqdn = `${subdomain}.${baseDomain}`;
 
+    // HOST_DOMAIN means the operator owns this managed zone. Validate the
+    // hostname locally and let the operator's wildcard DNS / ingress route it;
+    // do not require or warn about Openship Cloud for a user-owned VPS.
+    if (!managedDomainsUseCloudEdge() && effectiveTarget !== "cloud") {
+      if (seen.has(fqdn)) {
+        checks.push({
+          id: `service-domain-${service.name}`,
+          label: `Service domain (${service.name})`,
+          status: "fail",
+          message: `Duplicate service subdomain configured: ${subdomain}`,
+        });
+        continue;
+      }
+      seen.add(fqdn);
+      const result = checkSlugFormat(subdomain);
+      checks.push({
+        ...result,
+        id: `service-domain-${service.name}`,
+        label: `Service subdomain (${service.name})`,
+      });
+      continue;
+    }
+
     // The managed free URL is optional for a user-owned VPS. Missing cloud
     // access must not block the containers from reaching the server; routing
     // can be connected later or replaced with a custom domain.
     if (!cloud) {
-      const effectiveTarget = resolveEffectiveTarget(platform().target, snapshot ?? {});
       checks.push({
         id: `service-domain-${service.name}`,
         label: `Service subdomain (${service.name})`,
@@ -717,8 +744,10 @@ async function resolveCloudPreflight(
   // to ping cloud preflight. Cloud-target deploys obviously need it
   // too (cloud IS doing the deploy). Single authority shared with the pipeline.
   const usesManagedRouting = usesManagedRoutingFor(plat.target, effectiveTarget);
+  const usesCloudManagedRouting = usesManagedRouting && managedDomainsUseCloudEdge();
   const hasManagedPublicEndpoints =
-    opts?.publicEndpoints?.some((endpoint) => endpoint.domainType !== "custom") ?? false;
+    usesCloudManagedRouting &&
+    (opts?.publicEndpoints?.some((endpoint) => endpoint.domainType !== "custom") ?? false);
   // The project-level free-domain slug is a routable web hostname only for a
   // single-app project. In services mode there is no project domain — each
   // service routes via its own endpoint (needsManagedComposeDomains), so an
@@ -726,11 +755,12 @@ async function resolveCloudPreflight(
   // stack migrated to a self-hosted server) must NOT demand a managed free
   // .opsh.io domain it can't route without cloud.
   const needsManagedProjectDomain =
-    (!opts?.multiService && !!opts?.slug && !opts?.customDomain && usesManagedRouting) ||
-    (usesManagedRouting && hasManagedPublicEndpoints);
+    (!opts?.multiService && !!opts?.slug && !opts?.customDomain && usesCloudManagedRouting) ||
+    (usesCloudManagedRouting && hasManagedPublicEndpoints);
   const needsManagedComposeDomains =
-    opts?.composeServices?.some((service) => service.exposed && service.domainType !== "custom") ??
-    false;
+    usesCloudManagedRouting &&
+    (opts?.composeServices?.some((service) => service.exposed && service.domainType !== "custom") ??
+      false);
   const needsCloudPreflight =
     effectiveTarget === "cloud" || needsManagedProjectDomain || needsManagedComposeDomains;
   const requestInput = opts?.publicEndpoints?.length
@@ -1211,15 +1241,18 @@ export async function runPreflightChecks(
   // but the public hostname is served by cloud edge. Single authority shared
   // with the pipeline (deployment-runtime.ts).
   const usesManagedRouting = usesManagedRoutingFor(plat.target, effectiveTarget);
+  const usesCloudManagedRouting = usesManagedRouting && managedDomainsUseCloudEdge();
   const hasEndpointRouting = !!opts?.publicEndpoints?.length;
   const hasManagedProjectDomain =
     !opts?.multiService &&
-    !hasEndpointRouting && !!opts?.slug && !opts?.customDomain && usesManagedRouting;
+    !hasEndpointRouting && !!opts?.slug && !opts?.customDomain && usesCloudManagedRouting;
   const hasManagedPublicEndpoints =
-    opts?.publicEndpoints?.some((endpoint) => endpoint.domainType !== "custom") ?? false;
+    usesCloudManagedRouting &&
+    (opts?.publicEndpoints?.some((endpoint) => endpoint.domainType !== "custom") ?? false);
   const hasManagedComposeDomains =
-    opts?.composeServices?.some((service) => service.exposed && service.domainType !== "custom") ??
-    false;
+    usesCloudManagedRouting &&
+    (opts?.composeServices?.some((service) => service.exposed && service.domainType !== "custom") ??
+      false);
   const cloudRequirement =
     effectiveTarget === "cloud"
       ? "cloud-runtime"

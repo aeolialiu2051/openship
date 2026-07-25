@@ -354,6 +354,8 @@ export interface MultiServiceDeployConfig {
   resources?: { cpuCores?: number; memoryMb?: number };
   publicPort?: number;
   publicSlug?: string;
+  /** Operator-configured base domain for managed/free subdomains. */
+  managedDomain?: string;
   customDomain?: string;
   expose?: boolean;
   /** Cloud only: the workspace id this service used in the PREVIOUS deployment.

@@ -124,6 +124,10 @@ function exposeTarget(port: number, slug?: string, domain: string = SYSTEM.DOMAI
   return slug ? `port ${port} for slug "${slug}" (${slug}.${domain})` : `port ${port}`;
 }
 
+function managedDomain(config: Pick<DeployConfig, "managedDomain">): string {
+  return config.managedDomain?.trim() || SYSTEM.DOMAINS.CLOUD_DOMAIN;
+}
+
 type DeployPrimaryEndpoint = NonNullable<DeployConfig["publicEndpoints"]>[number];
 
 /**
@@ -1661,21 +1665,22 @@ fi`;
         );
       }
     } else if (primarySlug) {
+      const domain = managedDomain(config);
       try {
         log({
           timestamp: now(),
           level: "info",
-          message: `Exposing ${exposeTarget(primaryPort, primarySlug)}...\n`,
+          message: `Exposing ${exposeTarget(primaryPort, primarySlug, domain)}...\n`,
         });
         const exposeResult = await ws.publicAccess.expose({
           port: primaryPort,
-          domain: SYSTEM.DOMAINS.CLOUD_DOMAIN,
+          domain,
           slug: primarySlug,
         });
         url = exposeResult.url as string | undefined;
       } catch (err) {
         throw new Error(
-          `Failed to expose ${exposeTarget(primaryPort, primarySlug)}: ${safeErrorMessage(err)}`,
+          `Failed to expose ${exposeTarget(primaryPort, primarySlug, domain)}: ${safeErrorMessage(err)}`,
         );
       }
     } else {
@@ -1717,6 +1722,7 @@ fi`;
     const primarySlug = endpointSlug(primaryEndpoint);
     const primaryCustomDomain = endpointCustomDomain(primaryEndpoint);
     const pageSlug = primarySlug ?? fallbackRuntimeName(config);
+    const domain = managedDomain(config);
     const wantFree = !primaryCustomDomain && !!primarySlug;
 
     // A clear, Vercel-style error for output-directory problems instead of
@@ -1786,13 +1792,13 @@ fi`;
             path: outputPath,
             name: config.projectName ?? pageSlug,
             slug: pageSlug,
-            domain: SYSTEM.DOMAINS.CLOUD_DOMAIN,
+            domain,
           });
           return result.page;
         } catch (err) {
           if (isOutputPathError(err)) throw outputDirError();
           throw new Error(
-            `Failed to create static page for slug "${pageSlug}" (${pageSlug}.opsh.io): ${safeErrorMessage(err)}`,
+            `Failed to create static page for slug "${pageSlug}" (${pageSlug}.${domain}): ${safeErrorMessage(err)}`,
           );
         }
       }
@@ -1829,7 +1835,7 @@ fi`;
       (primaryCustomDomain
         ? existingPage.custom_domain === primaryCustomDomain
         : wantFree
-          ? existingPage.domain === SYSTEM.DOMAINS.CLOUD_DOMAIN
+          ? existingPage.domain === domain
           : true);
 
     if (existingPage && bindingMatches) {

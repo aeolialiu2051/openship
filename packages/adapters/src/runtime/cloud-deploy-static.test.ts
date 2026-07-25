@@ -11,7 +11,7 @@ import type { DeployConfig } from "../types";
 // "Couldn't find the build output directory '.' after the build finished".
 // The path exported to the edge must be a clean `/app`.
 describe("CloudRuntime.deployStatic output path (regression #66)", () => {
-  function fakeClientRecording(created: Array<{ path: string }>) {
+  function fakeClientRecording(created: Array<{ path: string; domain?: string }>) {
     return {
       pages: {
         get: async () => null,
@@ -57,6 +57,19 @@ describe("CloudRuntime.deployStatic output path (regression #66)", () => {
     await rt.deployStatic({ ...baseConfig, outputDirectory: "dist" });
 
     expect(created[0].path).toBe("/app/dist");
+  });
+
+  test("uses the configured managed domain for free static pages", async () => {
+    const created: Array<{ path: string; domain?: string }> = [];
+    const rt = new CloudRuntime(fakeClientRecording(created) as never);
+
+    await rt.deployStatic({
+      ...baseConfig,
+      managedDomain: "vibrail.warpgateapi.com",
+      outputDirectory: "dist",
+    });
+
+    expect(created[0].domain).toBe("vibrail.warpgateapi.com");
   });
 
   test("a ../ traversal that escapes /app is rejected", async () => {

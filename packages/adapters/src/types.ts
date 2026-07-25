@@ -213,6 +213,8 @@ export interface DeployConfig {
   restartPolicy?: "always" | "on-failure" | "no";
   /** Runtime-safe identifier used for workload/container/page naming. */
   runtimeName?: string;
+  /** Operator-configured base domain for managed/free subdomains. */
+  managedDomain?: string;
   /** Authoritative public route mappings for this workload. */
   publicEndpoints?: DeployPublicEndpoint[];
   /** Files/directories to copy into /app/production/ before starting the workload.

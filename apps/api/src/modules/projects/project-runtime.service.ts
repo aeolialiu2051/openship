@@ -8,7 +8,7 @@ import type { LogEntry } from "@repo/adapters";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
-import { resolveManagedHostname } from "../../lib/routing-domains";
+import { managedDomainsUseCloudEdge, resolveManagedHostname } from "../../lib/routing-domains";
 
 // ─── Runtime logs ────────────────────────────────────────────────────────────
 
@@ -117,6 +117,13 @@ export async function retryProjectRouting(
     : null;
   const serverId = (dep?.meta as { serverId?: string } | null)?.serverId ?? undefined;
 
+  // Operator-owned HOST_DOMAIN routes do not use the legacy Openship Cloud
+  // edge bridge. Clear any warning left by an older deployment/configuration.
+  if (!managedDomainsUseCloudEdge()) {
+    await clearRoutingWarning(dep);
+    return { ok: true };
+  }
+
   const targets = (await repos.domain.listByProject(projectId))
     .map((d) => ({ hostname: d.hostname, ...resolveManagedHostname(d.hostname) }))
     .filter((m) => m.isManaged && m.subdomain)
@@ -151,5 +158,3 @@ async function clearRoutingWarning(
   delete meta.deployWarning;
   await repos.deployment.updateStatus(dep.id, dep.status, { meta });
 }
-
-

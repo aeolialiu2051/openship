@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cloudClient, runCloudPreflight, preflightFn } = vi.hoisted(() => ({
+const { cloudClient, runCloudPreflight, preflightFn, managedDomainsUseCloudEdge } = vi.hoisted(() => ({
   cloudClient: vi.fn(),
   runCloudPreflight: vi.fn(),
   preflightFn: vi.fn(),
+  managedDomainsUseCloudEdge: vi.fn(() => true),
 }));
 
 vi.mock("@repo/db", async (importOriginal) => {
@@ -32,6 +33,14 @@ vi.mock("../../../src/lib/cloud-preflight", () => ({
   runCloudPreflight,
 }));
 
+vi.mock("../../../src/lib/routing-domains", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../src/lib/routing-domains")>();
+  return {
+    ...actual,
+    managedDomainsUseCloudEdge,
+  };
+});
+
 import { runPreflightChecks } from "../../../src/modules/deployments/preflight";
 
 describe("runPreflightChecks", () => {
@@ -39,6 +48,8 @@ describe("runPreflightChecks", () => {
     runCloudPreflight.mockReset();
     cloudClient.mockReset();
     preflightFn.mockReset();
+    managedDomainsUseCloudEdge.mockReset();
+    managedDomainsUseCloudEdge.mockReturnValue(true);
     preflightFn.mockImplementation(async (input: { slug?: string }) => ({
       runtime: { ok: true },
       slug: input.slug
@@ -160,6 +171,35 @@ describe("runPreflightChecks", () => {
         }),
       ]),
     );
+  });
+
+  it("does not call Openship Cloud for a user-owned VPS under HOST_DOMAIN", async () => {
+    managedDomainsUseCloudEdge.mockReturnValue(false);
+
+    const result = await runPreflightChecks({
+      repoUrl: "https://github.com/acme/app.git",
+      branch: "main",
+      buildImage: "node:22",
+      installCommand: "npm install",
+      buildCommand: "npm run build",
+      startCommand: "npm start",
+      port: 3000,
+      hasBuild: true,
+      hasServer: true,
+      deployTarget: "server",
+      serverId: "srv-vps",
+      organizationId: "org-1",
+    } as any, {
+      ctx: { userId: "user-1", organizationId: "org-1" } as any,
+      buildStrategy: "server",
+      publicEndpoints: [
+        { port: 3000, domain: "my-vps-app", domainType: "free" },
+      ],
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.checks.some((check) => check.label === "Free domain routing")).toBe(false);
+    expect(preflightFn).not.toHaveBeenCalled();
   });
 
   it("does not require framework build fields for compose service deploys", async () => {

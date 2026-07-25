@@ -200,7 +200,7 @@ export function useDeploymentBuild(
 ) {
   const { showToast } = useToast();
   const { requireCloud } = useCloud();
-  const { baseDomain, selfHosted, deployMode } = usePlatform();
+  const { baseDomain, hostDomain, selfHosted, deployMode } = usePlatform();
   const { showModal, hideModal } = useModal();
   const openGithubConnect = useServerGitHubConnectModal();
   const { installUrl, state: githubState } = useGitHub();
@@ -803,12 +803,14 @@ export function useDeploymentBuild(
 
       const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
       const needsManagedProjectDomainHelp =
+        !hostDomain &&
         canConnectCloud &&
         !usesServiceDeployment(config) &&
         config.deployTarget !== "cloud" &&
         publicEndpointsNeedCloud(config.publicEndpoints) &&
         errorCode === "CLOUD_REQUIRED_MANAGED_PROJECT_DOMAIN";
       const needsManagedComposeDomainHelp =
+        !hostDomain &&
         canConnectCloud &&
         usesServiceDeployment(config) &&
         errorCode === "CLOUD_REQUIRED_MANAGED_COMPOSE_DOMAINS";
@@ -885,7 +887,7 @@ export function useDeploymentBuild(
       setState((prev) => ({ ...prev, isDeploying: false }));
       return null;
     }
-  }, [baseDomain, config, deployMode, hideModal, installUrl, openGithubConnect, requireCloud, selfHosted, setConfig, showModal, showToast]);
+  }, [baseDomain, config, deployMode, hideModal, hostDomain, installUrl, openGithubConnect, requireCloud, selfHosted, setConfig, showModal, showToast]);
 
   // `startBuild` controls which SSE endpoint to hit:
   //   - true  → POST /:id/build, which ALSO kicks off the build. Now only

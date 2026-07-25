@@ -85,6 +85,10 @@ function exposeTarget(port: number, serviceName: string, slug?: string, domain: 
   return slug ? `${service} for slug "${slug}" (${slug}.${domain})` : service;
 }
 
+function managedDomain(config: Pick<MultiServiceDeployConfig, "managedDomain">): string {
+  return config.managedDomain?.trim() || SYSTEM.DOMAINS.CLOUD_DOMAIN;
+}
+
 function errorMessage(err: unknown) {
   return safeErrorMessage(err);
 }
@@ -281,26 +285,27 @@ export class CloudComposeSupport {
             level: "info",
           });
         } else if (config.publicSlug) {
+          const domain = managedDomain(config);
           log({
             timestamp: now(),
-            message: `Exposing ${exposeTarget(port, config.serviceName, config.publicSlug)}...\n`,
+            message: `Exposing ${exposeTarget(port, config.serviceName, config.publicSlug, domain)}...\n`,
             level: "info",
           });
           await withCloudOperationTimeout(
             ws.publicAccess.expose({
               port,
-              domain: SYSTEM.DOMAINS.CLOUD_DOMAIN,
+              domain,
               slug: config.publicSlug,
             }),
             `Exposing public access for service "${config.serviceName}"`,
           ).catch((err) => {
             throw new Error(
-              `Failed to expose ${exposeTarget(port, config.serviceName, config.publicSlug)}: ${errorMessage(err)}`,
+              `Failed to expose ${exposeTarget(port, config.serviceName, config.publicSlug, domain)}: ${errorMessage(err)}`,
             );
           });
           log({
             timestamp: now(),
-            message: `Exposed ${exposeTarget(port, config.serviceName, config.publicSlug)}.\n`,
+            message: `Exposed ${exposeTarget(port, config.serviceName, config.publicSlug, domain)}.\n`,
             level: "info",
           });
         }

@@ -10,7 +10,7 @@
  */
 
 import { repos, type Deployment, type Domain, type Project, type Service } from "@repo/db";
-import { SYSTEM, resolveServiceHostnameLabel, resolvePublicUrlPlaceholders, type ComposeAdvanced } from "@repo/core";
+import { resolveServiceHostnameLabel, resolvePublicUrlPlaceholders, type ComposeAdvanced } from "@repo/core";
 import {
   BuildLogger,
   DEFAULT_RESOURCE_CONFIG,
@@ -34,6 +34,8 @@ import {
   buildServiceRouteDomains,
   createTrackedSslProvider,
   ensureRouteDomainRecord,
+  getRoutingBaseDomain,
+  managedDomainsUseCloudEdge,
   toRoutedDomainInputs,
   type PlannedRouteDomain,
 } from "../../../lib/routing-domains";
@@ -132,7 +134,7 @@ function resolveServicePublicUrl(project: Project, service: Service): string | u
   if (customDomain) return `https://${customDomain}`;
 
   const publicSlug = resolveServicePublicSlug(project, service);
-  return publicSlug ? `https://${publicSlug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}` : undefined;
+  return publicSlug ? `https://${publicSlug}.${getRoutingBaseDomain()}` : undefined;
 }
 
 /** Every public endpoint's assigned URL for a service, keyed by container port.
@@ -153,7 +155,7 @@ function resolveServiceEndpointUrls(project: Project, service: Service): Array<{
       endpoint.domain ?? undefined,
       serviceKind(service),
     );
-    if (slug) urls.push({ port: endpoint.port, url: `https://${slug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}` });
+    if (slug) urls.push({ port: endpoint.port, url: `https://${slug}.${getRoutingBaseDomain()}` });
   }
   return urls;
 }
@@ -246,6 +248,7 @@ function createServiceRuntimeConfig(opts: {
     expose: service.exposed,
     publicPort: resolveServicePublicPort(service),
     publicSlug: resolveServicePublicSlug(project, service),
+    managedDomain: getRoutingBaseDomain(),
     customDomain: resolveServiceCustomDomain(service),
     previousWorkspaceId,
     dependsOn: (service.dependsOn as string[]) ?? undefined,
@@ -285,6 +288,7 @@ function createServiceDeployConfig(opts: {
     resources: resources ?? DEFAULT_RESOURCE_CONFIG,
     restartPolicy: toDeployRestartPolicy(service.restart ?? undefined),
     runtimeName: publicSlug ?? `${project.slug}-${service.name}`,
+    managedDomain: getRoutingBaseDomain(),
     publicEndpoints: servicePublicEndpoints.length > 0 ? servicePublicEndpoints : undefined,
   };
 }
@@ -997,7 +1001,7 @@ export async function deployComposeServices(
       // free URL via Openship Cloud, so a failure here (403, slug taken,
       // unreachable) must not flip a healthy service to "failed".
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);
-      if (routeContext?.usesManagedRouting && managedRoutes.length > 0) {
+      if (routeContext?.usesManagedRouting && managedDomainsUseCloudEdge() && managedRoutes.length > 0) {
         for (const managedRoute of managedRoutes) {
           logger.log(`Syncing managed edge proxy for ${managedRoute.hostname}...\n`, "info", {
             serviceName: svc.name,
