@@ -340,17 +340,17 @@ const DeployRepository: React.FC = () => {
                 {/* Step 2: Project configuration */}
                 {step === "config" && (
                     <>
+                        {/* Keep this in normal flow: a sticky layer would overlap the
+                            translucent configuration cards while the page scrolls. */}
                         {scanningBranch && config.owner && config.repo && (
-                            <div className="sticky top-4 z-50">
-                                <DeploymentAnalysisStatus
-                                    source={{
-                                        kind: "repo",
-                                        owner: config.owner,
-                                        repo: config.repo,
-                                        branch: scanningBranch,
-                                    }}
-                                />
-                            </div>
+                            <DeploymentAnalysisStatus
+                                source={{
+                                    kind: "repo",
+                                    owner: config.owner,
+                                    repo: config.repo,
+                                    branch: scanningBranch,
+                                }}
+                            />
                         )}
                         <div className="grid lg:grid-cols-[1fr_340px] gap-6">
                             <div className="space-y-5">
