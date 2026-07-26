@@ -14,7 +14,7 @@ export function PageContainer({
   fullScreen = true,
 }: PageContainerProps) {
   const inner = (
-    <div className={cn("max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6", className)}>
+    <div className={cn("w-full min-w-0 max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6", className)}>
       {children}
     </div>
   );

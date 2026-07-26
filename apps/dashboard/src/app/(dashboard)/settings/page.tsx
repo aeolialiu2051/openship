@@ -14,7 +14,7 @@
  *   - instance  → instance info + data export/import (self-hosted, owner-gated)
  */
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import dynamic from "next/dynamic";
 import { usePlatform } from "@/context/PlatformContext";
@@ -26,6 +26,7 @@ import {
   SettingsSidebar,
   SettingsMobileTabs,
   useSettingsTabs,
+  type SettingsTabId,
 } from "./_components/SettingsSidebar";
 import { PageContainer } from "@/components/ui/PageContainer";
 
@@ -82,6 +83,21 @@ function SettingsPageInner() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const { activeTab } = useSettingsTabs();
+  const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(
+    () => new Set([activeTab]),
+  );
+
+  useEffect(() => {
+    setVisitedTabs((current) => {
+      if (current.has(activeTab)) return current;
+      const next = new Set(current);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+  const renderedTabs = visitedTabs.has(activeTab)
+    ? visitedTabs
+    : new Set(visitedTabs).add(activeTab);
 
   // Build preferences: only self-hosted — SaaS manages builds.
   const showBuildPreferences = selfHosted;
@@ -112,38 +128,52 @@ function SettingsPageInner() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 mt-4 lg:mt-0">
         {/* ── ACTIVE TAB CONTENT (left, primary) ── */}
         <div className="space-y-6 min-w-0">
-          {activeTab === "general" && (
-            <>
+          {renderedTabs.has("general") && (
+            <div className={activeTab === "general" ? "contents" : "hidden"}>
               <GitHubConnection />
               {showDeployDefaults && <DeployDefaults />}
               {showBuildPreferences && <BuildPreferences />}
               <LanguageSetting />
-            </>
+            </div>
           )}
 
-          {activeTab === "account" && <AccountSecurity />}
+          {renderedTabs.has("account") && (
+            <div className={activeTab === "account" ? "contents" : "hidden"}><AccountSecurity /></div>
+          )}
 
-          {activeTab === "tokens" && (
-            <>
+          {renderedTabs.has("tokens") && (
+            <div className={activeTab === "tokens" ? "contents" : "hidden"}>
               <CloneCredentials />
               <PersonalAccessTokens />
-            </>
+            </div>
           )}
 
-          {activeTab === "mcp" && <McpConnection />}
+          {renderedTabs.has("mcp") && (
+            <div className={activeTab === "mcp" ? "contents" : "hidden"}><McpConnection /></div>
+          )}
 
-          {activeTab === "team" && <TeamTab />}
+          {renderedTabs.has("team") && (
+            <div className={activeTab === "team" ? "contents" : "hidden"}><TeamTab /></div>
+          )}
 
-          {activeTab === "notifications" && <NotificationsTab />}
+          {renderedTabs.has("notifications") && (
+            <div className={activeTab === "notifications" ? "contents" : "hidden"}><NotificationsTab /></div>
+          )}
 
-          {activeTab === "email" && selfHosted && <EmailSettings />}
+          {renderedTabs.has("email") && selfHosted && (
+            <div className={activeTab === "email" ? "contents" : "hidden"}><EmailSettings /></div>
+          )}
 
-          {activeTab === "audit" && <AuditTab />}
+          {renderedTabs.has("audit") && (
+            <div className={activeTab === "audit" ? "contents" : "hidden"}><AuditTab /></div>
+          )}
 
-          {activeTab === "cloud" && selfHosted && <CloudConnection />}
+          {renderedTabs.has("cloud") && selfHosted && (
+            <div className={activeTab === "cloud" ? "contents" : "hidden"}><CloudConnection /></div>
+          )}
 
-          {activeTab === "instance" && (
-            <>
+          {renderedTabs.has("instance") && (
+            <div className={activeTab === "instance" ? "contents" : "hidden"}>
               <InstanceInfo />
               {/* Updates live under Instance (the "this install" home). Not on
                   the SaaS — the managed cloud has nothing for the user to update. */}
@@ -151,7 +181,7 @@ function SettingsPageInner() {
               {/* Full-DB export/import (owner-gated inside the component);
                   self-hosted only — SaaS has no portable DB. */}
               {selfHosted && <DataTransferTab />}
-            </>
+            </div>
           )}
         </div>
 

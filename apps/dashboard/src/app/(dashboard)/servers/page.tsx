@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Server,
@@ -205,10 +206,10 @@ export default function ServersPage() {
                   const AuthIcon = server.auth === "password" ? Lock : KeyRound;
                   const fwd = forwardCounts[server.id] ?? 0;
                   return (
-                    <button
+                    <Link
                       key={server.id}
-                      onClick={() => router.push(`/servers/${server.id}`)}
-                      className="group flex w-full items-center gap-3.5 px-5 py-3 text-start transition-colors hover:bg-muted/40"
+                      href={`/servers/${server.id}`}
+                      className="group flex min-h-14 w-full items-center gap-3 px-4 py-3 text-start transition-colors hover:bg-muted/40 sm:gap-3.5 sm:px-5"
                     >
                       {/* Avatar — full country flag when we can geolocate the IP, else glyph.
                           Fixed 36px slot keeps the name column aligned across rows. */}
@@ -226,13 +227,13 @@ export default function ServersPage() {
                       })()}
 
                       {/* Name + host (fixed column — keeps meta aligned, no dead gap) */}
-                      <div className="w-44 min-w-0 shrink-0 text-start lg:w-56">
+                      <div className="min-w-0 flex-1 text-start sm:w-44 sm:flex-none lg:w-56">
                         <p className="truncate text-sm font-medium text-foreground">{server.name}</p>
                         <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{server.host}</p>
                       </div>
 
                       {/* Meta chips */}
-                      <div className="flex min-w-0 flex-1 items-center gap-3 overflow-hidden">
+                      <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-hidden sm:flex">
                         <span
                           title={t.servers.list.projects}
                           className={`inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-0.5 text-xs ${
@@ -265,11 +266,11 @@ export default function ServersPage() {
                           className={`inline-flex items-center gap-1.5 text-xs font-medium ${sm.text}`}
                         >
                           <span className={`size-1.5 rounded-full ${sm.dot}`} />
-                          {t.servers.list[state]}
+                          <span className="hidden sm:inline">{t.servers.list[state]}</span>
                         </span>
                         <ArrowRight className="size-4 text-muted-foreground/40 transition-colors group-hover:text-muted-foreground rtl:rotate-180" />
                       </div>
-                    </button>
+                    </Link>
                   );
                 })}
               </div>

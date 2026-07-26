@@ -16,6 +16,7 @@
  */
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef } from "react";
 import {
   Settings as SettingsIcon,
   Users,
@@ -52,6 +53,32 @@ export interface SettingsTab {
   visible: boolean;
   /** Disabled when the user lacks the required role within the active org. */
   requiresRole?: "owner" | "admin" | "member";
+}
+
+/** Warm the dynamic chunks that belong to a tab before the user selects it. */
+export function preloadSettingsTab(tabId: SettingsTabId): void {
+  const loads: Partial<Record<SettingsTabId, Array<() => Promise<unknown>>>> = {
+    general: [
+      () => import("./GitHubConnection"),
+      () => import("./DeployDefaults"),
+      () => import("./BuildPreferences"),
+      () => import("./LanguageSetting"),
+    ],
+    account: [() => import("./AccountSecurity")],
+    tokens: [() => import("./CloneCredentials"), () => import("./PersonalAccessTokens")],
+    mcp: [() => import("./McpConnection")],
+    team: [() => import("./TeamTab")],
+    notifications: [() => import("./NotificationsTab")],
+    email: [() => import("./EmailSettings")],
+    audit: [() => import("./AuditTab")],
+    cloud: [() => import("./CloudConnection")],
+    instance: [
+      () => import("./InstanceInfo"),
+      () => import("./UpdatesTab"),
+      () => import("./DataTransferTab"),
+    ],
+  };
+  for (const load of loads[tabId] ?? []) void load().catch(() => {});
 }
 
 export function useSettingsTabs(): { tabs: SettingsTab[]; activeTab: SettingsTabId } {
@@ -159,6 +186,9 @@ export function SettingsSidebar() {
                 key={tab.id}
                 type="button"
                 onClick={() => handleTabChange(tab.id)}
+                onPointerEnter={() => preloadSettingsTab(tab.id)}
+                onFocus={() => preloadSettingsTab(tab.id)}
+                onTouchStart={() => preloadSettingsTab(tab.id)}
                 className={`w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14px] font-medium transition-colors ${
                   isActive
                     ? "bg-foreground/[0.07] text-foreground"
@@ -180,6 +210,11 @@ export function SettingsSidebar() {
 export function SettingsMobileTabs() {
   const router = useRouter();
   const { tabs, activeTab } = useSettingsTabs();
+  const activeTabRef = useRef<HTMLButtonElement | null>(null);
+
+  useEffect(() => {
+    activeTabRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
+  }, [activeTab]);
 
   const handleTabChange = (tabId: SettingsTabId) => {
     const url = tabId === "general" ? "/settings" : `/settings?tab=${tabId}`;
@@ -195,9 +230,13 @@ export function SettingsMobileTabs() {
           return (
             <button
               key={tab.id}
+              ref={isActive ? activeTabRef : undefined}
               type="button"
               onClick={() => handleTabChange(tab.id)}
-              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
+              onPointerEnter={() => preloadSettingsTab(tab.id)}
+              onFocus={() => preloadSettingsTab(tab.id)}
+              onTouchStart={() => preloadSettingsTab(tab.id)}
+              className={`inline-flex min-h-11 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium whitespace-nowrap transition-colors ${
                 isActive
                   ? "bg-foreground/[0.07] text-foreground"
                   : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
