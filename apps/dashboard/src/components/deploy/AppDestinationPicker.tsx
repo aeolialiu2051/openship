@@ -1,18 +1,19 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { Server, Cloud, Cpu, Plus } from "lucide-react";
+import { useEffect } from "react";
+import { Server, Cloud, Plus } from "lucide-react";
 import {
   OptionCard,
+  ServerPicker,
   useDeployTargets,
   lastPickStore,
 } from "@/app/(dashboard)/(deployment)/deploy/[slug]/components/DeployTargetStep";
 import { AddServerModal } from "@/app/(dashboard)/(deployment)/deploy/[slug]/components/AddServerModal";
-import type { DeployTarget } from "@/context/deployment/types";
-import { useI18n } from "@/components/i18n-provider";
+import { interpolate, useI18n } from "@/components/i18n-provider";
+import { useModal } from "@/context/ModalContext";
 
 export interface AppDestination {
-  deployTarget: DeployTarget;
+  deployTarget: "server" | "cloud";
   serverId?: string;
 }
 
@@ -25,37 +26,57 @@ export interface AppDestination {
 export function AppDestinationPicker({
   value,
   onChange,
-  allowLocal = false,
 }: {
   value: AppDestination | null;
   onChange: (d: AppDestination) => void;
-  allowLocal?: boolean;
 }) {
   const targets = useDeployTargets();
   const { t } = useI18n();
-  const w = t.projectSettings.appInstall;
+  const { showModal, hideModal } = useModal();
   const opt = t.deploy.targetStep.options;
-  const [showAdd, setShowAdd] = useState(false);
+  const hasServers = targets.servers.length > 0;
+  const isSingleServer = targets.servers.length === 1;
 
   const pick = (d: AppDestination) => {
     onChange(d);
     lastPickStore.write({ target: d.deployTarget, serverId: d.serverId ?? null });
   };
 
-  // Seed once targets resolve + nothing chosen: last pick (if still valid),
-  // else first server, else cloud. Never overrides an explicit choice.
+  const openAddServer = () => {
+    const modalId = showModal({
+      width: "720px",
+      maxWidth: "92vw",
+      showCloseButton: false,
+      customContent: (
+        <AddServerModal
+          onCancel={() => hideModal(modalId)}
+          onCreated={(server) => {
+            hideModal(modalId);
+            targets.refreshServers();
+            pick({ deployTarget: "server", serverId: server.id });
+          }}
+        />
+      ),
+    });
+  };
+
+  // Seed once targets resolve + nothing chosen: a valid server/cloud last pick,
+  // else first server, else cloud. Local deploys are intentionally unavailable
+  // from the Apps installer even if another deploy flow remembered one.
   useEffect(() => {
     if (!targets.ready || value) return;
     const last = lastPickStore.read();
     if (
-      last &&
-      (last.target !== "server" ||
-        (!!last.serverId && targets.servers.some((s) => s.id === last.serverId)))
+      last?.target === "server" &&
+      !!last.serverId &&
+      targets.servers.some((s) => s.id === last.serverId)
     ) {
-      onChange({ deployTarget: last.target, serverId: last.serverId ?? undefined });
+      onChange({ deployTarget: "server", serverId: last.serverId });
+    } else if (last?.target === "cloud" && targets.hasCloudOption) {
+      onChange({ deployTarget: "cloud" });
     } else if (targets.servers.length > 0) {
       onChange({ deployTarget: "server", serverId: targets.servers[0].id });
-    } else {
+    } else if (targets.hasCloudOption) {
       onChange({ deployTarget: "cloud" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -67,17 +88,32 @@ export function AppDestinationPicker({
 
   return (
     <div className="space-y-2">
-      {targets.servers.map((s) => (
+      {hasServers && (
         <OptionCard
-          key={s.id}
-          value={`server:${s.id}`}
-          selected={value?.deployTarget === "server" && value.serverId === s.id}
-          onSelect={() => pick({ deployTarget: "server", serverId: s.id })}
+          value="server"
+          selected={value?.deployTarget === "server"}
+          onSelect={() => pick({
+            deployTarget: "server",
+            serverId: value?.deployTarget === "server" && value.serverId
+              ? value.serverId
+              : targets.servers[0].id,
+          })}
           icon={<Server className="size-4" />}
-          label={s.name || s.sshHost}
-          description={`${s.sshUser || "root"}@${s.sshHost}`}
-        />
-      ))}
+          label={isSingleServer ? (targets.servers[0].name || targets.servers[0].sshHost) : opt.servers}
+          description={isSingleServer
+            ? opt.serverViaSsh
+            : interpolate(opt.serversCount, { count: String(targets.servers.length) })}
+        >
+          {!isSingleServer && value?.deployTarget === "server" && (
+            <ServerPicker
+              servers={targets.servers}
+              selectedId={value.serverId}
+              onSelect={(server) => pick({ deployTarget: "server", serverId: server.id })}
+              onAddServer={openAddServer}
+            />
+          )}
+        </OptionCard>
+      )}
 
       {targets.hasCloudOption && (
         <OptionCard
@@ -90,35 +126,16 @@ export function AppDestinationPicker({
         />
       )}
 
-      {allowLocal && (
-        <OptionCard
-          value="local"
-          selected={value?.deployTarget === "local"}
-          onSelect={() => pick({ deployTarget: "local" })}
-          icon={<Cpu className="size-4" />}
-          label={w.destLocal}
-          description={w.destLocalDesc}
-        />
+      {!(value?.deployTarget === "server" && !isSingleServer) && (
+        <button
+          type="button"
+          onClick={openAddServer}
+          className="inline-flex items-center gap-1.5 px-1 pt-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <Plus className="size-3.5" /> {t.deploy.targetStep.addServer}
+        </button>
       )}
 
-      <button
-        type="button"
-        onClick={() => setShowAdd(true)}
-        className="inline-flex items-center gap-1.5 px-1 pt-1 text-xs font-medium text-muted-foreground hover:text-foreground"
-      >
-        <Plus className="size-3.5" /> {t.deploy.targetStep.addServer}
-      </button>
-
-      {showAdd && (
-        <AddServerModal
-          onCancel={() => setShowAdd(false)}
-          onCreated={(server) => {
-            setShowAdd(false);
-            targets.refreshServers();
-            pick({ deployTarget: "server", serverId: server.id });
-          }}
-        />
-      )}
     </div>
   );
 }

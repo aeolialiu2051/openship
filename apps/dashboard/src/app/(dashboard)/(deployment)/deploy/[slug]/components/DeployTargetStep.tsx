@@ -111,7 +111,7 @@ const ServerRowContent: React.FC<{ server: ServerInfo; active: boolean }> = ({ s
   </>
 );
 
-const ServerPicker: React.FC<ServerPickerProps> = ({ servers, selectedId, onSelect, onAddServer }) => {
+export const ServerPicker: React.FC<ServerPickerProps> = ({ servers, selectedId, onSelect, onAddServer }) => {
   const { t } = useI18n();
   const ts = t.deploy.targetStep;
   const selected = servers.find((s) => s.id === selectedId);

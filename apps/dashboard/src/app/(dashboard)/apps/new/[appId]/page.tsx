@@ -196,7 +196,7 @@ export default function AppInstallPage() {
   };
 
   const install = async () => {
-    if (busy) return;
+    if (busy || !destination || destination.deployTarget === "cloud") return;
     if (
       needsDomain &&
       !internalOnly &&
@@ -362,7 +362,7 @@ export default function AppInstallPage() {
               <h3 className="text-sm font-semibold text-foreground">{w.destinationTitle}</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">{w.destinationHint}</p>
               <div className="mt-4">
-                <AppDestinationPicker value={destination} onChange={setDestination} allowLocal />
+                <AppDestinationPicker value={destination} onChange={setDestination} />
               </div>
             </div>
 
@@ -371,11 +371,15 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={install}
-                disabled={busy}
+                disabled={busy || !destination || destination.deployTarget === "cloud"}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4 rtl:rotate-180" />}
-                {busy ? w.installing : w.install}
+                {busy
+                  ? <Loader2 className="size-4 animate-spin" />
+                  : destination?.deployTarget !== "cloud" && <ArrowRight className="size-4 rtl:rotate-180" />}
+                {destination?.deployTarget === "cloud"
+                  ? t.deploy.targetStep.comingSoon
+                  : busy ? w.installing : w.install}
               </button>
               <button
                 type="button"
@@ -392,4 +396,3 @@ export default function AppInstallPage() {
     </PageContainer>
   );
 }
-

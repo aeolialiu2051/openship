@@ -102,7 +102,7 @@ export default function MailWizardPage() {
   }, [phase, deploymentId, baseDomain]);
 
   const deploy = async () => {
-    if (busy) return;
+    if (busy || !destination || destination.deployTarget === "cloud") return;
     const host = hostname.trim().toLowerCase();
     if (!host) {
       showToast(m.hostnameRequired, "error");
@@ -302,18 +302,22 @@ export default function MailWizardPage() {
                 <h3 className="text-sm font-semibold text-foreground">{w.destinationTitle}</h3>
                 <p className="mt-0.5 text-xs text-muted-foreground">{w.destinationHint}</p>
                 <div className="mt-4">
-                  <AppDestinationPicker value={destination} onChange={setDestination} allowLocal />
+                  <AppDestinationPicker value={destination} onChange={setDestination} />
                 </div>
               </div>
 
               <button
                 type="button"
                 onClick={deploy}
-                disabled={busy || !destination}
+                disabled={busy || !destination || destination.deployTarget === "cloud"}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4 rtl:rotate-180" />}
-                {busy ? m.deploying : m.deploy}
+                {busy
+                  ? <Loader2 className="size-4 animate-spin" />
+                  : destination?.deployTarget !== "cloud" && <ArrowRight className="size-4 rtl:rotate-180" />}
+                {destination?.deployTarget === "cloud"
+                  ? t.deploy.targetStep.comingSoon
+                  : busy ? m.deploying : m.deploy}
               </button>
             </div>
           </div>
