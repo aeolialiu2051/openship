@@ -129,7 +129,7 @@ function SettingsPageInner() {
         {/* ── ACTIVE TAB CONTENT (left, primary) ── */}
         <div className="space-y-6 min-w-0">
           {renderedTabs.has("general") && (
-            <div className={activeTab === "general" ? "contents" : "hidden"}>
+            <div className={activeTab === "general" ? "space-y-6" : "hidden"}>
               <GitHubConnection />
               {showDeployDefaults && <DeployDefaults />}
               {showBuildPreferences && <BuildPreferences />}
@@ -138,42 +138,42 @@ function SettingsPageInner() {
           )}
 
           {renderedTabs.has("account") && (
-            <div className={activeTab === "account" ? "contents" : "hidden"}><AccountSecurity /></div>
+            <div className={activeTab === "account" ? "space-y-6" : "hidden"}><AccountSecurity /></div>
           )}
 
           {renderedTabs.has("tokens") && (
-            <div className={activeTab === "tokens" ? "contents" : "hidden"}>
+            <div className={activeTab === "tokens" ? "space-y-6" : "hidden"}>
               <CloneCredentials />
               <PersonalAccessTokens />
             </div>
           )}
 
           {renderedTabs.has("mcp") && (
-            <div className={activeTab === "mcp" ? "contents" : "hidden"}><McpConnection /></div>
+            <div className={activeTab === "mcp" ? "space-y-6" : "hidden"}><McpConnection /></div>
           )}
 
           {renderedTabs.has("team") && (
-            <div className={activeTab === "team" ? "contents" : "hidden"}><TeamTab /></div>
+            <div className={activeTab === "team" ? "space-y-6" : "hidden"}><TeamTab /></div>
           )}
 
           {renderedTabs.has("notifications") && (
-            <div className={activeTab === "notifications" ? "contents" : "hidden"}><NotificationsTab /></div>
+            <div className={activeTab === "notifications" ? "space-y-6" : "hidden"}><NotificationsTab /></div>
           )}
 
           {renderedTabs.has("email") && selfHosted && (
-            <div className={activeTab === "email" ? "contents" : "hidden"}><EmailSettings /></div>
+            <div className={activeTab === "email" ? "space-y-6" : "hidden"}><EmailSettings /></div>
           )}
 
           {renderedTabs.has("audit") && (
-            <div className={activeTab === "audit" ? "contents" : "hidden"}><AuditTab /></div>
+            <div className={activeTab === "audit" ? "space-y-6" : "hidden"}><AuditTab /></div>
           )}
 
           {renderedTabs.has("cloud") && selfHosted && (
-            <div className={activeTab === "cloud" ? "contents" : "hidden"}><CloudConnection /></div>
+            <div className={activeTab === "cloud" ? "space-y-6" : "hidden"}><CloudConnection /></div>
           )}
 
           {renderedTabs.has("instance") && (
-            <div className={activeTab === "instance" ? "contents" : "hidden"}>
+            <div className={activeTab === "instance" ? "space-y-6" : "hidden"}>
               <InstanceInfo />
               {/* Updates live under Instance (the "this install" home). Not on
                   the SaaS — the managed cloud has nothing for the user to update. */}
