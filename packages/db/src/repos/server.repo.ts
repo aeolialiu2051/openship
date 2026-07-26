@@ -1,4 +1,4 @@
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { servers } from "../schema";
 
@@ -35,6 +35,26 @@ export function createServerRepo(db: Database) {
       return db.query.servers.findFirst({
         where: and(eq(servers.id, id), eq(servers.organizationId, organizationId)),
       });
+    },
+
+    /**
+     * Find an existing row for the same SSH endpoint inside an organization.
+     * Hostnames are case-insensitive and a legacy NULL port is treated as 22.
+     * `excludeId` is used when validating an edit of an existing server.
+     */
+    async findByEndpointInOrganization(
+      organizationId: string,
+      sshHost: string,
+      sshPort: number,
+      excludeId?: string,
+    ): Promise<Server | undefined> {
+      const conditions = [
+        eq(servers.organizationId, organizationId),
+        sql`lower(trim(${servers.sshHost})) = ${sshHost.trim().toLowerCase()}`,
+        sql`coalesce(${servers.sshPort}, 22) = ${sshPort}`,
+      ];
+      if (excludeId) conditions.push(ne(servers.id, excludeId));
+      return db.query.servers.findFirst({ where: and(...conditions) });
     },
 
     /** Get a single server by ID */

@@ -265,6 +265,7 @@
     "passwordRequired": "Password is required",
     "keyRequired": "Key path is required",
     "serverSaved": "Server saved",
+    "duplicateServer": "This server has already been added.",
     "saveFailed": "Failed to save server"
   },
   "mail": {

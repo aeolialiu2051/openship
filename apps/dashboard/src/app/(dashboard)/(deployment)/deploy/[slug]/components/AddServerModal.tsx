@@ -51,10 +51,12 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
   const [testOk, setTestOk] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const localizedConnectionError = (err: unknown, fallback: string) =>
-    getApiErrorCode(err) === "permission_denied"
-      ? t.servers.form.managementAccessRequired
-      : getApiErrorMessage(err, fallback);
+  const localizedServerError = (err: unknown, fallback: string) => {
+    const code = getApiErrorCode(err);
+    if (code === "permission_denied") return t.servers.form.managementAccessRequired;
+    if (code === "duplicate_server") return tr.duplicateServer;
+    return getApiErrorMessage(err, fallback);
+  };
 
   async function handleTest() {
     if (!sshHost.trim()) {
@@ -100,7 +102,7 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
         );
       }
     } catch (err) {
-      showToast(localizedConnectionError(err, tr.connectionTestFailed), "error", tr.toastTitle);
+      showToast(localizedServerError(err, tr.connectionTestFailed), "error", tr.toastTitle);
     } finally {
       setTesting(false);
     }
@@ -142,7 +144,7 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
       showToast(tr.serverSaved, "success", tr.toastTitle);
       onCreated(created);
     } catch (err) {
-      showToast(localizedConnectionError(err, tr.saveFailed), "error", tr.toastTitle);
+      showToast(localizedServerError(err, tr.saveFailed), "error", tr.toastTitle);
     } finally {
       setSaving(false);
     }

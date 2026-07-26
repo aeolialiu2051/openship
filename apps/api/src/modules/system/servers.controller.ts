@@ -59,6 +59,17 @@ function managementAccessFailure(c: Context, result: { code: string; message: st
   return c.json(body, 502);
 }
 
+function duplicateServerFailure(c: Context, host: string, port: number) {
+  return c.json(
+    {
+      error: "server_already_exists",
+      code: "duplicate_server",
+      message: `A server for ${host}:${port} already exists in this organization.`,
+    },
+    409,
+  );
+}
+
 /** Public shape - what the controller returns to clients (no SSH secrets). */
 function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
   if (!s) return null;
@@ -143,6 +154,14 @@ export async function createServer(c: Context) {
   }
 
   const ctx = getRequestContext(c);
+  const port = body.sshPort ?? 22;
+
+  const duplicate = await repos.server.findByEndpointInOrganization(
+    ctx.organizationId,
+    host,
+    port,
+  );
+  if (duplicate) return duplicateServerFailure(c, host, port);
 
   // Saving a server is the binding boundary. Do not persist credentials that
   // merely open an SSH shell but cannot manage the host non-interactively —
@@ -151,7 +170,7 @@ export async function createServer(c: Context) {
   // API must enforce the same invariant because clients can skip that button.
   const access = await validateManagementAccess({
     sshHost: host,
-    sshPort: body.sshPort ?? 22,
+    sshPort: port,
     sshUser: body.sshUser?.trim() || "root",
     sshAuthMethod: body.sshAuthMethod || null,
     sshPassword: body.sshPassword ?? null,
@@ -167,7 +186,7 @@ export async function createServer(c: Context) {
     organizationId: ctx.organizationId,
     name: body.name?.trim() || null,
     sshHost: host,
-    sshPort: body.sshPort ?? 22,
+    sshPort: port,
     sshUser: body.sshUser?.trim() || "root",
     sshAuthMethod: body.sshAuthMethod || null,
     // Encrypted at rest with AES-256-GCM (key derived from BETTER_AUTH_SECRET).
@@ -241,6 +260,18 @@ export async function updateServer(c: Context) {
 
   if (Object.keys(patch).length === 0) {
     return c.json({ error: "No fields to update" }, 400);
+  }
+
+  if (body.sshHost !== undefined || body.sshPort !== undefined) {
+    const nextHost = body.sshHost?.trim() || existing.sshHost;
+    const nextPort = body.sshPort ?? existing.sshPort ?? 22;
+    const duplicate = await repos.server.findByEndpointInOrganization(
+      ctx.organizationId,
+      nextHost,
+      nextPort,
+      id,
+    );
+    if (duplicate) return duplicateServerFailure(c, nextHost, nextPort);
   }
 
   // A label-only edit must still work while a server is temporarily offline.

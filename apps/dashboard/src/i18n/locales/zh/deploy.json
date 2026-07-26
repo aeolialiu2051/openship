@@ -265,6 +265,7 @@
     "passwordRequired": "密码为必填项",
     "keyRequired": "密钥路径为必填项",
     "serverSaved": "服务器已保存",
+    "duplicateServer": "这台服务器已经添加过了。",
     "saveFailed": "保存服务器失败"
   },
   "mail": {
