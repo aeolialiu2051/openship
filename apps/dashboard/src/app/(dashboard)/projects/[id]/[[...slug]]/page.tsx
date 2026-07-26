@@ -763,7 +763,13 @@ const ProjectSettingsContent = () => {
   // Poll the durable operation rather than holding the DELETE request open.
   // On refresh, recover the operation id from the resource lookup endpoint.
   useEffect(() => {
-    if (!id || (!isDeleting && !deletionOperationId)) return;
+    // Do not poll by resource while the DELETE request is still enqueueing.
+    // The optimistic `deletedAt` update makes `isDeleting` true immediately,
+    // but the operation may not exist yet. Treating that transient 404 as a
+    // failed cleanup produces a false error toast even though the queued
+    // deletion subsequently completes. The discovery effect above restores
+    // an operation id on refresh, so polling can always wait for a concrete id.
+    if (!id || !deletionOperationId) return;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let consecutiveFailures = 0;
@@ -777,13 +783,7 @@ const ProjectSettingsContent = () => {
 
     const poll = async () => {
       try {
-        let operation: ResourceOperationView;
-        if (deletionOperationId) {
-          operation = (await operationsApi.get(deletionOperationId)).data;
-        } else {
-          operation = (await operationsApi.getActive("project_delete", String(id))).data;
-          if (!cancelled) setDeletionOperationId(operation.id);
-        }
+        const operation = (await operationsApi.get(deletionOperationId)).data;
 
         if (cancelled) return;
         consecutiveFailures = 0;
@@ -868,7 +868,7 @@ const ProjectSettingsContent = () => {
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [deletionOperationId, id, isDeleting]);
+  }, [deletionOperationId, id]);
 
   const helpMenuActions: MenuAction[] = [
     {

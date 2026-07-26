@@ -40,8 +40,8 @@ export const APP_LOGO: Record<
   // they fall back to the monochrome Boxes glyph.
   // openship-native mail stack — its own brand mark, a full-bleed square icon.
   // Both the catalog id ("mail") and the installed-app id ("mail-webmail").
-  "mail-webmail": { src: "/apple-touch-icon.png", fill: true },
-  mail: { src: "/apple-touch-icon.png", fill: true },
+  "mail-webmail": { src: "/openship/apple-touch-icon.png", fill: true },
+  mail: { src: "/openship/apple-touch-icon.png", fill: true },
   // The control plane self-registered as an app (CLI self-deploy) — Openship's
   // own brand mark, a full-bleed square icon.
   openship: { src: "/apple-touch-icon.png", fill: true },
