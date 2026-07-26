@@ -390,7 +390,7 @@ export function Sidebar({
           />
           <aside
             id="mobile-dashboard-navigation"
-            className={`absolute inset-y-0 start-0 flex w-[min(86vw,340px)] flex-col border-e border-border/60 bg-card shadow-2xl transition-transform duration-200 ease-out ${
+            className={`absolute inset-y-0 start-0 flex w-[min(86vw,340px)] flex-col border-e border-border/60 bg-[var(--th-card-bg-solid)] shadow-2xl transition-transform duration-200 ease-out ${
               mobileOpen ? "translate-x-0" : "mobile-nav-drawer-closed"
             }`}
           >
