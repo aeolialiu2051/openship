@@ -60,9 +60,10 @@ const HealthcheckSchema = Type.Object(
  * become supported, so an unknown key is rejected rather than silently stored.
  * Grows with each phase (labels, entrypoint, caps, …).
  */
-const AdvancedSchema = Type.Object(
+export const AdvancedSchema = Type.Object(
   {
     healthcheck: Type.Optional(HealthcheckSchema),
+    commandMode: Type.Optional(Type.Union([Type.Literal("exec"), Type.Literal("shell")])),
   },
   { additionalProperties: false },
 );

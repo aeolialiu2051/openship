@@ -3,6 +3,7 @@
  */
 
 import { Type, type Static } from "@sinclair/typebox";
+import { AdvancedSchema } from "../services/service.schema";
 
 // ─── Route params ────────────────────────────────────────────────────────────
 
@@ -14,9 +15,7 @@ export const DeploymentIdParam = Type.Object({
 
 export const ListDeploymentsQuery = Type.Object({
   projectId: Type.Optional(Type.String()),
-  environment: Type.Optional(Type.Union([
-    Type.Literal("production"), Type.Literal("preview"),
-  ])),
+  environment: Type.Optional(Type.Union([Type.Literal("production"), Type.Literal("preview")])),
   page: Type.Optional(Type.Number({ minimum: 1, default: 1 })),
   perPage: Type.Optional(Type.Number({ minimum: 1, maximum: 100, default: 20 })),
 });
@@ -27,9 +26,7 @@ export const TriggerDeployBody = Type.Object({
   projectId: Type.String({ minLength: 1 }),
   branch: Type.Optional(Type.String({ default: "main" })),
   commitSha: Type.Optional(Type.String()),
-  environment: Type.Optional(Type.Union([
-    Type.Literal("production"), Type.Literal("preview"),
-  ])),
+  environment: Type.Optional(Type.Union([Type.Literal("production"), Type.Literal("preview")])),
 });
 
 /** Public endpoint (domain/route) as sent by the deploy wizard. */
@@ -58,6 +55,7 @@ const BuildServiceInput = Type.Object({
   environment: Type.Record(Type.String(), Type.String()),
   volumes: Type.Array(Type.String()),
   command: Type.Optional(Type.String()),
+  advanced: Type.Optional(AdvancedSchema),
   restart: Type.Optional(Type.String()),
   exposed: Type.Optional(Type.Boolean()),
   exposedPort: Type.Optional(Type.String()),
@@ -91,10 +89,14 @@ const BuildServiceInput = Type.Object({
 export const BuildAccessBody = Type.Object({
   projectId: Type.String({ description: "Target project id (from projects/ensure). Required." }),
   uploadSessionId: Type.Optional(
-    Type.String({ description: "Folder-upload session id — deploys the uploaded source instead of git." }),
+    Type.String({
+      description: "Folder-upload session id — deploys the uploaded source instead of git.",
+    }),
   ),
   branch: Type.Optional(Type.String({ description: "Git branch (git-source projects)." })),
-  environment: Type.Optional(Type.String({ description: "production | preview (default production)." })),
+  environment: Type.Optional(
+    Type.String({ description: "production | preview (default production)." }),
+  ),
   envVars: Type.Optional(
     Type.Record(Type.String(), Type.String(), { description: "Runtime env vars { KEY: value }." }),
   ),
@@ -104,18 +106,26 @@ export const BuildAccessBody = Type.Object({
     }),
   ),
   buildStrategy: Type.Optional(
-    Type.Union([Type.Literal("server"), Type.Literal("local")], { description: "Where the build runs." }),
+    Type.Union([Type.Literal("server"), Type.Literal("local")], {
+      description: "Where the build runs.",
+    }),
   ),
   deployTarget: Type.Optional(
     Type.Union([Type.Literal("local"), Type.Literal("server"), Type.Literal("cloud")], {
       description: "Usually omit for folder uploads — the upload session mode decides.",
     }),
   ),
-  serverId: Type.Optional(Type.String({ description: "Target server id when deployTarget='server'." })),
+  serverId: Type.Optional(
+    Type.String({ description: "Target server id when deployTarget='server'." }),
+  ),
   runtimeMode: Type.Optional(Type.Union([Type.Literal("bare"), Type.Literal("docker")])),
-  serviceDeploymentMode: Type.Optional(Type.Union([Type.Literal("services"), Type.Literal("single")])),
+  serviceDeploymentMode: Type.Optional(
+    Type.Union([Type.Literal("services"), Type.Literal("single")]),
+  ),
   services: Type.Optional(
-    Type.Array(BuildServiceInput, { description: "Compose / multi-service definitions (services mode)." }),
+    Type.Array(BuildServiceInput, {
+      description: "Compose / multi-service definitions (services mode).",
+    }),
   ),
   cloudResourceTier: Type.Optional(
     Type.Union([

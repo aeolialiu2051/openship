@@ -10,7 +10,12 @@
  */
 
 import { repos, type Deployment, type Domain, type Project, type Service } from "@repo/db";
-import { appendProjectRouteKey, resolveServiceHostnameLabel, resolvePublicUrlPlaceholders, type ComposeAdvanced } from "@repo/core";
+import {
+  appendProjectRouteKey,
+  resolveServiceHostnameLabel,
+  resolvePublicUrlPlaceholders,
+  type ComposeAdvanced,
+} from "@repo/core";
 import {
   BuildLogger,
   DEFAULT_RESOURCE_CONFIG,
@@ -142,12 +147,16 @@ function resolveServicePublicUrl(project: Project, service: Service): string | u
  *  Free → https://<slug>.<cloud>, custom → https://<customDomain>. Powers the
  *  per-(service,port) placeholder map so `{{publicUrl:backend:3211}}` resolves to
  *  the 3211 route while `{{publicUrl:backend}}` stays the primary. */
-function resolveServiceEndpointUrls(project: Project, service: Service): Array<{ port: number; url: string }> {
+function resolveServiceEndpointUrls(
+  project: Project,
+  service: Service,
+): Array<{ port: number; url: string }> {
   const urls: Array<{ port: number; url: string }> = [];
   for (const endpoint of resolveServicePublicEndpoints(service)) {
     if (endpoint.port === undefined) continue;
     if (endpoint.domainType === "custom") {
-      if (endpoint.customDomain) urls.push({ port: endpoint.port, url: `https://${endpoint.customDomain}` });
+      if (endpoint.customDomain)
+        urls.push({ port: endpoint.port, url: `https://${endpoint.customDomain}` });
       continue;
     }
     const label = resolveServiceHostnameLabel(
@@ -168,7 +177,12 @@ function serviceDeployPublicEndpoints(
   project: Project,
   service: Service,
 ): Array<{ port: number; domain?: string; customDomain?: string; domainType: "free" | "custom" }> {
-  const out: Array<{ port: number; domain?: string; customDomain?: string; domainType: "free" | "custom" }> = [];
+  const out: Array<{
+    port: number;
+    domain?: string;
+    customDomain?: string;
+    domainType: "free" | "custom";
+  }> = [];
   for (const endpoint of resolveServicePublicEndpoints(service)) {
     if (endpoint.port === undefined) continue;
     if (endpoint.domainType === "custom") {
@@ -231,6 +245,7 @@ function createServiceRuntimeConfig(opts: {
   // monorepo → startCommand (with command fallback if missing), compose →
   // command. No branching on kind needed.
   const runtimeCommand = service.startCommand ?? service.command ?? undefined;
+  const kind = serviceKind(service);
   return {
     deploymentId: dep.id,
     projectId: project.id,
@@ -242,6 +257,7 @@ function createServiceRuntimeConfig(opts: {
     volumes: (service.volumes as string[]) ?? [],
     namespaceVolumes: service.namespaceVolumes,
     command: runtimeCommand,
+    commandMode: kind === "monorepo" ? "shell" : service.advanced?.commandMode,
     restart: service.restart ?? "unless-stopped",
     // "update" trigger → force a fresh pull so a moved mutable tag (:latest/:1)
     // actually rolls forward. Every other trigger stays pull-if-missing.
@@ -269,7 +285,9 @@ function createServiceDeployConfig(opts: {
 }): DeployConfig {
   const { project, dep, service, image, environment, resources, buildSessionId } = opts;
   const publicSlug = resolveServicePublicSlug(project, service);
-  const servicePublicEndpoints = service.exposed ? serviceDeployPublicEndpoints(project, service) : [];
+  const servicePublicEndpoints = service.exposed
+    ? serviceDeployPublicEndpoints(project, service)
+    : [];
 
   // Monorepo sub-apps carry their own framework + startCommand on the row;
   // compose rows have those columns null. A direct `??` chain falls through
@@ -423,9 +441,12 @@ export async function deployComposeServices(
   // build would report provisionSsl=false and skip the ssl feature, leaving a
   // verified custom service domain stuck on HTTP with no recovery path).
   const needsDomainMap =
-    !!opts?.system || (!!opts?.routing && !!opts.ssl && typeof opts?.usesManagedRouting === "boolean");
+    !!opts?.system ||
+    (!!opts?.routing && !!opts.ssl && typeof opts?.usesManagedRouting === "boolean");
   const domainByHostname: Map<string, Domain> = needsDomainMap
-    ? new Map((await repos.domain.listByProject(project.id)).map((d) => [d.hostname.toLowerCase(), d]))
+    ? new Map(
+        (await repos.domain.listByProject(project.id)).map((d) => [d.hostname.toLowerCase(), d]),
+      )
     : new Map();
 
   // Ensure the server has the components this deploy needs — ONCE, before the
@@ -788,9 +809,9 @@ export async function deployComposeServices(
     // Warn-and-drop: advanced compose keys this runtime can't honor (e.g. cloud
     // has no Docker healthcheck). Never fails the deploy — the service still
     // runs, just without the unsupported extras.
-    const droppedAdvancedKeys = (Object.keys(svc.advanced ?? {}) as (keyof ComposeAdvanced)[]).filter(
-      (key) => runtime.unsupportedComposeKeys.has(key),
-    );
+    const droppedAdvancedKeys = (
+      Object.keys(svc.advanced ?? {}) as (keyof ComposeAdvanced)[]
+    ).filter((key) => runtime.unsupportedComposeKeys.has(key));
     if (droppedAdvancedKeys.length > 0) {
       logger.log(
         `Service "${svc.name}": the ${runtime.name} runtime does not support ${droppedAdvancedKeys.join(", ")} — ignoring.\n`,
@@ -811,7 +832,7 @@ export async function deployComposeServices(
       // redeploy. Only meaningful on cloud; docker recreates containers.
       previousWorkspaceId:
         runtime.name === "cloud"
-          ? previousByServiceId.get(svc.id)?.containerId ?? undefined
+          ? (previousByServiceId.get(svc.id)?.containerId ?? undefined)
           : undefined,
     });
     const serviceDeployConfig = createServiceDeployConfig({
@@ -1004,15 +1025,23 @@ export async function deployComposeServices(
       // free URL via Openship Cloud, so a failure here (403, slug taken,
       // unreachable) must not flip a healthy service to "failed".
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);
-      if (routeContext?.usesManagedRouting && managedDomainsUseCloudEdge() && managedRoutes.length > 0) {
+      if (
+        routeContext?.usesManagedRouting &&
+        managedDomainsUseCloudEdge() &&
+        managedRoutes.length > 0
+      ) {
         for (const managedRoute of managedRoutes) {
           logger.log(`Syncing managed edge proxy for ${managedRoute.hostname}...\n`, "info", {
             serviceName: svc.name,
           });
           try {
-            await ensureManagedEdgeProxy(routeContext.organizationId, managedRoute.managedSubdomain!, {
-              serverId: routeContext.serverId,
-            });
+            await ensureManagedEdgeProxy(
+              routeContext.organizationId,
+              managedRoute.managedSubdomain!,
+              {
+                serverId: routeContext.serverId,
+              },
+            );
           } catch (edgeErr) {
             const edgeMessage = edgeErr instanceof Error ? edgeErr.message : "Unknown error";
             logger.log(
@@ -1068,7 +1097,8 @@ export async function deployComposeServices(
       } else {
         if (deployedContainerId && !deployedContainerCleaned) {
           await runtime.destroy(deployedContainerId).catch((destroyErr) => {
-            const destroyMessage = destroyErr instanceof Error ? destroyErr.message : "Unknown error";
+            const destroyMessage =
+              destroyErr instanceof Error ? destroyErr.message : "Unknown error";
             logger.log(
               `Warning: failed to clean up "${svc.name}" after deploy failure: ${destroyMessage}\n`,
               "warn",
@@ -1154,14 +1184,16 @@ export async function deployComposeServices(
           const svc = enabled.find((s) => s.id === serviceId);
           // Composite (vercel-style single-domain) uses the service's PRIMARY route.
           const domain = svc
-            ? buildServiceRouteDomains({
+            ? (buildServiceRouteDomains({
                 project,
                 service: svc,
                 runtimeName: runtime.name,
                 usesManagedRouting: routeContext.usesManagedRouting,
-              })[0] ?? null
+              })[0] ?? null)
             : null;
-          return domain ? { hostname: domain.hostname, isCustomDomain: domain.domainType === "custom" } : null;
+          return domain
+            ? { hostname: domain.hostname, isCustomDomain: domain.domainType === "custom" }
+            : null;
         },
       });
       if (composite) {
@@ -1221,9 +1253,7 @@ export async function deployComposeServices(
       ? (await repos.service.listByDeployment(prevDep.id).catch(() => [])).length > 0
       : false;
     const handledContainerIds = new Set(
-      previousServiceDeps
-        .map((row) => row.containerId)
-        .filter((id): id is string => !!id),
+      previousServiceDeps.map((row) => row.containerId).filter((id): id is string => !!id),
     );
     if (
       prevContainerId &&

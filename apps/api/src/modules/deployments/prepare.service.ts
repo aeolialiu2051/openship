@@ -33,6 +33,7 @@ import {
   type OpenshipService,
   type OpenshipResources,
   type OpenshipMonorepoApp,
+  type ComposeAdvanced,
 } from "@repo/core";
 import { env } from "../../config";
 import { createGitHubReader, type ProjectReader } from "./project-reader";
@@ -190,6 +191,13 @@ function splitDomain(host: string): { domain?: string; customDomain?: string; do
 function openshipServicesToCompose(services: OpenshipService[]): ComposeService[] {
   return services.map((s) => {
     const domain = s.domain ? splitDomain(s.domain) : undefined;
+    const advanced: ComposeAdvanced | undefined =
+      s.healthcheck || s.command
+        ? {
+            ...(s.healthcheck && { healthcheck: s.healthcheck }),
+            ...(s.command && { commandMode: "exec" as const }),
+          }
+        : undefined;
     return {
       name: s.name,
       ...(s.image && { image: s.image }),
@@ -201,7 +209,7 @@ function openshipServicesToCompose(services: OpenshipService[]): ComposeService[
       volumes: s.volumes ?? [],
       ...(s.command && { command: s.command }),
       ...(s.restart && { restart: s.restart }),
-      ...(s.healthcheck && { advanced: { healthcheck: s.healthcheck } }),
+      ...(advanced && { advanced }),
       ...(s.exposed !== undefined && { exposed: s.exposed }),
       ...(s.exposedPort && { exposedPort: s.exposedPort }),
       ...(domain ?? {}),

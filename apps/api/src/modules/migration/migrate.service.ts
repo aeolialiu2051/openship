@@ -134,7 +134,13 @@ function buildAdoptedServiceRows(chosen: DiscoveredService[], selected: Set<stri
       volumes: s.volumes.map(volumeToComposeString).filter((v): v is string => v !== null),
       command: s.command,
       restart: s.restart,
-      advanced: s.healthcheck ? { healthcheck: s.healthcheck } : undefined,
+      advanced:
+        s.healthcheck || s.command
+          ? {
+              ...(s.healthcheck && { healthcheck: s.healthcheck }),
+              ...(s.command && { commandMode: "exec" as const }),
+            }
+          : undefined,
     };
   });
 }

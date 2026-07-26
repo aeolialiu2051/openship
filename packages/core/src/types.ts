@@ -121,6 +121,10 @@ export type ComposeHealthcheck = {
  */
 export type ComposeAdvanced = {
   healthcheck?: ComposeHealthcheck;
+  /** How an explicit compose `command` is passed to the image. Missing means
+   * legacy Vibrail shell wrapping for backward compatibility; newly parsed
+   * compose files persist `exec`, matching Docker Compose semantics. */
+  commandMode?: "exec" | "shell";
 };
 
 /**

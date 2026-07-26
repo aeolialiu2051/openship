@@ -65,7 +65,10 @@ export interface ComposeParseOptions {
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
 
-export function parseComposeFile(content: string, options: ComposeParseOptions = {}): ComposeParseResult {
+export function parseComposeFile(
+  content: string,
+  options: ComposeParseOptions = {},
+): ComposeParseResult {
   const doc = parseYaml(content);
 
   if (!doc || typeof doc !== "object") {
@@ -85,16 +88,24 @@ export function parseComposeFile(content: string, options: ComposeParseOptions =
 
     services.push({
       name,
-      image: typeof svc.image === "string" ? interpolateComposeString(svc.image, interpolationEnv) : undefined,
+      image:
+        typeof svc.image === "string"
+          ? interpolateComposeString(svc.image, interpolationEnv)
+          : undefined,
       build: build.context,
       dockerfile: build.dockerfile,
       ports: parsePorts(svc.ports, interpolationEnv),
       dependsOn: parseDependsOn(svc.depends_on),
       environment: environment.values,
-      ...(Object.keys(environment.metadata).length > 0 && { environmentMeta: environment.metadata }),
+      ...(Object.keys(environment.metadata).length > 0 && {
+        environmentMeta: environment.metadata,
+      }),
       volumes: parseVolumes(svc.volumes, interpolationEnv),
       command: parseCommand(svc.command, interpolationEnv),
-      restart: typeof svc.restart === "string" ? interpolateComposeString(svc.restart, interpolationEnv) : undefined,
+      restart:
+        typeof svc.restart === "string"
+          ? interpolateComposeString(svc.restart, interpolationEnv)
+          : undefined,
       ...(advanced && { advanced }),
     });
   }
@@ -107,13 +118,19 @@ export function parseComposeFile(content: string, options: ComposeParseOptions =
 
 // ─── Field parsers ───────────────────────────────────────────────────────────
 
-function parseBuild(build: unknown, env: Record<string, string>): { context?: string; dockerfile?: string } {
+function parseBuild(
+  build: unknown,
+  env: Record<string, string>,
+): { context?: string; dockerfile?: string } {
   if (typeof build === "string") return { context: interpolateComposeString(build, env) };
   if (build && typeof build === "object") {
     const b = build as Record<string, unknown>;
     return {
-      context: (typeof b.context === "string" ? interpolateComposeString(b.context, env) : undefined) ?? ".",
-      dockerfile: typeof b.dockerfile === "string" ? interpolateComposeString(b.dockerfile, env) : undefined,
+      context:
+        (typeof b.context === "string" ? interpolateComposeString(b.context, env) : undefined) ??
+        ".",
+      dockerfile:
+        typeof b.dockerfile === "string" ? interpolateComposeString(b.dockerfile, env) : undefined,
     };
   }
   return {};
@@ -252,13 +269,24 @@ function parseCommand(command: unknown, env: Record<string, string>): string | u
  * Extract the extended compose keys that live under `service.advanced`. Returns
  * undefined when nothing was found so callers can omit the field entirely (keeps
  * it out of drift comparisons and the runtime payload). Grows as more keys are
- * supported; for A1 only `healthcheck` is read.
+ * supported; currently healthcheck plus persisted command execution mode.
  */
-function parseAdvanced(svc: Record<string, unknown>, env: Record<string, string>): ComposeAdvanced | undefined {
+function parseAdvanced(
+  svc: Record<string, unknown>,
+  env: Record<string, string>,
+): ComposeAdvanced | undefined {
   const advanced: ComposeAdvanced = {};
 
   const healthcheck = parseHealthcheck(svc.healthcheck, env);
   if (healthcheck) advanced.healthcheck = healthcheck;
+
+  // Compose command strings/lists override the image CMD directly; they do not
+  // implicitly run through the image SHELL. Persist the mode so new/re-synced
+  // compose services get spec-correct argv while pre-existing rows with no mode
+  // retain Vibrail's historical shell behavior.
+  if (typeof svc.command === "string" || Array.isArray(svc.command)) {
+    advanced.commandMode = "exec";
+  }
 
   return Object.keys(advanced).length > 0 ? advanced : undefined;
 }
@@ -270,7 +298,10 @@ function parseAdvanced(svc: Record<string, unknown>, env: Record<string, string>
  * and `disable: true` both collapse to `disable`. Durations are kept as compose
  * strings ("30s") — the runtime converts to nanoseconds at create time.
  */
-function parseHealthcheck(hc: unknown, env: Record<string, string>): ComposeHealthcheck | undefined {
+function parseHealthcheck(
+  hc: unknown,
+  env: Record<string, string>,
+): ComposeHealthcheck | undefined {
   if (!hc || typeof hc !== "object") return undefined;
   const h = hc as Record<string, unknown>;
   const result: ComposeHealthcheck = {};
@@ -295,7 +326,11 @@ function parseHealthcheck(hc: unknown, env: Record<string, string>): ComposeHeal
   }
 
   const dur = (v: unknown): string | undefined =>
-    typeof v === "string" ? interpolateComposeString(v, env) : typeof v === "number" ? String(v) : undefined;
+    typeof v === "string"
+      ? interpolateComposeString(v, env)
+      : typeof v === "number"
+        ? String(v)
+        : undefined;
 
   const interval = dur(h.interval);
   if (interval) result.interval = interval;
@@ -387,8 +422,9 @@ function interpolateComposeString(input: string, env: Record<string, string>): s
   const escapedDollar = "\0COMPOSE_ESCAPED_DOLLAR\0";
   const protectedInput = input.replace(/\$\$/g, escapedDollar);
 
-  const withBraced = protectedInput.replace(/\$\{([^}]+)\}/g, (_match, expression: string) =>
-    resolveInterpolationExpression(expression, env).value,
+  const withBraced = protectedInput.replace(
+    /\$\{([^}]+)\}/g,
+    (_match, expression: string) => resolveInterpolationExpression(expression, env).value,
   );
 
   return withBraced
@@ -464,7 +500,12 @@ function resolveBareEnvironmentKey(
 function resolveInterpolationExpression(
   expression: string,
   env: Record<string, string>,
-): { value: string; source: ComposeEnvironmentMeta["source"]; variable?: string; defaultValue?: string } {
+): {
+  value: string;
+  source: ComposeEnvironmentMeta["source"];
+  variable?: string;
+  defaultValue?: string;
+} {
   const match = expression.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+?])(.*))?$/s);
   if (!match) return { value: "", source: "missing" };
 
@@ -476,7 +517,11 @@ function resolveInterpolationExpression(
 
   switch (operator) {
     case undefined:
-      return { value: hasValue ? value : "", source: hasValue ? "env-file" : "missing", variable: key };
+      return {
+        value: hasValue ? value : "",
+        source: hasValue ? "env-file" : "missing",
+        variable: key,
+      };
     case ":-":
       if (isNonEmpty) return { value, source: "env-file", variable: key };
       {
@@ -490,9 +535,17 @@ function resolveInterpolationExpression(
         return { value: fallback, source: "default", variable: key, defaultValue: fallback };
       }
     case ":?":
-      return { value: isNonEmpty ? value : "", source: isNonEmpty ? "env-file" : "missing", variable: key };
+      return {
+        value: isNonEmpty ? value : "",
+        source: isNonEmpty ? "env-file" : "missing",
+        variable: key,
+      };
     case "?":
-      return { value: hasValue ? value : "", source: hasValue ? "env-file" : "missing", variable: key };
+      return {
+        value: hasValue ? value : "",
+        source: hasValue ? "env-file" : "missing",
+        variable: key,
+      };
     case ":+":
       if (!isNonEmpty) return { value: "", source: "missing", variable: key };
       {

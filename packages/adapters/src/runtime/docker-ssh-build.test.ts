@@ -25,9 +25,7 @@ describe("DockerRuntime SSH builds", () => {
   });
 
   it("builds against the same remote socket used by the Docker API bridge", async () => {
-    const streamExec = vi.fn<CommandExecutor["streamExec"]>(
-      async () => ({ code: 0, output: "" }),
-    );
+    const streamExec = vi.fn<CommandExecutor["streamExec"]>(async () => ({ code: 0, output: "" }));
     const resetConnections = vi.fn(async () => {});
     const executor = { streamExec } as unknown as CommandExecutor;
     const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
@@ -49,15 +47,17 @@ describe("DockerRuntime SSH builds", () => {
       sessionId: "build-1",
     } as unknown as BuildConfig;
 
-    await (runtime as unknown as {
-      buildImageOnRemote(
-        config: BuildConfig,
-        remoteContextDir: string,
-        dockerfileName: string,
-        tag: string,
-        logger: BuildLogger,
-      ): Promise<void>;
-    }).buildImageOnRemote(
+    await (
+      runtime as unknown as {
+        buildImageOnRemote(
+          config: BuildConfig,
+          remoteContextDir: string,
+          dockerfileName: string,
+          tag: string,
+          logger: BuildLogger,
+        ): Promise<void>;
+      }
+    ).buildImageOnRemote(
       config,
       "/tmp/openship-build-build-1",
       "Dockerfile",
@@ -146,24 +146,334 @@ describe("DockerRuntime SSH builds", () => {
       restart: "unless-stopped",
     } as MultiServiceDeployConfig;
 
-    await expect(
-      runtime.deployServiceWorkload({ id: "network-1" }, config),
-    ).resolves.toMatchObject({
-      containerId: "container-123",
-      status: "running",
-      ip: "172.20.0.3",
-    });
+    await expect(runtime.deployServiceWorkload({ id: "network-1" }, config)).resolves.toMatchObject(
+      {
+        containerId: "container-123",
+        status: "running",
+        ip: "172.20.0.3",
+      },
+    );
 
     const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
     expect(runCommand).toContain("--network 'network-1'");
     expect(runCommand).toContain("--publish '8080:3000'");
     expect(runCommand).toContain("--env-file '/tmp/openship-env-deployment-4-web'");
-    expect(runCommand).toContain("'openship/app:test' sh -c 'node server.js'");
+    expect(runCommand).toContain("'openship/app:test' 'sh' '-c' 'node server.js'");
     expect(writeFile).toHaveBeenCalledWith(
       "/tmp/openship-env-deployment-4-web",
       "NODE_ENV=production\n",
     );
     expect(rm).toHaveBeenCalledWith("/tmp/openship-env-deployment-4-web");
+  });
+
+  it("omits a stored postgres command that restates the remote image default CMD", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args.includes(".Config.Cmd")) return JSON.stringify(["postgres"]);
+      if (args.startsWith("run ")) return "postgres-container";
+      if (args === "inspect 'postgres-container'") {
+        return JSON.stringify([
+          {
+            Id: "postgres-container",
+            State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+            Config: { Image: "postgres:16-alpine", Labels: {}, ExposedPorts: {} },
+            NetworkSettings: {
+              Networks: { app: { IPAddress: "172.20.0.4", NetworkID: "network-1" } },
+              Ports: {},
+            },
+          },
+        ]);
+      }
+      if (args.includes(".RepoDigests")) return "[]";
+      return "";
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: {
+        value: {
+          executor: {
+            writeFile: vi.fn(async () => {}),
+            exec: vi.fn(async () => ""),
+            rm: vi.fn(async () => {}),
+          },
+        },
+      },
+      remoteDockerExec: { value: remoteDockerExec },
+    });
+    const logs = vi.fn();
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-postgres",
+        projectId: "project-postgres",
+        slug: "app",
+        serviceName: "postgres",
+        image: "postgres:16-alpine",
+        ports: ["5432"],
+        environment: { POSTGRES_PASSWORD: "secret" },
+        volumes: ["pgdata:/var/lib/postgresql/data"],
+        namespaceVolumes: true,
+        command: "postgres",
+        restart: "unless-stopped",
+      },
+      logs,
+    );
+
+    const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
+    expect(runCommand).toContain("'postgres:16-alpine'");
+    expect(runCommand).not.toContain("sh -c 'postgres'");
+    expect(logs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("matches the image default CMD"),
+      }),
+    );
+  });
+
+  it("passes a postgres command with options as exec argv instead of sh -c", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args.includes(".Config.Cmd")) return JSON.stringify(["postgres"]);
+      if (args.startsWith("run ")) return "postgres-options-container";
+      if (args === "inspect 'postgres-options-container'") {
+        return JSON.stringify([
+          {
+            Id: "postgres-options-container",
+            State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+            Config: { Image: "postgres:18-alpine", Labels: {}, ExposedPorts: {} },
+            NetworkSettings: {
+              Networks: { app: { IPAddress: "172.20.0.6", NetworkID: "network-1" } },
+              Ports: {},
+            },
+          },
+        ]);
+      }
+      if (args.includes(".RepoDigests")) return "[]";
+      return "";
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: {
+        value: {
+          executor: {
+            writeFile: vi.fn(async () => {}),
+            exec: vi.fn(async () => ""),
+            rm: vi.fn(async () => {}),
+          },
+        },
+      },
+      remoteDockerExec: { value: remoteDockerExec },
+    });
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-postgres-options",
+        projectId: "project-postgres-options",
+        slug: "app",
+        serviceName: "postgres",
+        image: "postgres:18-alpine",
+        ports: ["5432"],
+        environment: { POSTGRES_PASSWORD: "secret" },
+        volumes: ["pgdata:/var/lib/postgresql/data"],
+        namespaceVolumes: true,
+        command:
+          "postgres " +
+          "-c max_connections=100 " +
+          "-c shared_buffers=128MB " +
+          "-c effective_cache_size=4GB " +
+          "-c maintenance_work_mem=64MB",
+        commandMode: "exec",
+        restart: "unless-stopped",
+      },
+    );
+
+    const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
+    expect(runCommand).toContain(
+      "'postgres:18-alpine' 'postgres' '-c' 'max_connections=100' " +
+        "'-c' 'shared_buffers=128MB' '-c' 'effective_cache_size=4GB' " +
+        "'-c' 'maintenance_work_mem=64MB'",
+    );
+    expect(runCommand).not.toContain("sh -c");
+  });
+
+  it("recovers a legacy postgres command with options when commandMode metadata is missing", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args.includes(".Config.Cmd")) return JSON.stringify(["postgres"]);
+      if (args.startsWith("run ")) return "legacy-postgres-options-container";
+      if (args === "inspect 'legacy-postgres-options-container'") {
+        return JSON.stringify([
+          {
+            Id: "legacy-postgres-options-container",
+            State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+            Config: { Image: "postgres:18-alpine", Labels: {}, ExposedPorts: {} },
+            NetworkSettings: {
+              Networks: { app: { IPAddress: "172.20.0.7", NetworkID: "network-1" } },
+              Ports: {},
+            },
+          },
+        ]);
+      }
+      if (args.includes(".RepoDigests")) return "[]";
+      return "";
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: {
+        value: {
+          executor: {
+            writeFile: vi.fn(async () => {}),
+            exec: vi.fn(async () => ""),
+            rm: vi.fn(async () => {}),
+          },
+        },
+      },
+      remoteDockerExec: { value: remoteDockerExec },
+    });
+    const logs = vi.fn();
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-legacy-postgres-options",
+        projectId: "project-legacy-postgres-options",
+        slug: "app",
+        serviceName: "postgres",
+        image: "postgres:18-alpine",
+        ports: ["5432"],
+        environment: { POSTGRES_PASSWORD: "secret" },
+        volumes: ["pgdata:/var/lib/postgresql/data"],
+        namespaceVolumes: true,
+        command: "postgres -c max_connections=100 -c shared_buffers=128MB",
+        restart: "unless-stopped",
+      },
+      logs,
+    );
+
+    const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
+    expect(runCommand).toContain(
+      "'postgres:18-alpine' 'postgres' '-c' 'max_connections=100' '-c' 'shared_buffers=128MB'",
+    );
+    expect(runCommand).not.toContain("sh -c");
+    expect(logs).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.stringContaining("exec (image-default compatibility)"),
+      }),
+    );
+  });
+
+  it("keeps an explicit shell command mode even when the command starts with the image CMD", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args.includes(".Config.Cmd")) return JSON.stringify(["postgres"]);
+      if (args.startsWith("run ")) return "explicit-shell-postgres-container";
+      if (args === "inspect 'explicit-shell-postgres-container'") {
+        return JSON.stringify([
+          {
+            Id: "explicit-shell-postgres-container",
+            State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+            Config: { Image: "postgres:18-alpine", Labels: {}, ExposedPorts: {} },
+            NetworkSettings: {
+              Networks: { app: { IPAddress: "172.20.0.8", NetworkID: "network-1" } },
+              Ports: {},
+            },
+          },
+        ]);
+      }
+      if (args.includes(".RepoDigests")) return "[]";
+      return "";
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: {
+        value: {
+          executor: {
+            writeFile: vi.fn(async () => {}),
+            exec: vi.fn(async () => ""),
+            rm: vi.fn(async () => {}),
+          },
+        },
+      },
+      remoteDockerExec: { value: remoteDockerExec },
+    });
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-explicit-shell-postgres",
+        projectId: "project-explicit-shell-postgres",
+        slug: "app",
+        serviceName: "postgres",
+        image: "postgres:18-alpine",
+        ports: ["5432"],
+        environment: { POSTGRES_PASSWORD: "secret" },
+        volumes: [],
+        namespaceVolumes: true,
+        command: "postgres -c max_connections=$MAX_CONNECTIONS",
+        commandMode: "shell",
+        restart: "unless-stopped",
+      },
+    );
+
+    const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
+    expect(runCommand).toContain(
+      "'postgres:18-alpine' 'sh' '-c' 'postgres -c max_connections=$MAX_CONNECTIONS'",
+    );
+  });
+
+  it("omits a stored postgres command that restates the local image default CMD", async () => {
+    const imageInspect = vi.fn(async () => ({
+      Config: { Cmd: ["postgres"] },
+      RepoDigests: [],
+    }));
+    const createContainer = vi.fn(async (options: Record<string, unknown>) => ({
+      id: "postgres-local-container",
+      start: vi.fn(async () => {}),
+      remove: vi.fn(async () => {}),
+      inspect: vi.fn(async () => ({
+        State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+        NetworkSettings: {
+          Networks: { app: { IPAddress: "172.20.0.5", NetworkID: "network-1" } },
+          Ports: {},
+        },
+      })),
+      options,
+    }));
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "socket" } },
+      _docker: {
+        value: {
+          getContainer: vi.fn(() => ({ remove: vi.fn(async () => {}) })),
+          getImage: vi.fn(() => ({ inspect: imageInspect })),
+          createContainer,
+        },
+      },
+    });
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-postgres-local",
+        projectId: "project-postgres-local",
+        slug: "app",
+        serviceName: "postgres",
+        image: "postgres:16-alpine",
+        ports: ["5432"],
+        environment: { POSTGRES_PASSWORD: "secret" },
+        volumes: ["pgdata:/var/lib/postgresql/data"],
+        namespaceVolumes: true,
+        command: "postgres",
+        restart: "unless-stopped",
+      },
+    );
+
+    expect(createContainer).toHaveBeenCalledOnce();
+    expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
+      Image: "postgres:16-alpine",
+      Cmd: undefined,
+    });
   });
 
   it("ensures the remote project network through Docker CLI, not dockerode", async () => {
@@ -195,9 +505,11 @@ describe("DockerRuntime SSH builds", () => {
       },
     });
 
-    await (runtime as unknown as {
-      assertBuiltImageExists(tag: string, executor: CommandExecutor): Promise<void>;
-    }).assertBuiltImageExists("openship/app:build-1", executor);
+    await (
+      runtime as unknown as {
+        assertBuiltImageExists(tag: string, executor: CommandExecutor): Promise<void>;
+      }
+    ).assertBuiltImageExists("openship/app:build-1", executor);
 
     expect(exec).toHaveBeenCalledWith(
       "docker --host 'unix:///run/user/1000/docker.sock' image inspect --format '{{.Id}}' 'openship/app:build-1'",
@@ -243,7 +555,10 @@ describe("DockerRuntime SSH builds", () => {
       const ensureNetwork = vi
         .fn()
         .mockImplementationOnce(
-          () => new Promise<string>((_resolve, reject) => { rejectFirst = reject; }),
+          () =>
+            new Promise<string>((_resolve, reject) => {
+              rejectFirst = reject;
+            }),
         )
         .mockResolvedValueOnce("network-2");
       const resetConnections = vi.fn(async () => {

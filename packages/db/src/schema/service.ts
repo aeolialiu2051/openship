@@ -109,7 +109,8 @@ export const service = pgTable("service", {
   /** Restart policy: no | always | on-failure | unless-stopped */
   restart: text("restart").default("unless-stopped"),
   /**
-   * Extended compose fields (healthcheck now; labels/entrypoint/caps/… later)
+   * Extended compose fields (healthcheck/command mode now; labels/entrypoint/
+   * caps/… later)
    * that don't warrant their own columns. See ComposeAdvanced. Honored by the
    * Docker runtime; runtimes that can't (cloud) warn-and-drop. Widening the
    * type needs no migration — it's a JSONB blob.

@@ -67,10 +67,7 @@ function clampShellWindow(
   return Math.floor(n);
 }
 import type { Feature, SystemLog } from "../system/types";
-import {
-  isRetryableRemoteConnectionError,
-  isRuntimeNotFoundError,
-} from "../system/errors";
+import { isRetryableRemoteConnectionError, isRuntimeNotFoundError } from "../system/errors";
 
 import type {
   RuntimeAdapter,
@@ -91,7 +88,11 @@ import type {
 import { BuildLogger, parseLogLevel, sq, assembleGitClone } from "./build-pipeline";
 import { githubTarballUrl, downloadTarballOnRemote } from "./source-tarball";
 import { scopeVolumeBinds, isHostPathSource } from "./volume-namespace";
-import { createDockerBuildContext, prepareSourceTree, resolveServiceDockerfile } from "./docker-build-context";
+import {
+  createDockerBuildContext,
+  prepareSourceTree,
+  resolveServiceDockerfile,
+} from "./docker-build-context";
 import { resolveDockerfileCandidates } from "./docker-paths";
 import { generateDockerfile } from "./docker-build-plan";
 import { transferLocalDirectory } from "./transfer";
@@ -153,6 +154,82 @@ function toStringArray(v: string | string[] | null | undefined): string[] | unde
   if (v == null) return undefined;
   const arr = Array.isArray(v) ? v : [v];
   return arr.length > 0 ? arr : undefined;
+}
+
+/** A service imported from an existing container may carry the image's baked-in
+ * CMD as an explicit string (for example `postgres`). Passing that string back
+ * as `sh -c postgres` changes the argv seen by the image ENTRYPOINT and can
+ * bypass its privilege-drop logic. Treat an exact restatement as no override so
+ * Docker preserves the image's original exec-form CMD. */
+function restatesImageDefaultCommand(command: string, imageCmd: string[]): boolean {
+  return imageCmd.length > 0 && command.trim() === imageCmd.join(" ").trim();
+}
+
+/** Parse a Compose command string into Docker exec-form argv. Compose does not
+ * implicitly run string commands through the image SHELL, so wrapping every
+ * command in `sh -c` changes semantics and can bypass entrypoint dispatch (the
+ * official postgres image only drops privileges when argv[0] is `postgres`). */
+function parseExecCommand(command: string): string[] {
+  const argv: string[] = [];
+  let token = "";
+  let tokenStarted = false;
+  let quote: "single" | "double" | null = null;
+  let escaped = false;
+
+  const pushToken = () => {
+    if (!tokenStarted) return;
+    argv.push(token);
+    token = "";
+    tokenStarted = false;
+  };
+
+  for (const ch of command.trim()) {
+    if (escaped) {
+      token += ch;
+      tokenStarted = true;
+      escaped = false;
+      continue;
+    }
+    if (quote === "single") {
+      if (ch === "'") quote = null;
+      else token += ch;
+      tokenStarted = true;
+      continue;
+    }
+    if (quote === "double") {
+      if (ch === '"') {
+        quote = null;
+      } else if (ch === "\\") {
+        escaped = true;
+      } else {
+        token += ch;
+      }
+      tokenStarted = true;
+      continue;
+    }
+    if (/\s/.test(ch)) {
+      pushToken();
+    } else if (ch === "'") {
+      quote = "single";
+      tokenStarted = true;
+    } else if (ch === '"') {
+      quote = "double";
+      tokenStarted = true;
+    } else if (ch === "\\") {
+      escaped = true;
+      tokenStarted = true;
+    } else {
+      token += ch;
+      tokenStarted = true;
+    }
+  }
+
+  if (escaped || quote) {
+    throw new Error(`Invalid exec command ${JSON.stringify(command)}: unmatched quote or escape`);
+  }
+  pushToken();
+  if (argv.length === 0) throw new Error("Exec command cannot be empty");
+  return argv;
 }
 
 /** Normalized port list from a container inspect: published ports (with host
@@ -257,7 +334,9 @@ function parsePortBindings(portSpecs: string[]): {
       const hostIp = parts.length > 2 ? parts.slice(0, -2).join(":") : undefined;
       const key = `${containerPort}/${protocol}`;
       exposedPorts[key] = {};
-      portBindings[key] = [hostIp ? { HostIp: hostIp, HostPort: hostPort } : { HostPort: hostPort }];
+      portBindings[key] = [
+        hostIp ? { HostIp: hostIp, HostPort: hostPort } : { HostPort: hostPort },
+      ];
     }
   }
   return { exposedPorts, portBindings };
@@ -266,7 +345,7 @@ function parsePortBindings(portSpecs: string[]): {
 const DURATION_UNITS_NS: Record<string, number> = {
   ns: 1,
   us: 1_000,
-  "µs": 1_000,
+  µs: 1_000,
   ms: 1_000_000,
   s: 1_000_000_000,
   m: 60_000_000_000,
@@ -302,7 +381,9 @@ function parseDurationNs(value: string | undefined): number | undefined {
  * `disable` → `["NONE"]` (turns off an image's baked-in check). Returns
  * undefined when there's nothing to configure so the image default stands.
  */
-function toDockerHealthcheck(hc?: ComposeHealthcheck):
+function toDockerHealthcheck(
+  hc?: ComposeHealthcheck,
+):
   | { Test: string[]; Interval?: number; Timeout?: number; Retries?: number; StartPeriod?: number }
   | undefined {
   if (!hc) return undefined;
@@ -380,7 +461,10 @@ function extractNetworkInfo(data: { NetworkSettings: any }): {
 } {
   let ip: string | undefined;
   for (const net of Object.values(data.NetworkSettings.Networks ?? {}) as any[]) {
-    if (net.IPAddress) { ip = net.IPAddress; break; }
+    if (net.IPAddress) {
+      ip = net.IPAddress;
+      break;
+    }
   }
   let hostPort: number | undefined;
   for (const bindings of Object.values(data.NetworkSettings.Ports ?? {}) as any[]) {
@@ -467,9 +551,13 @@ export class DockerRuntime implements RuntimeAdapter {
     // Destroy dockerode's reusable HTTP sockets before closing the loopback
     // bridge. Otherwise an idle agent socket can keep a Docker SSH relay alive
     // after the deployment that created this runtime has finished.
-    const agent = (this._docker?.modem as unknown as {
-      agent?: { destroy?: () => void };
-    } | undefined)?.agent;
+    const agent = (
+      this._docker?.modem as unknown as
+        | {
+            agent?: { destroy?: () => void };
+          }
+        | undefined
+    )?.agent;
     agent?.destroy?.();
     // Tear down the SSH transport's loopback bridge (no-op for socket/TCP).
     await this.transport.close();
@@ -481,20 +569,16 @@ export class DockerRuntime implements RuntimeAdapter {
    * the same SSH command channel already completed the image build, while the
    * dockerode HTTP bridge is not reliable on every VPS/OpenSSH/Docker version.
    */
-  private async remoteDockerExec(
-    args: string,
-    opts?: { timeout?: number },
-  ): Promise<string> {
+  private async remoteDockerExec(args: string, opts?: { timeout?: number }): Promise<string> {
     const connection = this.connectionOptions;
     const executor = connection?.executor;
     if (this.transport.kind !== "ssh" || !connection || !executor) {
       throw new Error("Remote Docker CLI is only available for SSH runtimes.");
     }
     const socketPath = await resolveRemoteDockerSocketPath(connection);
-    return executor.exec(
-      `docker --host ${sq(`unix://${socketPath}`)} ${args}`,
-      { timeout: opts?.timeout ?? 30_000 },
-    );
+    return executor.exec(`docker --host ${sq(`unix://${socketPath}`)} ${args}`, {
+      timeout: opts?.timeout ?? 30_000,
+    });
   }
 
   private usesRemoteDockerCli(): boolean {
@@ -571,17 +655,13 @@ export class DockerRuntime implements RuntimeAdapter {
    * target the bridge's exact socket, so inspecting through the same CLI/socket
    * is both authoritative and bounded. Local/TCP builds keep using dockerode.
    */
-  private async assertBuiltImageExists(
-    tag: string,
-    sshExecutor?: CommandExecutor,
-  ): Promise<void> {
+  private async assertBuiltImageExists(tag: string, sshExecutor?: CommandExecutor): Promise<void> {
     try {
       if (sshExecutor && this.connectionOptions) {
         const dockerSocketPath = await resolveRemoteDockerSocketPath(this.connectionOptions);
         const dockerHost = `unix://${dockerSocketPath}`;
         await sshExecutor.exec(
-          `docker --host ${sq(dockerHost)} image inspect --format ${sq("{{.Id}}")}` +
-            ` ${sq(tag)}`,
+          `docker --host ${sq(dockerHost)} image inspect --format ${sq("{{.Id}}")}` + ` ${sq(tag)}`,
           { timeout: 30_000 },
         );
         return;
@@ -621,7 +701,9 @@ export class DockerRuntime implements RuntimeAdapter {
           try {
             const s = await stat(full);
             total += s.size;
-          } catch { /* ignore */ }
+          } catch {
+            /* ignore */
+          }
         }
       }
     }
@@ -718,7 +800,7 @@ export class DockerRuntime implements RuntimeAdapter {
   //   - "Running in ..."  → intermediate container id, no signal
   //   - "Removing intermediate container ..." → cleanup chatter
   private static readonly DOCKER_BUILDER_NOISE: RegExp[] = [
-    /^--->/i,                     // ---> abc123def
+    /^--->/i, // ---> abc123def
     /^Running in\s+[a-f0-9]{6,}$/i,
     /^Removing intermediate container\s+[a-f0-9]{6,}$/i,
   ];
@@ -858,7 +940,12 @@ export class DockerRuntime implements RuntimeAdapter {
 
     log.log(`Running on remote: ${buildCmd}`);
     log.log("─── docker build output ───");
-    this.emitDockerStep(log, "install", "running", "Running install inside container (docker build)");
+    this.emitDockerStep(
+      log,
+      "install",
+      "running",
+      "Running install inside container (docker build)",
+    );
 
     const { code } = await executor.streamExec(buildCmd, (entry) => {
       // Pass docker's real output straight through.
@@ -941,7 +1028,11 @@ export class DockerRuntime implements RuntimeAdapter {
     }
 
     // Centralized clone assembly (token / relay / ssh) — see git-clone.ts.
-    const { cloneUrl, gitEnv: GIT_ENV, credFlag: CRED } = assembleGitClone({
+    const {
+      cloneUrl,
+      gitEnv: GIT_ENV,
+      credFlag: CRED,
+    } = assembleGitClone({
       repoUrl: config.repoUrl,
       gitToken: config.gitToken,
       gitCredentialHelperPath: config.gitCredentialHelperPath,
@@ -970,7 +1061,10 @@ export class DockerRuntime implements RuntimeAdapter {
               `cd ${dir} && git ${CRED} -c advice.detachedHead=false checkout ${sq(config.commitSha)}`,
           );
         } catch {
-          log.log(`Commit ${config.commitSha} not in the shallow clone; unshallowing and retrying.\n`, "warn");
+          log.log(
+            `Commit ${config.commitSha} not in the shallow clone; unshallowing and retrying.\n`,
+            "warn",
+          );
           await run(
             `cd ${dir} && ${GIT_ENV} git ${CRED} fetch --progress --unshallow && ` +
               `git ${CRED} -c advice.detachedHead=false checkout ${sq(config.commitSha)}`,
@@ -1005,7 +1099,10 @@ export class DockerRuntime implements RuntimeAdapter {
     const executor = this.connectionOptions?.executor;
     if (!executor) throw new Error("Clone-on-server requires an SSH executor on connectionOptions");
 
-    for (const candidate of resolveDockerfileCandidates(config.rootDirectory, config.dockerfilePath)) {
+    for (const candidate of resolveDockerfileCandidates(
+      config.rootDirectory,
+      config.dockerfilePath,
+    )) {
       const out = await executor
         .exec(`test -f ${sq(`${remoteContextDir}/${candidate}`)} && echo yes || true`)
         .catch(() => "");
@@ -1033,13 +1130,19 @@ export class DockerRuntime implements RuntimeAdapter {
     const remoteContextDir = `/tmp/openship-build-${config.sessionId}`;
     try {
       await this.transferBuildContext(buildContext.contextDir, remoteContextDir, log);
-      await this.buildImageOnRemote(config, remoteContextDir, buildContext.dockerfileName, tag, log);
+      await this.buildImageOnRemote(
+        config,
+        remoteContextDir,
+        buildContext.dockerfileName,
+        tag,
+        log,
+      );
     } finally {
       // Always clean up the remote context - even on failure. Don't await - if
       // cleanup fails we still want the build result.
-      this.connectionOptions?.executor
-        ?.exec(`rm -rf ${sq(remoteContextDir)}`)
-        .catch(() => { /* best effort */ });
+      this.connectionOptions?.executor?.exec(`rm -rf ${sq(remoteContextDir)}`).catch(() => {
+        /* best effort */
+      });
       await buildContext.cleanup();
     }
   }
@@ -1103,8 +1206,14 @@ export class DockerRuntime implements RuntimeAdapter {
       let idleMinutes = 0;
 
       const clearTimers = () => {
-        if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
-        if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null; }
+        if (idleTimer) {
+          clearTimeout(idleTimer);
+          idleTimer = null;
+        }
+        if (keepaliveTimer) {
+          clearInterval(keepaliveTimer);
+          keepaliveTimer = null;
+        }
         idleMinutes = 0;
       };
 
@@ -1132,9 +1241,11 @@ export class DockerRuntime implements RuntimeAdapter {
         if ((keepaliveTimer as any).unref) (keepaliveTimer as any).unref();
 
         idleTimer = setTimeout(() => {
-          fail(new Error(
-            "Docker build produced no output for 30 minutes. This usually means the remote server cannot reach the package registry, has broken DNS, or the Docker daemon stalled during the build.",
-          ));
+          fail(
+            new Error(
+              "Docker build produced no output for 30 minutes. This usually means the remote server cannot reach the package registry, has broken DNS, or the Docker daemon stalled during the build.",
+            ),
+          );
         }, DOCKER_BUILD_IDLE_TIMEOUT_MS);
         if ((idleTimer as any).unref) (idleTimer as any).unref();
       };
@@ -1144,7 +1255,10 @@ export class DockerRuntime implements RuntimeAdapter {
       this.docker.modem.followProgress(
         stream,
         (err: Error | null) => {
-          if (err) { fail(err); return; }
+          if (err) {
+            fail(err);
+            return;
+          }
           succeed();
         },
         (event) => {
@@ -1176,8 +1290,7 @@ export class DockerRuntime implements RuntimeAdapter {
         throw new Error(this.formatDockerConnectivityError(featureErr));
       }
 
-      const sshExecutor =
-        this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
+      const sshExecutor = this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
 
       // ── Clone-on-server path ───────────────────────────────────────────
       // Clone the repo ON the remote host and build there — no local clone and
@@ -1196,14 +1309,21 @@ export class DockerRuntime implements RuntimeAdapter {
           );
           await this.buildImageOnRemote(config, remoteContextDir, dockerfileName, tag, log);
         } finally {
-          sshExecutor.exec(`rm -rf ${sq(remoteContextDir)}`).catch(() => { /* best effort */ });
+          sshExecutor.exec(`rm -rf ${sq(remoteContextDir)}`).catch(() => {
+            /* best effort */
+          });
         }
 
         log.log(`Verifying image ${tag}...`);
         await this.assertBuiltImageExists(tag, sshExecutor);
         log.log(`Image ${tag} is ready.\n`);
         log.step("build", "completed", `Finalizing image ${tag}`);
-        return { sessionId: config.sessionId, status: "deploying", imageRef: tag, durationMs: Date.now() - startTime };
+        return {
+          sessionId: config.sessionId,
+          status: "deploying",
+          imageRef: tag,
+          durationMs: Date.now() - startTime,
+        };
       }
 
       this.emitDockerStep(log, "clone", "running", "Preparing Docker build context...");
@@ -1219,12 +1339,7 @@ export class DockerRuntime implements RuntimeAdapter {
       try {
         const sizeBytes = await this.estimateContextSize(buildContext.contextDir);
         const sizeMB = (sizeBytes / 1024 / 1024).toFixed(1);
-        this.emitDockerStep(
-          log,
-          "clone",
-          "completed",
-          `Docker build context ready (${sizeMB} MB)`,
-        );
+        this.emitDockerStep(log, "clone", "completed", `Docker build context ready (${sizeMB} MB)`);
       } catch {
         this.emitDockerStep(log, "clone", "completed", "Docker build context ready");
       }
@@ -1280,7 +1395,12 @@ export class DockerRuntime implements RuntimeAdapter {
     } catch (err) {
       const msg = safeErrorMessage(err);
       log.step("build", "failed", `Docker build failed: ${msg}`);
-      return { sessionId: config.sessionId, status: "failed", durationMs: Date.now() - startTime, errorMessage: `Docker build failed: ${msg}` };
+      return {
+        sessionId: config.sessionId,
+        status: "failed",
+        durationMs: Date.now() - startTime,
+        errorMessage: `Docker build failed: ${msg}`,
+      };
     }
   }
 
@@ -1478,9 +1598,9 @@ export class DockerRuntime implements RuntimeAdapter {
       return results;
     } finally {
       if (isSsh) {
-        this.connectionOptions?.executor
-          ?.exec(`rm -rf ${sq(remoteContextDir)}`)
-          .catch(() => { /* best effort */ });
+        this.connectionOptions?.executor?.exec(`rm -rf ${sq(remoteContextDir)}`).catch(() => {
+          /* best effort */
+        });
       }
       if (tree) await tree.cleanup();
     }
@@ -1495,7 +1615,9 @@ export class DockerRuntime implements RuntimeAdapter {
     for (const c of containers) {
       try {
         await this.docker.getContainer(c.Id).remove({ force: true });
-      } catch { /* already removed */ }
+      } catch {
+        /* already removed */
+      }
     }
   }
 
@@ -1523,9 +1645,7 @@ export class DockerRuntime implements RuntimeAdapter {
     ];
 
     // Start command - if provided, split into Cmd array
-    const cmd = config.startCommand
-      ? ["sh", "-c", config.startCommand]
-      : undefined;
+    const cmd = config.startCommand ? ["sh", "-c", config.startCommand] : undefined;
 
     const restartPolicy = resolveRestartPolicy(config.restartPolicy);
 
@@ -1682,8 +1802,12 @@ export class DockerRuntime implements RuntimeAdapter {
         created: "stopped",
         dead: "failed",
       };
-      const rows = output.split("\n").map((line) => line.trim()).filter(Boolean);
-      const result: Array<{ containerId: string; status: ContainerStatus; serviceName?: string }> = [];
+      const rows = output
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const result: Array<{ containerId: string; status: ContainerStatus; serviceName?: string }> =
+        [];
       for (const line of rows) {
         const row = JSON.parse(line) as { ID?: string; State?: string };
         if (!row.ID) continue;
@@ -1908,7 +2032,10 @@ export class DockerRuntime implements RuntimeAdapter {
       composeProject: labels["com.docker.compose.project"] || undefined,
       composeService: labels["com.docker.compose.service"] || undefined,
       composeConfigFiles: configFiles
-        ? configFiles.split(",").map((s) => s.trim()).filter(Boolean)
+        ? configFiles
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
         : undefined,
       composeWorkingDir: labels["com.docker.compose.project.working_dir"] || undefined,
     };
@@ -1932,11 +2059,26 @@ export class DockerRuntime implements RuntimeAdapter {
    *  privileges by argv (postgres refuses to run as root otherwise). */
   async inspectImageCmd(ref: string): Promise<string[]> {
     try {
-      const data = await this.docker.getImage(ref).inspect();
-      return data.Config?.Cmd ?? [];
+      return await this.readImageCmd(ref);
     } catch {
       return [];
     }
+  }
+
+  /** Strict image-CMD lookup used by deployment after the image is present.
+   * Unlike discovery's best-effort wrapper above, a deploy with an explicit
+   * command must not silently continue when this check fails: doing so can
+   * recreate the root-Postgres restart loop this guard exists to prevent. */
+  private async readImageCmd(ref: string): Promise<string[]> {
+    if (this.usesRemoteDockerCli()) {
+      const raw = await this.remoteDockerExec(
+        `image inspect --format ${sq("{{json .Config.Cmd}}")}` + ` ${sq(ref)}`,
+        { timeout: 30_000 },
+      );
+      return toStringArray(JSON.parse(raw) as string | string[] | null) ?? [];
+    }
+    const data = await this.docker.getImage(ref).inspect();
+    return toStringArray(data.Config?.Cmd) ?? [];
   }
 
   /**
@@ -1983,10 +2125,9 @@ export class DockerRuntime implements RuntimeAdapter {
       // genuinely stuck pull surfaces instead of hanging the whole migration.
       const dockerSocketPath = await resolveRemoteDockerSocketPath(connectionOptions);
       const dockerHost = `unix://${dockerSocketPath}`;
-      await executor.exec(
-        `docker --host ${sq(dockerHost)} pull ${sq(ref)}`,
-        { timeout: 10 * 60_000 },
-      );
+      await executor.exec(`docker --host ${sq(dockerHost)} pull ${sq(ref)}`, {
+        timeout: 10 * 60_000,
+      });
       await this.transport.resetConnections();
       return;
     }
@@ -2052,9 +2193,10 @@ export class DockerRuntime implements RuntimeAdapter {
     };
 
     const startedAt = data.State.StartedAt;
-    const uptimeSeconds = startedAt && data.State.Running
-      ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
-      : undefined;
+    const uptimeSeconds =
+      startedAt && data.State.Running
+        ? Math.floor((Date.now() - new Date(startedAt).getTime()) / 1000)
+        : undefined;
 
     const { ip, hostPort } = extractNetworkInfo(data);
 
@@ -2115,13 +2257,13 @@ export class DockerRuntime implements RuntimeAdapter {
     opts?: { tail?: number },
   ): Promise<() => void> {
     const container = this.docker.getContainer(containerId);
-    const stream = await container.logs({
+    const stream = (await container.logs({
       stdout: true,
       stderr: true,
       timestamps: true,
       follow: true,
       tail: opts?.tail ?? 100,
-    }) as unknown as NodeJS.ReadableStream;
+    })) as unknown as NodeJS.ReadableStream;
 
     let destroyed = false;
 
@@ -2140,7 +2282,11 @@ export class DockerRuntime implements RuntimeAdapter {
 
     stream.on("end", () => {
       if (buffer && !destroyed) {
-        onLog({ timestamp: new Date().toISOString(), message: buffer, level: parseLogLevel(buffer) });
+        onLog({
+          timestamp: new Date().toISOString(),
+          message: buffer,
+          level: parseLogLevel(buffer),
+        });
         buffer = "";
       }
     });
@@ -2159,11 +2305,9 @@ export class DockerRuntime implements RuntimeAdapter {
 
     const cpuDelta =
       stats.cpu_stats.cpu_usage.total_usage - stats.precpu_stats.cpu_usage.total_usage;
-    const systemDelta =
-      stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
+    const systemDelta = stats.cpu_stats.system_cpu_usage - stats.precpu_stats.system_cpu_usage;
     const numCpus = stats.cpu_stats.online_cpus || 1;
-    const cpuPercent =
-      systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
+    const cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * numCpus * 100 : 0;
 
     const memoryMb = (stats.memory_stats.usage ?? 0) / (1024 * 1024);
 
@@ -2220,10 +2364,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * websocket bridge in service-terminal.controller.ts is identical
    * across Docker + Cloud + SSH callers.
    */
-  async openServiceShell(
-    containerId: string,
-    opts?: ShellOptions,
-  ): Promise<ShellSession> {
+  async openServiceShell(containerId: string, opts?: ShellOptions): Promise<ShellSession> {
     const container = this.docker.getContainer(containerId);
     const cols = clampShellWindow(opts?.cols, 80, 1, 1000);
     const rows = clampShellWindow(opts?.rows, 24, 1, 500);
@@ -2408,10 +2549,9 @@ export class DockerRuntime implements RuntimeAdapter {
     if (this.usesRemoteDockerCli()) {
       return {
         exec: (command: string) =>
-          this.remoteDockerExec(
-            `exec ${sq(containerId)} sh -c ${sq(command)}`,
-            { timeout: 30_000 },
-          ),
+          this.remoteDockerExec(`exec ${sq(containerId)} sh -c ${sq(command)}`, {
+            timeout: 30_000,
+          }),
       };
     }
     return {
@@ -2634,9 +2774,7 @@ export class DockerRuntime implements RuntimeAdapter {
       for (const name of named) {
         let ids: string[] = [];
         try {
-          const output = await this.remoteDockerExec(
-            `ps -aq --filter ${sq(`volume=${name}`)}`,
-          );
+          const output = await this.remoteDockerExec(`ps -aq --filter ${sq(`volume=${name}`)}`);
           ids = output.split(/\s+/).filter(Boolean);
         } catch {
           continue; // advisory collision guard, same semantics as dockerode
@@ -2689,7 +2827,8 @@ export class DockerRuntime implements RuntimeAdapter {
       for (const m of c.Mounts ?? []) {
         if (m.Type !== "volume" || !m.Name || !named.has(m.Name)) continue;
         if (owner === config.projectId) ownNames.add(m.Name);
-        else if (!foreign.has(m.Name)) foreign.set(m.Name, c.Names?.[0]?.replace(/^\//, "") ?? owner);
+        else if (!foreign.has(m.Name))
+          foreign.set(m.Name, c.Names?.[0]?.replace(/^\//, "") ?? owner);
       }
     }
     for (const [name, other] of foreign) {
@@ -2711,10 +2850,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * network prune/rm, daemon/host rebuild) and surviving containers fell off it.
    */
 
-  private async reconcileNetworkMembership(
-    networkId: string,
-    projectId: string,
-  ): Promise<void> {
+  private async reconcileNetworkMembership(networkId: string, projectId: string): Promise<void> {
     if (this.usesRemoteDockerCli()) {
       let ids: string[] = [];
       try {
@@ -2734,13 +2870,10 @@ export class DockerRuntime implements RuntimeAdapter {
           );
           if (attached.split(/\s+/).includes(networkId)) continue;
           const service = await this.remoteDockerExec(
-            `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` +
-              ` ${sq(id)}`,
+            `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` + ` ${sq(id)}`,
           ).catch(() => "");
           const alias = service ? ` --alias ${sq(service)}` : "";
-          await this.remoteDockerExec(
-            `network connect${alias} ${sq(networkId)} ${sq(id)}`,
-          );
+          await this.remoteDockerExec(`network connect${alias} ${sq(networkId)} ${sq(id)}`);
         } catch (error) {
           const msg = safeErrorMessage(error);
           if (!/already exists|already connected/i.test(msg)) {
@@ -2842,11 +2975,6 @@ export class DockerRuntime implements RuntimeAdapter {
       ...Object.entries(config.environment).map(([k, v]) => `${k}=${v}`),
     ];
 
-    // Command
-    const cmd = config.command
-      ? ["sh", "-c", config.command]
-      : undefined;
-
     // Port bindings
     const { exposedPorts, portBindings } = parsePortBindings(config.ports);
 
@@ -2892,6 +3020,68 @@ export class DockerRuntime implements RuntimeAdapter {
       }
     }
 
+    // Re-check the command at deploy time, after the image is guaranteed to be
+    // present. Migration already tries to drop a copied image-default CMD, but
+    // old rows, an explicit compose `command: postgres`, or a transient inspect
+    // failure during import can still leave it stored. Omitting the redundant
+    // override preserves the image ENTRYPOINT + exec-form CMD exactly.
+    let runtimeCommand = config.command?.trim() || undefined;
+    let imageCmd: string[] = [];
+    if (runtimeCommand) {
+      imageCmd = await this.readImageCmd(config.image);
+      if (restatesImageDefaultCommand(runtimeCommand, imageCmd)) {
+        log({
+          timestamp: new Date().toISOString(),
+          message:
+            `Ignoring service command ${JSON.stringify(runtimeCommand)} because it matches ` +
+            `the image default CMD; preserving the image entrypoint.\n`,
+          level: "info",
+        });
+        runtimeCommand = undefined;
+      }
+    }
+    let resolvedCommandMode = config.commandMode;
+    let compatibilityExec = false;
+    let parsedExecCommand: string[] | undefined;
+    if (runtimeCommand && !resolvedCommandMode && imageCmd[0]) {
+      // Compatibility for rows created before commandMode was persisted, and
+      // for rows whose metadata was stripped by the old redeploy projection.
+      // A command extending the image's own exec-form CMD is safe to restore
+      // as argv (postgres -> postgres -c ...). Everything else keeps Vibrail's
+      // historical shell behavior, so shell-dependent commands remain intact.
+      try {
+        parsedExecCommand = parseExecCommand(runtimeCommand);
+        if (parsedExecCommand[0] === imageCmd[0]) {
+          resolvedCommandMode = "exec";
+          compatibilityExec = true;
+        }
+      } catch {
+        // Invalid exec syntax may still be perfectly valid shell syntax.
+      }
+    }
+    const cmd = runtimeCommand
+      ? resolvedCommandMode === "exec"
+        ? (parsedExecCommand ?? parseExecCommand(runtimeCommand))
+        : ["sh", "-c", runtimeCommand]
+      : undefined;
+    if (cmd) {
+      const modeLabel =
+        resolvedCommandMode === "exec"
+          ? compatibilityExec
+            ? "exec (image-default compatibility)"
+            : "exec"
+          : config.commandMode === "shell"
+            ? "shell (explicit)"
+            : "shell (legacy)";
+      log({
+        timestamp: new Date().toISOString(),
+        message:
+          `Service command mode: ${modeLabel}; ` +
+          `entrypoint argument: ${JSON.stringify(cmd[0])}.\n`,
+        level: "info",
+      });
+    }
+
     if (this.usesRemoteDockerCli()) {
       const labels = {
         ...this.labels({
@@ -2903,10 +3093,14 @@ export class DockerRuntime implements RuntimeAdapter {
       const args: string[] = [
         "run",
         "-d",
-        "--name", sq(containerName),
-        "--hostname", sq(config.serviceName),
-        "--network", sq(group.id),
-        "--network-alias", sq(config.serviceName),
+        "--name",
+        sq(containerName),
+        "--hostname",
+        sq(config.serviceName),
+        "--network",
+        sq(group.id),
+        "--network-alias",
+        sq(config.serviceName),
       ];
       for (const [key, value] of Object.entries(labels)) {
         args.push("--label", sq(`${key}=${value}`));
@@ -2914,10 +3108,11 @@ export class DockerRuntime implements RuntimeAdapter {
       // Keep secrets out of the remote process command line. The env file is
       // scoped to this service/deployment, mode 0600, and removed in finally.
       const executor = this.connectionOptions?.executor;
-      const envFile = env.length > 0 && executor
-        ? `/tmp/openship-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}` +
-          `-${config.serviceName.replace(/[^A-Za-z0-9_.-]/g, "-")}`
-        : null;
+      const envFile =
+        env.length > 0 && executor
+          ? `/tmp/openship-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}` +
+            `-${config.serviceName.replace(/[^A-Za-z0-9_.-]/g, "-")}`
+          : null;
       if (envFile && executor) {
         await executor.writeFile(envFile, `${env.join("\n")}\n`);
         await executor.exec(`chmod 600 ${sq(envFile)}`);
@@ -2954,7 +3149,7 @@ export class DockerRuntime implements RuntimeAdapter {
       }
 
       args.push(sq(config.image));
-      if (config.command) args.push("sh", "-c", sq(config.command));
+      if (cmd) args.push(...cmd.map(sq));
 
       try {
         let containerId: string;
@@ -3027,7 +3222,11 @@ export class DockerRuntime implements RuntimeAdapter {
       await container.start();
     } catch (startErr) {
       // Clean up the created container so it doesn't become orphaned
-      try { await container.remove({ force: true }); } catch { /* best effort */ }
+      try {
+        await container.remove({ force: true });
+      } catch {
+        /* best effort */
+      }
       throw startErr;
     }
 
@@ -3065,11 +3264,12 @@ export class DockerRuntime implements RuntimeAdapter {
   private async resolveImageDigest(ref: string): Promise<string | undefined> {
     let repoDigests: string[];
     if (this.usesRemoteDockerCli()) {
-      repoDigests = JSON.parse(
-        await this.remoteDockerExec(
-          `image inspect --format ${sq("{{json .RepoDigests}}")}` + ` ${sq(ref)}`,
-        ),
-      ) ?? [];
+      repoDigests =
+        JSON.parse(
+          await this.remoteDockerExec(
+            `image inspect --format ${sq("{{json .RepoDigests}}")}` + ` ${sq(ref)}`,
+          ),
+        ) ?? [];
     } else {
       const info = await this.docker.getImage(ref).inspect();
       repoDigests = (info as { RepoDigests?: string[] })?.RepoDigests ?? [];

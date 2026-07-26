@@ -52,34 +52,43 @@ export async function listProjectMonorepoApps(projectId: string): Promise<Servic
  * being silently masked here.
  */
 export function projectServicesToDeployableServices(services: Service[]): DeployableService[] {
-  return services.map((s): DeployableService => ({
-    kind: serviceKind(s),
-    enabled: s.enabled,
-    name: s.name,
-    image: s.image ?? undefined,
-    build: s.build ?? undefined,
-    dockerfile: s.dockerfile ?? undefined,
-    ports: (s.ports as string[] | null) ?? [],
-    dependsOn: (s.dependsOn as string[] | null) ?? [],
-    environment: (s.environment as Record<string, string> | null) ?? {},
-    volumes: (s.volumes as string[] | null) ?? [],
-    command: s.command ?? undefined,
-    restart: s.restart ?? undefined,
-    exposed: s.exposed,
-    exposedPort: s.exposedPort ?? undefined,
-    domain: s.domain ?? undefined,
-    customDomain: s.customDomain ?? undefined,
-    domainType: s.domainType === "custom" ? "custom" : "free",
-    publicEndpoints: (s.publicEndpoints as DeployableService["publicEndpoints"]) ?? undefined,
-    rootDirectory: s.rootDirectory ?? undefined,
-    installCommand: s.installCommand ?? undefined,
-    buildCommand: s.buildCommand ?? undefined,
-    startCommand: s.startCommand ?? undefined,
-    outputDirectory: s.outputDirectory ?? undefined,
-    framework: s.framework ?? undefined,
-    packageManager: s.packageManager ?? undefined,
-    buildImage: s.buildImage ?? undefined,
-  }));
+  return services.map(
+    (s): DeployableService => ({
+      kind: serviceKind(s),
+      enabled: s.enabled,
+      name: s.name,
+      image: s.image ?? undefined,
+      build: s.build ?? undefined,
+      dockerfile: s.dockerfile ?? undefined,
+      ports: (s.ports as string[] | null) ?? [],
+      dependsOn: (s.dependsOn as string[] | null) ?? [],
+      environment: (s.environment as Record<string, string> | null) ?? {},
+      volumes: (s.volumes as string[] | null) ?? [],
+      command: s.command ?? undefined,
+      // `advanced` is compose-owned deployment state, not UI-only metadata.
+      // In particular it carries commandMode, which must survive the DB row ->
+      // redeploy snapshot -> syncFromCompose round-trip. Omitting it here made a
+      // redeploy write `{}` back over `{ commandMode: "exec" }`, causing Compose
+      // commands such as PostgreSQL's `postgres -c ...` to regress to the legacy
+      // `sh -c` wrapper immediately before the container was created.
+      advanced: s.advanced ?? undefined,
+      restart: s.restart ?? undefined,
+      exposed: s.exposed,
+      exposedPort: s.exposedPort ?? undefined,
+      domain: s.domain ?? undefined,
+      customDomain: s.customDomain ?? undefined,
+      domainType: s.domainType === "custom" ? "custom" : "free",
+      publicEndpoints: (s.publicEndpoints as DeployableService["publicEndpoints"]) ?? undefined,
+      rootDirectory: s.rootDirectory ?? undefined,
+      installCommand: s.installCommand ?? undefined,
+      buildCommand: s.buildCommand ?? undefined,
+      startCommand: s.startCommand ?? undefined,
+      outputDirectory: s.outputDirectory ?? undefined,
+      framework: s.framework ?? undefined,
+      packageManager: s.packageManager ?? undefined,
+      buildImage: s.buildImage ?? undefined,
+    }),
+  );
 }
 
 export async function resolveProjectServicePreflightServices(
@@ -102,4 +111,3 @@ export async function shouldUseProjectServicePipeline(
   // Fallback for compose projects that don't have synced service rows.
   return isMultiServiceProject(project);
 }
-

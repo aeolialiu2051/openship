@@ -340,6 +340,10 @@ export interface MultiServiceDeployConfig {
    *  create time. False for grandfathered pre-migration services (bare names). */
   namespaceVolumes: boolean;
   command?: string;
+  /** How Docker should pass `command` to the image. Compose image commands are
+   * exec-form argv so the image ENTRYPOINT sees the real first argument;
+   * generated/monorepo app start commands retain shell semantics. */
+  commandMode?: "exec" | "shell";
   restart?: string;
   /**
    * Force a fresh `docker pull` of the image tag even when a local copy exists.

@@ -384,6 +384,7 @@ services:
     command: node worker.js --concurrency 4
 `);
     expect(parsed.services[0]?.command).toBe("node worker.js --concurrency 4");
+    expect(parsed.services[0]?.advanced?.commandMode).toBe("exec");
   });
 
   it("extracts volumes list", () => {

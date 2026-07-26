@@ -162,7 +162,13 @@ export async function installApp(
       volumes: svc.volumes ? [...svc.volumes] : [],
       command: svc.command,
       restart: svc.restart,
-      advanced: svc.healthcheck ? { healthcheck: svc.healthcheck } : {},
+      advanced:
+        svc.healthcheck || svc.command
+          ? {
+              ...(svc.healthcheck && { healthcheck: svc.healthcheck }),
+              ...(svc.command && { commandMode: "exec" as const }),
+            }
+          : {},
       exposed: svc.exposed ?? false,
       exposedPort: svc.exposedPort != null ? String(svc.exposedPort) : undefined,
       domainType: svc.exposed ? "free" : undefined,
