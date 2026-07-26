@@ -4,11 +4,9 @@ import {
   createContext,
   useContext,
   useCallback,
-  useEffect,
-  useState,
   type ReactNode,
 } from "react";
-import { useSession, signOut } from "@/lib/auth-client";
+import { signOut } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 
 /* ------------------------------------------------------------------ */
@@ -53,25 +51,12 @@ export function AuthProvider({
   initialUser?: AuthUser | null;
 }) {
   const router = useRouter();
-  const [hasHydrated, setHasHydrated] = useState(false);
-
-  /*
-   * `useSession()` is Better Auth's React hook.
-   * It sends the httpOnly cookie to the API and returns:
-   *   data  – { user, session } | null
-   *   isPending – true while the request is in flight
-   *   error – set if the request failed
-   */
-  const { data: session, isPending } = useSession();
-
-  useEffect(() => {
-    setHasHydrated(true);
-  }, []);
-
-  const sessionUser: AuthUser | null = session?.user ?? null;
-  const user: AuthUser | null =
-    sessionUser ?? (isPending || !hasHydrated ? initialUser : null);
-  const isLoading = isPending;
+  // The dashboard server layout validates the session before this provider is
+  // rendered and passes the canonical user. Calling Better Auth's useSession
+  // here repeated the same request immediately after hydration and competed
+  // with page-critical data. Session-changing flows already navigate/reload.
+  const user = initialUser;
+  const isLoading = false;
   const isLoggedIn = !!user;
 
   const logout = useCallback(async () => {

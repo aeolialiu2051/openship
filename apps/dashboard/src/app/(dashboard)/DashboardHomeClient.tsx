@@ -100,7 +100,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
             style={{ letterSpacing: "-0.2px" }}
           >
             {localHour == null
-              ? ""
+              ? (displayName || t.brand)
               : displayName
                 ? interpolate(t.dashboard.home.greetingName, { greeting, name: displayName })
                 : greeting}

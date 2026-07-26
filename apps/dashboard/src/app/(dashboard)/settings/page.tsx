@@ -14,35 +14,53 @@
  *   - instance  → instance info + data export/import (self-hosted, owner-gated)
  */
 
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
 
-import { BuildPreferences } from "./_components/BuildPreferences";
-import { DeployDefaults } from "./_components/DeployDefaults";
-import { CloudConnection } from "./_components/CloudConnection";
-import { GitHubConnection } from "./_components/GitHubConnection";
-import { CloneCredentials } from "./_components/CloneCredentials";
-import { PersonalAccessTokens } from "./_components/PersonalAccessTokens";
-import { McpConnection } from "./_components/McpConnection";
-import { InstanceInfo } from "./_components/InstanceInfo";
-import { LanguageSetting } from "./_components/LanguageSetting";
-import { AccountSecurity } from "./_components/AccountSecurity";
-import { UpdatesTab } from "./_components/UpdatesTab";
-import { TeamTab } from "./_components/TeamTab";
-import { NotificationsTab } from "./_components/NotificationsTab";
-import { EmailSettings } from "./_components/EmailSettings";
-import { AuditTab } from "./_components/AuditTab";
-import { DataTransferTab } from "./_components/DataTransferTab";
 import {
   SettingsSidebar,
   SettingsMobileTabs,
   useSettingsTabs,
+  type SettingsTabId,
 } from "./_components/SettingsSidebar";
 import { PageContainer } from "@/components/ui/PageContainer";
+
+function SettingsPanelSkeleton() {
+  return (
+    <div className="space-y-4 rounded-2xl border border-border/50 bg-card p-6" aria-busy="true">
+      <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-72 max-w-full animate-pulse rounded bg-muted/60" />
+      <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+    </div>
+  );
+}
+
+const lazySettingsComponent = (
+  loader: () => Promise<any>,
+  exportName: string,
+) => dynamic<any>(() => loader().then((mod) => mod[exportName]), { loading: SettingsPanelSkeleton });
+
+const BuildPreferences = lazySettingsComponent(() => import("./_components/BuildPreferences"), "BuildPreferences");
+const DeployDefaults = lazySettingsComponent(() => import("./_components/DeployDefaults"), "DeployDefaults");
+const CloudConnection = lazySettingsComponent(() => import("./_components/CloudConnection"), "CloudConnection");
+const GitHubConnection = lazySettingsComponent(() => import("./_components/GitHubConnection"), "GitHubConnection");
+const CloneCredentials = lazySettingsComponent(() => import("./_components/CloneCredentials"), "CloneCredentials");
+const PersonalAccessTokens = lazySettingsComponent(() => import("./_components/PersonalAccessTokens"), "PersonalAccessTokens");
+const McpConnection = lazySettingsComponent(() => import("./_components/McpConnection"), "McpConnection");
+const InstanceInfo = lazySettingsComponent(() => import("./_components/InstanceInfo"), "InstanceInfo");
+const LanguageSetting = lazySettingsComponent(() => import("./_components/LanguageSetting"), "LanguageSetting");
+const AccountSecurity = lazySettingsComponent(() => import("./_components/AccountSecurity"), "AccountSecurity");
+const UpdatesTab = lazySettingsComponent(() => import("./_components/UpdatesTab"), "UpdatesTab");
+const TeamTab = lazySettingsComponent(() => import("./_components/TeamTab"), "TeamTab");
+const NotificationsTab = lazySettingsComponent(() => import("./_components/NotificationsTab"), "NotificationsTab");
+const EmailSettings = lazySettingsComponent(() => import("./_components/EmailSettings"), "EmailSettings");
+const AuditTab = lazySettingsComponent(() => import("./_components/AuditTab"), "AuditTab");
+const DataTransferTab = lazySettingsComponent(() => import("./_components/DataTransferTab"), "DataTransferTab");
 
 export default function SettingsPage() {
   return (
@@ -65,6 +83,21 @@ function SettingsPageInner() {
   const { t } = useI18n();
   const searchParams = useSearchParams();
   const { activeTab } = useSettingsTabs();
+  const [visitedTabs, setVisitedTabs] = useState<Set<SettingsTabId>>(
+    () => new Set([activeTab]),
+  );
+
+  useEffect(() => {
+    setVisitedTabs((current) => {
+      if (current.has(activeTab)) return current;
+      const next = new Set(current);
+      next.add(activeTab);
+      return next;
+    });
+  }, [activeTab]);
+  const renderedTabs = visitedTabs.has(activeTab)
+    ? visitedTabs
+    : new Set(visitedTabs).add(activeTab);
 
   // Build preferences: only self-hosted — SaaS manages builds.
   const showBuildPreferences = selfHosted;
@@ -95,38 +128,52 @@ function SettingsPageInner() {
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6 mt-4 lg:mt-0">
         {/* ── ACTIVE TAB CONTENT (left, primary) ── */}
         <div className="space-y-6 min-w-0">
-          {activeTab === "general" && (
-            <>
+          {renderedTabs.has("general") && (
+            <div className={activeTab === "general" ? "space-y-6" : "hidden"}>
               <GitHubConnection />
               {showDeployDefaults && <DeployDefaults />}
               {showBuildPreferences && <BuildPreferences />}
               <LanguageSetting />
-            </>
+            </div>
           )}
 
-          {activeTab === "account" && <AccountSecurity />}
+          {renderedTabs.has("account") && (
+            <div className={activeTab === "account" ? "space-y-6" : "hidden"}><AccountSecurity /></div>
+          )}
 
-          {activeTab === "tokens" && (
-            <>
+          {renderedTabs.has("tokens") && (
+            <div className={activeTab === "tokens" ? "space-y-6" : "hidden"}>
               <CloneCredentials />
               <PersonalAccessTokens />
-            </>
+            </div>
           )}
 
-          {activeTab === "mcp" && <McpConnection />}
+          {renderedTabs.has("mcp") && (
+            <div className={activeTab === "mcp" ? "space-y-6" : "hidden"}><McpConnection /></div>
+          )}
 
-          {activeTab === "team" && <TeamTab />}
+          {renderedTabs.has("team") && (
+            <div className={activeTab === "team" ? "space-y-6" : "hidden"}><TeamTab /></div>
+          )}
 
-          {activeTab === "notifications" && <NotificationsTab />}
+          {renderedTabs.has("notifications") && (
+            <div className={activeTab === "notifications" ? "space-y-6" : "hidden"}><NotificationsTab /></div>
+          )}
 
-          {activeTab === "email" && selfHosted && <EmailSettings />}
+          {renderedTabs.has("email") && selfHosted && (
+            <div className={activeTab === "email" ? "space-y-6" : "hidden"}><EmailSettings /></div>
+          )}
 
-          {activeTab === "audit" && <AuditTab />}
+          {renderedTabs.has("audit") && (
+            <div className={activeTab === "audit" ? "space-y-6" : "hidden"}><AuditTab /></div>
+          )}
 
-          {activeTab === "cloud" && selfHosted && <CloudConnection />}
+          {renderedTabs.has("cloud") && selfHosted && (
+            <div className={activeTab === "cloud" ? "space-y-6" : "hidden"}><CloudConnection /></div>
+          )}
 
-          {activeTab === "instance" && (
-            <>
+          {renderedTabs.has("instance") && (
+            <div className={activeTab === "instance" ? "space-y-6" : "hidden"}>
               <InstanceInfo />
               {/* Updates live under Instance (the "this install" home). Not on
                   the SaaS — the managed cloud has nothing for the user to update. */}
@@ -134,7 +181,7 @@ function SettingsPageInner() {
               {/* Full-DB export/import (owner-gated inside the component);
                   self-hosted only — SaaS has no portable DB. */}
               {selfHosted && <DataTransferTab />}
-            </>
+            </div>
           )}
         </div>
 

@@ -87,6 +87,10 @@ export function AppLogo({
     <img
       src={url}
       alt=""
+      width={24}
+      height={24}
+      loading="lazy"
+      decoding="async"
       className={cfg?.darkInvert ? `${base} dark:invert dim:invert` : base}
       onError={() => setFailed(true)}
     />

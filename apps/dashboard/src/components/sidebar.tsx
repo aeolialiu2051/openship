@@ -26,6 +26,8 @@ import {
   Building2,
   ChevronsUpDown,
   Check,
+  Menu,
+  X,
 } from "lucide-react";
 import { authClient, signOut } from "@/lib/auth-client";
 import { useTheme } from "@/components/theme-provider";
@@ -36,12 +38,13 @@ import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { setActiveOrganizationId } from "@/lib/api/client";
+import { prefetchDashboardRouteData } from "@/lib/dashboard-route-prefetch";
 
 /**
  * Org list / member shapes from Better Auth's organization plugin.
  * Mirrors the inline types used in account-switcher.tsx and TeamTab.tsx.
  */
-interface SidebarOrg {
+export interface SidebarOrg {
   id: string;
   name: string;
   slug?: string | null;
@@ -96,7 +99,7 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
     { key: "settings", href: "/settings", icon: Settings },
   ];
   if (isSaaS) {
-    settingsItems.push({ key: "billing", href: "/billing", icon: CreditCard });
+    settingsItems.push({ key: "billing", href: "/billing/overview", icon: CreditCard });
   }
 
   const infraItems: NavItem[] = [];
@@ -119,7 +122,13 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   ].filter((s) => s.items.length > 0);
 }
 
-export function Sidebar() {
+export function Sidebar({
+  initialOrganizations,
+  initialActiveOrganizationId,
+}: {
+  initialOrganizations?: SidebarOrg[];
+  initialActiveOrganizationId?: string | null;
+}) {
   const { user } = useAuth();
   const { selfHosted, userServers, deployMode, authMode, machineName } = usePlatform();
   const { connected: cloudConnected, cloudUser } = useCloud();
@@ -158,23 +167,64 @@ export function Sidebar() {
   const { resolvedTheme, toggle } = useTheme();
   const { t } = useI18n();
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    setCollapsed(window.localStorage.getItem("openship-sidebar-collapsed") === "true");
+  }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem("openship-sidebar-collapsed", String(collapsed));
+  }, [collapsed]);
+
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobileOpen(false);
+    };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [mobileOpen]);
 
   // Load the org list on mount so the active workspace is visible. Per-org
   // role details are deferred until the switcher opens; fetching one full org
   // payload per membership during every page boot competes with route data.
   const [orgsOpen, setOrgsOpen] = useState(false);
-  const [orgs, setOrgs] = useState<SidebarOrg[]>([]);
-  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [orgs, setOrgs] = useState<SidebarOrg[]>(() => initialOrganizations ?? []);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(
+    initialActiveOrganizationId ?? null,
+  );
   const [orgRoles, setOrgRoles] = useState<Record<string, string>>({});
   const roleLoadsAttemptedRef = useRef(new Set<string>());
-  const [orgsLoaded, setOrgsLoaded] = useState(false);
+  const [orgsLoaded, setOrgsLoaded] = useState(initialOrganizations !== undefined);
   const [switchingOrgId, setSwitchingOrgId] = useState<string | null>(null);
+
+  const prefetchRoute = (href: string) => {
+    // Next's router cache de-duplicates concurrent/repeated prefetches. Keeping
+    // no additional permanent Set here also lets a route be refreshed after
+    // Next invalidates its prefetched RSC payload.
+    router.prefetch(href);
+    prefetchDashboardRouteData(href);
+  };
 
   // Fetch on mount so the trigger shows the current org name without
   // waiting for the user to click. Cheap (one /list call) and mirrors
   // the AccountSwitcher pattern.
   useEffect(() => {
+    if (initialOrganizations !== undefined) {
+      setActiveOrganizationId(initialActiveOrganizationId ?? null);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -200,7 +250,7 @@ export function Sidebar() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [initialActiveOrganizationId, initialOrganizations, user?.id]);
 
   useEffect(() => {
     if (!orgsOpen || !user?.id || orgs.length === 0) return;
@@ -276,6 +326,8 @@ export function Sidebar() {
   const isActive = (href: string) =>
     href === "/"
       ? pathname === "/"
+      : href === "/billing/overview"
+        ? pathname.startsWith("/billing")
       : pathname === href || pathname.startsWith(href + "/");
 
   const label = (key: string) =>
@@ -285,8 +337,147 @@ export function Sidebar() {
     (t.dashboard.nav.sections as unknown as Record<string, string>)[key] ?? key;
 
   return (
+    <>
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border/50 bg-background/95 px-4 backdrop-blur lg:hidden">
+        <Link href="/" className="flex min-w-0 items-center gap-2.5" aria-label={t.brand}>
+          <Logo size={25} className="shrink-0" />
+          <span className="truncate text-base font-semibold tracking-tight text-foreground">
+            {t.brand}
+          </span>
+        </Link>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={toggle}
+            className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            aria-label={t.auth.toggleTheme}
+          >
+            {resolvedTheme === "light" ? (
+              <Sun className="size-5" />
+            ) : resolvedTheme === "dim" ? (
+              <SunMoon className="size-5" />
+            ) : (
+              <Moon className="size-5" />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            className="flex size-11 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            aria-label={t.dashboard.sidebar.expand}
+            aria-expanded={mobileOpen}
+            aria-controls="mobile-dashboard-navigation"
+          >
+            <Menu className="size-5" />
+          </button>
+        </div>
+      </header>
+
+        <div
+          className={`fixed inset-0 z-50 transition-opacity duration-200 lg:hidden ${
+            mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
+          }`}
+          role="dialog"
+          aria-modal="true"
+          aria-hidden={!mobileOpen}
+          inert={!mobileOpen}
+        >
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+            onClick={() => setMobileOpen(false)}
+            aria-label={t.dashboard.sidebar.collapse}
+          />
+          <aside
+            id="mobile-dashboard-navigation"
+            className={`absolute inset-y-0 start-0 flex w-[min(86vw,340px)] flex-col border-e border-border/60 bg-[var(--th-card-bg-solid)] shadow-2xl transition-transform duration-200 ease-out ${
+              mobileOpen ? "translate-x-0" : "mobile-nav-drawer-closed"
+            }`}
+          >
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 px-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <Logo size={26} className="shrink-0" />
+                <span className="truncate text-base font-semibold tracking-tight text-foreground">
+                  {t.brand}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileOpen(false)}
+                className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+                aria-label={t.dashboard.sidebar.collapse}
+              >
+                <X className="size-5" />
+              </button>
+            </div>
+
+            <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+              {navSections.map(({ section, items }, si) => (
+                <div key={section ?? si} className={si > 0 ? "mt-5" : undefined}>
+                  {section && (
+                    <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                      {sectionLabel(section)}
+                    </p>
+                  )}
+                  <div className="space-y-1">
+                    {items.map(({ key, href, icon: Icon }) => {
+                      const active = isActive(href);
+                      return (
+                        <Link
+                          key={key}
+                          href={href}
+                          prefetch={false}
+                          onPointerEnter={() => prefetchRoute(href)}
+                          onFocus={() => prefetchRoute(href)}
+                          onTouchStart={() => prefetchRoute(href)}
+                          className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
+                            active
+                              ? "bg-foreground/[0.07] text-foreground"
+                              : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                          }`}
+                        >
+                          <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+                          {label(key)}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </nav>
+
+            <div className="shrink-0 border-t border-border/50 p-3">
+              <Link
+                href="/library"
+                className="flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20"
+              >
+                <Plus className="size-4" strokeWidth={2.5} />
+                {label("new-project")}
+              </Link>
+              <div className="mt-3 flex items-center gap-3 px-2 py-2">
+                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
+                  {displayInitial}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                  <p className="truncate text-xs text-muted-foreground">{activeOrg?.name ?? displayEmail}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                  aria-label={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+                >
+                  {loggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
+                </button>
+              </div>
+            </div>
+          </aside>
+        </div>
+
     <aside
-      className={`my-3 ms-3 flex shrink-0 flex-col rounded-2xl border border-border/50 bg-card transition-[width] duration-200 overflow-hidden ${collapsed ? "w-[72px]" : "w-[260px]"
+      className={`my-3 ms-3 hidden shrink-0 flex-col rounded-2xl border border-border/50 bg-card transition-[width] duration-200 overflow-hidden lg:flex ${collapsed ? "w-[72px]" : "w-[260px]"
         }`}
     >
       {/* ── Header ───────────────────────────────────────────── */}
@@ -352,6 +543,10 @@ export function Sidebar() {
                     <Link
                       key={key}
                       href={href}
+                      prefetch={false}
+                      onPointerEnter={() => prefetchRoute(href)}
+                      onFocus={() => prefetchRoute(href)}
+                      onTouchStart={() => prefetchRoute(href)}
                       title={collapsed ? label(key) : undefined}
                       className={`flex items-center rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${collapsed ? "justify-center" : "gap-3"
                         } ${active
@@ -624,5 +819,6 @@ export function Sidebar() {
         )}
       </div>
     </aside>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { ArrowRight, GitBranch, Globe, Server, FolderOpen, Cloud, HardDrive } from "lucide-react";
 import { type Project } from "@/constants/mock";
 import { AppLogo } from "@/components/AppLogo";
@@ -54,7 +54,6 @@ interface Props {
 }
 
 const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable }) => {
-  const router = useRouter();
   const { t } = useI18n();
   const { baseDomain } = usePlatform();
   const status = getProjectStatus(project);
@@ -83,11 +82,9 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
   const clickTarget = `/projects/${project.id}`;
 
   return (
-    <div
-      onClick={() => router.push(clickTarget)}
-      onPointerEnter={() => router.prefetch(clickTarget)}
-      onFocus={() => router.prefetch(clickTarget)}
-      className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/40 transition-colors cursor-pointer group"
+    <Link
+      href={clickTarget}
+      className="group flex min-h-14 items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:gap-4 sm:px-5"
       style={{ contentVisibility: "auto", containIntrinsicSize: "68px" }}
     >
       {/* Icon — on the Apps page show the catalog app's brand logo; otherwise
@@ -99,6 +96,10 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
           <img
             src={project.favicon!}
             alt=""
+            width={24}
+            height={24}
+            loading="lazy"
+            decoding="async"
             className="w-6 h-6 object-contain"
             onError={() => setFaviconError(true)}
           />
@@ -108,7 +109,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
       </div>
 
       {/* Name + domain */}
-      <div className="min-w-0 flex-shrink-0 w-44 lg:w-56 text-start">
+      <div className="min-w-0 flex-1 text-start sm:w-44 sm:flex-none lg:w-56">
         <div className="flex items-center gap-1.5">
           <p className="text-sm font-medium text-foreground truncate">{project.name}</p>
           {project.activeVersion != null && (
@@ -129,7 +130,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
       </div>
 
       {/* Meta badges */}
-      <div className="flex-1 min-w-0 flex items-center gap-3 overflow-hidden">
+      <div className="hidden min-w-0 flex-1 items-center gap-3 overflow-hidden sm:flex">
         {/* Stack */}
         <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-muted/60 text-xs text-muted-foreground shrink-0">
           {fw.name}
@@ -198,7 +199,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable 
 
         <ArrowRight className="size-4 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors rtl:rotate-180" />
       </div>
-    </div>
+    </Link>
   );
 };
 

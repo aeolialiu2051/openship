@@ -24,6 +24,7 @@ import {
   mapRowToDeployment,
 } from "../utils";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
+import { useDeploymentsList } from "@/hooks/useDeploymentsList";
 
 interface DeploymentsContentProps {
   /** When set, scope to this project and hide the project selector */
@@ -41,6 +42,7 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
 }) => {
   const { t } = useI18n();
   const isProject = !!projectId;
+  const globalDeploymentsQuery = useDeploymentsList(!isProject);
 
   const [deployments, setDeployments] = useState<Deployment[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -74,7 +76,7 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
         setDeployments(sortDeploymentsByDate(mapped));
         setProjects([]);
       } else {
-        const res = await deployApi.getAll({ perPage: 100 });
+        const res = await globalDeploymentsQuery.refresh();
         const rows: any[] = res.data ?? [];
         const mapped = rows.map(mapRowToDeployment);
         setDeployments(sortDeploymentsByDate(mapped));
@@ -98,11 +100,35 @@ export const DeploymentsContent: React.FC<DeploymentsContentProps> = ({
       setIsLoading(false);
     }
     return succeeded;
-  }, [isProject, projectId, projectName]);
+  }, [globalDeploymentsQuery.refresh, isProject, projectId, projectName]);
 
   useEffect(() => {
-    fetchDeployments();
-  }, [fetchDeployments]);
+    if (isProject) void fetchDeployments();
+  }, [fetchDeployments, isProject]);
+
+  useEffect(() => {
+    if (isProject) return;
+    const res = globalDeploymentsQuery.data;
+    if (!res) {
+      if (globalDeploymentsQuery.error) setIsLoading(false);
+      return;
+    }
+    const rows: any[] = res.data ?? [];
+    const mapped = rows.map(mapRowToDeployment);
+    setDeployments(sortDeploymentsByDate(mapped));
+    const projectMap = new Map<string, Project>();
+    for (const deployment of mapped) {
+      if (deployment.projectId && deployment.projectName) {
+        projectMap.set(deployment.projectId, {
+          id: deployment.projectId,
+          name: deployment.projectName,
+        });
+      }
+    }
+    setProjects([...projectMap.values()]);
+    hasLoadedRef.current = true;
+    setIsLoading(false);
+  }, [globalDeploymentsQuery.data, globalDeploymentsQuery.error, isProject]);
 
   // One list-level timer observes every active deletion. The listing endpoint
   // already batches operation lookup for all visible rows, so this replaces N
