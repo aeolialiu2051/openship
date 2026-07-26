@@ -11,7 +11,7 @@ import {
 } from "react";
 import {
   defaultLocale,
-  isRtl,
+  getUiDirection,
   LOCALE_COOKIE,
   locales,
   type Dictionary,
@@ -112,7 +112,7 @@ export function I18nProvider({
     }
   }, []);
 
-  const dir: "ltr" | "rtl" = isRtl(locale) ? "rtl" : "ltr";
+  const dir = getUiDirection(locale);
 
   // Sync <html> attributes
   useEffect(() => {

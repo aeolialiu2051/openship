@@ -5,6 +5,7 @@
  */
 export {
   defaultLocale,
+  getUiDirection,
   isRtl,
   LOCALE_COOKIE,
   locales,

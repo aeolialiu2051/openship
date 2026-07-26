@@ -2,7 +2,8 @@
 
 /**
  * Settings → General → Language. Switches the interface locale via the shared
- * I18nProvider (which flips <html lang/dir>, so RTL for Arabic is automatic).
+ * I18nProvider. The dashboard keeps a stable LTR layout; native language names
+ * opt into their own script direction inside the card.
  * Each language is a selectable card showing its AUTONYM — its own name, in its
  * own script (中文, Español, …), never translated into the current UI language.
  */
@@ -57,8 +58,6 @@ export function LanguageSetting() {
               type="button"
               onClick={() => setLocale(l)}
               aria-pressed={active}
-              lang={l}
-              dir={isRtl(l) ? "rtl" : "ltr"}
               className={`group relative flex items-center gap-3 rounded-xl border p-4 text-start transition-all ${
                 active
                   ? "border-primary/50 bg-primary/[0.06] ring-1 ring-primary/25"
@@ -75,7 +74,11 @@ export function LanguageSetting() {
                 {CODE[l]}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">{NATIVE[l]}</p>
+                <p className="text-sm font-medium text-foreground">
+                  <bdi lang={l} dir={isRtl(l) ? "rtl" : "ltr"}>
+                    {NATIVE[l]}
+                  </bdi>
+                </p>
               </div>
               {active && (
                 <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">

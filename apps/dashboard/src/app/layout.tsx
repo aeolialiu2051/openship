@@ -9,7 +9,7 @@ import { ModalProvider } from "@/context/ModalContext";
 import { DesktopChrome } from "@/components/desktop-chrome";
 import {
   defaultLocale,
-  isRtl,
+  getUiDirection,
   LOCALE_COOKIE,
   locales,
   type Locale,
@@ -18,7 +18,7 @@ import { loadDictionary } from "@/i18n/dictionaries";
 
 /** Resolve the request locale server-side: explicit cookie first, then the
  *  browser's Accept-Language, else the default. Keeps SSR and first paint in
- *  the right language + direction (no English→Arabic flash on load). */
+ *  the right language (no English→Arabic flash on load). */
 async function resolveRequestLocale(): Promise<Locale> {
   const hdrs = await headers();
 
@@ -78,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const localApiOrigin = process.env.OPENSHIP_LOCAL_API_URL;
 
   const locale = await resolveRequestLocale();
-  const dir = isRtl(locale) ? "rtl" : "ltr";
+  const dir = getUiDirection(locale);
   // Always seed the provider from SSR. The client no longer bundles English as
   // a global fallback and therefore does not download a dictionary twice.
   const initialDictionary = await loadDictionary(locale);
@@ -87,12 +87,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
         <ThemeScript />
-        {/* Set <html lang/dir> from the locale cookie BEFORE paint, so a reload
-            in Arabic mirrors immediately even if SSR fell back to default —
-            mirrors ThemeScript's no-flash approach. React reconciles the text. */}
+        {/* Set <html lang> from the locale cookie before paint if SSR fell back
+            to the default. The dashboard layout stays LTR for every locale;
+            individual RTL text runs opt in locally. */}
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)/);var l=m?decodeURIComponent(m[1]):(localStorage.getItem('${LOCALE_COOKIE}')||'');if(l==='ar'){document.documentElement.lang='ar';document.documentElement.dir='rtl';}else if(l==='en'){document.documentElement.lang='en';document.documentElement.dir='ltr';}}catch(e){}})();`,
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)/);var l=m?decodeURIComponent(m[1]):(localStorage.getItem('${LOCALE_COOKIE}')||'');if(/^(en|ar|es|fr|de|pt|ja|zh|tr)$/.test(l)){document.documentElement.lang=l;}document.documentElement.dir='ltr';}catch(e){}})();`,
           }}
         />
         {localApiOrigin ? (

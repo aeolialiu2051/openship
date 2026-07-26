@@ -45,7 +45,7 @@ export function proxy(req: NextRequest) {
   requestHeaders.set("x-pathname-with-search", `${pathname}${search}`);
 
   // Mirror the locale cookie onto a request header. The root layout reads it
-  // to render the right language/direction on the SERVER (no English→Arabic
+  // to render the right language on the SERVER (no English→Arabic
   // flash on reload). `cookies()` / `headers().get("cookie")` can come back
   // empty in the SSR render path, but request cookies are always available
   // here in the proxy — so we inject a header the layout can read reliably.
