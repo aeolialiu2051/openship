@@ -18,6 +18,7 @@ import { OptionCard } from "@/app/(dashboard)/(deployment)/deploy/[slug]/compone
 import { useToast } from "@/context/ToastContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n } from "@/components/i18n-provider";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 /**
  * Mail provider wizard — the app-catalog entry point for Openship Mail. A clean
@@ -128,6 +129,7 @@ export default function MailWizardPage() {
           serverId: destination?.deployTarget === "server" ? destination.serverId : undefined,
         },
       });
+      if (res.projectId) invalidateProjectsHomeCache();
       setProjectId(res.projectId ?? null);
       setDeploymentId(res.deploymentId ?? null);
       setPhaseLabel(w.progressPreparing);

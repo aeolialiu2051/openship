@@ -43,7 +43,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
+import { useProjectDeletionTracker } from "@/context/ProjectDeletionContext";
 
 const ProjectTabLoading = () => (
   <div className="space-y-4" aria-hidden="true">
@@ -529,6 +529,7 @@ const ProjectSettingsContent = () => {
   const { t } = useI18n();
   const { showToast } = useToast();
   const { showModal, hideModal } = useModal();
+  const { trackProjectDeletion } = useProjectDeletionTracker();
   const router = useRouter();
   const [deletionOperationId, setDeletionOperationId] = useState<string | null>(null);
   const [deletionOperation, setDeletionOperation] = useState<ResourceOperationView | null>(null);
@@ -559,6 +560,11 @@ const ProjectSettingsContent = () => {
         wipeVolumes,
         force,
         forceOrphan,
+      });
+      trackProjectDeletion({
+        operationId: response.operationId,
+        projectId: String(projectData.id),
+        deleteApp,
       });
       setDeletionOperationId(response.operationId);
       showToast(
@@ -700,29 +706,6 @@ const ProjectSettingsContent = () => {
   function handleCompletedDeletion(operation: ResourceOperationView) {
     if (handledOperationRef.current === operation.id) return;
     handledOperationRef.current = operation.id;
-    invalidateProjectsHomeCache();
-    const orphanCount = operation.result?.orphaned?.length ?? 0;
-    const failureCount = operation.result?.unrecoverable?.length ?? 0;
-    if (orphanCount > 0) {
-      showToast(
-        interpolate(t.projects.delete.orphanCleanup, { count: String(orphanCount) }),
-        "success",
-        t.projects.delete.orphanCleanupTitle,
-      );
-    } else if (failureCount > 0) {
-      showToast(
-        interpolate(t.projects.delete.partialCleanup, { count: String(failureCount) }),
-        "success",
-        t.projects.delete.partialCleanupTitle,
-      );
-    } else {
-      showToast(
-        deleteOptionsRef.current.deleteApp
-          ? t.projects.delete.successProject
-          : t.projects.delete.successEnvironment,
-        "success",
-      );
-    }
     router.push("/");
   }
 
@@ -738,6 +721,11 @@ const ProjectSettingsContent = () => {
       .getActive("project_delete", String(id))
       .then(({ data: operation }) => {
         if (cancelled) return;
+        trackProjectDeletion({
+          operationId: operation.id,
+          projectId: String(id),
+          deleteApp: deleteOptionsRef.current.deleteApp,
+        });
         setDeletionOperationId(operation.id);
         setDeletionOperation(operation);
         if (operation.status === "queued" || operation.status === "running") {
@@ -758,7 +746,7 @@ const ProjectSettingsContent = () => {
     return () => {
       cancelled = true;
     };
-  }, [deletionOperationId, id, setProjectData]);
+  }, [deletionOperationId, id, setProjectData, trackProjectDeletion]);
 
   // Poll the durable operation rather than holding the DELETE request open.
   // On refresh, recover the operation id from the resource lookup endpoint.
@@ -817,11 +805,6 @@ const ProjectSettingsContent = () => {
             deletedAt: null,
             deletionInProgress: false,
           }));
-          showToast(
-            operation.error?.message || t.projects.delete.failed,
-            "error",
-            t.projects.delete.cleanupFailedTitle,
-          );
           return;
         }
         schedule();
@@ -847,12 +830,10 @@ const ProjectSettingsContent = () => {
                 deletedAt: null,
               }));
               setDeletionOperation(null);
-              showToast(t.projects.delete.failed, "error", t.projects.delete.cleanupFailedTitle);
               return;
             }
           } catch (projectErr) {
             if (projectErr instanceof ApiError && projectErr.status === 404) {
-              showToast(t.projects.delete.alreadyDeleted, "success");
               router.push("/");
               return;
             }

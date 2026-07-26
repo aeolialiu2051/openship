@@ -66,10 +66,17 @@ async function fetchProjectsHome(force = false): Promise<ProjectsHomeData> {
 }
 
 /** Mark the cache stale after a project mutation while keeping its current
- * value available for an instant transition. The next consumer revalidates in
- * the background instead of flashing a full-page skeleton. */
+ * value available for an instant transition. Revalidate immediately so a
+ * subsequent navigation does not spend up to the full TTL showing stale data. */
 export function invalidateProjectsHomeCache() {
   cachedAt = 0;
+  // If an older list request is still in flight, let it settle and then issue
+  // a new request. Reusing that pre-mutation response would make stale data
+  // look fresh for another full TTL.
+  const pending = inFlight;
+  void (pending ? pending.catch(() => undefined) : Promise.resolve())
+    .then(() => fetchProjectsHome(true))
+    .catch(() => {});
 }
 
 export function useProjectsHome(initialData?: any) {

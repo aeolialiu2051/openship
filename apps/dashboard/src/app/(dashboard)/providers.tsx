@@ -4,6 +4,7 @@ import { GitHubProvider } from "@/context/GitHubContext";
 import { CloudProvider } from "@/context/CloudContext";
 import { PlatformProvider } from "@/context/PlatformContext";
 import { AuthProvider, type AuthUser } from "@/context/AuthContext";
+import { ProjectDeletionProvider } from "@/context/ProjectDeletionContext";
 
 interface DashboardProvidersProps {
   children: React.ReactNode;
@@ -49,7 +50,7 @@ export function DashboardProviders({
       >
         <GitHubProvider initialData={initialGithubData}>
           <CloudProvider>
-            {children}
+            <ProjectDeletionProvider>{children}</ProjectDeletionProvider>
           </CloudProvider>
         </GitHubProvider>
       </PlatformProvider>

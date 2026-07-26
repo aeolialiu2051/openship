@@ -31,6 +31,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { AppLogo } from "@/components/AppLogo";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { encodeProjectSlug } from "@/utils/repoSlug";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 /**
  * Dedicated app-install wizard — a CLEAN business-only wrapper over the existing
@@ -228,6 +229,7 @@ export default function AppInstallPage() {
         return;
       }
       const pid = data.projectId;
+      invalidateProjectsHomeCache();
       setProjectId(pid);
 
       const changes = settingChanges();
@@ -262,6 +264,7 @@ export default function AppInstallPage() {
       const res = await appsApi.install({ templateId: appId, routeKey });
       const data = res.data;
       if (data.kind === "template") {
+        invalidateProjectsHomeCache();
         router.push(`/deploy/${encodeProjectSlug(data.projectId)}`);
       }
     } catch (err) {
