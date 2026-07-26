@@ -1,14 +1,12 @@
 import { notFound } from "next/navigation";
-import type { PlanTierId } from "@repo/core";
-import { BillingOverview } from "@/components/billing/BillingOverview";
-import { BillingUsage } from "@/components/billing/BillingUsage";
-import { BillingTopups } from "@/components/billing/BillingTopups";
-import { BillingPlansRoute } from "../_components/BillingPlansRoute";
-import { InvoicesPanel, PaymentMethodPanel } from "../_components/billing-shared";
 import {
   BillingUnavailable,
   type BillingUnavailableReason,
 } from "../_components/BillingUnavailable";
+import {
+  BillingTabContent,
+  type BillingTab,
+} from "../_components/BillingTabContent";
 import { serverApi, ServerApiError } from "@/lib/server/api";
 import { getDeploymentInfo } from "@/lib/server/session";
 import type { BillingState } from "@/lib/api/billing";
@@ -126,8 +124,8 @@ export default async function BillingTabPage({
 }) {
   const { tab } = await params;
 
-  const validTabs = ["overview", "usage", "plans", "topups", "payment", "invoices"];
-  if (!validTabs.includes(tab)) {
+  const validTabs: BillingTab[] = ["overview", "usage", "plans", "topups", "payment", "invoices"];
+  if (!validTabs.includes(tab as BillingTab)) {
     notFound();
   }
 
@@ -137,22 +135,5 @@ export default async function BillingTabPage({
     return <BillingUnavailable reason={result.reason} />;
   }
 
-  const state = result.state;
-
-  switch (tab) {
-    case "overview":
-      return <BillingOverview state={state} />;
-    case "usage":
-      return <BillingUsage state={state} />;
-    case "plans":
-      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} />;
-    case "topups":
-      return <BillingTopups state={state} />;
-    case "payment":
-      return <PaymentMethodPanel />;
-    case "invoices":
-      return <InvoicesPanel />;
-    default:
-      notFound();
-  }
+  return <BillingTabContent tab={tab as BillingTab} state={result.state} />;
 }

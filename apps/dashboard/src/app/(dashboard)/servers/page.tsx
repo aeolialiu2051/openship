@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Server,
@@ -26,12 +26,8 @@ import { Tabs, type TabDef } from "@/components/ui/Tabs";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { ComingSoonPanel } from "./_components/coming-soon-panel";
-import * as CountryFlags from "country-flag-icons/react/3x2";
-
-const FLAGS = CountryFlags as Record<
-  string,
-  React.ComponentType<{ title?: string; className?: string }>
->;
+import { useServersList } from "@/hooks/useServersList";
+import { countryCodeToFlagEmoji } from "@/lib/country-flag";
 
 type Reachability = "checking" | "online" | "offline";
 type ServersTab = "servers" | "cluster" | "networking";
@@ -62,39 +58,25 @@ export default function ServersPage() {
   const isDesktop = deployMode === "desktop";
 
   const [activeTab, setActiveTab] = useState<ServersTab>("servers");
-  const [servers, setServers] = useState<ServerEntry[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: serverRows, isLoading: loading } = useServersList();
+  const servers = useMemo<ServerEntry[]>(
+    () =>
+      (serverRows ?? []).map((s) => ({
+        id: s.id,
+        name: s.name || s.sshHost,
+        host: s.sshHost,
+        port: s.sshPort ?? 22,
+        user: s.sshUser ?? "root",
+        auth: (s.sshAuthMethod as "key" | "password" | null) ?? null,
+        country: s.country ?? null,
+        projectCount: s.projectCount ?? 0,
+      })),
+    [serverRows],
+  );
   /** Live reachability per server (see probeReachability). */
   const [reach, setReach] = useState<Record<string, Reachability>>({});
   /** Active (running) port-forward count per server — desktop-only. */
   const [forwardCounts, setForwardCounts] = useState<Record<string, number>>({});
-
-  const fetchServers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const list = await systemApi.listServers();
-      setServers(
-        list.map((s) => ({
-          id: s.id,
-          name: s.name || s.sshHost,
-          host: s.sshHost,
-          port: s.sshPort ?? 22,
-          user: s.sshUser ?? "root",
-          auth: (s.sshAuthMethod as "key" | "password" | null) ?? null,
-          country: s.country ?? null,
-          projectCount: s.projectCount ?? 0,
-        })),
-      );
-    } catch {
-      setServers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchServers();
-  }, [fetchServers]);
 
   // Real reachability: seed every server to "checking", then probe each in
   // parallel and flip its dot as the probe resolves (mirrors the tunnel fan-out).
@@ -231,13 +213,10 @@ export default function ServersPage() {
                       {/* Avatar — full country flag when we can geolocate the IP, else glyph.
                           Fixed 36px slot keeps the name column aligned across rows. */}
                       {(() => {
-                        const Flag = server.country ? FLAGS[server.country] : undefined;
-                        return Flag ? (
+                        const flag = countryCodeToFlagEmoji(server.country);
+                        return flag ? (
                           <div className="flex size-9 shrink-0 items-center justify-center">
-                            <Flag
-                              title={server.country ?? undefined}
-                              className="h-[18px] w-auto rounded-[2px] ring-1 ring-border/50"
-                            />
+                            <span title={server.country ?? undefined} className="text-[20px] leading-none">{flag}</span>
                           </div>
                         ) : (
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60 transition-colors group-hover:bg-muted">

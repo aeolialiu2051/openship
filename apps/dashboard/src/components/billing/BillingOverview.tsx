@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRight, Loader2, Sparkles } from "lucide-react";
-import { Area, AreaChart, ResponsiveContainer } from "recharts";
 import { PLANS } from "@repo/core";
 import { api } from "@/lib/api/client";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { BillingState } from "@/lib/api/billing";
+import { buildSparklineGeometry } from "./sparkline";
 
 export type { BillingState };
 
@@ -97,6 +97,35 @@ function statusPillClass(status: string): string {
   if (s === "past_due" || s === "unpaid") return "bg-danger-bg text-danger border-danger-border";
   if (s === "canceled" || s === "cancelled") return "bg-muted text-muted-foreground border-border";
   return "bg-muted text-muted-foreground border-border";
+}
+
+function UsageSparkline({ values }: { values: number[] }) {
+  const geometry = buildSparklineGeometry(values);
+  if (!geometry) return null;
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-full w-full overflow-visible"
+      viewBox="0 0 100 40"
+      preserveAspectRatio="none"
+    >
+      <defs>
+        <linearGradient id="billing-overview-spark-fill" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polygon points={geometry.areaPoints} fill="url(#billing-overview-spark-fill)" />
+      <polyline
+        points={geometry.linePoints}
+        fill="none"
+        stroke="hsl(var(--primary))"
+        strokeWidth="1.75"
+        vectorEffect="non-scaling-stroke"
+      />
+    </svg>
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -312,24 +341,7 @@ function RecentActivityCard() {
             {t.billing.overview.noUsageYet}
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={data} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
-              <defs>
-                <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <Area
-                type="monotone"
-                dataKey="credits"
-                stroke="hsl(var(--primary))"
-                strokeWidth={1.75}
-                fill="url(#sparkFill)"
-                isAnimationActive={false}
-              />
-            </AreaChart>
-          </ResponsiveContainer>
+          <UsageSparkline values={data.map((bucket) => bucket.credits)} />
         )}
       </div>
     </div>

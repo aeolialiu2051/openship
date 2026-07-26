@@ -6,18 +6,18 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
-  baseDictionary,
   defaultLocale,
   isRtl,
-  loadDictionary,
   LOCALE_COOKIE,
   locales,
   type Dictionary,
   type Locale,
 } from "@/i18n";
+import { shouldLoadDictionary } from "@/i18n/dictionary-loading";
 
 /* ------------------------------------------------------------------ */
 /*  Context                                                            */
@@ -61,15 +61,13 @@ export function I18nProvider({
   children: React.ReactNode;
   /** Locale resolved on the server from the cookie, so first paint matches. */
   initialLocale?: Locale;
-  /** Active locale's dictionary, loaded server-side for non-English so SSR
-   *  renders in the right language with no English→translated flash. */
-  initialDictionary?: Dictionary;
+  /** Active locale's dictionary, loaded server-side so SSR renders in the
+   *  right language with no translation flash or client-side base bundle. */
+  initialDictionary: Dictionary;
 }) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
-  // Seeded with the server-resolved dictionary (or bundled English), so the
-  // client hydrates in the same language the server rendered — no flash when
-  // SSR read the cookie.
-  const [t, setT] = useState<Dictionary>(initialDictionary ?? baseDictionary);
+  const [t, setT] = useState<Dictionary>(initialDictionary);
+  const loadedLocaleRef = useRef<Locale>(initialLocale);
 
   // Safety net: if the server render fell back to the default (couldn't surface
   // the request cookie to SSR), reconcile from the cookie/localStorage on mount
@@ -82,13 +80,21 @@ export function I18nProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Reload the dictionary when the locale changes at runtime (base resolves
-  // instantly; the initial locale is already seeded above so mount is a no-op).
+  // The initial dictionary was already loaded and serialized by SSR. Only load
+  // the dictionary module after an actual runtime locale change; this keeps all
+  // locale JSON out of the shared client entry and removes the duplicate mount
+  // request for non-English sessions.
   useEffect(() => {
+    if (!shouldLoadDictionary(locale, loadedLocaleRef.current)) return;
+
     let alive = true;
-    void loadDictionary(locale).then((d) => {
-      if (alive) setT(d);
-    });
+    void import("@/i18n/dictionaries")
+      .then(({ loadDictionary }) => loadDictionary(locale))
+      .then((dictionary) => {
+        if (!alive) return;
+        loadedLocaleRef.current = locale;
+        setT(dictionary);
+      });
     return () => {
       alive = false;
     };

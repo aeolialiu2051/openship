@@ -15,6 +15,7 @@ import { formatTime, formatDuration, statusTone, statusIcon } from "@/components
 import { usePlatform } from "@/context/PlatformContext";
 import { useToast } from "@/context/ToastContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { useJobsOverview } from "@/hooks/useJobsOverview";
 
 // Overview facets double as the list filter. Independent predicates (a failed
 // job can also be scheduled) — each row shows its own count; "all" is the total.
@@ -42,9 +43,10 @@ export default function JobsPage() {
   const { showToast } = useToast();
   const router = useRouter();
 
-  const [jobs, setJobs] = useState<JobView[]>([]);
-  const [backupSchedules, setBackupSchedules] = useState<BackupScheduleView[]>([]);
-  const [loading, setLoading] = useState(true);
+  const jobsQuery = useJobsOverview(selfHosted);
+  const jobs = jobsQuery.data?.jobs ?? [];
+  const backupSchedules = jobsQuery.data?.backupSchedules ?? [];
+  const loading = selfHosted && jobsQuery.isLoading;
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [cronDraft, setCronDraft] = useState("");
@@ -54,26 +56,20 @@ export default function JobsPage() {
 
   const load = useCallback(async () => {
     try {
-      setLoading(true);
-      // Backup schedules are a read-only side view — never let them fail the
-      // whole page, so their fetch degrades to empty on error.
-      const [res, bs] = await Promise.all([
-        jobsApi.list(),
-        jobsApi.backupSchedules().catch(() => ({ data: [] as BackupScheduleView[] })),
-      ]);
-      setJobs(res?.data ?? []);
-      setBackupSchedules(bs?.data ?? []);
+      await jobsQuery.refresh();
     } catch (err) {
       showToast(getApiErrorMessage(err, j.loadFailed), "error", j.toast.title);
-    } finally {
-      setLoading(false);
     }
-  }, [j.loadFailed, j.toast.title, showToast]);
+  }, [j.loadFailed, j.toast.title, jobsQuery.refresh, showToast]);
 
   useEffect(() => {
-    if (selfHosted) void load();
-    else setLoading(false);
-  }, [selfHosted, load]);
+    if (!jobsQuery.error) return;
+    showToast(
+      getApiErrorMessage(jobsQuery.error, j.loadFailed),
+      "error",
+      j.toast.title,
+    );
+  }, [j.loadFailed, j.toast.title, jobsQuery.error, showToast]);
 
   const handleRun = async (job: JobView) => {
     if (busyKey) return;
@@ -514,4 +510,3 @@ function BackupScheduleCard({ s }: { s: BackupScheduleView }) {
     </div>
   );
 }
-

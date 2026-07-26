@@ -16,33 +16,50 @@
 
 import { Suspense, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
 
-import { BuildPreferences } from "./_components/BuildPreferences";
-import { DeployDefaults } from "./_components/DeployDefaults";
-import { CloudConnection } from "./_components/CloudConnection";
-import { GitHubConnection } from "./_components/GitHubConnection";
-import { CloneCredentials } from "./_components/CloneCredentials";
-import { PersonalAccessTokens } from "./_components/PersonalAccessTokens";
-import { McpConnection } from "./_components/McpConnection";
-import { InstanceInfo } from "./_components/InstanceInfo";
-import { LanguageSetting } from "./_components/LanguageSetting";
-import { AccountSecurity } from "./_components/AccountSecurity";
-import { UpdatesTab } from "./_components/UpdatesTab";
-import { TeamTab } from "./_components/TeamTab";
-import { NotificationsTab } from "./_components/NotificationsTab";
-import { EmailSettings } from "./_components/EmailSettings";
-import { AuditTab } from "./_components/AuditTab";
-import { DataTransferTab } from "./_components/DataTransferTab";
 import {
   SettingsSidebar,
   SettingsMobileTabs,
   useSettingsTabs,
 } from "./_components/SettingsSidebar";
 import { PageContainer } from "@/components/ui/PageContainer";
+
+function SettingsPanelSkeleton() {
+  return (
+    <div className="space-y-4 rounded-2xl border border-border/50 bg-card p-6" aria-busy="true">
+      <div className="h-5 w-40 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-72 max-w-full animate-pulse rounded bg-muted/60" />
+      <div className="h-24 animate-pulse rounded-xl bg-muted/40" />
+    </div>
+  );
+}
+
+const lazySettingsComponent = (
+  loader: () => Promise<any>,
+  exportName: string,
+) => dynamic<any>(() => loader().then((mod) => mod[exportName]), { loading: SettingsPanelSkeleton });
+
+const BuildPreferences = lazySettingsComponent(() => import("./_components/BuildPreferences"), "BuildPreferences");
+const DeployDefaults = lazySettingsComponent(() => import("./_components/DeployDefaults"), "DeployDefaults");
+const CloudConnection = lazySettingsComponent(() => import("./_components/CloudConnection"), "CloudConnection");
+const GitHubConnection = lazySettingsComponent(() => import("./_components/GitHubConnection"), "GitHubConnection");
+const CloneCredentials = lazySettingsComponent(() => import("./_components/CloneCredentials"), "CloneCredentials");
+const PersonalAccessTokens = lazySettingsComponent(() => import("./_components/PersonalAccessTokens"), "PersonalAccessTokens");
+const McpConnection = lazySettingsComponent(() => import("./_components/McpConnection"), "McpConnection");
+const InstanceInfo = lazySettingsComponent(() => import("./_components/InstanceInfo"), "InstanceInfo");
+const LanguageSetting = lazySettingsComponent(() => import("./_components/LanguageSetting"), "LanguageSetting");
+const AccountSecurity = lazySettingsComponent(() => import("./_components/AccountSecurity"), "AccountSecurity");
+const UpdatesTab = lazySettingsComponent(() => import("./_components/UpdatesTab"), "UpdatesTab");
+const TeamTab = lazySettingsComponent(() => import("./_components/TeamTab"), "TeamTab");
+const NotificationsTab = lazySettingsComponent(() => import("./_components/NotificationsTab"), "NotificationsTab");
+const EmailSettings = lazySettingsComponent(() => import("./_components/EmailSettings"), "EmailSettings");
+const AuditTab = lazySettingsComponent(() => import("./_components/AuditTab"), "AuditTab");
+const DataTransferTab = lazySettingsComponent(() => import("./_components/DataTransferTab"), "DataTransferTab");
 
 export default function SettingsPage() {
   return (

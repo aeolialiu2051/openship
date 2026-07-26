@@ -5,6 +5,7 @@ import { Sidebar } from "@/components/sidebar";
 import { UpdateCenter } from "@/components/updates/UpdateCenter";
 import { MigratedLauncher } from "@/components/migrated-launcher";
 import { MigrationInProgress } from "@/components/migration-in-progress";
+import { NavigationProgress } from "@/components/navigation-progress";
 import { DashboardProviders } from "./providers";
 import { serverApi, ServerApiError } from "@/lib/server/api";
 
@@ -13,7 +14,12 @@ import { serverApi, ServerApiError } from "@/lib/server/api";
  * GET /api/auth/organization/list — the user's full org membership.
  * We only need the id here to decide between auto-pick and chooser.
  */
-type OrgListItem = { id: string };
+export type OrgListItem = {
+  id: string;
+  name?: string | null;
+  slug?: string | null;
+  logo?: string | null;
+};
 type OrgListResponse = { data?: OrgListItem[] } | OrgListItem[] | null;
 
 async function fetchUserOrgs(): Promise<OrgListItem[]> {
@@ -52,16 +58,26 @@ async function fetchUserOrgs(): Promise<OrgListItem[]> {
  */
 async function resolveOrgChooserGate(
   activeOrganizationId: string | null | undefined,
-): Promise<{ redirectTo?: string }> {
+): Promise<{
+  redirectTo?: string;
+  organizations: OrgListItem[];
+  activeOrganizationId: string | null;
+}> {
   const orgs = await fetchUserOrgs();
   // Trust the session's active org ONLY if it's an actual membership. A
   // stale/foreign active org — e.g. the zero-auth Local User's workspace
   // carried into a cloud user's session after cloud-connect — would otherwise
   // scope the whole UI (Team members, cloud status, everything) to an org the
   // user isn't in. Reconcile to a real membership instead.
-  if (activeOrganizationId && orgs.some((o) => o.id === activeOrganizationId)) return {};
+  if (activeOrganizationId && orgs.some((o) => o.id === activeOrganizationId)) {
+    return { organizations: orgs, activeOrganizationId };
+  }
   if (orgs.length >= 2) {
-    return { redirectTo: "/select-organization" };
+    return {
+      redirectTo: "/select-organization",
+      organizations: orgs,
+      activeOrganizationId: null,
+    };
   }
   if (orgs.length === 1) {
     try {
@@ -73,8 +89,9 @@ async function resolveOrgChooserGate(
       // resolveActiveOrganizationId fallback will pick the membership
       // for org-scoped queries.
     }
+    return { organizations: orgs, activeOrganizationId: orgs[0].id };
   }
-  return {};
+  return { organizations: [], activeOrganizationId: null };
 }
 
 /**
@@ -88,7 +105,11 @@ async function resolveOrgChooserGate(
  * migrated-instance URL.
  */
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const session = await getSession();
+  // Session and deployment metadata are independent bootstrap calls. Start
+  // them together so the health/env round-trip no longer waits behind auth.
+  const sessionPromise = getSession();
+  const deploymentInfoPromise = getDeploymentInfoOrNull({ skipCache: true });
+  const session = await sessionPromise;
   if (!session) redirect("/login");
 
   // Org chooser gate. If the session has no explicit activeOrganizationId
@@ -96,9 +117,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // single-org users get the only one auto-set server-side. Runs BEFORE
   // the migration / teamMode gates because those are configured per-org
   // and reading them with the wrong active org would mis-route.
-  const { redirectTo } = await resolveOrgChooserGate(
-    session.session.activeOrganizationId,
-  );
+  // The org membership check depends on the session, but deployment info has
+  // already been in flight since the start of the layout.
+  const [orgGate, deploymentInfo] = await Promise.all([
+    resolveOrgChooserGate(session.session.activeOrganizationId),
+    deploymentInfoPromise,
+  ]);
+  const { redirectTo, organizations, activeOrganizationId } = orgGate;
   if (redirectTo) redirect(redirectTo);
 
   // Layout MUST see fresh `migrationInProgress` to route correctly during
@@ -107,7 +132,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
   // render the normal UI (writes would 503), and a cached `true` after the
   // lock releases would trap the operator on the in-progress launcher.
   // Other callers can keep using the cache.
-  const deploymentInfo = await getDeploymentInfoOrNull({ skipCache: true });
   if (!deploymentInfo) return <ApiUnavailable />;
 
   // Mid-flight migration gate. The DB is being cut over — rendering
@@ -137,13 +161,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     );
   }
 
-  const initialGithubData = await serverApi
-    .get("github/home", { cache: "no-store" })
-    .catch(() => null);
-
   return (
     <DashboardProviders
-      initialGithubData={initialGithubData}
       initialUser={session.user}
       selfHosted={deploymentInfo.selfHosted}
       userServers={deploymentInfo.userServers}
@@ -155,6 +174,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
       machineName={deploymentInfo.machineName}
       hostDomain={deploymentInfo.hostDomain}
     >
+      <NavigationProgress />
       <div className="flex flex-col h-dvh">
         {/* Update + platform-status surface — full app width, ABOVE the sidebar.
             Renders nothing unless there's an advisory / platform notice (SaaS:
@@ -162,7 +182,15 @@ export default async function DashboardLayout({ children }: { children: React.Re
             adds no chrome when idle. */}
         <UpdateCenter />
         <div className="flex flex-1 min-h-0">
-          <Sidebar />
+          <Sidebar
+            initialOrganizations={organizations.map((org) => ({
+              id: org.id,
+              name: org.name || org.slug || "Workspace",
+              slug: org.slug,
+              logo: org.logo,
+            }))}
+            initialActiveOrganizationId={activeOrganizationId}
+          />
           {/* Main content */}
           <main className="flex-1 overflow-y-auto">{children}</main>
         </div>

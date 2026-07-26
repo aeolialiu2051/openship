@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useEffect, useCallback, useRef } from "react";
 import {
   Github,
   ExternalLink,
@@ -22,7 +22,13 @@ import {
 import { useCloud } from "@/context/CloudContext";
 import { useModal } from "@/context/ModalContext";
 import { usePlatform } from "@/context/PlatformContext";
-import { githubApi } from "@/lib/api";
+import { useClientQuery } from "@/lib/client-query-cache";
+import {
+  githubStatusQuery,
+  refreshGitHubStatus,
+  revalidateGitHubStatus,
+  type GitHubStatusResponse,
+} from "@/lib/github-status-query";
 import { SettingsSection } from "./SettingsSection";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -41,33 +47,27 @@ export function GitHubConnection() {
   const { t } = useI18n();
   const router = useRouter();
 
-  const [state, setState] = useState<GitHubConnectionState>(EMPTY_STATE);
-  const [accounts, setAccounts] = useState<GitHubAccount[]>([]);
-  const [installUrl, setInstallUrl] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const loadStatus = useCallback(async (force = false) => {
-    setLoading(true);
-    try {
-      // Live (no TTL cache) but de-duplicated across concurrent callers (the
-      // library App badge shares this in-flight request). `force` bypasses a
-      // pre-mutation in-flight after connect/disconnect.
-      const res = await githubApi.getStatusDeduped<any>(force);
-      setState(res?.state ?? EMPTY_STATE);
-      setAccounts(res?.accounts ?? []);
-      setInstallUrl(res?.installUrl || null);
-    } catch {
-      setState(EMPTY_STATE);
-      setAccounts([]);
-      setInstallUrl(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const { data, isLoading } = useClientQuery(githubStatusQuery);
+  const response = data as GitHubStatusResponse | undefined;
+  const state = (response?.state as GitHubConnectionState | undefined) ?? EMPTY_STATE;
+  const accounts = (response?.accounts as GitHubAccount[] | undefined) ?? [];
+  const installUrl = response?.installUrl || null;
+  const loading = isLoading;
 
   useEffect(() => {
-    void loadStatus();
-  }, [loadStatus]);
+    // Keep the card live on every visit without blanking a recently loaded
+    // status. Cached data paints immediately; the network refresh is SWR.
+    revalidateGitHubStatus();
+  }, []);
+
+  const loadStatus = useCallback(async () => {
+    try {
+      await refreshGitHubStatus();
+    } catch {
+      // Preserve the last successful snapshot when a background cloud probe
+      // fails; connect/disconnect should not fail solely because refresh did.
+    }
+  }, []);
 
   // Connect/install opens a separate window (OAuth popup or the GitHub App
   // install tab). The connect call returns as soon as that window opens, so
@@ -79,7 +79,7 @@ export function GitHubConnection() {
     const repullIfPending = () => {
       if (!pendingConnectRef.current) return;
       pendingConnectRef.current = false;
-      void loadStatus(true);
+      void loadStatus();
     };
     const onVisible = () => {
       if (document.visibilityState === "visible") repullIfPending();
@@ -98,14 +98,14 @@ export function GitHubConnection() {
     async (source?: "oauth" | "cli") => {
       pendingConnectRef.current = true; // re-pull when the connect window closes
       await ctxConnect(source);
-      await loadStatus(true);
+      await loadStatus();
     },
     [ctxConnect, loadStatus],
   );
   const disconnect = useCallback(
     async (source?: "oauth" | "cli" | "all") => {
       await ctxDisconnect(source);
-      await loadStatus(true);
+      await loadStatus();
     },
     [ctxDisconnect, loadStatus],
   );

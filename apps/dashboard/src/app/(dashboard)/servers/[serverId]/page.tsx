@@ -46,10 +46,8 @@ import { PortForwardingCard } from "./_components/port-forwarding-card";
 import { ServerGitHubConnect } from "@/components/github/ServerGitHubConnect";
 import { ServerMigrationWizard } from "@/components/migration/ServerMigrationWizard";
 import { usePlatform } from "@/context/PlatformContext";
-import * as CountryFlags from "country-flag-icons/react/3x2";
-
-/** ISO-3166-1 alpha-2 → flag component (same source the servers list uses). */
-const FLAGS = CountryFlags as Record<string, React.ComponentType<{ title?: string; className?: string }>>;
+import { countryCodeToFlagEmoji } from "@/lib/country-flag";
+import { invalidateServersList } from "@/hooks/useServersList";
 
 type Tab = "overview" | "components" | "github" | "security" | "ports" | "terminal";
 type ManualActionMode = "remove" | null;
@@ -477,6 +475,7 @@ export default function ServerDetailPage({
           onClick: async () => {
             try {
               await systemApi.deleteServerEntry(serverId);
+              invalidateServersList();
               hideModal(modalId);
               showToast(t.servers.detail.toastServerRemoved, "success", t.servers.toastTitles.server);
               router.push("/servers");
@@ -617,9 +616,9 @@ export default function ServerDetailPage({
                 {server.sshUser ?? "root"}@{server.sshHost}
               </p>
               {(() => {
-                const Flag = server.country ? FLAGS[server.country] : undefined;
-                return Flag ? (
-                  <Flag title={server.country ?? undefined} className="h-3.5 w-auto rounded-[2px] ring-1 ring-border/50" />
+                const flag = countryCodeToFlagEmoji(server.country);
+                return flag ? (
+                  <span title={server.country ?? undefined} className="text-sm leading-none">{flag}</span>
                 ) : null;
               })()}
             </div>

@@ -10,11 +10,11 @@ import { DesktopChrome } from "@/components/desktop-chrome";
 import {
   defaultLocale,
   isRtl,
-  loadDictionary,
   LOCALE_COOKIE,
   locales,
   type Locale,
 } from "@/i18n";
+import { loadDictionary } from "@/i18n/dictionaries";
 
 /** Resolve the request locale server-side: explicit cookie first, then the
  *  browser's Accept-Language, else the default. Keeps SSR and first paint in
@@ -79,10 +79,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   const locale = await resolveRequestLocale();
   const dir = isRtl(locale) ? "rtl" : "ltr";
-  // English is the bundled base (no prop needed); for other locales load the
-  // dictionary server-side so the very first render is already translated.
-  const initialDictionary =
-    locale === defaultLocale ? undefined : await loadDictionary(locale);
+  // Always seed the provider from SSR. The client no longer bundles English as
+  // a global fallback and therefore does not download a dictionary twice.
+  const initialDictionary = await loadDictionary(locale);
 
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>

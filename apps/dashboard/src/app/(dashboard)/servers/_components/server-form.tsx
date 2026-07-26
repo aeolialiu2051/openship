@@ -15,6 +15,7 @@ import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
 import { usePlatform } from "@/context/PlatformContext";
+import { invalidateServersList } from "@/hooks/useServersList";
 
 const INPUT =
   "w-full px-3.5 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:ring-2 focus:ring-primary/20";
@@ -128,6 +129,7 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         ? await systemApi.updateServerEntry(server!.id, data)
         : await systemApi.createServerEntry(data);
 
+      invalidateServersList();
       showToast(isEditing ? t.servers.form.toastUpdated : t.servers.form.toastSaved, "success", t.servers.toastTitles.server);
       onSaved({ server: saved, isEditing });
     } catch (err) {

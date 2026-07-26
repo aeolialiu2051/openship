@@ -36,12 +36,13 @@ import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { setActiveOrganizationId } from "@/lib/api/client";
+import { prefetchDashboardRouteData } from "@/lib/dashboard-route-prefetch";
 
 /**
  * Org list / member shapes from Better Auth's organization plugin.
  * Mirrors the inline types used in account-switcher.tsx and TeamTab.tsx.
  */
-interface SidebarOrg {
+export interface SidebarOrg {
   id: string;
   name: string;
   slug?: string | null;
@@ -119,7 +120,13 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   ].filter((s) => s.items.length > 0);
 }
 
-export function Sidebar() {
+export function Sidebar({
+  initialOrganizations,
+  initialActiveOrganizationId,
+}: {
+  initialOrganizations?: SidebarOrg[];
+  initialActiveOrganizationId?: string | null;
+}) {
   const { user } = useAuth();
   const { selfHosted, userServers, deployMode, authMode, machineName } = usePlatform();
   const { connected: cloudConnected, cloudUser } = useCloud();
@@ -164,17 +171,31 @@ export function Sidebar() {
   // role details are deferred until the switcher opens; fetching one full org
   // payload per membership during every page boot competes with route data.
   const [orgsOpen, setOrgsOpen] = useState(false);
-  const [orgs, setOrgs] = useState<SidebarOrg[]>([]);
-  const [activeOrgId, setActiveOrgId] = useState<string | null>(null);
+  const [orgs, setOrgs] = useState<SidebarOrg[]>(() => initialOrganizations ?? []);
+  const [activeOrgId, setActiveOrgId] = useState<string | null>(
+    initialActiveOrganizationId ?? null,
+  );
   const [orgRoles, setOrgRoles] = useState<Record<string, string>>({});
   const roleLoadsAttemptedRef = useRef(new Set<string>());
-  const [orgsLoaded, setOrgsLoaded] = useState(false);
+  const [orgsLoaded, setOrgsLoaded] = useState(initialOrganizations !== undefined);
   const [switchingOrgId, setSwitchingOrgId] = useState<string | null>(null);
+
+  const prefetchRoute = (href: string) => {
+    // Next's router cache de-duplicates concurrent/repeated prefetches. Keeping
+    // no additional permanent Set here also lets a route be refreshed after
+    // Next invalidates its prefetched RSC payload.
+    router.prefetch(href);
+    prefetchDashboardRouteData(href);
+  };
 
   // Fetch on mount so the trigger shows the current org name without
   // waiting for the user to click. Cheap (one /list call) and mirrors
   // the AccountSwitcher pattern.
   useEffect(() => {
+    if (initialOrganizations !== undefined) {
+      setActiveOrganizationId(initialActiveOrganizationId ?? null);
+      return;
+    }
     let cancelled = false;
     (async () => {
       try {
@@ -200,7 +221,7 @@ export function Sidebar() {
     return () => {
       cancelled = true;
     };
-  }, [user?.id]);
+  }, [initialActiveOrganizationId, initialOrganizations, user?.id]);
 
   useEffect(() => {
     if (!orgsOpen || !user?.id || orgs.length === 0) return;
@@ -352,6 +373,10 @@ export function Sidebar() {
                     <Link
                       key={key}
                       href={href}
+                      prefetch={false}
+                      onPointerEnter={() => prefetchRoute(href)}
+                      onFocus={() => prefetchRoute(href)}
+                      onTouchStart={() => prefetchRoute(href)}
                       title={collapsed ? label(key) : undefined}
                       className={`flex items-center rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${collapsed ? "justify-center" : "gap-3"
                         } ${active

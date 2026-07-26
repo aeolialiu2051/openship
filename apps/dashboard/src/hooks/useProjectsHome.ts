@@ -65,6 +65,10 @@ async function fetchProjectsHome(force = false): Promise<ProjectsHomeData> {
   return inFlight;
 }
 
+export function prefetchProjectsHome() {
+  return fetchProjectsHome(false);
+}
+
 /** Mark the cache stale after a project mutation while keeping its current
  * value available for an instant transition. Revalidate immediately so a
  * subsequent navigation does not spend up to the full TTL showing stale data. */

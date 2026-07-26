@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Plus,
   RefreshCw,
@@ -36,14 +36,19 @@ import {
   describeDestination,
   describeCredentials,
 } from "@/components/backup/destinationDisplay";
+import { useBackupDestinationsList } from "@/hooks/useBackupDestinationsList";
 
 export default function BackupsPage() {
   const { showToast } = useToast();
   const { t } = useI18n();
   const router = useRouter();
   const m = t.misc.backups;
-  const [items, setItems] = useState<BackupDestinationSummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: cachedItems,
+    isLoading: loading,
+    refresh,
+  } = useBackupDestinationsList();
+  const items = cachedItems ?? [];
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BackupDestinationSummary | null>(null);
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
@@ -51,18 +56,8 @@ export default function BackupsPage() {
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await backupDestinationsApi.list();
-      setItems(res.data);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
+    await refresh();
+  }, [refresh]);
 
   const handleVerify = useCallback(
     async (row: BackupDestinationSummary) => {
@@ -578,4 +573,3 @@ function KindCard({
     </div>
   );
 }
-

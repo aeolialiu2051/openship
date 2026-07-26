@@ -1,0 +1,48 @@
+import type brand from "./locales/en/brand.json";
+import type auth from "./locales/en/auth.json";
+import type dashboard from "./locales/en/dashboard.json";
+import type settings from "./locales/en/settings.json";
+import type servers from "./locales/en/servers.json";
+import type billing from "./locales/en/billing.json";
+import type library from "./locales/en/library.json";
+import type onboarding from "./locales/en/onboarding.json";
+import type deploy from "./locales/en/deploy.json";
+import type deployments from "./locales/en/deployments.json";
+import type importProject from "./locales/en/importProject.json";
+import type projects from "./locales/en/projects.json";
+import type projectSettings from "./locales/en/projectSettings.json";
+import type projectDetail from "./locales/en/projectDetail.json";
+import type emails from "./locales/en/emails.json";
+import type emailsAdmin from "./locales/en/emailsAdmin.json";
+import type chrome from "./locales/en/chrome.json";
+import type overview from "./locales/en/overview.json";
+import type widgets from "./locales/en/widgets.json";
+import type misc from "./locales/en/misc.json";
+import type migration from "./locales/en/migration.json";
+import type jobs from "./locales/en/jobs.json";
+
+/** Full translation shape without importing any dictionary data at runtime. */
+export type Dictionary = {
+  brand: typeof brand;
+  auth: typeof auth;
+  dashboard: typeof dashboard;
+  settings: typeof settings;
+  servers: typeof servers;
+  billing: typeof billing;
+  library: typeof library;
+  onboarding: typeof onboarding;
+  deploy: typeof deploy;
+  deployments: typeof deployments;
+  importProject: typeof importProject;
+  projects: typeof projects;
+  projectSettings: typeof projectSettings;
+  projectDetail: typeof projectDetail;
+  emails: typeof emails;
+  emailsAdmin: typeof emailsAdmin;
+  chrome: typeof chrome;
+  overview: typeof overview;
+  widgets: typeof widgets;
+  misc: typeof misc;
+  migration: typeof migration;
+  jobs: typeof jobs;
+};
