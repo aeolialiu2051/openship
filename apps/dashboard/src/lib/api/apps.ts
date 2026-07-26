@@ -31,7 +31,7 @@ export interface AppCatalogEntry {
 
 export type InstallAppResult =
   | { kind: "flow"; flowHref: string }
-  | { kind: "template"; projectId: string; slug: string };
+  | { kind: "template"; projectId: string; slug: string; routeKey: string };
 
 /** Effective value for one setting field (secrets are never sent back). */
 export interface AppSettingValue {
@@ -61,7 +61,12 @@ export const appsApi = {
 
   /** Install an app from the catalog. Template apps return the new project;
    *  flow apps return the wizard route to hand off to. */
-  install: (body: { templateId: string; name?: string; config?: Record<string, string> }) =>
+  install: (body: {
+    templateId: string;
+    name?: string;
+    config?: Record<string, string>;
+    routeKey?: string;
+  }) =>
     api.post<{ data: InstallAppResult }>(endpoints.apps.install, body),
 
   /** An installed app's curated settings schema + current values. */

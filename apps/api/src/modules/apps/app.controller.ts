@@ -20,7 +20,12 @@ export async function catalog(c: Context) {
 /** POST /api/apps — install an app from the catalog. */
 export async function install(c: Context) {
   const ctx = getRequestContext(c);
-  type InstallBody = { templateId?: string; name?: string; config?: Record<string, string> };
+  type InstallBody = {
+    templateId?: string;
+    name?: string;
+    config?: Record<string, string>;
+    routeKey?: string;
+  };
   const body = await c.req.json<InstallBody>().catch((): InstallBody => ({}));
   if (!body.templateId) {
     return c.json({ error: "templateId is required" }, 400);
@@ -30,6 +35,7 @@ export async function install(c: Context) {
       templateId: body.templateId,
       name: body.name,
       config: body.config,
+      routeKey: body.routeKey,
     });
     return c.json({ data: result });
   } catch (err) {

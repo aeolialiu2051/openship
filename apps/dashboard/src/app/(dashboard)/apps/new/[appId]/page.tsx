@@ -8,8 +8,10 @@ import {
   getAppSettings,
   flattenSettingFields,
   envToSettingValue,
+  generateProjectRouteKey,
   settingToEnvValue,
   isAppAvailable,
+  replaceProjectRouteKey,
   type AppSettingField,
 } from "@repo/core";
 import { appsApi, deployApi, servicesApi } from "@/lib/api";
@@ -92,6 +94,7 @@ export default function AppInstallPage() {
   ]);
   const [internalOnly, setInternalOnly] = useState(false);
   const [destination, setDestination] = useState<AppDestination | null>(null);
+  const [routeKey, setRouteKey] = useState<string>();
 
   const [phase, setPhase] = useState<Phase>("form");
   const [busy, setBusy] = useState(false);
@@ -108,6 +111,13 @@ export default function AppInstallPage() {
       router.replace("/apps/new");
     }
   }, [template, appId, router]);
+
+  // Reserve the same stable Base36 identity used by the full deploy wizard so
+  // the domain shown before installation is the domain the project will keep.
+  // Generate after mount to avoid random server/client hydration differences.
+  useEffect(() => {
+    setRouteKey((current) => current ?? generateProjectRouteKey());
+  }, []);
 
   // ── Clean progress poll (status only, never raw logs) ──────────────────────
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -165,7 +175,7 @@ export default function AppInstallPage() {
    *  project — the same service-update endpoint the project Domains tab uses.
    *  internalOnly → unexpose; custom → set customDomain; free → set the chosen
    *  subdomain slug (or keep the template's baked default when left blank). */
-  const applyDomain = async (pid: string) => {
+  const applyDomain = async (pid: string, canonicalRouteKey: string) => {
     if (!needsDomain) return;
     const svcRes = await servicesApi.list(pid);
     const services = (svcRes?.services ?? []) as Array<{
@@ -189,14 +199,17 @@ export default function AppInstallPage() {
       const custom = ep.customDomain.trim().toLowerCase();
       if (custom) await servicesApi.update(pid, primary.id, { domainType: "custom", customDomain: custom });
     } else {
-      const slug = ep.domain.trim().toLowerCase();
+      const previewSlug = ep.domain.trim().toLowerCase();
+      const slug = previewSlug && routeKey && routeKey !== canonicalRouteKey
+        ? replaceProjectRouteKey(previewSlug, routeKey, canonicalRouteKey)
+        : previewSlug;
       // Blank = keep the template's baked free subdomain; a value overrides it.
       if (slug) await servicesApi.update(pid, primary.id, { domainType: "free", domain: slug });
     }
   };
 
   const install = async () => {
-    if (busy || !destination || destination.deployTarget === "cloud") return;
+    if (busy || !destination || !routeKey || destination.deployTarget === "cloud") return;
     if (
       needsDomain &&
       !internalOnly &&
@@ -208,7 +221,7 @@ export default function AppInstallPage() {
     }
     setBusy(true);
     try {
-      const res = await appsApi.install({ templateId: appId });
+      const res = await appsApi.install({ templateId: appId, routeKey });
       const data = res.data;
       if (data.kind !== "template") {
         router.push((data as { flowHref?: string }).flowHref ?? "/apps");
@@ -219,7 +232,7 @@ export default function AppInstallPage() {
 
       const changes = settingChanges();
       if (changes.length > 0) await appsApi.updateSettings(pid, changes);
-      await applyDomain(pid);
+      await applyDomain(pid, data.routeKey);
 
       const dep = await deployApi.buildAccess({
         projectId: pid,
@@ -243,10 +256,10 @@ export default function AppInstallPage() {
 
   /** Advanced escape: create the project and hand off to the technical wizard. */
   const goAdvanced = async () => {
-    if (busy) return;
+    if (busy || !routeKey) return;
     setBusy(true);
     try {
-      const res = await appsApi.install({ templateId: appId });
+      const res = await appsApi.install({ templateId: appId, routeKey });
       const data = res.data;
       if (data.kind === "template") {
         router.push(`/deploy/${encodeProjectSlug(data.projectId)}`);
@@ -330,6 +343,7 @@ export default function AppInstallPage() {
                   <div className="mt-4">
                     <PublicEndpointsCard
                       projectName={template.name}
+                      routeKey={routeKey}
                       endpoints={endpoints}
                       hasServer
                       runtimePort={exposedPort}
@@ -371,7 +385,7 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={install}
-                disabled={busy || !destination || destination.deployTarget === "cloud"}
+                disabled={busy || !destination || !routeKey || destination.deployTarget === "cloud"}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {busy
@@ -384,7 +398,7 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={goAdvanced}
-                disabled={busy}
+                disabled={busy || !routeKey}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               >
                 <SlidersHorizontal className="size-3.5" /> {w.advanced}

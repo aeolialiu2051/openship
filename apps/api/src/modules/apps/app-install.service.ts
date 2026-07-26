@@ -9,11 +9,18 @@
  */
 
 import { randomBytes } from "node:crypto";
-import { APP_TEMPLATES, getAppTemplate, getAppManagement, isAppAvailable, resolveServiceHostnameLabel, type AppConfigField } from "@repo/core";
+import {
+  APP_TEMPLATES,
+  getAppTemplate,
+  getAppManagement,
+  isAppAvailable,
+  type AppConfigField,
+} from "@repo/core";
 import { repos } from "@repo/db";
 import type { RequestContext } from "../../lib/request-context";
 import { createProject } from "../projects/project-crud.service";
 import { createService, setServiceEnvVars } from "../services/service.service";
+import { appServiceManagedLabel } from "./app-install-routing";
 
 /**
  * Strong random value for generated secrets (Convex INSTANCE_SECRET, DB
@@ -63,11 +70,13 @@ export interface InstallAppInput {
   templateId: string;
   name?: string;
   config?: Record<string, string>;
+  /** Client-reserved Base36 identity so the pre-install domain preview is stable. */
+  routeKey?: string;
 }
 
 export type InstallAppResult =
   | { kind: "flow"; flowHref: string }
-  | { kind: "template"; projectId: string; slug: string };
+  | { kind: "template"; projectId: string; slug: string; routeKey: string };
 
 export async function installApp(
   ctx: RequestContext,
@@ -96,6 +105,7 @@ export async function installApp(
       hasBuild: false,
       isApp: true,
       appTemplateId: template.id,
+      routeKey: input.routeKey,
     },
     ctx.organizationId,
   );
@@ -119,17 +129,26 @@ export async function installApp(
 
   // Seed the compose service rows.
   for (const svc of template.services ?? []) {
+    const managedLabel = appServiceManagedLabel({
+      projectLabel: project.slug ?? project.name,
+      serviceName: svc.name,
+      routeKey: project.routeKey,
+    });
     // Multi-port apps (e.g. Convex: 3210 API + 3211 HTTP actions) declare one
     // route per port. Give each its own free subdomain — the primary uses the
     // default `<app>-<service>` label, secondaries append their slugSuffix — so
     // {{publicUrl:svc:port}} resolves to distinct hostnames.
     const publicEndpoints = svc.routes && svc.routes.length > 0
       ? svc.routes.map((route) => {
-          const label = resolveServiceHostnameLabel(project.slug ?? project.name, svc.name, undefined, "compose");
           return {
             port: route.port,
             domainType: "free" as const,
-            domain: route.slugSuffix ? `${label}-${route.slugSuffix}` : label,
+            domain: appServiceManagedLabel({
+              projectLabel: project.slug ?? project.name,
+              serviceName: svc.name,
+              routeKey: project.routeKey,
+              slugSuffix: route.slugSuffix,
+            }),
           };
         })
       : undefined;
@@ -147,6 +166,7 @@ export async function installApp(
       exposed: svc.exposed ?? false,
       exposedPort: svc.exposedPort != null ? String(svc.exposedPort) : undefined,
       domainType: svc.exposed ? "free" : undefined,
+      domain: svc.exposed && !publicEndpoints ? managedLabel : undefined,
       publicEndpoints,
     });
   }
@@ -171,5 +191,10 @@ export async function installApp(
     }
   }
 
-  return { kind: "template", projectId: project.id, slug: project.slug };
+  return {
+    kind: "template",
+    projectId: project.id,
+    slug: project.slug,
+    routeKey: project.routeKey!,
+  };
 }
