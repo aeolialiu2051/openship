@@ -66,7 +66,7 @@ import { serviceKind } from "./project-services";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../../lib/upstream-url";
 import { withLoopbackPublish } from "../../../lib/loopback-publish";
 import { prepareTraefikConfig, vibrailRouterName } from "../../../lib/traefik-routing";
-import { upsertVibrailDnsRecord } from "../../../lib/cloudflare-dns";
+import { upsertDeploymentDnsRecord } from "../../../lib/cloudflare-dns";
 
 export interface ComposeDeployResult {
   /** `reconciling` when at least one service's outcome is UNKNOWN because the
@@ -1279,7 +1279,7 @@ export async function deployComposeServices(
 
       for (const route of proxyRoutes) {
         try {
-          const action = await upsertVibrailDnsRecord({
+          const action = await upsertDeploymentDnsRecord({
             hostname: route.hostname,
             organizationId: dep.organizationId,
             serverId: opts?.serverId,

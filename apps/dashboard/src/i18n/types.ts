@@ -20,6 +20,7 @@ import type widgets from "./locales/en/widgets.json";
 import type misc from "./locales/en/misc.json";
 import type migration from "./locales/en/migration.json";
 import type jobs from "./locales/en/jobs.json";
+import type domainsPage from "./locales/en/domainsPage.json";
 
 /** Full translation shape without importing any dictionary data at runtime. */
 export type Dictionary = {
@@ -45,4 +46,5 @@ export type Dictionary = {
   misc: typeof misc;
   migration: typeof migration;
   jobs: typeof jobs;
+  domainsPage: typeof domainsPage;
 };

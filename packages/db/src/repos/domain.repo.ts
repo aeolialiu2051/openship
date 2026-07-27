@@ -36,10 +36,7 @@ export function createDomainRepo(db: Database) {
      * `limit`/`offset` and a deterministic order. The default (no
      * args) keeps the every-row contract for the internal callers.
      */
-    async listByProject(
-      projectId: string,
-      opts?: { limit?: number; offset?: number },
-    ) {
+    async listByProject(projectId: string, opts?: { limit?: number; offset?: number }) {
       return db.query.domain.findMany({
         where: eq(domain.projectId, projectId),
         ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
@@ -54,10 +51,7 @@ export function createDomainRepo(db: Database) {
      */
     async findByHostnameForProject(projectId: string, hostname: string) {
       return db.query.domain.findFirst({
-        where: and(
-          eq(domain.projectId, projectId),
-          eq(domain.hostname, hostname.toLowerCase()),
-        ),
+        where: and(eq(domain.projectId, projectId), eq(domain.hostname, hostname.toLowerCase())),
       });
     },
 
@@ -131,7 +125,8 @@ export function createDomainRepo(db: Database) {
       if (existing) {
         // Promote to primary if caller wants it and it isn't already
         if (data.isPrimary && !existing.isPrimary) {
-          await db.update(domain)
+          await db
+            .update(domain)
             .set({ isPrimary: true, updatedAt: new Date() })
             .where(eq(domain.id, existing.id));
           return { ...existing, isPrimary: true };
@@ -183,11 +178,7 @@ export function createDomainRepo(db: Database) {
      * (so a still-propagating domain stays `pending`, a misconfigured one
      * eventually reads `failed`). Returns the new attempt count.
      */
-    async recordVerifyFailure(
-      id: string,
-      error: string,
-      failAfter = 8,
-    ): Promise<number> {
+    async recordVerifyFailure(id: string, error: string, failAfter = 8): Promise<number> {
       const row = await db.query.domain.findFirst({ where: eq(domain.id, id) });
       const attempts = (row?.verifyAttempts ?? 0) + 1;
       await db
@@ -214,6 +205,22 @@ export function createDomainRepo(db: Database) {
       await this.update(id, { status });
     },
 
+    async markDnsManaged(id: string, provider: string, recordId: string) {
+      await this.update(id, {
+        dnsManaged: true,
+        dnsProvider: provider,
+        dnsRecordId: recordId,
+      });
+    },
+
+    async clearDnsManaged(id: string) {
+      await this.update(id, {
+        dnsManaged: false,
+        dnsProvider: null,
+        dnsRecordId: null,
+      });
+    },
+
     async remove(id: string) {
       await db.delete(domain).where(eq(domain.id, id));
     },
@@ -231,10 +238,7 @@ export function createDomainRepo(db: Database) {
     /** Find all domains needing SSL renewal */
     async findExpiringSsl(beforeDate: Date) {
       return db.query.domain.findMany({
-        where: and(
-          eq(domain.sslStatus, "active"),
-          lt(domain.sslExpiresAt, beforeDate),
-        ),
+        where: and(eq(domain.sslStatus, "active"), lt(domain.sslExpiresAt, beforeDate)),
       });
     },
 

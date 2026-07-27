@@ -148,6 +148,11 @@ export const endpoints = {
     records: (id: string) => `domains/${encodeURIComponent(id)}/records`,
   },
 
+  domainSettings: {
+    get: "domain-settings",
+    verify: "domain-settings/verify",
+  },
+
   /* ---------------------------------------------------------------- */
   /*  Jobs (self-hosted scheduled tasks)                              */
   /* ---------------------------------------------------------------- */
@@ -304,8 +309,7 @@ export const endpoints = {
     steps: "mail/steps",
     status: "mail/status",
     servers: "mail/servers",
-    forgetServer: (serverId: string) =>
-      `mail/servers/${encodeURIComponent(serverId)}`,
+    forgetServer: (serverId: string) => `mail/servers/${encodeURIComponent(serverId)}`,
     scan: "mail/scan",
     adopt: "mail/adopt",
     setup: "mail/setup",
@@ -318,8 +322,7 @@ export const endpoints = {
     portsCheck: "mail/ports/check",
     portsResolve: "mail/ports/resolve",
     admin: {
-      domains: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/domains`,
+      domains: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/domains`,
       domain: (serverId: string, domain: string) =>
         `mail/admin/${encodeURIComponent(serverId)}/domains/${encodeURIComponent(domain)}`,
       domainDependents: (serverId: string, domain: string) =>
@@ -330,22 +333,16 @@ export const endpoints = {
         `mail/admin/${encodeURIComponent(serverId)}/domains/${encodeURIComponent(domain)}/dns/acknowledge`,
       pendingDomainDns: (serverId: string) =>
         `mail/admin/${encodeURIComponent(serverId)}/domains-dns/pending`,
-      mailboxes: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/mailboxes`,
+      mailboxes: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/mailboxes`,
       mailbox: (serverId: string, email: string) =>
         `mail/admin/${encodeURIComponent(serverId)}/mailboxes/${encodeURIComponent(email)}`,
-      stats: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/stats`,
-      dnsScan: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/dns-scan`,
-      relay: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/relay`,
+      stats: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/stats`,
+      dnsScan: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/dns-scan`,
+      relay: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/relay`,
       backupPolicy: (serverId: string) =>
         `mail/admin/${encodeURIComponent(serverId)}/backup-policy`,
-      backupRuns: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/backup-runs`,
-      testEmail: (serverId: string) =>
-        `mail/admin/${encodeURIComponent(serverId)}/test-email`,
+      backupRuns: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/backup-runs`,
+      testEmail: (serverId: string) => `mail/admin/${encodeURIComponent(serverId)}/test-email`,
       componentAction: (serverId: string, key: string, action: string) =>
         `mail/admin/${encodeURIComponent(serverId)}/components/${encodeURIComponent(key)}/${encodeURIComponent(action)}`,
       componentLogs: (serverId: string, key: string) =>
@@ -487,22 +484,17 @@ export const endpoints = {
   /*  Backups (policies + runs)                                       */
   /* ---------------------------------------------------------------- */
   backups: {
-    listPolicies: (projectId: string | number) =>
-      `projects/${projectId}/backup-policies`,
-    createPolicy: (projectId: string | number) =>
-      `projects/${projectId}/backup-policies`,
+    listPolicies: (projectId: string | number) => `projects/${projectId}/backup-policies`,
+    createPolicy: (projectId: string | number) => `projects/${projectId}/backup-policies`,
     updatePolicy: (policyId: string) => `backup-policies/${policyId}`,
     deletePolicy: (policyId: string) => `backup-policies/${policyId}`,
     runNow: (policyId: string) => `backup-policies/${policyId}/run`,
-    listRuns: (projectId: string | number) =>
-      `projects/${projectId}/backup-runs`,
+    listRuns: (projectId: string | number) => `projects/${projectId}/backup-runs`,
     getRun: (runId: string) => `backup-runs/${runId}`,
     protectRun: (runId: string) => `backup-runs/${runId}/protect`,
     prepareRestore: (runId: string) => `backup-runs/${runId}/restore/prepare`,
-    applyRestore: (restoreId: string) =>
-      `backup-restores/${restoreId}/apply`,
-    cancelRestore: (restoreId: string) =>
-      `backup-restores/${restoreId}/cancel`,
+    applyRestore: (restoreId: string) => `backup-restores/${restoreId}/apply`,
+    cancelRestore: (restoreId: string) => `backup-restores/${restoreId}/cancel`,
     getRestore: (restoreId: string) => `backup-restores/${restoreId}`,
   },
 } as const;

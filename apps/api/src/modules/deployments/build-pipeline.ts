@@ -89,7 +89,7 @@ import { resolveProjectRouteState } from "../domains/project-route.service";
 import { type DeploymentConfigSnapshot } from "./build.service";
 import * as settingsService from "../settings/settings.service";
 import { prepareTraefikConfig, vibrailRouterName } from "../../lib/traefik-routing";
-import { deleteVibrailDnsRecord, upsertVibrailDnsRecord } from "../../lib/cloudflare-dns";
+import { deleteDeploymentDnsRecord, upsertDeploymentDnsRecord } from "../../lib/cloudflare-dns";
 
 // Build env = CI/telemetry defaults (BUILD_ENV_VARS) + the customer's own env
 // vars. NODE_ENV is deliberately NOT set or overridden here: it's the customer's
@@ -1763,7 +1763,7 @@ async function runPostDeploySync(opts: {
   if (usesManagedRouting) {
     for (const domain of plannedDomains) {
       try {
-        const action = await upsertVibrailDnsRecord({
+        const action = await upsertDeploymentDnsRecord({
           hostname: domain.hostname,
           organizationId,
           serverId,
@@ -1794,7 +1794,10 @@ async function runPostDeploySync(opts: {
       });
     }
 
-    await deleteVibrailDnsRecord(domain.hostname).catch((err) => {
+    await deleteDeploymentDnsRecord({
+      hostname: domain.hostname,
+      organizationId,
+    }).catch((err) => {
       logger.log(
         `Warning: failed to remove stale Cloudflare DNS ${domain.hostname}: ${safeErrorMessage(err)}\n`,
         "warn",
@@ -1821,7 +1824,7 @@ async function runPostDeploySync(opts: {
   if (dnsFailures.length > 0) {
     warnings.push(
       `Deployed, but Cloudflare DNS did not sync for ${dnsFailures.join(", ")}. ` +
-        "The app is running on the server; fix the backend Cloudflare token/zone or server public IP, then redeploy to retry.",
+        "The app is running on the server; check the workspace Domains page, Cloudflare token permissions, and the server public IP, then redeploy to retry.",
     );
   }
   return warnings.length > 0 ? { warningMessage: warnings.join(" · ") } : {};

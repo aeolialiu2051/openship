@@ -155,15 +155,60 @@ interface TableSpec {
 
 const TABLES: ReadonlyArray<TableSpec> = [
   // Auth + identity — instance-only (SaaS already has its own user/auth rows).
-  { sqlName: "user", table: schema.user, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "organization", table: schema.organization, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "account", table: schema.account, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "session", table: schema.session, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "member", table: schema.member, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "invitation", table: schema.invitation, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "invitation_pending_grant", table: schema.invitationPendingGrant, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "resource_grant", table: schema.resourceGrant, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "personal_access_token", table: schema.personalAccessToken, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: true },
+  {
+    sqlName: "user",
+    table: schema.user,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "organization",
+    table: schema.organization,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "account",
+    table: schema.account,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "session",
+    table: schema.session,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "member",
+    table: schema.member,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "invitation",
+    table: schema.invitation,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "invitation_pending_grant",
+    table: schema.invitationPendingGrant,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "resource_grant",
+    table: schema.resourceGrant,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "personal_access_token",
+    table: schema.personalAccessToken,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: true,
+  },
 
   // User / instance settings — instance-only.
   //
@@ -174,17 +219,52 @@ const TABLES: ReadonlyArray<TableSpec> = [
   // cloneTokenEncrypted from ever leaving the SaaS DB via the dump path.
   // Adding an org/project scope here would route user_settings rows
   // through the cloud export endpoint and around that gate.
-  { sqlName: "user_settings", table: schema.userSettings, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "instance_settings", table: schema.instanceSettings, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
+  {
+    sqlName: "user_settings",
+    table: schema.userSettings,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "instance_settings",
+    table: schema.instanceSettings,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
 
   // Infra — instance-only.
-  { sqlName: "servers", table: schema.servers, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "server_tunnels", table: schema.serverTunnels, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "mail_servers", table: schema.mailServers, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
+  {
+    sqlName: "servers",
+    table: schema.servers,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "server_tunnels",
+    table: schema.serverTunnels,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "mail_servers",
+    table: schema.mailServers,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
 
   // GitHub — instance-only.
-  { sqlName: "git_installation", table: schema.gitInstallation, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "cloud_webhook_binding", table: schema.cloudWebhookBinding, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: true },
+  {
+    sqlName: "git_installation",
+    table: schema.gitInstallation,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "cloud_webhook_binding",
+    table: schema.cloudWebhookBinding,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: true,
+  },
 
   // ── Project subgraph (also part of organization scope) ─────────────────────
   //
@@ -360,9 +440,24 @@ const TABLES: ReadonlyArray<TableSpec> = [
   },
 
   // Analytics + audit — instance-only.
-  { sqlName: "server_analytics", table: schema.serverAnalytics, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "server_analytics_geo", table: schema.serverAnalyticsGeo, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
-  { sqlName: "audit_event", table: schema.auditEvent, scopes: [{ in: "instance", via: "all-rows" }], hasOrganizationId: false },
+  {
+    sqlName: "server_analytics",
+    table: schema.serverAnalytics,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "server_analytics_geo",
+    table: schema.serverAnalyticsGeo,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
+  {
+    sqlName: "audit_event",
+    table: schema.auditEvent,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
 ];
 
 // Deliberately NOT in the catalogue — ephemeral, cloud-only, or re-derived on
@@ -414,6 +509,7 @@ export const ENCRYPTED_COLUMNS: ReadonlyArray<EncryptedColumnSpec> = [
   { table: "webhook_source", column: "secret" },
   { table: "incoming_webhook", column: "tokenEncrypted" },
   { table: "incoming_webhook", column: "hmacSecretEncrypted" },
+  { table: "domain_settings", column: "cloudflareApiTokenEncrypted" },
   { table: "env_var", column: "value" },
   { table: "backup_destination", column: "accessKeyIdEnc" },
   { table: "backup_destination", column: "secretAccessKeyEnc" },
@@ -531,35 +627,29 @@ export async function dumpSubgraph(
         rows = [];
       } else {
         const col = (spec.table as unknown as Record<string, never>)[resolver.column];
-        rows = (await db
-          .select()
-          .from(spec.table)
-          .where(inArray(col, parentIds))) as Array<Record<string, unknown>>;
+        rows = (await db.select().from(spec.table).where(inArray(col, parentIds))) as Array<
+          Record<string, unknown>
+        >;
       }
     } else if (resolver.via === "from-root-project" && scope.kind === "project") {
       // Look up the source column on the root project row, then select
       // THIS table by id = that value. Lets us bring along the project's
       // FK-target parents (e.g. project_app) without a separate pass.
       const idCol = (spec.table as unknown as { id: never }).id;
-      const sourceCol = (schema.project as unknown as Record<string, never>)[
-        resolver.sourceColumn
-      ];
+      const sourceCol = (schema.project as unknown as Record<string, never>)[resolver.sourceColumn];
       const sourceVals = (await db
         .select({ v: sourceCol })
         .from(schema.project)
         .where(eq(schema.project.id, scope.projectId as never))) as Array<{
         v: string | null;
       }>;
-      const ids = sourceVals
-        .map((r) => r.v)
-        .filter((v): v is string => typeof v === "string");
+      const ids = sourceVals.map((r) => r.v).filter((v): v is string => typeof v === "string");
       if (ids.length === 0) {
         rows = [];
       } else {
-        rows = (await db
-          .select()
-          .from(spec.table)
-          .where(inArray(idCol, ids))) as Array<Record<string, unknown>>;
+        rows = (await db.select().from(spec.table).where(inArray(idCol, ids))) as Array<
+          Record<string, unknown>
+        >;
       }
     } else {
       rows = [];
@@ -723,10 +813,7 @@ export function assertDumpSelfContained(dump: DatabaseDump): void {
   }
 }
 
-export async function restoreSubgraph(
-  dump: DatabaseDump,
-  opts: RestoreOptions,
-): Promise<void> {
+export async function restoreSubgraph(dump: DatabaseDump, opts: RestoreOptions): Promise<void> {
   if (dump.formatVersion !== DUMP_FORMAT_VERSION) {
     throw new Error(
       `Dump format version ${dump.formatVersion} cannot be restored by this build (expected ${DUMP_FORMAT_VERSION}).`,
@@ -862,7 +949,10 @@ export async function restoreSubgraph(
 
       try {
         if (skipOnConflict) {
-          await tx.insert(spec.table).values(prepared as never).onConflictDoNothing();
+          await tx
+            .insert(spec.table)
+            .values(prepared as never)
+            .onConflictDoNothing();
         } else {
           await tx.insert(spec.table).values(prepared as never);
         }

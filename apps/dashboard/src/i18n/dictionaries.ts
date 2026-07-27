@@ -20,6 +20,7 @@ import widgets from "./locales/en/widgets.json";
 import misc from "./locales/en/misc.json";
 import migration from "./locales/en/migration.json";
 import jobs from "./locales/en/jobs.json";
+import domainsPage from "./locales/en/domainsPage.json";
 import { defaultLocale, type Locale } from "./config";
 import type { Dictionary } from "./types";
 
@@ -48,6 +49,7 @@ export const baseDictionary: Dictionary = {
   misc,
   migration,
   jobs,
+  domainsPage,
 };
 
 const NAMESPACES = Object.keys(baseDictionary) as (keyof Dictionary)[];

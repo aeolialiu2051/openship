@@ -24,7 +24,7 @@ import { resolveOrgCloudUserId } from "../../lib/cloud/transport";
 import { buildServiceRouteDomain } from "../../lib/routing-domains";
 import { createReachabilityProbe } from "../../lib/server-reachability";
 import { resolveLiveServiceState } from "../services/live-state";
-import { deleteVibrailDnsRecord } from "../../lib/cloudflare-dns";
+import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
 
 /** Hard ceiling on a docker-over-SSH volume inspect during manifest/preview.
  *  These calls `.catch(() => [])` on ERROR, but a half-open SSH socket never
@@ -65,6 +65,8 @@ export interface CleanupResource {
   /** Runtime mode (docker | bare | cloud) for the orphaned_resource row so GC
    *  resolves the right adapter. Set on `unreachable` items. */
   runtimeMode?: string;
+  /** Organization scope required for backend-managed DNS cleanup. */
+  organizationId?: string;
 }
 
 export interface CleanupManifest {
@@ -529,6 +531,7 @@ export async function collectProjectManifest(
       ref: hostname,
       label: `Cloudflare DNS ${hostname}`,
       runtime: null,
+      organizationId: project.organizationId,
     });
   }
 
@@ -867,7 +870,11 @@ async function destroyResourceOnce(
       return;
     }
     case "managed_dns": {
-      await deleteVibrailDnsRecord(resource.ref);
+      if (!resource.organizationId) return;
+      await deleteDeploymentDnsRecord({
+        hostname: resource.ref,
+        organizationId: resource.organizationId,
+      });
       return;
     }
     case "volume": {

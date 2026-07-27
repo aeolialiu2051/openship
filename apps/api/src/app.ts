@@ -23,6 +23,7 @@ import { appConnectionRoutes } from "./modules/apps/app-connection.routes";
 import { projectConnectionRoutes } from "./modules/projects/project-connection.routes";
 import { deploymentRoutes } from "./modules/deployments/deployment.routes";
 import { domainRoutes } from "./modules/domains/domain.routes";
+import { domainSettingsRoutes } from "./modules/domain-settings/domain-settings.routes";
 import { jobRoutes } from "./modules/jobs/job.routes";
 import { noticeRoutes } from "./modules/notices/notice.routes";
 import { serviceRoutes } from "./modules/services/service.routes";
@@ -126,6 +127,7 @@ app.route("/api/projects/:id/app-connection", appConnectionRoutes);
 app.route("/api/projects/:id/connections", projectConnectionRoutes);
 app.route("/api/deployments", deploymentRoutes);
 app.route("/api/domains", domainRoutes);
+app.route("/api/domain-settings", domainSettingsRoutes);
 app.route("/api/webhooks", webhookRoutes);
 app.route("/api/github", githubRoutes);
 app.route("/api/analytics", analyticsRoutes);
@@ -183,9 +185,8 @@ setupWebSocket(app);
 // exec via the Docker runtime adapter. The controller picks via
 // resolveDeploymentRuntime() from the service's active deployment.
 {
-  const { serviceTerminalRoutes } = await import(
-    "./modules/service-terminal/service-terminal.routes"
-  );
+  const { serviceTerminalRoutes } =
+    await import("./modules/service-terminal/service-terminal.routes");
   app.route("/api/services/terminal", serviceTerminalRoutes);
 }
 
@@ -201,9 +202,7 @@ if (env.CLOUD_MODE) {
   // not inherit the full self-hosted /api/system surface (filesystem, instance
   // migration, data transfer, etc.). Mount only the server-focused subset.
   if (USER_SERVERS_ENABLED) {
-    const { serverSystemRoutes } = await import(
-      "./modules/system/server-system.routes"
-    );
+    const { serverSystemRoutes } = await import("./modules/system/server-system.routes");
     app.route("/api/system", serverSystemRoutes);
 
     const { terminalRoutes } = await import("./modules/terminal/terminal.routes");
@@ -212,9 +211,7 @@ if (env.CLOUD_MODE) {
     // Read-only Docker discovery for organization-owned SSH servers. The full
     // migration FSM remains self-hosted-only because it performs data movement,
     // cutover, and in-process crash recovery.
-    const { serverMigrationRoutes } = await import(
-      "./modules/migration/server-migration.routes"
-    );
+    const { serverMigrationRoutes } = await import("./modules/migration/server-migration.routes");
     app.route("/api/migration", serverMigrationRoutes);
   }
 } else {
@@ -269,9 +266,7 @@ if (USER_SERVERS_ENABLED) {
 // desktop installs. The runner is module-singleton; first access
 // here triggers Redis detection.
 {
-  const sweepStale = repos.backupRun.sweepStaleRuns(
-    "API restart while backup in flight",
-  );
+  const sweepStale = repos.backupRun.sweepStaleRuns("API restart while backup in flight");
   const sweepStaleRestores = repos.backupRestore.sweepStaleRestores(
     "API restart while restore in flight",
   );
@@ -289,9 +284,12 @@ if (USER_SERVERS_ENABLED) {
   // single-box process crash. A cloud replica must NEVER clear another
   // replica's live lock; durable resource operations own recovery there.
   if (!env.CLOUD_MODE) {
-    void repos.project.clearStaleDeletions().then((n) => {
-      if (n > 0) console.log(`[boot] cleared ${n} stale project deletion lock(s)`);
-    }).catch((err) => console.warn("[boot] clearStaleDeletions failed:", err));
+    void repos.project
+      .clearStaleDeletions()
+      .then((n) => {
+        if (n > 0) console.log(`[boot] cleared ${n} stale project deletion lock(s)`);
+      })
+      .catch((err) => console.warn("[boot] clearStaleDeletions failed:", err));
   }
   // A Docker migration is an in-memory FSM that quiesces (stops) the source
   // containers before the target deploy — a restart mid-migration would strand
@@ -317,9 +315,7 @@ if (USER_SERVERS_ENABLED) {
   // prunes, deployment reconcile) into the `job` table and register every
   // enabled row on the runner. Operator cron/enabled overrides survive restarts.
   void reconcileJobs()
-    .then((stats) =>
-      console.log(`[boot] jobs: ${stats.registered}/${stats.total} scheduled`),
-    )
+    .then((stats) => console.log(`[boot] jobs: ${stats.registered}/${stats.total} scheduled`))
     .catch((err) => console.warn("[boot] reconcileJobs failed:", err));
 
   // Self-hosted (single box): any job_run still "running" at boot was orphaned
@@ -365,9 +361,7 @@ if (USER_SERVERS_ENABLED) {
 
   void Promise.all([sweepStale, sweepStaleRestores]).then(([runs, restores]) => {
     if (runs > 0 || restores > 0) {
-      console.log(
-        `[boot] swept ${runs} stale backup runs + ${restores} stale restores`,
-      );
+      console.log(`[boot] swept ${runs} stale backup runs + ${restores} stale restores`);
     }
   });
 }

@@ -57,7 +57,7 @@ import type {
   TSetServiceEnvVarsBody,
 } from "./service.schema";
 import { findContainerByTrackedId } from "./container-id";
-import { deleteVibrailDnsRecord } from "../../lib/cloudflare-dns";
+import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
 
 /** Cap how long a route update AWAITS the (SSH) edge re-register before
  *  returning. Past this, the DB change is already saved and the edge apply
@@ -485,6 +485,12 @@ export async function updateService(
       const stillConfigured = new Set(serviceCustomHostnames(updated));
       for (const hostname of serviceCustomHostnames(svc)) {
         if (!stillConfigured.has(hostname)) {
+          await deleteDeploymentDnsRecord({
+            hostname,
+            organizationId: ctx.organizationId,
+          }).catch((err) => {
+            console.error(`[SERVICE] Failed to remove managed DNS for ${hostname}:`, err);
+          });
           await removeServiceDomain({ serviceId, hostname });
         }
       }
@@ -614,7 +620,10 @@ export async function deleteService(ctx: RequestContext, projectId: string, serv
         }
         await Promise.all(
           routes.map((route) =>
-            deleteVibrailDnsRecord(route.hostname).catch((err) => {
+            deleteDeploymentDnsRecord({
+              hostname: route.hostname,
+              organizationId: ctx.organizationId,
+            }).catch((err) => {
               console.error(
                 `[SERVICE] Failed to remove Cloudflare DNS for ${route.hostname}:`,
                 err,

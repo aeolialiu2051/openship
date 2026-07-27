@@ -8,7 +8,6 @@ import {
   FolderKanban,
   Rocket,
   Globe,
-  Activity,
   Settings,
   CreditCard,
   LogOut,
@@ -64,13 +63,17 @@ interface SidebarMember {
  * useEffect dep creates an infinite render loop. See TeamTab for the
  * full explanation.
  */
-const sidebarOrgClient = (authClient as unknown as {
-  organization: {
-    list: () => Promise<{ data?: SidebarOrg[] }>;
-    setActive: (opts: { organizationId: string }) => Promise<{ error?: { message?: string } }>;
-    getFullOrganization: (opts?: { organizationId: string }) => Promise<{ data?: { id: string; members?: SidebarMember[] } | null }>;
-  };
-}).organization;
+const sidebarOrgClient = (
+  authClient as unknown as {
+    organization: {
+      list: () => Promise<{ data?: SidebarOrg[] }>;
+      setActive: (opts: { organizationId: string }) => Promise<{ error?: { message?: string } }>;
+      getFullOrganization: (opts?: {
+        organizationId: string;
+      }) => Promise<{ data?: { id: string; members?: SidebarMember[] } | null }>;
+    };
+  }
+).organization;
 
 interface NavItem {
   key: string;
@@ -81,7 +84,7 @@ interface NavItem {
 }
 
 interface NavSection {
-  section?: string;   // i18n key under t.dashboard.nav.sections
+  section?: string; // i18n key under t.dashboard.nav.sections
   items: NavItem[];
 }
 
@@ -103,6 +106,7 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   }
 
   const infraItems: NavItem[] = [];
+  infraItems.push({ key: "domains", href: "/domains", icon: Globe });
   if (userServers) {
     infraItems.push({ key: "servers", href: "/servers", icon: Server });
     infraItems.push({ key: "emails", href: "/emails", icon: Mail });
@@ -110,10 +114,7 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   if (selfHosted) {
     infraItems.push({ key: "jobs", href: "/jobs", icon: Clock });
   }
-  // infraItems.push(
-  //   { key: "monitoring", href: "/monitoring", icon: Activity },
-  //   { key: "domains",    href: "/domains",    icon: Globe },
-  // );
+  // infraItems.push({ key: "monitoring", href: "/monitoring", icon: Activity });
 
   return [
     { section: "main", items: MAIN_ITEMS },
@@ -152,12 +153,8 @@ export function Sidebar({
   // Better Auth user exists yet, e.g. fresh install before onboarding):
   // fall back to machineName, NEVER to the cloud profile.
   const displayName =
-    user?.name ||
-    user?.email?.split("@")[0] ||
-    (isDesktop ? (machineName || "Local User") : "");
-  const displayEmail =
-    user?.email ||
-    (isDesktop ? "Desktop" : "");
+    user?.name || user?.email?.split("@")[0] || (isDesktop ? machineName || "Local User" : "");
+  const displayEmail = user?.email || (isDesktop ? "Desktop" : "");
   const cloudBadge = cloudConnected ? cloudUser : null;
   const displayInitial = displayName?.[0] ?? displayEmail?.[0] ?? "?";
   const isSaaS = !selfHosted || cloudConnected;
@@ -273,7 +270,10 @@ export function Sidebar({
       }),
     ).then((entries) => {
       if (cancelled) return;
-      const loaded = Object.fromEntries(entries.filter(([, role]) => role)) as Record<string, string>;
+      const loaded = Object.fromEntries(entries.filter(([, role]) => role)) as Record<
+        string,
+        string
+      >;
       if (Object.keys(loaded).length > 0) {
         setOrgRoles((current) => ({ ...current, ...loaded }));
       }
@@ -319,8 +319,7 @@ export function Sidebar({
     }
   }
 
-  const activeOrg =
-    orgs.find((o) => o.id === activeOrgId) ?? orgs[0] ?? null;
+  const activeOrg = orgs.find((o) => o.id === activeOrgId) ?? orgs[0] ?? null;
   const showOrgSwitcher = orgsLoaded && !!activeOrg;
 
   const isActive = (href: string) =>
@@ -328,10 +327,9 @@ export function Sidebar({
       ? pathname === "/"
       : href === "/billing/overview"
         ? pathname.startsWith("/billing")
-      : pathname === href || pathname.startsWith(href + "/");
+        : pathname === href || pathname.startsWith(href + "/");
 
-  const label = (key: string) =>
-    (t.dashboard.nav as unknown as Record<string, string>)[key] ?? key;
+  const label = (key: string) => (t.dashboard.nav as unknown as Record<string, string>)[key] ?? key;
 
   const sectionLabel = (key: string) =>
     (t.dashboard.nav.sections as unknown as Record<string, string>)[key] ?? key;
@@ -373,422 +371,103 @@ export function Sidebar({
         </div>
       </header>
 
-        <div
-          className={`fixed inset-0 z-50 transition-opacity duration-200 lg:hidden ${
-            mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
-          }`}
-          role="dialog"
-          aria-modal="true"
-          aria-hidden={!mobileOpen}
-          inert={!mobileOpen}
-        >
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
-            onClick={() => setMobileOpen(false)}
-            aria-label={t.dashboard.sidebar.collapse}
-          />
-          <aside
-            id="mobile-dashboard-navigation"
-            className={`absolute inset-y-0 start-0 flex w-[min(86vw,340px)] flex-col border-e border-border/60 bg-[var(--th-card-bg-solid)] shadow-2xl transition-transform duration-200 ease-out ${
-              mobileOpen ? "translate-x-0" : "mobile-nav-drawer-closed"
-            }`}
-          >
-            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 px-4">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <Logo size={26} className="shrink-0" />
-                <span className="truncate text-base font-semibold tracking-tight text-foreground">
-                  {t.brand}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileOpen(false)}
-                className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
-                aria-label={t.dashboard.sidebar.collapse}
-              >
-                <X className="size-5" />
-              </button>
-            </div>
-
-            <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
-              {navSections.map(({ section, items }, si) => (
-                <div key={section ?? si} className={si > 0 ? "mt-5" : undefined}>
-                  {section && (
-                    <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                      {sectionLabel(section)}
-                    </p>
-                  )}
-                  <div className="space-y-1">
-                    {items.map(({ key, href, icon: Icon }) => {
-                      const active = isActive(href);
-                      return (
-                        <Link
-                          key={key}
-                          href={href}
-                          prefetch={false}
-                          onPointerEnter={() => prefetchRoute(href)}
-                          onFocus={() => prefetchRoute(href)}
-                          onTouchStart={() => prefetchRoute(href)}
-                          className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
-                            active
-                              ? "bg-foreground/[0.07] text-foreground"
-                              : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
-                          }`}
-                        >
-                          <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
-                          {label(key)}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))}
-            </nav>
-
-            <div className="shrink-0 border-t border-border/50 p-3">
-              <Link
-                href="/library"
-                className="flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20"
-              >
-                <Plus className="size-4" strokeWidth={2.5} />
-                {label("new-project")}
-              </Link>
-              <div className="mt-3 flex items-center gap-3 px-2 py-2">
-                <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
-                  {displayInitial}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
-                  <p className="truncate text-xs text-muted-foreground">{activeOrg?.name ?? displayEmail}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  disabled={loggingOut}
-                  className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-                  aria-label={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
-                >
-                  {loggingOut ? <Loader2 className="size-4 animate-spin" /> : <LogOut className="size-4" />}
-                </button>
-              </div>
-            </div>
-          </aside>
-        </div>
-
-    <aside
-      className={`my-3 ms-3 hidden shrink-0 flex-col rounded-2xl border border-border/50 bg-card transition-[width] duration-200 overflow-hidden lg:flex ${collapsed ? "w-[72px]" : "w-[260px]"
+      <div
+        className={`fixed inset-0 z-50 transition-opacity duration-200 lg:hidden ${
+          mobileOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
-    >
-      {/* ── Header ───────────────────────────────────────────── */}
-      <div className={`app-sidebar-header flex items-center px-5 py-6 ${collapsed ? "flex-col gap-3 pb-3" : "justify-between"}`}>
-        <div className="flex items-center gap-2.5 min-w-0">
-          <Logo size={26} className="shrink-0" />
-          {!collapsed && (
-            <span className="text-base font-semibold tracking-tight text-foreground truncate">
-              {t.brand}
-            </span>
-          )}
-        </div>
-
-        {/* Controls */}
-        <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-1"}`}>
-          <button
-            onClick={toggle}
-            className="flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-            aria-label={t.auth.toggleTheme}
-            title={t.auth.toggleTheme}
-          >
-            {/* Icon shows the CURRENT theme; clicking cycles light → dim → dark. */}
-            {resolvedTheme === "light" ? (
-              <Sun className="size-4" />
-            ) : resolvedTheme === "dim" ? (
-              <SunMoon className="size-4" />
-            ) : (
-              <Moon className="size-4" />
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => setCollapsed((v) => !v)}
-            aria-label={collapsed ? t.dashboard.sidebar.expand : t.dashboard.sidebar.collapse}
-            className="flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
-          >
-            {collapsed ? (
-              <PanelLeftOpen className="size-4 rtl:rotate-180" />
-            ) : (
-              <PanelLeftClose className="size-4 rtl:rotate-180" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      <div className="mx-3 h-px bg-border/60" />
-
-      {/* ── Nav sections ────────────────────────────────────────── */}
-      <div className="relative flex-1 min-h-0">
-        <nav className="h-full overflow-y-auto px-3 pt-3 pb-12">
-          {navSections.map(({ section, items }, si) => (
-            <div key={section ?? si} className={si > 0 ? "mt-5" : undefined}>
-              {!collapsed && section && (
-                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                  {sectionLabel(section)}
-                </p>
-              )}
-              {collapsed && si > 0 && <div className="my-3 mx-2 h-px bg-border/60" />}
-              <div className="space-y-1">
-                {items.map(({ key, href, icon: Icon }) => {
-                  const active = isActive(href);
-                  return (
-                    <Link
-                      key={key}
-                      href={href}
-                      prefetch={false}
-                      onPointerEnter={() => prefetchRoute(href)}
-                      onFocus={() => prefetchRoute(href)}
-                      onTouchStart={() => prefetchRoute(href)}
-                      title={collapsed ? label(key) : undefined}
-                      className={`flex items-center rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${collapsed ? "justify-center" : "gap-3"
-                        } ${active
-                          ? "bg-foreground/[0.07] text-foreground"
-                          : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
-                        }`}
-                    >
-                      <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
-                      {!collapsed && label(key)}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
-        </nav>
-        {/* Fade the bottom of the scroll into the sidebar bg so the list ends
-            smoothly behind the CTA instead of cutting off hard. */}
-        {/* Fade masks nav overflow scrolling under the button. --card is a
-            white-based translucent token, so the default fades toward
-            transparent-WHITE — fine on light, but a light sheen on the mid-gray
-            dim card and invisible on the near-black dark card. Use the solid
-            card hue in dim AND dark so the ramp stays the card's own color. */}
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-card/0 dim:from-[var(--th-card-bg-solid)] dim:to-transparent dark:from-[var(--th-card-bg-solid)] dark:to-transparent" />
-      </div>
-
-      {/* ── New Project ─────────────────────────────────────── */}
-      <div className="px-3 pb-2">
-        <Link
-          href="/library"
-          title={collapsed ? label("new-project") : undefined}
-          className={`relative flex items-center justify-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all overflow-hidden ${"bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 text-white shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 hover:brightness-110 dark:from-amber-400/90! dark:via-orange-500/90! dark:to-rose-500/90! dark:shadow-orange-500/20 dark:hover:shadow-orange-500/30 dim:from-[hsl(86_84%_74%)]! dim:via-[hsl(82_80%_64%)]! dim:to-[hsl(74_74%_54%)]! dim:text-[#0c1206]! dim:shadow-lime-400/25 dim:hover:shadow-lime-400/40"
-            }`}
+        role="dialog"
+        aria-modal="true"
+        aria-hidden={!mobileOpen}
+        inert={!mobileOpen}
+      >
+        <button
+          type="button"
+          className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+          onClick={() => setMobileOpen(false)}
+          aria-label={t.dashboard.sidebar.collapse}
+        />
+        <aside
+          id="mobile-dashboard-navigation"
+          className={`absolute inset-y-0 start-0 flex w-[min(86vw,340px)] flex-col border-e border-border/60 bg-[var(--th-card-bg-solid)] shadow-2xl transition-transform duration-200 ease-out ${
+            mobileOpen ? "translate-x-0" : "mobile-nav-drawer-closed"
+          }`}
         >
-          <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_70%)]" />
-          <Plus className="relative size-4" strokeWidth={2.5} />
-          {!collapsed && <span className="relative">{label("new-project")}</span>}
-        </Link>
-      </div>
-
-      {/* ── Account / Org switcher ──────────────────────────── */}
-      <div className="px-3 pb-4 pt-1">
-        <div className="mx-2 mb-3 h-px bg-border/60" />
-        {!collapsed && (
-          <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-            {t.dashboard.nav.sections.account}
-          </p>
-        )}
-
-        {showOrgSwitcher ? (
-          <DismissiblePopover
-            open={orgsOpen}
-            onOpenChange={setOrgsOpen}
-            className="relative"
-          >
-            {/* Trigger — current org + chevron, Cloudflare-style */}
+          <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 px-4">
+            <div className="flex min-w-0 items-center gap-2.5">
+              <Logo size={26} className="shrink-0" />
+              <span className="truncate text-base font-semibold tracking-tight text-foreground">
+                {t.brand}
+              </span>
+            </div>
             <button
               type="button"
-              onClick={() => setOrgsOpen((v) => !v)}
-              className={`group flex w-full items-center rounded-xl px-2 py-2 text-start transition-colors hover:bg-foreground/[0.06] ${collapsed ? "justify-center" : "gap-3"
-                }`}
-              aria-haspopup="dialog"
-              aria-expanded={orgsOpen}
-              title={collapsed ? activeOrg?.name : undefined}
+              onClick={() => setMobileOpen(false)}
+              className="flex size-11 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground"
+              aria-label={t.dashboard.sidebar.collapse}
             >
-              {/* Org avatar / initial */}
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
-                {activeOrg?.name?.[0] ?? <Building2 className="size-4" />}
-              </div>
-
-              {!collapsed && (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-semibold leading-tight text-foreground">
-                      {activeOrg?.name ?? t.chrome.sidebar.workspaceFallback}
-                    </p>
-                    <p className="truncate text-[12px] leading-tight text-muted-foreground">
-                      {orgs.length > 1
-                        ? interpolate(t.chrome.sidebar.workspacesCount, { count: String(orgs.length) })
-                        : displayEmail}
-                    </p>
-                  </div>
-                  <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
-                </>
-              )}
+              <X className="size-5" />
             </button>
+          </div>
 
-            {/* Popover — shown to the side when collapsed, above when expanded */}
-            {orgsOpen && (
-              <div
-                className={`absolute z-50 overflow-hidden rounded-2xl border border-border/50 bg-popover shadow-xl shadow-black/[0.08] ${collapsed
-                    ? "start-full bottom-0 ms-2 w-72"
-                    : "start-0 end-0 bottom-full mb-2"
-                  }`}
-              >
-                {/* Heading */}
-                <div className="px-3 pt-3 pb-2">
-                  <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
-                    {t.chrome.sidebar.switchOrganization}
+          <nav className="min-h-0 flex-1 overflow-y-auto px-3 py-4">
+            {navSections.map(({ section, items }, si) => (
+              <div key={section ?? si} className={si > 0 ? "mt-5" : undefined}>
+                {section && (
+                  <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                    {sectionLabel(section)}
                   </p>
-                </div>
-
-                {/* Org list */}
-                <div className="max-h-64 overflow-y-auto pb-1">
-                  {orgs.map((o) => {
-                    const isCurrent = o.id === activeOrgId;
-                    const isSwitching = switchingOrgId === o.id;
+                )}
+                <div className="space-y-1">
+                  {items.map(({ key, href, icon: Icon }) => {
+                    const active = isActive(href);
                     return (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => handleOrgSwitch(o.id)}
-                        disabled={!!switchingOrgId}
-                        className={`flex w-full items-center gap-2.5 px-3 py-2 text-start transition-colors hover:bg-foreground/[0.05] disabled:opacity-60 ${isCurrent ? "bg-foreground/[0.03]" : ""
-                          }`}
+                      <Link
+                        key={key}
+                        href={href}
+                        prefetch={false}
+                        onPointerEnter={() => prefetchRoute(href)}
+                        onFocus={() => prefetchRoute(href)}
+                        onTouchStart={() => prefetchRoute(href)}
+                        className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
+                          active
+                            ? "bg-foreground/[0.07] text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                        }`}
                       >
-                        <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.08] text-[12px] font-semibold uppercase text-foreground">
-                          {o.name?.[0] ?? <Building2 className="size-3.5" />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate text-[13px] font-medium leading-tight text-foreground">
-                            {o.name}
-                          </p>
-                          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] leading-tight text-muted-foreground">
-                            {isCurrent && (
-                              <span className="rounded-md bg-foreground/[0.06] px-1.5 py-0.5 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">
-                                {t.chrome.sidebar.current}
-                              </span>
-                            )}
-                            {user?.id && o.id === `org_${user.id}` && (
-                              <span className="text-muted-foreground/80">{t.chrome.sidebar.personal}</span>
-                            )}
-                            {orgRoles[o.id] && (
-                              <span className="capitalize text-muted-foreground/80">{orgRoles[o.id]}</span>
-                            )}
-                          </p>
-                        </div>
-                        {isCurrent && !isSwitching && (
-                          <Check className="size-4 shrink-0 text-primary" />
-                        )}
-                        {isSwitching && (
-                          <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
-                        )}
-                      </button>
+                        <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+                        {label(key)}
+                      </Link>
                     );
                   })}
                 </div>
-
-                {/* Footer separator + signed-in-as + sign out */}
-                <div className="border-t border-border/40 px-2 py-2">
-                  <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
-                    <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-[11px] font-semibold uppercase text-foreground">
-                      {displayInitial}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-medium leading-tight text-foreground">
-                        {displayName}
-                      </p>
-                      <p className="truncate text-[11px] leading-tight text-muted-foreground">
-                        {displayEmail}
-                      </p>
-                      {cloudBadge?.email && (
-                        <p
-                          className="truncate text-[10px] leading-tight text-muted-foreground/70"
-                          title={interpolate(t.chrome.sidebar.linkedToCloud, { email: cloudBadge.email })}
-                        >
-                          {interpolate(t.chrome.sidebar.cloudLabel, { email: cloudBadge.email })}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    disabled={loggingOut}
-                    className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-                  >
-                    {loggingOut ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <LogOut className="size-4" />
-                    )}
-                    {isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
-                  </button>
-                </div>
               </div>
-            )}
-          </DismissiblePopover>
-        ) : (
-          /* Fallback: no org context (desktop / pre-org-bootstrap / fetch
-             failure). Keep the original avatar + email + sign-out row so
-             the operator can still log out. */
-          <>
-            <div
-              className={`flex items-center rounded-xl px-2 py-2 ${collapsed ? "justify-center" : "gap-3"
-                }`}
+            ))}
+          </nav>
+
+          <div className="shrink-0 border-t border-border/50 p-3">
+            <Link
+              href="/library"
+              className="flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20"
             >
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
+              <Plus className="size-4" strokeWidth={2.5} />
+              {label("new-project")}
+            </Link>
+            <div className="mt-3 flex items-center gap-3 px-2 py-2">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
                 {displayInitial}
               </div>
-
-              {!collapsed && (
-                <>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-[14px] font-medium leading-tight text-foreground">
-                      {displayName}
-                    </p>
-                    <p className="truncate text-[12px] leading-tight text-muted-foreground">
-                      {displayEmail}
-                    </p>
-                    {cloudBadge?.email && (
-                      <p
-                        className="truncate text-[11px] leading-tight text-muted-foreground/70"
-                        title={interpolate(t.chrome.sidebar.linkedToCloud, { email: cloudBadge.email })}
-                      >
-                        {interpolate(t.chrome.sidebar.cloudLabel, { email: cloudBadge.email })}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    onClick={handleLogout}
-                    disabled={loggingOut}
-                    className="flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-                    aria-label={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
-                    title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
-                  >
-                    {loggingOut ? (
-                      <Loader2 className="size-4 animate-spin" />
-                    ) : (
-                      <LogOut className="size-4" />
-                    )}
-                  </button>
-                </>
-              )}
-            </div>
-
-            {collapsed && (
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{displayName}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {activeOrg?.name ?? displayEmail}
+                </p>
+              </div>
               <button
+                type="button"
                 onClick={handleLogout}
                 disabled={loggingOut}
-                className="mt-2 flex w-full items-center justify-center rounded-xl py-2.5 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-                title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+                className="flex size-11 shrink-0 items-center justify-center rounded-xl text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                aria-label={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
               >
                 {loggingOut ? (
                   <Loader2 className="size-4 animate-spin" />
@@ -796,29 +475,368 @@ export function Sidebar({
                   <LogOut className="size-4" />
                 )}
               </button>
-            )}
-          </>
-        )}
+            </div>
+          </div>
+        </aside>
+      </div>
 
-        {/* Collapsed: surface logout when switcher is shown but popover
+      <aside
+        className={`my-3 ms-3 hidden shrink-0 flex-col rounded-2xl border border-border/50 bg-card transition-[width] duration-200 overflow-hidden lg:flex ${
+          collapsed ? "w-[72px]" : "w-[260px]"
+        }`}
+      >
+        {/* ── Header ───────────────────────────────────────────── */}
+        <div
+          className={`app-sidebar-header flex items-center px-5 py-6 ${collapsed ? "flex-col gap-3 pb-3" : "justify-between"}`}
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Logo size={26} className="shrink-0" />
+            {!collapsed && (
+              <span className="text-base font-semibold tracking-tight text-foreground truncate">
+                {t.brand}
+              </span>
+            )}
+          </div>
+
+          {/* Controls */}
+          <div className={`flex items-center ${collapsed ? "flex-col gap-1" : "gap-1"}`}>
+            <button
+              onClick={toggle}
+              className="flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+              aria-label={t.auth.toggleTheme}
+              title={t.auth.toggleTheme}
+            >
+              {/* Icon shows the CURRENT theme; clicking cycles light → dim → dark. */}
+              {resolvedTheme === "light" ? (
+                <Sun className="size-4" />
+              ) : resolvedTheme === "dim" ? (
+                <SunMoon className="size-4" />
+              ) : (
+                <Moon className="size-4" />
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCollapsed((v) => !v)}
+              aria-label={collapsed ? t.dashboard.sidebar.expand : t.dashboard.sidebar.collapse}
+              className="flex size-8 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground"
+            >
+              {collapsed ? (
+                <PanelLeftOpen className="size-4 rtl:rotate-180" />
+              ) : (
+                <PanelLeftClose className="size-4 rtl:rotate-180" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="mx-3 h-px bg-border/60" />
+
+        {/* ── Nav sections ────────────────────────────────────────── */}
+        <div className="relative flex-1 min-h-0">
+          <nav className="h-full overflow-y-auto px-3 pt-3 pb-12">
+            {navSections.map(({ section, items }, si) => (
+              <div key={section ?? si} className={si > 0 ? "mt-5" : undefined}>
+                {!collapsed && section && (
+                  <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                    {sectionLabel(section)}
+                  </p>
+                )}
+                {collapsed && si > 0 && <div className="my-3 mx-2 h-px bg-border/60" />}
+                <div className="space-y-1">
+                  {items.map(({ key, href, icon: Icon }) => {
+                    const active = isActive(href);
+                    return (
+                      <Link
+                        key={key}
+                        href={href}
+                        prefetch={false}
+                        onPointerEnter={() => prefetchRoute(href)}
+                        onFocus={() => prefetchRoute(href)}
+                        onTouchStart={() => prefetchRoute(href)}
+                        title={collapsed ? label(key) : undefined}
+                        className={`flex items-center rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
+                          collapsed ? "justify-center" : "gap-3"
+                        } ${
+                          active
+                            ? "bg-foreground/[0.07] text-foreground"
+                            : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground"
+                        }`}
+                      >
+                        <Icon className="size-[18px] shrink-0" strokeWidth={1.7} />
+                        {!collapsed && label(key)}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </nav>
+          {/* Fade the bottom of the scroll into the sidebar bg so the list ends
+            smoothly behind the CTA instead of cutting off hard. */}
+          {/* Fade masks nav overflow scrolling under the button. --card is a
+            white-based translucent token, so the default fades toward
+            transparent-WHITE — fine on light, but a light sheen on the mid-gray
+            dim card and invisible on the near-black dark card. Use the solid
+            card hue in dim AND dark so the ramp stays the card's own color. */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-card to-card/0 dim:from-[var(--th-card-bg-solid)] dim:to-transparent dark:from-[var(--th-card-bg-solid)] dark:to-transparent" />
+        </div>
+
+        {/* ── New Project ─────────────────────────────────────── */}
+        <div className="px-3 pb-2">
+          <Link
+            href="/library"
+            title={collapsed ? label("new-project") : undefined}
+            className={`relative flex items-center justify-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all overflow-hidden ${"bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 text-white shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 hover:brightness-110 dark:from-amber-400/90! dark:via-orange-500/90! dark:to-rose-500/90! dark:shadow-orange-500/20 dark:hover:shadow-orange-500/30 dim:from-[hsl(86_84%_74%)]! dim:via-[hsl(82_80%_64%)]! dim:to-[hsl(74_74%_54%)]! dim:text-[#0c1206]! dim:shadow-lime-400/25 dim:hover:shadow-lime-400/40"}`}
+          >
+            <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_70%)]" />
+            <Plus className="relative size-4" strokeWidth={2.5} />
+            {!collapsed && <span className="relative">{label("new-project")}</span>}
+          </Link>
+        </div>
+
+        {/* ── Account / Org switcher ──────────────────────────── */}
+        <div className="px-3 pb-4 pt-1">
+          <div className="mx-2 mb-3 h-px bg-border/60" />
+          {!collapsed && (
+            <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              {t.dashboard.nav.sections.account}
+            </p>
+          )}
+
+          {showOrgSwitcher ? (
+            <DismissiblePopover open={orgsOpen} onOpenChange={setOrgsOpen} className="relative">
+              {/* Trigger — current org + chevron, Cloudflare-style */}
+              <button
+                type="button"
+                onClick={() => setOrgsOpen((v) => !v)}
+                className={`group flex w-full items-center rounded-xl px-2 py-2 text-start transition-colors hover:bg-foreground/[0.06] ${
+                  collapsed ? "justify-center" : "gap-3"
+                }`}
+                aria-haspopup="dialog"
+                aria-expanded={orgsOpen}
+                title={collapsed ? activeOrg?.name : undefined}
+              >
+                {/* Org avatar / initial */}
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
+                  {activeOrg?.name?.[0] ?? <Building2 className="size-4" />}
+                </div>
+
+                {!collapsed && (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-semibold leading-tight text-foreground">
+                        {activeOrg?.name ?? t.chrome.sidebar.workspaceFallback}
+                      </p>
+                      <p className="truncate text-[12px] leading-tight text-muted-foreground">
+                        {orgs.length > 1
+                          ? interpolate(t.chrome.sidebar.workspacesCount, {
+                              count: String(orgs.length),
+                            })
+                          : displayEmail}
+                      </p>
+                    </div>
+                    <ChevronsUpDown className="size-4 shrink-0 text-muted-foreground transition-colors group-hover:text-foreground" />
+                  </>
+                )}
+              </button>
+
+              {/* Popover — shown to the side when collapsed, above when expanded */}
+              {orgsOpen && (
+                <div
+                  className={`absolute z-50 overflow-hidden rounded-2xl border border-border/50 bg-popover shadow-xl shadow-black/[0.08] ${
+                    collapsed ? "start-full bottom-0 ms-2 w-72" : "start-0 end-0 bottom-full mb-2"
+                  }`}
+                >
+                  {/* Heading */}
+                  <div className="px-3 pt-3 pb-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground/70">
+                      {t.chrome.sidebar.switchOrganization}
+                    </p>
+                  </div>
+
+                  {/* Org list */}
+                  <div className="max-h-64 overflow-y-auto pb-1">
+                    {orgs.map((o) => {
+                      const isCurrent = o.id === activeOrgId;
+                      const isSwitching = switchingOrgId === o.id;
+                      return (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => handleOrgSwitch(o.id)}
+                          disabled={!!switchingOrgId}
+                          className={`flex w-full items-center gap-2.5 px-3 py-2 text-start transition-colors hover:bg-foreground/[0.05] disabled:opacity-60 ${
+                            isCurrent ? "bg-foreground/[0.03]" : ""
+                          }`}
+                        >
+                          <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.08] text-[12px] font-semibold uppercase text-foreground">
+                            {o.name?.[0] ?? <Building2 className="size-3.5" />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[13px] font-medium leading-tight text-foreground">
+                              {o.name}
+                            </p>
+                            <p className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] leading-tight text-muted-foreground">
+                              {isCurrent && (
+                                <span className="rounded-md bg-foreground/[0.06] px-1.5 py-0.5 font-medium uppercase tracking-wide text-[10px] text-muted-foreground">
+                                  {t.chrome.sidebar.current}
+                                </span>
+                              )}
+                              {user?.id && o.id === `org_${user.id}` && (
+                                <span className="text-muted-foreground/80">
+                                  {t.chrome.sidebar.personal}
+                                </span>
+                              )}
+                              {orgRoles[o.id] && (
+                                <span className="capitalize text-muted-foreground/80">
+                                  {orgRoles[o.id]}
+                                </span>
+                              )}
+                            </p>
+                          </div>
+                          {isCurrent && !isSwitching && (
+                            <Check className="size-4 shrink-0 text-primary" />
+                          )}
+                          {isSwitching && (
+                            <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Footer separator + signed-in-as + sign out */}
+                  <div className="border-t border-border/40 px-2 py-2">
+                    <div className="flex items-center gap-2.5 rounded-xl px-2 py-1.5">
+                      <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-[11px] font-semibold uppercase text-foreground">
+                        {displayInitial}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[12px] font-medium leading-tight text-foreground">
+                          {displayName}
+                        </p>
+                        <p className="truncate text-[11px] leading-tight text-muted-foreground">
+                          {displayEmail}
+                        </p>
+                        {cloudBadge?.email && (
+                          <p
+                            className="truncate text-[10px] leading-tight text-muted-foreground/70"
+                            title={interpolate(t.chrome.sidebar.linkedToCloud, {
+                              email: cloudBadge.email,
+                            })}
+                          >
+                            {interpolate(t.chrome.sidebar.cloudLabel, { email: cloudBadge.email })}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="mt-1 flex w-full items-center gap-2 rounded-xl px-2 py-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                    >
+                      {loggingOut ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <LogOut className="size-4" />
+                      )}
+                      {isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </DismissiblePopover>
+          ) : (
+            /* Fallback: no org context (desktop / pre-org-bootstrap / fetch
+             failure). Keep the original avatar + email + sign-out row so
+             the operator can still log out. */
+            <>
+              <div
+                className={`flex items-center rounded-xl px-2 py-2 ${
+                  collapsed ? "justify-center" : "gap-3"
+                }`}
+              >
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
+                  {displayInitial}
+                </div>
+
+                {!collapsed && (
+                  <>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[14px] font-medium leading-tight text-foreground">
+                        {displayName}
+                      </p>
+                      <p className="truncate text-[12px] leading-tight text-muted-foreground">
+                        {displayEmail}
+                      </p>
+                      {cloudBadge?.email && (
+                        <p
+                          className="truncate text-[11px] leading-tight text-muted-foreground/70"
+                          title={interpolate(t.chrome.sidebar.linkedToCloud, {
+                            email: cloudBadge.email,
+                          })}
+                        >
+                          {interpolate(t.chrome.sidebar.cloudLabel, { email: cloudBadge.email })}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      disabled={loggingOut}
+                      className="flex size-8 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                      aria-label={
+                        isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout
+                      }
+                      title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+                    >
+                      {loggingOut ? (
+                        <Loader2 className="size-4 animate-spin" />
+                      ) : (
+                        <LogOut className="size-4" />
+                      )}
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {collapsed && (
+                <button
+                  onClick={handleLogout}
+                  disabled={loggingOut}
+                  className="mt-2 flex w-full items-center justify-center rounded-xl py-2.5 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+                  title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+                >
+                  {loggingOut ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <LogOut className="size-4" />
+                  )}
+                </button>
+              )}
+            </>
+          )}
+
+          {/* Collapsed: surface logout when switcher is shown but popover
             closed, so users without a pointer-friendly path still have a
             shortcut. The switcher itself handles the trigger spot. */}
-        {collapsed && showOrgSwitcher && !orgsOpen && (
-          <button
-            onClick={handleLogout}
-            disabled={loggingOut}
-            className="mt-2 flex w-full items-center justify-center rounded-xl py-2.5 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
-            title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
-          >
-            {loggingOut ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <LogOut className="size-4" />
-            )}
-          </button>
-        )}
-      </div>
-    </aside>
+          {collapsed && showOrgSwitcher && !orgsOpen && (
+            <button
+              onClick={handleLogout}
+              disabled={loggingOut}
+              className="mt-2 flex w-full items-center justify-center rounded-xl py-2.5 text-muted-foreground transition-colors hover:bg-foreground/[0.06] hover:text-foreground disabled:opacity-50"
+              title={isDesktop ? t.chrome.sidebar.backToSetup : t.dashboard.user.logout}
+            >
+              {loggingOut ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <LogOut className="size-4" />
+              )}
+            </button>
+          )}
+        </div>
+      </aside>
     </>
   );
 }

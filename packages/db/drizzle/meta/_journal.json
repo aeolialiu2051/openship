@@ -519,6 +519,13 @@
       "when": 1785358698651,
       "tag": "0073_server_traefik",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1785445098651,
+      "tag": "0074_domain_settings",
+      "breakpoints": true
     }
   ]
 }

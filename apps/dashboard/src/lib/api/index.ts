@@ -10,14 +10,14 @@
 
 /* --- Low-level client (rarely needed directly) -------------------- */
 export {
-	api,
-	ApiError,
-	getApiErrorCode,
-	getApiErrorMessage,
-	isAbortError,
-	isNetworkError,
-	setNetworkErrorHandler,
-	getApiBaseUrl,
+  api,
+  ApiError,
+  getApiErrorCode,
+  getApiErrorMessage,
+  isAbortError,
+  isNetworkError,
+  setNetworkErrorHandler,
+  getApiBaseUrl,
 } from "./client";
 export type { RequestOptions } from "./client";
 
@@ -28,15 +28,13 @@ export { endpoints } from "./endpoints";
 export { projectsApi } from "./projects";
 export type { RouteRuleRow, RouteRuleInput } from "./projects";
 export { operationsApi } from "./operations";
-export type {
-  OperationKind,
-  OperationStatus,
-  ResourceOperationView,
-} from "./operations";
+export type { OperationKind, OperationStatus, ResourceOperationView } from "./operations";
 export { appsApi } from "./apps";
 export type { AppCatalogEntry, AppCatalogField, InstallAppResult } from "./apps";
 export { deployApi } from "./deploy";
 export { domainsApi } from "./domains";
+export { domainSettingsApi } from "./domain-settings";
+export type { DomainSettingsView, SaveDomainSettingsInput } from "./domain-settings";
 export {
   jobsApi,
   type JobView,
@@ -172,10 +170,7 @@ export type {
 } from "./terminal";
 
 /* --- Service terminal --------------------------------------------- */
-export {
-  requestServiceTerminalTicket,
-  buildServiceTerminalWsUrl,
-} from "./service-terminal";
+export { requestServiceTerminalTicket, buildServiceTerminalWsUrl } from "./service-terminal";
 
 /* --- Notifications ------------------------------------------------- */
 export { notificationsApi } from "./notifications";
