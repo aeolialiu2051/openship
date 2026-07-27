@@ -28,6 +28,9 @@ type EnvironmentVariableMeta = {
   defaultValue?: string;
   resolvedValue: string;
   expression?: string;
+  required?: boolean;
+  requiredNonEmpty?: boolean;
+  requiredMessage?: string;
 };
 
 interface EnvironmentVariablesPropsOptional {
@@ -769,7 +772,7 @@ function getEnvResolutionState(meta: EnvironmentVariableMeta | undefined, value:
   if (!meta) return null;
   const res = t.importProject.environmentVariables.resolution;
 
-  if (meta.source === "missing" && !value) {
+  if (meta.source === "missing" && (!value || (meta.required && value === meta.resolvedValue))) {
     return {
       icon: AlertTriangle,
       label: res.needsValue,

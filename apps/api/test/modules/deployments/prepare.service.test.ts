@@ -77,4 +77,39 @@ describe("resolveProjectInfo", () => {
       "Invalid Docker Compose file: No services were declared.",
     );
   });
+
+  it("returns required compose variables to the wizard instead of rejecting the repository", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    tempDirs.push(tempDir);
+    await writeFile(
+      join(tempDir, "docker-compose.yml"),
+      [
+        "services:",
+        "  db:",
+        "    image: postgres:16",
+        "    environment:",
+        "      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}",
+        "      DATABASE_URL: postgres://postgres:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db/app",
+      ].join("\n"),
+    );
+
+    const result = await resolveProjectInfo({ source: "local", path: tempDir });
+
+    expect(result.services?.[0]?.environment.POSTGRES_PASSWORD).toBe("");
+    expect(result.services?.[0]?.environment.DATABASE_URL).toBe("postgres://postgres:@db/app");
+    expect(result.services?.[0]?.environmentMeta?.POSTGRES_PASSWORD).toMatchObject({
+      source: "missing",
+      variable: "POSTGRES_PASSWORD",
+      required: true,
+      requiredNonEmpty: true,
+      requiredMessage: "POSTGRES_PASSWORD is required",
+    });
+    expect(result.services?.[0]?.environmentMeta?.DATABASE_URL).toMatchObject({
+      source: "missing",
+      variable: "POSTGRES_PASSWORD",
+      required: true,
+      requiredNonEmpty: true,
+      resolvedValue: "postgres://postgres:@db/app",
+    });
+  });
 });

@@ -23,6 +23,9 @@ export interface PrepareComposeService {
       defaultValue?: string;
       resolvedValue: string;
       expression?: string;
+      required?: boolean;
+      requiredNonEmpty?: boolean;
+      requiredMessage?: string;
     }
   >;
   volumes: string[];

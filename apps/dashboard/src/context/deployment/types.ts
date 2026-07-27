@@ -83,6 +83,7 @@ export type RawComposeService = {
   ports?: string[] | null;
   dependsOn?: string[] | null;
   environment?: Record<string, string> | null;
+  environmentMeta?: ComposeServiceInfo["environmentMeta"] | null;
   volumes?: string[] | null;
   command?: string | null;
   restart?: string | null;
@@ -115,6 +116,7 @@ export function normalizeComposeService(raw: RawComposeService): ComposeServiceI
     ports: raw.ports ?? [],
     dependsOn: raw.dependsOn ?? [],
     environment: raw.environment ?? {},
+    environmentMeta: raw.environmentMeta ?? undefined,
     volumes: raw.volumes ?? [],
     command: raw.command ?? undefined,
     restart: raw.restart ?? undefined,

@@ -54,13 +54,26 @@ export interface ComposeEnvironmentMeta {
   defaultValue?: string;
   resolvedValue: string;
   expression?: string;
+  /** Compose `:?` / `?` interpolation must be supplied before deployment. */
+  required?: boolean;
+  /** `:?` rejects an empty value; `?` only requires the variable to be set. */
+  requiredNonEmpty?: boolean;
+  requiredMessage?: string;
 }
+
+export type ComposeRequiredInterpolationMode = "error" | "collect";
 
 export interface ComposeParseOptions {
   /** Contents of project .env files used for Docker Compose interpolation. */
   envFileContent?: string | string[];
   /** Explicit interpolation values. Overrides values loaded from envFileContent. */
   env?: Record<string, string>;
+  /**
+   * Controls required interpolation in service environment entries. `error`
+   * matches Docker Compose. `collect` is for repository introspection, where
+   * the wizard must render missing values before the actual deploy.
+   */
+  environmentRequiredInterpolation?: ComposeRequiredInterpolationMode;
 }
 
 // ─── Parser ──────────────────────────────────────────────────────────────────
@@ -76,6 +89,8 @@ export function parseComposeFile(
   }
 
   const interpolationEnv = buildInterpolationEnv(options);
+  const environmentRequiredInterpolation =
+    options.environmentRequiredInterpolation ?? "error";
   const rawServices = doc.services ?? {};
   const services: ComposeService[] = [];
 
@@ -83,7 +98,11 @@ export function parseComposeFile(
     if (!def || typeof def !== "object") continue;
     const svc = def as Record<string, unknown>;
     const build = parseBuild(svc.build, interpolationEnv);
-    const environment = parseEnvironment(svc.environment, interpolationEnv);
+    const environment = parseEnvironment(
+      svc.environment,
+      interpolationEnv,
+      environmentRequiredInterpolation,
+    );
     const advanced = parseAdvanced(svc, interpolationEnv);
 
     services.push({
@@ -178,6 +197,7 @@ function parseDependsOn(deps: unknown): string[] {
 function parseEnvironment(
   env: unknown,
   interpolationEnv: Record<string, string>,
+  requiredInterpolation: ComposeRequiredInterpolationMode,
 ): { values: Record<string, string>; metadata: Record<string, ComposeEnvironmentMeta> } {
   if (!env) return { values: {}, metadata: {} };
 
@@ -189,13 +209,17 @@ function parseEnvironment(
       if (typeof item !== "string") continue;
       const eqIdx = item.indexOf("=");
       if (eqIdx > 0) {
-        const key = interpolateComposeString(item.slice(0, eqIdx), interpolationEnv);
+        const key = interpolateComposeString(
+          item.slice(0, eqIdx),
+          interpolationEnv,
+          requiredInterpolation,
+        );
         const rawValue = item.slice(eqIdx + 1);
-        const resolved = resolveComposeValue(rawValue, interpolationEnv);
+        const resolved = resolveComposeValue(rawValue, interpolationEnv, requiredInterpolation);
         values[key] = resolved.value;
         if (resolved.meta) metadata[key] = resolved.meta;
       } else {
-        const key = interpolateComposeString(item, interpolationEnv);
+        const key = interpolateComposeString(item, interpolationEnv, requiredInterpolation);
         const resolved = resolveBareEnvironmentKey(key, interpolationEnv);
         values[key] = resolved.value;
         if (resolved.meta) metadata[key] = resolved.meta;
@@ -216,7 +240,11 @@ function parseEnvironment(
         continue;
       }
 
-      const resolved = resolveComposeValue(String(val), interpolationEnv);
+      const resolved = resolveComposeValue(
+        String(val),
+        interpolationEnv,
+        requiredInterpolation,
+      );
       values[key] = resolved.value;
       if (resolved.meta) metadata[key] = resolved.meta;
     }
@@ -427,7 +455,11 @@ function findClosingQuote(value: string, quote: '"' | "'"): number {
   return -1;
 }
 
-function interpolateComposeString(input: string, env: Record<string, string>): string {
+function interpolateComposeString(
+  input: string,
+  env: Record<string, string>,
+  requiredInterpolation: ComposeRequiredInterpolationMode = "error",
+): string {
   const escapedDollar = "\0COMPOSE_ESCAPED_DOLLAR\0";
   const protectedInput = input.replace(/\$\$/g, escapedDollar);
 
@@ -436,7 +468,7 @@ function interpolateComposeString(input: string, env: Record<string, string>): s
       /\$(?:\{([^}]+)\}|([A-Za-z_][A-Za-z0-9_]*))/g,
       (_match, braced: string | undefined, bare: string | undefined) =>
         braced !== undefined
-          ? resolveInterpolationExpression(braced, env).value
+          ? resolveInterpolationExpression(braced, env, requiredInterpolation).value
           : (env[bare!] ?? ""),
     )
     .replaceAll(escapedDollar, "$");
@@ -445,11 +477,16 @@ function interpolateComposeString(input: string, env: Record<string, string>): s
 function resolveComposeValue(
   input: string,
   env: Record<string, string>,
+  requiredInterpolation: ComposeRequiredInterpolationMode,
 ): { value: string; meta?: ComposeEnvironmentMeta } {
   const trimmed = input.trim();
   const directBraced = trimmed.match(/^\$\{([^}]+)\}$/s);
   if (directBraced) {
-    const resolved = resolveInterpolationExpression(directBraced[1]!, env);
+    const resolved = resolveInterpolationExpression(
+      directBraced[1]!,
+      env,
+      requiredInterpolation,
+    );
     return {
       value: resolved.value,
       meta: {
@@ -458,6 +495,9 @@ function resolveComposeValue(
         defaultValue: resolved.defaultValue,
         resolvedValue: resolved.value,
         expression: trimmed,
+        required: resolved.required,
+        requiredNonEmpty: resolved.requiredNonEmpty,
+        requiredMessage: resolved.requiredMessage,
       },
     };
   }
@@ -477,17 +517,54 @@ function resolveComposeValue(
     };
   }
 
-  const value = interpolateComposeString(input, env);
+  const value = interpolateComposeString(input, env, requiredInterpolation);
   if (!input.includes("$")) return { value };
+
+  const missingRequired =
+    requiredInterpolation === "collect"
+      ? findMissingRequiredInterpolation(input, env)
+      : undefined;
 
   return {
     value,
     meta: {
-      source: "interpolated",
+      source: missingRequired ? "missing" : "interpolated",
       resolvedValue: value,
       expression: input,
+      variable: missingRequired?.variable,
+      required: missingRequired ? true : undefined,
+      requiredNonEmpty: missingRequired?.requiredNonEmpty,
+      requiredMessage: missingRequired?.requiredMessage,
     },
   };
+}
+
+function findMissingRequiredInterpolation(
+  input: string,
+  env: Record<string, string>,
+): { variable: string; requiredNonEmpty: boolean; requiredMessage: string } | undefined {
+  const escapedDollar = "\0COMPOSE_ESCAPED_DOLLAR\0";
+  const protectedInput = input.replace(/\$\$/g, escapedDollar);
+
+  for (const match of protectedInput.matchAll(/\$\{([^}]+)\}/g)) {
+    const expression = match[1] ?? "";
+    const parsed = expression.match(/^([A-Za-z_][A-Za-z0-9_]*)(:\?|\?)(.*)$/s);
+    if (!parsed) continue;
+
+    const [, variable, operator, rawWord = ""] = parsed;
+    const hasValue = Object.prototype.hasOwnProperty.call(env, variable);
+    const value = env[variable] ?? "";
+    const missing = operator === ":?" ? !hasValue || value === "" : !hasValue;
+    if (!missing) continue;
+
+    return {
+      variable,
+      requiredNonEmpty: operator === ":?",
+      requiredMessage: interpolateComposeString(rawWord, env, "collect"),
+    };
+  }
+
+  return undefined;
 }
 
 function resolveBareEnvironmentKey(
@@ -510,11 +587,15 @@ function resolveBareEnvironmentKey(
 function resolveInterpolationExpression(
   expression: string,
   env: Record<string, string>,
+  requiredInterpolation: ComposeRequiredInterpolationMode,
 ): {
   value: string;
   source: ComposeEnvironmentMeta["source"];
   variable?: string;
   defaultValue?: string;
+  required?: boolean;
+  requiredNonEmpty?: boolean;
+  requiredMessage?: string;
 } {
   const match = expression.match(/^([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+?])(.*))?$/s);
   if (!match) return { value: "", source: "missing" };
@@ -523,7 +604,7 @@ function resolveInterpolationExpression(
   const hasValue = Object.prototype.hasOwnProperty.call(env, key);
   const value = env[key] ?? "";
   const isNonEmpty = hasValue && value !== "";
-  const word = () => interpolateComposeString(rawWord, env);
+  const word = () => interpolateComposeString(rawWord, env, requiredInterpolation);
 
   switch (operator) {
     case undefined:
@@ -546,10 +627,35 @@ function resolveInterpolationExpression(
       }
     case ":?":
       if (isNonEmpty) return { value, source: "env-file", variable: key };
-      throw new Error(word());
+      {
+        const requiredMessage = word();
+        if (requiredInterpolation === "collect") {
+          return {
+            value: "",
+            source: "missing",
+            variable: key,
+            required: true,
+            requiredNonEmpty: true,
+            requiredMessage,
+          };
+        }
+        throw new Error(requiredMessage);
+      }
     case "?":
       if (hasValue) return { value, source: "env-file", variable: key };
-      throw new Error(word());
+      {
+        const requiredMessage = word();
+        if (requiredInterpolation === "collect") {
+          return {
+            value: "",
+            source: "missing",
+            variable: key,
+            required: true,
+            requiredMessage,
+          };
+        }
+        throw new Error(requiredMessage);
+      }
     case ":+":
       if (!isNonEmpty) return { value: "", source: "missing", variable: key };
       {

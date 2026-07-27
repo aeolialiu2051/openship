@@ -35,6 +35,21 @@ const ERROR_DEBOUNCE_MS = 1000;
 const MAX_RENDERED_BUILD_LOGS = 2000;
 const BUILD_STATUS_POLL_MS = 3000;
 
+function missingRequiredComposeEnvironment(config: DeploymentConfig): string[] {
+  if (!usesServiceDeployment(config)) return [];
+
+  const missing: string[] = [];
+  for (const service of config.services) {
+    for (const [key, meta] of Object.entries(service.environmentMeta ?? {})) {
+      if (!meta.required || meta.source !== "missing") continue;
+      if (service.environment[key] === meta.resolvedValue) {
+        missing.push(`${service.name}.${key}`);
+      }
+    }
+  }
+  return missing;
+}
+
 // Map a getBuildStatus snapshot's per-service rows into UI service statuses.
 // Shared by the initial hydrate (loadBuildSession) and the self-heal poll so
 // both derive serviceStatuses identically. DB may store running/failed/pending/
@@ -581,6 +596,7 @@ export function useDeploymentBuild(
     const saveConfigOnly = overrides?.saveConfigOnly === true;
     const isLocal = !!config.localPath;
     const isUpload = !!config.uploadSessionId;
+    const isServiceDeployment = usesServiceDeployment(config);
     // A one-click app is a repo-less services project — no git/local source (its
     // prebuilt images are the source), so skip the git-completeness guard and the
     // git fields on ensure, exactly like local/upload.
@@ -598,6 +614,18 @@ export function useDeploymentBuild(
     if (config.projectType === "app" && (!config.framework || config.framework === "unknown")) {
       showToast("Please select a framework", "error", "Error");
       return null;
+    }
+
+    if (!saveConfigOnly && isServiceDeployment) {
+      const missingRequiredEnv = missingRequiredComposeEnvironment(config);
+      if (missingRequiredEnv.length > 0) {
+        showToast(
+          `Fill the required Docker Compose variables before deploying: ${missingRequiredEnv.join(", ")}`,
+          "error",
+          "Missing environment variables",
+        );
+        return null;
+      }
     }
 
     lastErrorRef.current = null;
@@ -685,7 +713,6 @@ export function useDeploymentBuild(
         }
       }
 
-      const isServiceDeployment = usesServiceDeployment(config);
       const isMonorepoDeployment = config.projectType === "monorepo";
 
       // Step 1: Ensure project exists

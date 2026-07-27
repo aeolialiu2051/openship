@@ -86,6 +86,85 @@ services:
     });
   });
 
+  it("throws for missing required interpolation values by default", () => {
+    expect(() =>
+      parseComposeFile(`
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+`),
+    ).toThrow("POSTGRES_PASSWORD is required");
+
+    expect(() =>
+      parseComposeFile(`
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: \${POSTGRES_USER?POSTGRES_USER must be set}
+`),
+    ).toThrow("POSTGRES_USER must be set");
+  });
+
+  it("collects missing required values during repository introspection", () => {
+    const parsed = parseComposeFile(
+      `
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: \${POSTGRES_USER?POSTGRES_USER must be set}
+      DATABASE_URL: postgres://postgres:\${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db/app
+`,
+      { environmentRequiredInterpolation: "collect" },
+    );
+
+    expect(parsed.services[0]?.environment).toEqual({
+      POSTGRES_PASSWORD: "",
+      POSTGRES_USER: "",
+      DATABASE_URL: "postgres://postgres:@db/app",
+    });
+    expect(parsed.services[0]?.environmentMeta?.POSTGRES_PASSWORD).toMatchObject({
+      source: "missing",
+      variable: "POSTGRES_PASSWORD",
+      required: true,
+      requiredNonEmpty: true,
+      requiredMessage: "POSTGRES_PASSWORD is required",
+      resolvedValue: "",
+    });
+    expect(parsed.services[0]?.environmentMeta?.POSTGRES_USER).toMatchObject({
+      source: "missing",
+      variable: "POSTGRES_USER",
+      required: true,
+      requiredMessage: "POSTGRES_USER must be set",
+      resolvedValue: "",
+    });
+    expect(parsed.services[0]?.environmentMeta?.DATABASE_URL).toMatchObject({
+      source: "missing",
+      variable: "POSTGRES_PASSWORD",
+      required: true,
+      requiredNonEmpty: true,
+      requiredMessage: "POSTGRES_PASSWORD is required",
+      resolvedValue: "postgres://postgres:@db/app",
+    });
+  });
+
+  it("keeps required interpolation strict outside editable environment entries", () => {
+    expect(() =>
+      parseComposeFile(
+        `
+services:
+  app:
+    image: \${APP_IMAGE:?APP_IMAGE is required}
+`,
+        { environmentRequiredInterpolation: "collect" },
+      ),
+    ).toThrow("APP_IMAGE is required");
+  });
+
   it("supports array env form and bare keys loaded from .env", () => {
     const parsed = parseComposeFile(
       `

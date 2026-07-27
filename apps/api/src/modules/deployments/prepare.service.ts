@@ -548,7 +548,13 @@ function toProjectInfo(
   let services: ComposeService[] | undefined;
   if (composeContent && stack.projectType === "services") {
     try {
-      const parsed = parseComposeFile(composeContent, { envFileContent: composeEnvContent });
+      const parsed = parseComposeFile(composeContent, {
+        envFileContent: composeEnvContent,
+        // Prepare is introspection, not execution. Missing `:?` / `?` values
+        // must reach the wizard as editable metadata instead of making a valid
+        // repository look corrupt before the operator can enter its secrets.
+        environmentRequiredInterpolation: "collect",
+      });
       if (parsed.services.length === 0) {
         throw new Error("No services were declared.");
       }
