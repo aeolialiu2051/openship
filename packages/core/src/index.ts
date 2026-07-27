@@ -25,6 +25,7 @@ export {
 } from "./apps/schema";
 export * from "./app-settings";
 export * from "./project-source";
+export * from "./starter-template-metadata";
 export * from "./starter-templates";
 export * from "./project-route-key";
 export * from "./updates";

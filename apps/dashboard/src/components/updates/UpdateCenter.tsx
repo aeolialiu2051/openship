@@ -21,7 +21,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import type { AdvisorySeverity } from "@repo/core";
+import type { AdvisorySeverity } from "@repo/core/updates";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useUpdates } from "./useUpdates";
 

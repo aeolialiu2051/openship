@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { mkdir, stat, writeFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, normalize, sep } from "node:path";
 import { tmpdir } from "node:os";
-import { STARTER_TEMPLATES, hasStarterTemplate } from "@repo/core";
+import { STARTER_TEMPLATES } from "@repo/core/starter-templates";
+import { hasStarterTemplate } from "@repo/core/starter-template-metadata";
 
 const materializing = new Map<string, Promise<string>>();
 

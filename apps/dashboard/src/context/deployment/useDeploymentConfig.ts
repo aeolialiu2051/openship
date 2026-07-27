@@ -9,7 +9,8 @@ import type { Service } from "@/lib/api/services";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
 import type { BuildMode } from "@/lib/api/settings";
-import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STARTER_TEMPLATES, hasStarterTemplate, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
+import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
+import { STARTER_TEMPLATE_METADATA, hasStarterTemplate } from "@repo/core/starter-template-metadata";
 import type { BuildStrategy, DeploymentConfig, DeploymentModeSnapshot, MonorepoAppConfig, MonorepoWorkspaceConfig, PublicEndpoint } from "./types";
 import {
   DEFAULT_CONFIG,
@@ -1026,7 +1027,7 @@ export function useDeploymentConfig() {
         return { success: false, error: "Unknown starter framework", errorType: "api_error" };
       }
 
-      const starter = STARTER_TEMPLATES[stackId];
+      const starter = STARTER_TEMPLATE_METADATA[stackId];
       const response = {
         repository: {
           name: starter.name,

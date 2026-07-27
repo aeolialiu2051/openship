@@ -19,7 +19,7 @@ import {
   type AdvisoryManifest,
   type LatestRelease,
   type UpdateState,
-} from "@repo/core";
+} from "@repo/core/updates";
 import { usePlatform } from "@/context/PlatformContext";
 import { getRestApiBaseUrl } from "@/lib/api/urls";
 

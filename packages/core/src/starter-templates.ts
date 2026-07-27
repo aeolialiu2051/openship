@@ -1,10 +1,17 @@
-import type { StackId } from "./stacks";
+import {
+  STARTER_TEMPLATE_METADATA,
+  type StarterTemplateId,
+} from "./starter-template-metadata";
 
 export interface StarterTemplate {
   name: string;
   packageManager: string;
   files: Readonly<Record<string, string>>;
 }
+
+type StarterTemplateRegistry = {
+  [Id in StarterTemplateId]: StarterTemplate & (typeof STARTER_TEMPLATE_METADATA)[Id];
+};
 
 const json = (value: unknown) => `${JSON.stringify(value, null, 2)}\n`;
 
@@ -196,11 +203,4 @@ export const STARTER_TEMPLATES = {
       "Program.cs": "var builder = WebApplication.CreateBuilder(args);\nvar app = builder.Build();\napp.MapGet(\"/\", () => Results.Content(\"<h1>.NET Starter</h1><p>Your Openship project is ready.</p>\", \"text/html\"));\napp.Run();\n",
     },
   },
-} satisfies Partial<Record<StackId, StarterTemplate>>;
-
-export type StarterTemplateId = keyof typeof STARTER_TEMPLATES;
-
-export function hasStarterTemplate(stackId: string): stackId is StarterTemplateId {
-  return Object.prototype.hasOwnProperty.call(STARTER_TEMPLATES, stackId);
-}
-
+} satisfies StarterTemplateRegistry;

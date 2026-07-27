@@ -1,6 +1,6 @@
 export {
-  STARTER_TEMPLATES,
+  STARTER_TEMPLATE_METADATA,
   hasStarterTemplate,
-  type StarterTemplate,
+  type StarterTemplateMetadata,
   type StarterTemplateId,
-} from "@repo/core";
+} from "@repo/core/starter-template-metadata";

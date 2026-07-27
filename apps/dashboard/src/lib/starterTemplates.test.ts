@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { isUploadIgnoredPath, LANGUAGES, STACKS } from "@repo/core";
-import { STARTER_TEMPLATES, hasStarterTemplate } from "./starterTemplates";
+import { STARTER_TEMPLATES } from "@repo/core/starter-templates";
+import { hasStarterTemplate } from "./starterTemplates";
 
 describe("built-in starter templates", () => {
   it("only exposes valid stack ids with a compatible package manager", () => {
