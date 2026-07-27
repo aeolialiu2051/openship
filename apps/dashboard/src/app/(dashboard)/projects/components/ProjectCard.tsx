@@ -21,6 +21,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useModal } from "@/context/ModalContext";
 import { useToast } from "@/context/ToastContext";
+import { useProjectDeletionTracker } from "@/context/ProjectDeletionContext";
 import { projectsApi, getApiErrorMessage } from "@/lib/api";
 import type { Dictionary } from "@/i18n";
 
@@ -76,6 +77,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
   const { baseDomain } = usePlatform();
   const { showModal, hideModal } = useModal();
   const { showToast } = useToast();
+  const { trackProjectDeletion } = useProjectDeletionTracker();
   const [menuOpen, setMenuOpen] = useState(false);
   const status = getProjectStatus(project);
   const statusMeta = PROJECT_STATUS_META[status];
@@ -113,8 +115,17 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
           onClick: async () => {
             hideModal(id);
             try {
-              await projectsApi.delete(project.id, { deleteApp: true });
-              showToast(t.projects.delete.successProject, "success");
+              const response = await projectsApi.delete(project.id, { deleteApp: true });
+              trackProjectDeletion({
+                operationId: response.operationId,
+                projectId: String(project.id),
+                deleteApp: true,
+              });
+              showToast(
+                t.projects.delete.queued,
+                "success",
+                t.projects.delete.cleaningUpTitle,
+              );
               onChanged?.();
             } catch (e) {
               showToast(getApiErrorMessage(e, t.projects.delete.failed), "error");
