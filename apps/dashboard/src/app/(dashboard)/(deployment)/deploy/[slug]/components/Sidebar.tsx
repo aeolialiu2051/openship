@@ -23,6 +23,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
 import { projectsApi, githubApi, getApiErrorMessage } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 
 // ─── Deploy checklist for compose ────────────────────────────────────────────
 
@@ -123,10 +124,20 @@ const ComposeChecklist: React.FC = () => {
             {t.deploy.checklist.domains}
           </p>
           {exposedServices.map((svc) => {
+            const managedLabel = resolveServiceHostnameLabel(
+              config.projectName || config.repo || "project",
+              svc.name,
+              svc.domain,
+              "compose",
+            );
             const domain =
               svc.domainType === "custom" && svc.customDomain
                 ? svc.customDomain
-                : `${svc.domain || svc.name}.${baseDomain}`;
+                : `${
+                    config.routeKey
+                      ? appendProjectRouteKey(managedLabel, config.routeKey)
+                      : managedLabel
+                  }.${baseDomain}`;
             return (
               <div key={svc.name} className="flex items-center gap-2">
                 <Globe className="size-3 text-primary" />
@@ -143,11 +154,15 @@ const ComposeChecklist: React.FC = () => {
 
 // ─── Sidebar ─────────────────────────────────────────────────────────────────
 
-const Sidebar: React.FC = () => {
-  const { config, state, updateConfig, startDeployment } = useDeployment();
+interface SidebarProps {
+  onBranchScanningChange?: (branch: string | null) => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
+  const { config, state, updateConfig, initializeFromRepo, startDeployment } = useDeployment();
   const { t } = useI18n();
   const { requireCloud } = useCloud();
-  const { baseDomain, selfHosted, deployMode } = usePlatform();
+  const { baseDomain, hostDomain, selfHosted, deployMode } = usePlatform();
   const { showModal, hideModal } = useModal();
   const { showToast } = useToast();
   const router = useRouter();
@@ -179,6 +194,56 @@ const Sidebar: React.FC = () => {
   // build vs PAT vs existing GitHub credential). Opshcloud has its own
   // connect-account flow, local builds don't need a remote credential.
   const cloneGate = useCloneStrategyGate();
+
+  // A branch change invalidates every repository-derived setting, not just the
+  // branch label. Keep the current config visible until the new scan succeeds.
+  const [pendingBranch, setPendingBranch] = React.useState<string | null>(null);
+  const handleBranchChange = useCallback(async (nextBranch: string) => {
+    if (
+      pendingBranch ||
+      nextBranch === config.branch ||
+      !config.owner ||
+      config.owner === "local" ||
+      !config.repo
+    ) {
+      return;
+    }
+
+    setPendingBranch(nextBranch);
+    onBranchScanningChange?.(nextBranch);
+    try {
+      const result = await initializeFromRepo(config.owner, config.repo, undefined, {
+        branch: nextBranch,
+        projectId: config.projectId,
+      });
+      if (!result.success) {
+        showToast(
+          result.error || t.deploy.page.errorLoadRepoFailed,
+          "error",
+          t.deploy.page.errorLoadRepoTitle,
+        );
+      }
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, t.deploy.page.errorLoadRepoFailed),
+        "error",
+        t.deploy.page.errorLoadRepoTitle,
+      );
+    } finally {
+      setPendingBranch(null);
+      onBranchScanningChange?.(null);
+    }
+  }, [
+    config.branch,
+    config.owner,
+    config.projectId,
+    config.repo,
+    initializeFromRepo,
+    onBranchScanningChange,
+    pendingBranch,
+    showToast,
+    t,
+  ]);
 
   // Lazy branch list. In config-edit mode the wizard hydrates from saved data
   // with only the current branch seeded (no repo round-trip on load). The full
@@ -233,7 +298,7 @@ const Sidebar: React.FC = () => {
     // here" waitlist instead of running a deploy. Self-hosted / desktop deploys
     // are unaffected. Delete this block (+ CloudWaitlistModal + the
     // /api/cloud-waitlist route) when Cloud launches.
-    if (!selfHosted) {
+    if (!selfHosted && config.deployTarget === "cloud") {
       let modalId = "";
       modalId = showModal({
         customContent: <CloudWaitlistModal onClose={() => hideModal(modalId)} />,
@@ -277,6 +342,7 @@ const Sidebar: React.FC = () => {
     if (
       !isServices &&
       !config.noPublicRoute &&
+      !hostDomain &&
       canConnectCloud &&
       config.deployTarget !== "cloud" &&
       publicEndpointsNeedCloud(config.publicEndpoints)
@@ -285,7 +351,7 @@ const Sidebar: React.FC = () => {
     }
 
     // Compose services with free managed domains require cloud
-    if (isServices && servicesNeedCloud(config.services)) {
+    if (!hostDomain && isServices && servicesNeedCloud(config.services)) {
       if (!(await requireCloud("managed-compose-domains", { domain: baseDomain }))) return;
     }
 
@@ -337,7 +403,7 @@ const Sidebar: React.FC = () => {
     }
 
     await continueDeploy(buildStrategyOverride ? { buildStrategy: buildStrategyOverride } : undefined);
-  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.owner, config.projectId, config.serverId, config.publicEndpoints, config.services, continueDeploy, hideModal, isServices, requireCloud, selfHosted, showModal, showToast, updateConfig, t]);
+  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.noPublicRoute, config.publicEndpoints, config.services, continueDeploy, hideModal, hostDomain, isServices, requireCloud, selfHosted, showModal, t]);
 
   // Edit mode (opened from the project Runtime page with ?mode=config): the
   // finish button SAVES the config to the project and returns — no deploy, no
@@ -410,13 +476,16 @@ const Sidebar: React.FC = () => {
           {config.branches.length > 0 && (
             <div className="mt-3">
               <CustomSelect
-                value={config.branch}
-                onChange={(val) => updateConfig({ branch: val })}
+                value={pendingBranch ?? config.branch}
+                onChange={handleBranchChange}
                 onOpen={loadBranches}
+                disabled={pendingBranch !== null}
                 options={config.branches.map(branch => ({
                   value: branch,
                   label: branch,
-                  icon: <GitBranch className="w-3.5 h-3.5" />
+                  icon: pendingBranch === branch
+                    ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    : <GitBranch className="w-3.5 h-3.5" />
                 }))}
                 footerAction={config.projectId
                   ? {
@@ -452,6 +521,7 @@ const Sidebar: React.FC = () => {
         <DomainSettings
           projectId={config.projectId}
           projectName={config.projectName}
+          routeKey={config.routeKey}
           endpoints={config.publicEndpoints}
           hasServer={config.options.hasServer}
           runtimePort={config.options.productionPort}
@@ -477,7 +547,7 @@ const Sidebar: React.FC = () => {
       {isConfigMode ? (
         <button
           onClick={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || pendingBranch !== null}
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSaving ? (
@@ -495,7 +565,7 @@ const Sidebar: React.FC = () => {
       ) : (
         <button
           onClick={handleDeploy}
-          disabled={state.isDeploying}
+          disabled={state.isDeploying || pendingBranch !== null}
           className="w-full inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {state.isDeploying ? (

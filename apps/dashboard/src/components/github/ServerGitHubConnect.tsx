@@ -22,7 +22,7 @@ import { useModal } from "@/context/ModalContext";
 import { useI18n } from "@/components/i18n-provider";
 
 /**
- * The ONE per-server GitHub connect model (self-hosted). How THIS server
+ * The ONE per-server GitHub connect model. How THIS server
  * authenticates to GitHub to clone private repos — device-login token, pasted
  * PAT, an SSH server key, or per-repo deploy keys. Wins over the account /
  * App / relay chain for clones that run on this server.
@@ -273,22 +273,26 @@ export function ServerGitHubConnect({
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      <button
-                        type="button"
-                        onClick={startDevice}
-                        disabled={busy}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-[13px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
-                      >
-                        <Github className="size-4" /> {g.connectDevice}
-                      </button>
+                      {status?.deviceFlowAvailable && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={startDevice}
+                            disabled={busy}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-[13px] font-medium text-background transition-opacity hover:opacity-90 disabled:opacity-50"
+                          >
+                            <Github className="size-4" /> {g.connectDevice}
+                          </button>
 
-                      <div className="flex items-center gap-3">
-                        <span className="h-px flex-1 bg-border/50" />
-                        <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-                          {g.or}
-                        </span>
-                        <span className="h-px flex-1 bg-border/50" />
-                      </div>
+                          <div className="flex items-center gap-3">
+                            <span className="h-px flex-1 bg-border/50" />
+                            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
+                              {g.or}
+                            </span>
+                            <span className="h-px flex-1 bg-border/50" />
+                          </div>
+                        </>
+                      )}
 
                       <div>
                         <label className="mb-1.5 block text-[12px] font-medium uppercase tracking-wider text-muted-foreground">

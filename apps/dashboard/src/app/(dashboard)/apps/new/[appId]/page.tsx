@@ -18,8 +18,10 @@ import {
   getAppEndpoints,
   flattenSettingFields,
   envToSettingValue,
+  generateProjectRouteKey,
   settingToEnvValue,
   isFieldVisible,
+  replaceProjectRouteKey,
   resolveLocalized,
   type AppSettingField,
   type AppEndpoint,
@@ -53,6 +55,7 @@ import { AppLogo } from "@/components/AppLogo";
 import { VerifiedBadge } from "@/components/apps/VerifiedBadge";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { encodeProjectSlug } from "@/utils/repoSlug";
+import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 /**
  * Dedicated app-install wizard — a CLEAN business-only wrapper over the existing
@@ -111,7 +114,7 @@ export default function AppInstallPage() {
   const { t, locale } = useI18n();
   const w = t.projectSettings.appInstall;
   const { showToast } = useToast();
-  const { baseDomain, deployMode } = usePlatform();
+  const { baseDomain, hostDomain, deployMode } = usePlatform();
   // Desktop mode → the "open on localhost / forward the port" hints are relevant
   // (a VPS is already public; a local app is already localhost).
   const isDesktop = deployMode === "desktop";
@@ -209,7 +212,7 @@ export default function AppInstallPage() {
         const mode =
           e.defaultMode === "domain" || e.defaultMode === "port"
             ? e.defaultMode
-            : cloudConnected
+            : cloudConnected || Boolean(hostDomain)
               ? "domain"
               : "port";
         out[endpointKey(e)] = { kind: "http", mode, ep: createPublicEndpoint({ domainType: "free" }) };
@@ -231,6 +234,7 @@ export default function AppInstallPage() {
       return cur?.kind === "http" ? { ...p, [key]: { ...cur, ep } } : p;
     });
   const [destination, setDestination] = useState<AppDestination | null>(null);
+  const [routeKey, setRouteKey] = useState<string>();
   // Project name shown in Openship. Editable for a fresh install (a second
   // install of the same app auto-suffixes server-side, e.g. "Convex 2"); hidden
   // when reopening an existing draft, which already has its name.
@@ -248,6 +252,49 @@ export default function AppInstallPage() {
   // Validity of the install-step business fields (required + per-field rules),
   // reported by AppSettingsForm. Null when there are no install fields.
   const [formValidity, setFormValidity] = useState<FormValidity | null>(null);
+
+  // Reserve the project's routing identity before installation so every free
+  // hostname shown in the form is the hostname the persisted project keeps.
+  // Reopened drafts already have an identity; use it instead of inventing one.
+  useEffect(() => {
+    let cancelled = false;
+    if (!adoptedProjectId) {
+      setRouteKey((current) => current ?? generateProjectRouteKey());
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    projectsApi
+      .getInfo(adoptedProjectId)
+      .then((res) => {
+        if (cancelled) return;
+        const data = res?.data ?? res;
+        const existing = data?.routeKey ?? data?.route_key;
+        if (typeof existing === "string" && existing.length > 0) {
+          setRouteKey(existing);
+          return;
+        }
+
+        // Legacy drafts may predate route keys. Re-enter the idempotent app
+        // install path with the draft's exact name so the backend backfills it.
+        const reserved = generateProjectRouteKey();
+        return appsApi
+          .install({ templateId: appId, name: data?.name, routeKey: reserved })
+          .then((installResult) => {
+            if (cancelled) return;
+            const installed = installResult.data;
+            setRouteKey(installed.kind === "template" ? installed.routeKey : reserved);
+          });
+      })
+      .catch(() => {
+        if (!cancelled) setRouteKey(generateProjectRouteKey());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [adoptedProjectId]);
 
   // Unknown / non-installable / flow apps don't belong here.
   useEffect(() => {
@@ -341,7 +388,7 @@ export default function AppInstallPage() {
    *   http custom → the user's domain;
    *   tcp publish → keep the published host port (no-op — the template seeds it);
    *   tcp internal→ strip the published port (reachable only inside the project). */
-  const applyEndpoints = async (pid: string) => {
+  const applyEndpoints = async (pid: string, canonicalRouteKey: string) => {
     if (!needsExposure) return;
     const svcRes = await servicesApi.list(pid);
     const services = svcRes?.services ?? [];
@@ -364,7 +411,10 @@ export default function AppInstallPage() {
               customDomain: custom,
             });
         } else {
-          const slug = st.ep.domain.trim().toLowerCase();
+          const previewSlug = st.ep.domain.trim().toLowerCase();
+          const slug = previewSlug && routeKey && routeKey !== canonicalRouteKey
+            ? replaceProjectRouteKey(previewSlug, routeKey, canonicalRouteKey)
+            : previewSlug;
           // Blank slug = keep the template's baked free subdomain.
           await servicesApi.update(pid, svc.id, {
             exposed: true,
@@ -385,7 +435,7 @@ export default function AppInstallPage() {
   };
 
   const install = async () => {
-    if (busy) return;
+    if (busy || !destination || !routeKey) return;
     // Business-field validity gate (required + per-field rules). The form reports
     // this; block with a clear message rather than shipping an invalid install.
     if (formValidity && !formValidity.valid) {
@@ -424,6 +474,7 @@ export default function AppInstallPage() {
     // returns false — bail so the user connects first, then re-clicks Install.
     if (
       httpStates.some((s) => s.mode === "domain" && s.ep.domainType === "free") &&
+      !hostDomain &&
       !(await requireCloud("managed-project-domain"))
     ) {
       return;
@@ -438,20 +489,28 @@ export default function AppInstallPage() {
     try {
       // Reuse an adopted / already-created draft; only create when we have none.
       let pid = adoptedProjectId ?? projectId;
+      let canonicalRouteKey = routeKey;
       if (!pid) {
-        const res = await appsApi.install({ templateId: appId, name: appName.trim() || undefined });
+        const res = await appsApi.install({
+          templateId: appId,
+          name: appName.trim() || undefined,
+          routeKey,
+        });
         const data = res.data;
         if (data.kind !== "template") {
           router.push((data as { flowHref?: string }).flowHref ?? "/apps");
           return;
         }
         pid = data.projectId;
+        canonicalRouteKey = data.routeKey;
+        setRouteKey(data.routeKey);
+        invalidateProjectsHomeCache();
       }
       setProjectId(pid);
 
       const changes = settingChanges();
       if (changes.length > 0) await appsApi.updateSettings(pid, changes);
-      await applyEndpoints(pid);
+      await applyEndpoints(pid, canonicalRouteKey);
 
       // Wire declared connections BEFORE deploy so the injected env is present.
       // Best-effort (mirrors domains — never fails the deploy); the required gate
@@ -509,7 +568,7 @@ export default function AppInstallPage() {
   /** Advanced escape: hand off to the technical wizard, reusing an adopted /
    *  already-created draft so we never create a duplicate project. */
   const goAdvanced = async () => {
-    if (busy) return;
+    if (busy || !routeKey) return;
     setBusy(true);
     try {
       const pid = adoptedProjectId ?? projectId;
@@ -517,9 +576,10 @@ export default function AppInstallPage() {
         router.push(`/deploy/${encodeProjectSlug(pid)}`);
         return;
       }
-      const res = await appsApi.install({ templateId: appId });
+      const res = await appsApi.install({ templateId: appId, routeKey });
       const data = res.data;
       if (data.kind === "template") {
+        invalidateProjectsHomeCache();
         router.push(`/deploy/${encodeProjectSlug(data.projectId)}`);
       }
     } catch (err) {
@@ -722,6 +782,7 @@ export default function AppInstallPage() {
                               <div className="mt-3">
                                 <PublicEndpointsCard
                                   projectName={template.name}
+                                  routeKey={routeKey}
                                   endpoints={[st.ep]}
                                   hasServer
                                   runtimePort={String(e.port)}
@@ -800,7 +861,7 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={install}
-                disabled={busy || (formValidity ? !formValidity.valid : false)}
+                disabled={busy || !destination || !routeKey || (formValidity ? !formValidity.valid : false)}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {busy ? (
@@ -813,7 +874,7 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={goAdvanced}
-                disabled={busy}
+                disabled={busy || !routeKey}
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
               >
                 <SlidersHorizontal className="size-3.5" /> {w.advanced}

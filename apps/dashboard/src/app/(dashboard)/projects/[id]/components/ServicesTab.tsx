@@ -408,6 +408,7 @@ export const ServicesTab = () => {
           container={containerFor(selectedService.id)}
           projectId={id}
           projectSlugBase={projectSlugBase}
+          routeKey={projectData?.routeKey}
           initialTab={slug?.[2]}
           onRefresh={fetchData}
           onDeleted={closeService}

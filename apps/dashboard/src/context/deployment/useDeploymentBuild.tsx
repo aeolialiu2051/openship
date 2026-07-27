@@ -15,7 +15,9 @@ import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { DeployCredentialModal } from "@/components/deployments/DeployCredentialModal";
 import { useServerGitHubConnectModal } from "@/components/github/ServerGitHubConnect";
+import { parseCloudRequiredCode, removeProjectRouteKey } from "@repo/core";
 import type { DeploymentConfig, DeploymentState, DeploymentStatus, ServiceDeployStatus } from "./types";
+import { canonicalizeDeploymentRouteKey, managedDomainForApi } from "./project-route-key";
 import { syncActiveModeSnapshot } from "./mode-config";
 import {
   BUILD_PHASES,
@@ -28,7 +30,6 @@ import {
   usesServiceDeployment,
 } from "./types";
 import type { RawComposeService } from "./types";
-import { parseCloudRequiredCode } from "@repo/core";
 
 const ERROR_DEBOUNCE_MS = 1000;
 const MAX_RENDERED_BUILD_LOGS = 2000;
@@ -77,12 +78,16 @@ function mapServiceStatusesFromBuildStatus(data: any): ServiceDeployStatus[] {
 function serializeProjectPublicEndpoint(
   endpoint: DeploymentConfig["publicEndpoints"][number],
   hasServer: boolean,
+  routeKey?: string,
 ) {
   return {
     ...(hasServer
       ? (endpoint.port ? { port: Number(endpoint.port) } : {})
       : { targetPath: endpoint.targetPath || "/" }),
-    domain: endpoint.domain || undefined,
+    domain:
+      endpoint.domainType === "custom" || !endpoint.domain || !routeKey
+        ? endpoint.domain || undefined
+        : removeProjectRouteKey(endpoint.domain, routeKey),
     customDomain: endpoint.customDomain || undefined,
     domainType: endpoint.domainType,
   };
@@ -91,12 +96,16 @@ function serializeProjectPublicEndpoint(
 function serializeBuildPublicEndpoint(
   endpoint: DeploymentConfig["publicEndpoints"][number],
   hasServer: boolean,
+  routeKey?: string,
 ) {
   return {
     ...(hasServer
       ? (endpoint.port ? { port: endpoint.port } : {})
       : { targetPath: endpoint.targetPath || "/" }),
-    domain: endpoint.domain,
+    domain:
+      endpoint.domainType === "custom" || !endpoint.domain || !routeKey
+        ? endpoint.domain
+        : removeProjectRouteKey(endpoint.domain, routeKey),
     customDomain: endpoint.customDomain,
     domainType: endpoint.domainType,
   };
@@ -682,6 +691,7 @@ export function useDeploymentBuild(
       // Step 1: Ensure project exists
       const projectData = await projectsApi.ensure({
         projectId: config.projectId || undefined,
+        routeKey: config.routeKey,
         name: config.projectName || config.repo || config.localPath?.split("/").pop() || "project",
         gitOwner: isSourceless ? undefined : config.owner || undefined,
         gitRepo: isSourceless ? undefined : config.repo || undefined,
@@ -709,7 +719,11 @@ export function useDeploymentBuild(
           ? config.noPublicRoute
             ? []
             : config.publicEndpoints.map((endpoint) => (
-                serializeProjectPublicEndpoint(endpoint, config.options.hasServer)
+                serializeProjectPublicEndpoint(
+                  endpoint,
+                  config.options.hasServer,
+                  config.routeKey,
+                )
               ))
           : undefined,
         hasServer: config.options.hasServer,
@@ -749,6 +763,15 @@ export function useDeploymentBuild(
         return null;
       }
 
+      const hasCanonicalRouteKey = Object.prototype.hasOwnProperty.call(projectData, "route_key");
+      const canonicalRouteKey =
+        typeof projectData.route_key === "string" && /^[a-z0-9]{6}$/.test(projectData.route_key)
+          ? projectData.route_key
+          : undefined;
+      if (hasCanonicalRouteKey && canonicalRouteKey !== config.routeKey) {
+        setConfig((prev) => canonicalizeDeploymentRouteKey(prev, canonicalRouteKey));
+      }
+
       // Capture for the catch block — buildAccess may throw preflight
       // errors but the project row already exists at this point.
       ensuredProjectId = projectData.project_id;
@@ -775,7 +798,11 @@ export function useDeploymentBuild(
           ? config.noPublicRoute
             ? []
             : config.publicEndpoints.map((endpoint) => (
-                serializeBuildPublicEndpoint(endpoint, config.options.hasServer)
+                serializeBuildPublicEndpoint(
+                  endpoint,
+                  config.options.hasServer,
+                  config.routeKey,
+                )
               ))
           : undefined,
         buildStrategy:
@@ -833,17 +860,29 @@ export function useDeploymentBuild(
               environment: service.environment,
               volumes: service.volumes,
               command: service.command,
+              advanced: service.advanced,
               restart: service.restart,
               exposed: service.exposed,
               exposedPort: service.exposedPort,
-              domain: service.domain,
+              domain: managedDomainForApi(
+                service.domain,
+                service.domainType,
+                config.routeKey,
+              ),
               customDomain: service.customDomain,
               domainType: service.domainType,
               // Multi-route: one entry per public port. Drop the UI-only id/
               // targetPath; the backend mirrors entry[0] → the scalar fields.
               publicEndpoints: service.publicEndpoints?.map((endpoint) => ({
                 port: endpoint.port,
-                domain: endpoint.domainType === "custom" ? undefined : endpoint.domain,
+                domain:
+                  endpoint.domainType === "custom"
+                    ? undefined
+                    : managedDomainForApi(
+                        endpoint.domain,
+                        endpoint.domainType,
+                        config.routeKey,
+                      ),
                 customDomain: endpoint.domainType === "custom" ? endpoint.customDomain : undefined,
                 domainType: endpoint.domainType,
               })),

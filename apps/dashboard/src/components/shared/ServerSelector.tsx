@@ -85,9 +85,11 @@ export default function ServerSelector({
       if (list.length > 0) {
         const opts = list.map(serverInfoToOption);
         setServers(opts);
-        // Auto-select the lone server, or the first one when the caller asked
-        // for a default and nothing's chosen yet (captured initial `value`).
-        if (opts.length === 1 || (autoSelectFirst && !value)) onSelect(opts[0]);
+        // Re-emit a selected server so callers also receive its host metadata;
+        // otherwise auto-select the lone/first option when requested.
+        const selectedOption = value ? opts.find((option) => option.id === value) : null;
+        if (selectedOption) onSelect(selectedOption);
+        else if (opts.length === 1 || (autoSelectFirst && !value)) onSelect(opts[0]);
       } else {
         setServers([]);
         onSelect(null);
@@ -104,6 +106,15 @@ export default function ServerSelector({
   useEffect(() => {
     fetchServers();
   }, [fetchServers]);
+
+  // A persisted selection may arrive just after the initial fetch starts.
+  // Hydrate its host metadata once the list is available, or report a stale id.
+  useEffect(() => {
+    if (!value || loading) return;
+    onSelect(servers.find((server) => server.id === value) ?? null);
+    // onSelect is intentionally excluded; callers may pass an inline callback.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, loading, servers]);
 
   const selected = servers.find((s) => s.id === value) ?? null;
 

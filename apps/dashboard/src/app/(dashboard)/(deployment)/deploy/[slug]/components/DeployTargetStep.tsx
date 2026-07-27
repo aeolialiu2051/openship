@@ -18,6 +18,7 @@ import { createPersistedValue } from "@/lib/persisted-value";
 import { AddServerModal } from "./AddServerModal";
 import ServerRuntimePicker from "./ServerRuntimePicker";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { isDeploySelectionComingSoon } from "./deploy-target-availability";
 
 // ─── Option card ─────────────────────────────────────────────────────────────
 
@@ -440,16 +441,16 @@ export interface ResolvedTargets {
   refreshServers: () => void;
 }
 
-export function useDesktopTargets(): ResolvedTargets {
+export function useDeployTargets(): ResolvedTargets {
   const cloud = useCloud();
-  const { selfHosted } = usePlatform();
+  const { userServers } = usePlatform();
   const [servers, setServers] = useState<ServerInfo[]>([]);
   const [serversReady, setServersReady] = useState(false);
 
   // Fetch servers + filter to ones that can run apps. Exposed so the picker
   // can re-pull after the user adds a new server in another tab.
   const fetchServers = useCallback(() => {
-    if (!selfHosted) {
+    if (!userServers) {
       setServersReady(true);
       return () => {};
     }
@@ -460,7 +461,7 @@ export function useDesktopTargets(): ResolvedTargets {
       .catch(() => {})
       .finally(() => { if (!cancelled) setServersReady(true); });
     return () => { cancelled = true; };
-  }, [selfHosted]);
+  }, [userServers]);
 
   useEffect(() => {
     const cleanup = fetchServers();
@@ -470,11 +471,11 @@ export function useDesktopTargets(): ResolvedTargets {
   // Refresh when the tab regains focus - covers the "added a server in a new
   // tab" flow without forcing the user to reload the deploy page.
   useEffect(() => {
-    if (!selfHosted) return;
+    if (!userServers) return;
     const onFocus = () => { fetchServers(); };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
-  }, [selfHosted, fetchServers]);
+  }, [userServers, fetchServers]);
 
   const hasServers = servers.length > 0;
   const hasCloudConnected = cloud.connected;
@@ -840,7 +841,7 @@ const CloudPowerPicker: React.FC = () => {
 const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue, autoSkipAllowed = true }) => {
   const { config, updateConfig } = useDeployment();
   const { requireCloud } = useCloud();
-  const { selfHosted, deployMode } = usePlatform();
+  const { userServers, deployMode } = usePlatform();
   // Git credential forwarding is desktop-only — the relay forwards the
   // operator's machine-local `gh`, which only exists on a desktop host.
   const isDesktop = deployMode === "desktop";
@@ -1258,6 +1259,12 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     : ts.build.options;
 
   const hasAnyDeployTarget = deployTargetOptions.length > 0;
+  const selectionComingSoon = isDeploySelectionComingSoon({
+    deployTarget: config.deployTarget,
+    cloneStrategy,
+    isDesktop,
+    showCloneStrategy,
+  });
   const canContinue = ready && (
     config.deployTarget === "cloud" ||
     (config.deployTarget === "server" && !!config.serverId && hasServers)
@@ -1267,7 +1274,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // AND the parent allows skipping. While true, we want to bypass the UI
   // entirely (no flash of compact summary before onContinue fires).
   const baseLoading = !ready || !defaultsLoaded;
-  const baseCompactEligible = !baseLoading && !expanded && canContinue;
+  const baseCompactEligible = !baseLoading && !expanded && canContinue && !selectionComingSoon;
   const wouldAutoSkip = autoSkipAllowed && baseCompactEligible;
 
   // Render flags. When we're about to auto-skip, keep showing the loading
@@ -1317,6 +1324,8 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   };
 
   const handleContinue = async () => {
+    if (selectionComingSoon) return;
+
     // The only hard gate at this step: deploying TO Openship Cloud needs an
     // Openship Cloud connection. Anything else (free .${baseDomain} domains
     // on own-server / local, free domains in compose services, etc.) is a
@@ -1402,8 +1411,8 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     "inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl transition-all hover:bg-primary/90 hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none";
   const continueLabel = (
     <>
-      {ts.continue}
-      <ArrowRight className="size-4 rtl:rotate-180" />
+      {selectionComingSoon ? ts.comingSoon : ts.continue}
+      {!selectionComingSoon && <ArrowRight className="size-4 rtl:rotate-180" />}
     </>
   );
 
@@ -1438,7 +1447,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
       <div className="lg:pe-6">{headerTitleBlock}</div>
       <div className="hidden lg:block" aria-hidden />
       <div className="lg:ps-6">
-        <button type="button" onClick={handleContinue} disabled={!canContinue} className={`w-full ${continueBtnClass}`}>
+        <button type="button" onClick={handleContinue} disabled={!canContinue || selectionComingSoon} className={`w-full ${continueBtnClass}`}>
           {continueLabel}
         </button>
       </div>
@@ -1446,7 +1455,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   ) : (
     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
       {headerTitleBlock}
-      <button type="button" onClick={handleContinue} disabled={!canContinue} className={`shrink-0 ${continueBtnClass}`}>
+      <button type="button" onClick={handleContinue} disabled={!canContinue || selectionComingSoon} className={`shrink-0 ${continueBtnClass}`}>
         {continueLabel}
       </button>
     </div>
@@ -1523,7 +1532,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
                     servers={servers}
                     selectedId={config.serverId}
                     onSelect={handleServerSelect}
-                    onAddServer={selfHosted ? openAddServer : undefined}
+                    onAddServer={userServers ? openAddServer : undefined}
                   />
                 )}
               </OptionCard>
@@ -1531,7 +1540,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           </div>
           {/* External add-server button only when the picker (which now owns it)
               isn't shown — i.e. cloud selected, or the single-server case. */}
-          {selfHosted && !(config.deployTarget === "server" && !isSingleServer) && (
+          {userServers && !(config.deployTarget === "server" && !isSingleServer) && (
             <button
               type="button"
               onClick={openAddServer}
@@ -1550,7 +1559,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           <div className="rounded-xl border border-border/50 bg-card px-4 py-4 text-sm text-muted-foreground leading-relaxed">
             {ts.noTargetBody}
           </div>
-          {selfHosted && (
+          {userServers && (
             <button
               type="button"
               onClick={openAddServer}

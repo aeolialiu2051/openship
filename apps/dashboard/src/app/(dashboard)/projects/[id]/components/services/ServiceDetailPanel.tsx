@@ -16,7 +16,7 @@ import {
 } from "@/lib/api/services";
 import { deployApi } from "@/lib/api/deploy";
 import { formatBytes } from "@/lib/formatBytes";
-import { resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
 import {
   Play,
   Square,
@@ -84,6 +84,7 @@ interface ServiceDetailPanelProps {
   container?: ServiceContainer;
   projectId: string;
   projectSlugBase: string;
+  routeKey?: string | null;
   /** Tab to open on mount (from the URL: /services/[id]/[tab]). */
   initialTab?: string;
   onRefresh: () => void | Promise<void>;
@@ -111,6 +112,7 @@ export function ServiceDetailPanel({
   container,
   projectId,
   projectSlugBase,
+  routeKey,
   initialTab,
   onRefresh,
   onDeleted,
@@ -298,7 +300,24 @@ export function ServiceDetailPanel({
   const resolvedUrl = service.exposed
     ? service.domainType === "custom" && service.customDomain
       ? `https://${service.customDomain}`
-      : `https://${resolveServiceHostnameLabel(projectSlugBase, service.name, service.domain, serviceKind(service))}.${baseDomain}`
+      : `https://${
+          routeKey
+            ? appendProjectRouteKey(
+                resolveServiceHostnameLabel(
+                  projectSlugBase,
+                  service.name,
+                  service.domain,
+                  serviceKind(service),
+                ),
+                routeKey,
+              )
+            : resolveServiceHostnameLabel(
+                projectSlugBase,
+                service.name,
+                service.domain,
+                serviceKind(service),
+              )
+        }.${baseDomain}`
     : null;
 
   // Hero subtitle: the image, or the build context — but not a bare "." (the
