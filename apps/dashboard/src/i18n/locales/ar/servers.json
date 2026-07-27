@@ -188,7 +188,11 @@
     "noData": "لا توجد بيانات",
     "healthy": "سليم",
     "unhealthy": "غير سليم",
-    "noHealthData": "لا توجد بيانات صحة بعد"
+    "noHealthData": "لا توجد بيانات صحة بعد",
+    "dockerContainers": "حاويات Docker",
+    "dockerSummary": "{running} قيد التشغيل · {total} إجمالاً",
+    "dockerEmpty": "لم يتم العثور على حاويات Docker",
+    "dockerLoadFailed": "تعذر تحميل حاويات Docker"
   },
   "components": {
     "reinstall": "إعادة التثبيت",

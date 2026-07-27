@@ -7,9 +7,12 @@ import {
   XCircle,
   Loader2,
   Activity,
+  ChevronDown,
 } from "lucide-react";
+import { Fragment, useState } from "react";
 import type { ComponentStatus, ServerStats } from "@/lib/api/system";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { DockerOverviewPanel } from "./docker-overview-panel";
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B";
@@ -87,10 +90,12 @@ function StatCard({
 }
 
 export function OverviewTab({
+  serverId,
   stats,
   components,
   checking,
 }: {
+  serverId: string;
   stats: ServerStats | null;
   components: ComponentStatus[];
   checking: boolean;
@@ -99,6 +104,7 @@ export function OverviewTab({
   onReconnectMonitor: () => void;
 }) {
   const { t } = useI18n();
+  const [dockerExpanded, setDockerExpanded] = useState(false);
   const healthyCount = components.filter((c) => c.healthy).length;
   const totalCount = components.length;
   const allHealthy = totalCount > 0 && healthyCount === totalCount;
@@ -204,41 +210,62 @@ export function OverviewTab({
           </div>
         ) : totalCount > 0 ? (
           <div className="divide-y divide-border/40 -mx-5">
-            {components.map((comp) => (
-              <div
-                key={comp.name}
-                className="flex items-center gap-3 px-5 py-3"
-              >
-                {comp.healthy ? (
-                  <CheckCircle2
-                    className="size-4 text-success shrink-0"
-                    strokeWidth={2}
-                  />
-                ) : (
-                  <XCircle
-                    className="size-4 text-danger shrink-0"
-                    strokeWidth={2}
-                  />
-                )}
-                <span className="text-sm text-foreground flex-1 truncate">
-                  {comp.label || comp.name}
-                </span>
-                {comp.version && (
-                  <span className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
-                    v{comp.version}
-                  </span>
-                )}
-                <span
-                  className={`text-xs font-medium ${
-                    comp.healthy
-                      ? "text-success"
-                      : "text-danger"
-                  }`}
-                >
-                  {comp.healthy ? t.servers.overview.healthy : t.servers.overview.unhealthy}
-                </span>
-              </div>
-            ))}
+            {components.map((comp) => {
+              const dockerDropdown = comp.name === "docker" && comp.installed;
+              return (
+                <Fragment key={comp.name}>
+                  <div className="flex items-center gap-3 px-5 py-3">
+                    {comp.healthy ? (
+                      <CheckCircle2
+                        className="size-4 text-success shrink-0"
+                        strokeWidth={2}
+                      />
+                    ) : (
+                      <XCircle
+                        className="size-4 text-danger shrink-0"
+                        strokeWidth={2}
+                      />
+                    )}
+                    <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                      <span className="truncate text-sm text-foreground">
+                        {comp.label || comp.name}
+                      </span>
+                      {dockerDropdown && (
+                        <button
+                          type="button"
+                          onClick={() => setDockerExpanded((open) => !open)}
+                          className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                          aria-expanded={dockerExpanded}
+                          aria-label={t.servers.overview.dockerContainers}
+                          title={t.servers.overview.dockerContainers}
+                        >
+                          <ChevronDown
+                            className={`size-3.5 transition-transform duration-200 ${dockerExpanded ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      )}
+                    </div>
+                    {comp.version && (
+                      <span className="text-[11px] font-mono text-muted-foreground bg-muted/60 px-1.5 py-0.5 rounded">
+                        v{comp.version}
+                      </span>
+                    )}
+                    <span
+                      className={`text-xs font-medium ${
+                        comp.healthy
+                          ? "text-success"
+                          : "text-danger"
+                      }`}
+                    >
+                      {comp.healthy ? t.servers.overview.healthy : t.servers.overview.unhealthy}
+                    </span>
+                  </div>
+                  {dockerDropdown && dockerExpanded && (
+                    <DockerOverviewPanel serverId={serverId} />
+                  )}
+                </Fragment>
+              );
+            })}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground text-center py-6">

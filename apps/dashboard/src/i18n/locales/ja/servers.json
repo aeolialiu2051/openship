@@ -188,7 +188,11 @@
     "noData": "データなし",
     "healthy": "正常",
     "unhealthy": "異常",
-    "noHealthData": "ヘルスデータはまだありません"
+    "noHealthData": "ヘルスデータはまだありません",
+    "dockerContainers": "Docker コンテナ",
+    "dockerSummary": "実行中 {running} · 合計 {total}",
+    "dockerEmpty": "Docker コンテナが見つかりません",
+    "dockerLoadFailed": "Docker コンテナを読み込めませんでした"
   },
   "components": {
     "reinstall": "再インストール",

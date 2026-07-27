@@ -19,6 +19,7 @@ import * as fs from "./filesystem.controller";
 import * as setup from "./setup.controller";
 import * as selfApp from "./self-app.controller";
 import * as serverCheck from "./server-check.controller";
+import * as dockerOverview from "./docker-overview.controller";
 import * as serversCtrl from "./servers.controller";
 import * as rateLimit from "./rate-limit.controller";
 import * as tunnels from "./tunnels.controller";
@@ -110,6 +111,11 @@ r.post(
   "/servers/:id/ports/scan",
   { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
   serverCheck.scanExposedPorts,
+);
+r.get(
+  "/servers/:id/docker/overview",
+  { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
+  dockerOverview.getDockerOverview,
 );
 
 // ── Native-module versioning + migration (OpenResty, …). The `:id` server is

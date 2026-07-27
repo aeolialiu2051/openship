@@ -199,6 +199,30 @@ export interface ServerStats {
   load15: string;
 }
 
+export interface DockerContainerOverview {
+  id: string;
+  name: string;
+  image: string;
+  state: string;
+  status: string;
+  health: "healthy" | "unhealthy" | "starting" | null;
+  running: boolean;
+  cpuPercent: number | null;
+  memoryUsage: string | null;
+  memoryLimit: string | null;
+  memoryPercent: number | null;
+  networkRx: string | null;
+  networkTx: string | null;
+  blockRead: string | null;
+  blockWrite: string | null;
+  pids: number | null;
+}
+
+export interface DockerOverviewResponse {
+  containers: DockerContainerOverview[];
+  collectedAt: string;
+}
+
 export interface ServerRateLimitConfig {
   rps: number;
   burst: number;
@@ -380,6 +404,12 @@ export const systemApi = {
   /** Lightweight liveness probe for the list view (TCP reachability). */
   probeReachability: (id: string) =>
     api.get<{ reachable: boolean }>(endpoints.system.serverReachability(id)),
+
+  /** On-demand Docker container state and one-shot resource metrics. */
+  getDockerOverview: (id: string) =>
+    api.get<DockerOverviewResponse>(endpoints.system.serverDockerOverview(id), {
+      timeout: 30_000,
+    }),
 
   /** Create a new server */
   createServerEntry: (data: Record<string, unknown>) =>

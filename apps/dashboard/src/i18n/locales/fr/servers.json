@@ -188,7 +188,11 @@
     "noData": "Aucune donnée",
     "healthy": "En bon état",
     "unhealthy": "En mauvais état",
-    "noHealthData": "Aucune donnée d'état pour l'instant"
+    "noHealthData": "Aucune donnée d'état pour l'instant",
+    "dockerContainers": "Conteneurs Docker",
+    "dockerSummary": "{running} actifs · {total} au total",
+    "dockerEmpty": "Aucun conteneur Docker trouvé",
+    "dockerLoadFailed": "Impossible de charger les conteneurs Docker"
   },
   "components": {
     "reinstall": "Réinstaller",

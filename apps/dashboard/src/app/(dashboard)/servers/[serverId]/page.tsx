@@ -716,6 +716,7 @@ export default function ServerDetailPage({
             {/* Tab content */}
             {activeTab === "overview" && (
               <OverviewTab
+                serverId={serverId}
                 stats={monitor.stats}
                 components={components}
                 checking={checking}

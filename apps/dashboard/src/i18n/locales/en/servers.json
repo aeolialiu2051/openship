@@ -209,7 +209,11 @@
     "noData": "No data",
     "healthy": "Healthy",
     "unhealthy": "Unhealthy",
-    "noHealthData": "No health data yet"
+    "noHealthData": "No health data yet",
+    "dockerContainers": "Docker containers",
+    "dockerSummary": "{running} running · {total} total",
+    "dockerEmpty": "No Docker containers found",
+    "dockerLoadFailed": "Couldn't load Docker containers"
   },
   "components": {
     "reinstall": "Reinstall",

@@ -193,7 +193,11 @@
     "noData": "无数据",
     "healthy": "健康",
     "unhealthy": "异常",
-    "noHealthData": "暂无健康数据"
+    "noHealthData": "暂无健康数据",
+    "dockerContainers": "Docker 容器",
+    "dockerSummary": "{running} 个运行中 · 共 {total} 个",
+    "dockerEmpty": "未发现 Docker 容器",
+    "dockerLoadFailed": "无法加载 Docker 容器"
   },
   "components": {
     "reinstall": "重新安装",
