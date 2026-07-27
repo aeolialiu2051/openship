@@ -29,6 +29,11 @@ r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
 
 r.get("/servers/:id/rate-limit", { tag: "server:read" }, rateLimit.getRateLimit);
 r.patch("/servers/:id/rate-limit", { tag: "server:write" }, rateLimit.updateRateLimit);
+r.post(
+  "/servers/:id/ports/scan",
+  { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
+  serverCheck.scanExposedPorts,
+);
 
 r.get("/servers/:id/github", { tag: "server:read" }, serverGithub.getStatus);
 r.post("/servers/:id/github/connect", { tag: "server:write" }, serverGithub.startConnect);

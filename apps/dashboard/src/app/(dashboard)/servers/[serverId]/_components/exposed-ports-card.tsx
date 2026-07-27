@@ -1,11 +1,21 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Network, Globe, Lock, Shield, Loader2, RefreshCw, ScanLine } from "lucide-react";
+import {
+  Network,
+  Globe,
+  Lock,
+  Shield,
+  Loader2,
+  RefreshCw,
+  ScanLine,
+  ChevronDown,
+} from "lucide-react";
 import { BlurIp } from "@/components/BlurIp";
 import { systemApi, type PortScanResult, type HostListener } from "@/lib/api/system";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { formatPortDetailsLabel, safeArray } from "./exposed-ports-view";
 
 /**
  * Port-exposure scan for the server Security tab. Deliberately action-driven —
@@ -85,7 +95,11 @@ export function ExposedPortsCard({ serverId }: { serverId: string }) {
               disabled={scanning}
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {scanning ? <Loader2 className="size-4 animate-spin" /> : <ScanLine className="size-4" />}
+              {scanning ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <ScanLine className="size-4" />
+              )}
               {scanning ? s.scanning : s.scanButton}
             </button>
           </div>
@@ -113,30 +127,38 @@ function ScanResult({
     );
   }
 
-  if (result.totalCount === 0) {
+  // Rolling deploys can briefly pair a new dashboard chunk with an older API
+  // response (or an older SSR dictionary kept by an already-open tab). Keep a
+  // malformed/missing listener collection inside this card instead of letting
+  // it trip the dashboard-level error boundary.
+  const listeners = safeArray(result.listeners);
+  const totalCount = Number.isFinite(result.totalCount) ? result.totalCount : listeners.length;
+  const exposedCount = Number.isFinite(result.exposedCount)
+    ? result.exposedCount
+    : listeners.filter((listener) => listener.exposed).length;
+
+  if (totalCount === 0) {
     return <p className="text-sm text-muted-foreground">{labels.empty}</p>;
   }
 
-  const firewalled = result.listeners.filter(
+  const firewalled = listeners.filter(
     (l) => l.exposed && l.proto === "tcp" && l.reachable === false,
   ).length;
 
   const summary = result.reachabilityProbed
     ? interpolate(labels.summaryReachable, {
-        total: String(result.totalCount),
+        total: String(totalCount),
         reachable: String(result.reachableCount ?? 0),
         firewalled: String(firewalled),
       })
-    : result.exposedCount > 0
+    : exposedCount > 0
       ? interpolate(labels.summary, {
-          total: String(result.totalCount),
-          exposed: String(result.exposedCount),
+          total: String(totalCount),
+          exposed: String(exposedCount),
         })
-      : interpolate(labels.summaryZeroExposed, { total: String(result.totalCount) });
+      : interpolate(labels.summaryZeroExposed, { total: String(totalCount) });
 
-  const alert = result.reachabilityProbed
-    ? (result.reachableCount ?? 0) > 0
-    : result.exposedCount > 0;
+  const alert = result.reachabilityProbed ? (result.reachableCount ?? 0) > 0 : exposedCount > 0;
 
   return (
     <div className="space-y-4">
@@ -154,11 +176,21 @@ function ScanResult({
         <p className="text-[12px] text-muted-foreground">{labels.noProcessInfo}</p>
       )}
 
-      <ul className="divide-y divide-border/40 rounded-xl border border-border/50 overflow-hidden">
-        {result.listeners.map((l, i) => (
-          <PortRow key={`${l.proto}-${l.family}-${l.address}-${l.port}-${i}`} listener={l} labels={labels} />
-        ))}
-      </ul>
+      <details className="group">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-border/50 bg-muted/10 px-4 py-3 text-[13px] font-medium text-foreground transition-colors hover:bg-muted/30 [&::-webkit-details-marker]:hidden">
+          <span>{formatPortDetailsLabel(labels, totalCount)}</span>
+          <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-180" />
+        </summary>
+        <ul className="mt-2 divide-y divide-border/40 overflow-hidden rounded-xl border border-border/50">
+          {listeners.map((l, i) => (
+            <PortRow
+              key={`${l.proto}-${l.family}-${l.address}-${l.port}-${i}`}
+              listener={l}
+              labels={labels}
+            />
+          ))}
+        </ul>
+      </details>
     </div>
   );
 }

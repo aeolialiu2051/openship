@@ -276,6 +276,7 @@ export type RateLimitPolicyId =
   | "mcp"
   | "read-authed"
   | "write-authed"
+  | "server-probe"
   | "webhook-ingress"
   | "billing-portal";
 

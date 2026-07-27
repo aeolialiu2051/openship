@@ -29,6 +29,7 @@ export type PolicyId =
   | "mcp"
   | "read-authed"
   | "write-authed"
+  | "server-probe"
   | "webhook-ingress"
   | "billing-portal";
 
@@ -102,6 +103,17 @@ export const POLICIES: Record<PolicyId, RateLimitPolicy> = {
     windowMs: MINUTE_MS,
     subject: "user",
     description: "Write API — per-user.",
+  },
+
+  /** SSH-backed server probes (for example, exposed-port scans). These are
+   *  read-only but consume remote connections and can perform bounded egress
+   *  checks, so keep them well below ordinary dashboard read limits. */
+  "server-probe": {
+    id: "server-probe",
+    limit: 30,
+    windowMs: MINUTE_MS,
+    subject: "user",
+    description: "SSH-backed server probes — per-user, bounded egress work.",
   },
 
   /** Webhook ingress (GitHub, Stripe, etc.). Per-IP — sources hit us

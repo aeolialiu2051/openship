@@ -880,8 +880,6 @@ export async function monitorStream(c: Context) {
  * on the full SSH-connect timeout.
  */
 export async function scanExposedPorts(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
-
   const organizationId = getRequestContext(c).organizationId;
   const serverId = c.req.param("id")!;
   await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "read" });
