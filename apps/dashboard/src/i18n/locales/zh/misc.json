@@ -129,7 +129,7 @@
     "reviewPost": "。",
     "sizeArtifacts": "大小：{size} · 构件：{count}",
     "overwriteWarning": "此操作将覆盖当前数据。",
-    "overwriteHint": "下一步（准备）将验证备份是否可下载。在你于应用步骤确认之前，不会执行任何破坏性操作。",
+    "overwriteHint": "下一步（准备）将验证备份是否可下载。在你于应用步骤确认之前，不会执行任何危险操作。",
     "protectLabel": "保护最新备份免受保留期清理",
     "protectHint": "使最近一次成功的备份免于被自动删除，这样如果出现问题，你可以回到“本次恢复之前”的状态。",
     "cancel": "取消",

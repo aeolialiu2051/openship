@@ -4,6 +4,7 @@ import { audit, auditContextFrom } from "../../lib/audit";
 import { repos } from "@repo/db";
 import { randomBytes } from "node:crypto";
 import { encrypt } from "../../lib/encryption";
+import { getMcpTools, toClientTool } from "../mcp/mcp-tools";
 import {
   getBuildMode,
   getDeployDefaults,
@@ -47,6 +48,14 @@ export async function get(c: Context) {
     routeStrategy,
     forwardGitToServer,
   });
+}
+
+/** GET /mcp-tools - return the canonical tool surface shown in Settings → MCP. */
+export async function listMcpTools(c: Context) {
+  const data = getMcpTools()
+    .map(toClientTool)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  return c.json({ data });
 }
 
 /**

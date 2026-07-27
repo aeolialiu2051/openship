@@ -100,6 +100,7 @@ export { settingsApi } from "./settings";
 export type {
   BuildMode,
   UserSettingsResponse,
+  McpTool,
   DefaultDeployTarget,
   DeployDefaultsResponse,
   CloneCredentialsState,

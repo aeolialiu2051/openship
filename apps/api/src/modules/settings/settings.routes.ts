@@ -26,6 +26,9 @@ const r = secureRouter(new Hono(), {
 /** GET  /            - get current org's workspace settings */
 r.get("/", { tag: "settings:read", mcp: { description: "Get the org's workspace settings (build mode, deploy defaults, preferences)." } }, ctrl.get);
 
+/** GET /mcp-tools - canonical MCP tool catalog for the settings UI. */
+r.get("/mcp-tools", { tag: "settings:read" }, ctrl.listMcpTools);
+
 /** PUT  /            - create or update workspace settings */
 r.put("/", { tag: "settings:write" }, ctrl.upsert);
 
@@ -52,4 +55,3 @@ r.patch("/forward-git", { tag: "settings:write", mcp: { description: "Enable/dis
 r.get("/webhook-deliveries", { tag: "settings:read", mcp: { description: "List the org's webhook delivery feed, including pushes forwarded to Cloud or from unmanaged repos (paginated)." } }, orgDeliveries);
 
 export const settingsRoutes = r.hono;
-

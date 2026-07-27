@@ -8,10 +8,27 @@
 
 import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
-import { Boxes, Copy, Check, ShieldCheck, Unplug, Loader2, ChevronDown, ExternalLink, KeyRound } from "lucide-react";
+import {
+  Boxes,
+  Copy,
+  Check,
+  ShieldCheck,
+  Unplug,
+  Loader2,
+  ChevronDown,
+  ExternalLink,
+  KeyRound,
+  Wrench,
+} from "lucide-react";
 import { SettingsSection } from "./SettingsSection";
 import { getRestApiBaseUrl } from "@/lib/api/urls";
-import { tokensApi, getApiErrorMessage, type McpClient } from "@/lib/api";
+import {
+  settingsApi,
+  tokensApi,
+  getApiErrorMessage,
+  type McpClient,
+  type McpTool,
+} from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -433,8 +450,129 @@ export function McpConnection() {
             <GuideBody endpoint={endpoint} configSnippet={configSnippet} />
           </>
         )}
+
+        <McpToolsDropdown />
       </div>
     </SettingsSection>
+  );
+}
+
+/** Lazy-loaded catalog of the exact tools published by the MCP server. */
+function McpToolsDropdown() {
+  const { t } = useI18n();
+  const [open, setOpen] = useState(false);
+  const [tools, setTools] = useState<McpTool[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+
+  function loadTools(isCancelled: () => boolean = () => false) {
+    setTools(null);
+    setLoadFailed(false);
+    settingsApi
+      .listMcpTools()
+      .then((res) => {
+        if (!isCancelled()) setTools(res.data ?? []);
+      })
+      .catch(() => {
+        if (!isCancelled()) {
+          setTools([]);
+          setLoadFailed(true);
+        }
+      });
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    loadTools(() => cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggle = () => {
+    setOpen((current) => !current);
+  };
+
+  return (
+    <div className="rounded-xl border border-border/50">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-start transition-colors hover:bg-muted/20"
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <Wrench className="size-4 shrink-0 text-success" />
+          <span>
+            <span className="flex items-center gap-2 text-sm font-medium text-foreground">
+              {t.settings.mcp.toolsTitle}
+              {tools !== null && !loadFailed && (
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                  {tools.length}
+                </span>
+              )}
+            </span>
+            <span className="mt-0.5 block text-xs text-muted-foreground">
+              {t.settings.mcp.toolsDescription}
+            </span>
+          </span>
+        </span>
+        <ChevronDown
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="border-t border-border/40">
+          {tools === null ? (
+            <div className="flex items-center gap-2 px-4 py-4 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" /> {t.settings.mcp.loadingTools}
+            </div>
+          ) : loadFailed ? (
+            <div className="flex items-center justify-between gap-3 px-4 py-4 text-xs text-muted-foreground">
+              <span>{t.settings.mcp.toolsLoadFailed}</span>
+              <button
+                type="button"
+                onClick={() => loadTools()}
+                className="rounded-lg border border-border/60 px-3 py-1.5 font-medium text-foreground transition-colors hover:bg-muted"
+              >
+                {t.settings.mcp.retry}
+              </button>
+            </div>
+          ) : (
+            <div className="max-h-[30rem] divide-y divide-border/40 overflow-y-auto">
+              {tools.map((tool) => (
+                <div key={tool.name} className="px-4 py-3">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <code className="break-all font-mono text-xs font-medium text-foreground">
+                      {tool.name}
+                    </code>
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                        tool.annotations.readOnlyHint
+                          ? "bg-success-bg text-success"
+                          : "bg-muted text-muted-foreground"
+                      }`}
+                    >
+                      {tool.annotations.readOnlyHint
+                        ? t.settings.mcp.toolReadOnly
+                        : t.settings.mcp.toolWrite}
+                    </span>
+                    {tool.annotations.destructiveHint && (
+                      <span className="rounded-full bg-danger-bg px-2 py-0.5 text-[10px] font-medium text-danger">
+                        {t.settings.mcp.toolDestructive}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {tool.description}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

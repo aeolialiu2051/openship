@@ -36,9 +36,22 @@ export interface DeployDefaultsResponse {
   defaultServerId: string | null;
 }
 
+export interface McpTool {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+  annotations: {
+    readOnlyHint: boolean;
+    destructiveHint: boolean;
+  };
+}
+
 export const settingsApi = {
   /** Get the current user's platform settings */
   get: () => api.get<UserSettingsResponse>(endpoints.settings.get),
+
+  /** List the canonical tools exposed by the MCP server. */
+  listMcpTools: () => api.get<{ data: McpTool[] }>(endpoints.settings.mcpTools),
 
   /** Create or update all platform settings */
   upsert: (data: { buildMode: BuildMode }) =>

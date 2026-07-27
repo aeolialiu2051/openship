@@ -392,6 +392,7 @@ export const endpoints = {
   /* ---------------------------------------------------------------- */
   settings: {
     get: "settings",
+    mcpTools: "settings/mcp-tools",
     upsert: "settings",
     buildMode: "settings/build-mode",
     routeStrategy: "settings/route-strategy",
