@@ -107,21 +107,31 @@ import {
 } from "./docker-transport";
 import { resolveRemoteDockerSocketPath } from "./docker-ssh-agent";
 import {
+  type DetectedTraefikConfig,
   VIBRAIL_EDGE_CERT_RESOLVER,
+  VIBRAIL_EDGE_CERT_RESOLVER_LABEL,
+  VIBRAIL_EDGE_COMPATIBLE_LABEL,
   VIBRAIL_EDGE_CONTAINER,
   VIBRAIL_EDGE_ENTRYPOINT,
+  VIBRAIL_EDGE_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_IMAGE,
   VIBRAIL_EDGE_MANAGED_LABEL,
   VIBRAIL_EDGE_NETWORK,
+  VIBRAIL_EDGE_NETWORK_LABEL,
+  VIBRAIL_EDGE_TLS_LABEL,
   buildTraefikLabels,
   isTraefikContainer,
+  parseTraefikStaticConfig,
   resolveExistingTraefik,
+  traefikConfigFromLabels,
+  traefikStaticConfigSources,
 } from "./traefik-edge";
 
 // ─── Connection config ───────────────────────────────────────────────────────
 export type { DockerConnectionOptions } from "./docker-transport";
 
 interface DockerSystemManager {
+  executor?: CommandExecutor;
   ensureFeature(feature: Feature, onLog?: (log: SystemLog) => void): Promise<void>;
 }
 
@@ -745,6 +755,27 @@ export class DockerRuntime implements RuntimeAdapter {
    * actionable error. When no Traefik exists, Vibrail creates its own
    * `vibrail-edge` network/container exactly once.
    */
+  private async resolveInspectedTraefik(
+    container: DockerContainerDetail,
+    manual: TraefikManualConfig,
+  ): Promise<ResolvedTraefikEdge> {
+    const fromLabels = traefikConfigFromLabels(container);
+    const executor = this.connectionOptions?.executor ?? this.systemManager?.executor;
+    let fromFile: DetectedTraefikConfig = {};
+    if (executor) {
+      for (const source of traefikStaticConfigSources(container)) {
+        const content = await executor.readFile(source).catch(() => null);
+        if (!content) continue;
+        const parsed = parseTraefikStaticConfig(content.slice(0, 256 * 1024));
+        if (Object.keys(parsed).length > 0) {
+          fromFile = parsed;
+          break;
+        }
+      }
+    }
+    return resolveExistingTraefik(container, manual, { ...fromFile, ...fromLabels });
+  }
+
   async ensureSharedTraefik(manual: TraefikManualConfig = {}): Promise<ResolvedTraefikEdge> {
     if (this.traefikEdgePromise) return this.traefikEdgePromise;
     const run = async (): Promise<ResolvedTraefikEdge> => {
@@ -771,11 +802,11 @@ export class DockerRuntime implements RuntimeAdapter {
                 "Vibrail did not start, replace or modify it. Start it yourself or rename it, then retry.",
             );
           }
-          return resolveExistingTraefik(owned, manual);
+          return this.resolveInspectedTraefik(owned, manual);
         }
         if (owned.state !== "running") await this.start(owned.id);
         const refreshed = (await this.inspectContainer(owned.id)) ?? owned;
-        return resolveExistingTraefik(refreshed, manual);
+        return this.resolveInspectedTraefik(refreshed, manual);
       }
 
       const existing = details.filter(
@@ -794,7 +825,7 @@ export class DockerRuntime implements RuntimeAdapter {
           );
         }
       }
-      if (selected) return resolveExistingTraefik(selected, manual);
+      if (selected) return this.resolveInspectedTraefik(selected, manual);
 
       const portOwners = summaries.filter(
         (container) =>
@@ -824,6 +855,14 @@ export class DockerRuntime implements RuntimeAdapter {
         `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.storage=/letsencrypt/acme.json`,
         `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.httpchallenge.entrypoint=web`,
       ];
+      const edgeLabels = {
+        [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
+        [VIBRAIL_EDGE_COMPATIBLE_LABEL]: "true",
+        [VIBRAIL_EDGE_NETWORK_LABEL]: VIBRAIL_EDGE_NETWORK,
+        [VIBRAIL_EDGE_ENTRYPOINT_LABEL]: VIBRAIL_EDGE_ENTRYPOINT,
+        [VIBRAIL_EDGE_TLS_LABEL]: "true",
+        [VIBRAIL_EDGE_CERT_RESOLVER_LABEL]: VIBRAIL_EDGE_CERT_RESOLVER,
+      };
 
       await this.pullImage(VIBRAIL_EDGE_IMAGE).catch((error) => {
         throw new Error(`Could not pull ${VIBRAIL_EDGE_IMAGE}: ${safeErrorMessage(error)}`);
@@ -836,7 +875,7 @@ export class DockerRuntime implements RuntimeAdapter {
           "run -d",
           `--name ${sq(VIBRAIL_EDGE_CONTAINER)}`,
           `--network ${sq(VIBRAIL_EDGE_NETWORK)}`,
-          `--label ${sq(`${VIBRAIL_EDGE_MANAGED_LABEL}=true`)}`,
+          ...Object.entries(edgeLabels).map(([key, value]) => `--label ${sq(`${key}=${value}`)}`),
           `--publish ${sq("80:80")}`,
           `--publish ${sq("443:443")}`,
           `--volume ${sq(`${socketPath}:/var/run/docker.sock:ro`)}`,
@@ -859,7 +898,7 @@ export class DockerRuntime implements RuntimeAdapter {
             name: VIBRAIL_EDGE_CONTAINER,
             Image: VIBRAIL_EDGE_IMAGE,
             Cmd: args,
-            Labels: { [VIBRAIL_EDGE_MANAGED_LABEL]: "true" },
+            Labels: edgeLabels,
             ExposedPorts: { "80/tcp": {}, "443/tcp": {} },
             HostConfig: {
               RestartPolicy: { Name: "unless-stopped" },

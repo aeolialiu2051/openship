@@ -471,8 +471,9 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
               <div>
                 <p className="text-sm font-medium text-foreground">Existing Traefik (optional)</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Only fill these when Vibrail cannot safely infer an existing Traefik setup. The
-                  proxy is never modified or restarted.
+                  Vibrail detects existing Traefik settings automatically. Only fill these fields to
+                  override an ambiguous or non-standard setup; the proxy is never modified or
+                  restarted.
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

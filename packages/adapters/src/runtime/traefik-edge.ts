@@ -7,8 +7,17 @@ export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
 export const VIBRAIL_EDGE_IMAGE = "traefik:v3.3";
 export const VIBRAIL_EDGE_MANAGED_LABEL = "vibrail.edge.managed";
+export const VIBRAIL_EDGE_COMPATIBLE_LABEL = "vibrail.edge.compatible";
+export const VIBRAIL_EDGE_NETWORK_LABEL = "vibrail.edge.network";
+export const VIBRAIL_EDGE_ENTRYPOINT_LABEL = "vibrail.edge.entrypoint";
+export const VIBRAIL_EDGE_TLS_LABEL = "vibrail.edge.tls";
+export const VIBRAIL_EDGE_CERT_RESOLVER_LABEL = "vibrail.edge.certresolver";
 
 const SAFE_NAME = /^[a-zA-Z0-9_.-]+$/;
+
+export interface DetectedTraefikConfig extends TraefikManualConfig {
+  dockerProvider?: boolean;
+}
 
 function envMap(values: string[]): Map<string, string> {
   return new Map(
@@ -39,6 +48,181 @@ function boolValue(value: string | undefined): boolean | undefined {
   if (["true", "1", "yes", "on", ""].includes(normalized)) return true;
   if (["false", "0", "no", "off"].includes(normalized)) return false;
   return undefined;
+}
+
+function scalarValue(value: string): string {
+  const trimmed = value
+    .trim()
+    .replace(/\s+#.*$/, "")
+    .trim();
+  if (
+    trimmed.length >= 2 &&
+    ((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
+      (trimmed.startsWith("'") && trimmed.endsWith("'")))
+  ) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function isHttpsAddress(value: string | undefined): boolean {
+  return !!value && /(^|:|\])443(?:\/tcp)?$/i.test(scalarValue(value));
+}
+
+interface ConfigEntry {
+  path: string[];
+  value?: string;
+}
+
+function parseYamlEntries(text: string): ConfigEntry[] {
+  const entries: ConfigEntry[] = [];
+  const stack: Array<{ indent: number; key: string }> = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    if (!rawLine.trim() || rawLine.trimStart().startsWith("#") || rawLine.includes("\t")) continue;
+    const match = /^(\s*)([a-zA-Z0-9_.-]+)\s*:\s*(.*?)\s*$/.exec(rawLine);
+    if (!match) continue;
+    const indent = match[1]!.length;
+    while (stack.length > 0 && stack[stack.length - 1]!.indent >= indent) stack.pop();
+    const key = match[2]!.toLowerCase();
+    const value = match[3] ? scalarValue(match[3]) : undefined;
+    entries.push({ path: [...stack.map((part) => part.key), key], ...(value ? { value } : {}) });
+    if (!value) stack.push({ indent, key });
+  }
+  return entries;
+}
+
+function parseTomlEntries(text: string): ConfigEntry[] {
+  const entries: ConfigEntry[] = [];
+  let section: string[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("#")) continue;
+    const sectionMatch = /^\[([^\]]+)\]$/.exec(line);
+    if (sectionMatch) {
+      section = sectionMatch[1]!.split(".").map((part) => scalarValue(part).toLowerCase());
+      entries.push({ path: section });
+      continue;
+    }
+    const valueMatch = /^([a-zA-Z0-9_.-]+)\s*=\s*(.+)$/.exec(line);
+    if (!valueMatch) continue;
+    entries.push({
+      path: [...section, valueMatch[1]!.toLowerCase()],
+      value: scalarValue(valueMatch[2]!),
+    });
+  }
+  return entries;
+}
+
+function samePath(entry: ConfigEntry, ...parts: string[]): boolean {
+  return entry.path.length === parts.length && entry.path.every((part, i) => part === parts[i]);
+}
+
+/** Extract only the small static-config surface Vibrail needs. This supports
+ * Traefik's YAML and TOML forms without treating the file as executable input. */
+export function parseTraefikStaticConfig(text: string): DetectedTraefikConfig {
+  const entries = [...parseYamlEntries(text), ...parseTomlEntries(text)];
+  const providerEntry = entries.find(
+    (entry) =>
+      entry.path.length >= 2 && entry.path[0] === "providers" && entry.path[1] === "docker",
+  );
+  const providerValue = providerEntry?.value ? boolValue(providerEntry.value) : undefined;
+  const dockerProvider = providerEntry ? (providerValue ?? true) : undefined;
+  const network = entries.find((entry) => samePath(entry, "providers", "docker", "network"))?.value;
+
+  const httpsEntrypoints = new Set<string>();
+  for (const entry of entries) {
+    if (
+      entry.path.length === 3 &&
+      entry.path[0] === "entrypoints" &&
+      entry.path[2] === "address" &&
+      isHttpsAddress(entry.value)
+    ) {
+      httpsEntrypoints.add(entry.path[1]!);
+    }
+  }
+  const entrypoint = httpsEntrypoints.size === 1 ? [...httpsEntrypoints][0] : undefined;
+
+  const resolvers = new Set<string>();
+  for (const entry of entries) {
+    if (entry.path.length >= 2 && entry.path[0] === "certificatesresolvers") {
+      resolvers.add(entry.path[1]!);
+    }
+  }
+  const entrypointResolver = entrypoint
+    ? entries.find((entry) =>
+        samePath(entry, "entrypoints", entrypoint, "http", "tls", "certresolver"),
+      )?.value
+    : undefined;
+  const certResolver = entrypointResolver || (resolvers.size === 1 ? [...resolvers][0] : undefined);
+
+  const tlsEntry = entrypoint
+    ? entries.find((entry) => samePath(entry, "entrypoints", entrypoint, "http", "tls"))
+    : undefined;
+  const tls = tlsEntry?.value ? boolValue(tlsEntry.value) : certResolver ? true : undefined;
+
+  return {
+    ...(dockerProvider !== undefined ? { dockerProvider } : {}),
+    ...(network ? { network } : {}),
+    ...(entrypoint ? { entrypoint } : {}),
+    ...(tls !== undefined ? { tls } : {}),
+    ...(certResolver ? { certResolver } : {}),
+  };
+}
+
+export function traefikConfigFromLabels(container: DockerContainerDetail): DetectedTraefikConfig {
+  if (container.labels[VIBRAIL_EDGE_COMPATIBLE_LABEL] !== "true") return {};
+  const tls = boolValue(container.labels[VIBRAIL_EDGE_TLS_LABEL]);
+  return {
+    dockerProvider: true,
+    ...(container.labels[VIBRAIL_EDGE_NETWORK_LABEL]
+      ? { network: container.labels[VIBRAIL_EDGE_NETWORK_LABEL] }
+      : {}),
+    ...(container.labels[VIBRAIL_EDGE_ENTRYPOINT_LABEL]
+      ? { entrypoint: container.labels[VIBRAIL_EDGE_ENTRYPOINT_LABEL] }
+      : {}),
+    ...(tls !== undefined ? { tls } : {}),
+    ...(container.labels[VIBRAIL_EDGE_CERT_RESOLVER_LABEL]
+      ? { certResolver: container.labels[VIBRAIL_EDGE_CERT_RESOLVER_LABEL] }
+      : {}),
+  };
+}
+
+/** Resolve host-side files mounted at Traefik's static configuration paths.
+ * Only mounts already exposed by docker inspect are considered. */
+export function traefikStaticConfigSources(container: DockerContainerDetail): string[] {
+  const command = [...(container.entrypoint ?? []), ...(container.command ?? [])];
+  const env = envMap(container.env);
+  const configured =
+    commandValue(command, "--configfile")?.trim() || env.get("TRAEFIK_CONFIGFILE")?.trim();
+  const candidates = new Set(
+    [
+      configured,
+      "/etc/traefik/traefik.yml",
+      "/etc/traefik/traefik.yaml",
+      "/etc/traefik/traefik.toml",
+      "/traefik.yml",
+      "/traefik.yaml",
+      "/traefik.toml",
+    ].filter((value): value is string => !!value?.startsWith("/")),
+  );
+  const sources = new Set<string>();
+  for (const mount of container.mounts) {
+    if (!mount.source || !mount.destination.startsWith("/")) continue;
+    const destination = mount.destination.replace(/\/+$/, "") || "/";
+    for (const candidate of candidates) {
+      if (candidate === destination) {
+        sources.add(mount.source);
+        continue;
+      }
+      if (destination !== "/" && candidate.startsWith(`${destination}/`)) {
+        const relative = candidate.slice(destination.length + 1);
+        if (relative && !relative.split("/").includes("..")) {
+          sources.add(`${mount.source.replace(/\/+$/, "")}/${relative}`);
+        }
+      }
+    }
+  }
+  return [...sources];
 }
 
 function entrypointFromAddress(command: string[], env: Map<string, string>): string | undefined {
@@ -86,17 +270,19 @@ export function isTraefikContainer(container: DockerContainerDetail): boolean {
 }
 
 /** Safely infer the minimum Docker-provider settings needed for label routing.
- * Ambiguous config-file based installations intentionally fail closed and ask
- * the operator for explicit values instead of guessing or mutating Traefik. */
+ * Static-file detection is accepted when it is unambiguous; all remaining
+ * ambiguity fails closed instead of guessing or mutating Traefik. */
 export function resolveExistingTraefik(
   container: DockerContainerDetail,
   manual: TraefikManualConfig = {},
+  detected: DetectedTraefikConfig = {},
 ): ResolvedTraefikEdge {
   const command = [...(container.entrypoint ?? []), ...(container.command ?? [])];
   const env = envMap(container.env);
   const providerFlag =
     boolValue(commandValue(command, "--providers.docker")) ??
-    boolValue(env.get("TRAEFIK_PROVIDERS_DOCKER"));
+    boolValue(env.get("TRAEFIK_PROVIDERS_DOCKER")) ??
+    detected.dockerProvider;
   const hasDockerSocket = container.mounts.some(
     (mount) => mount.destination === "/var/run/docker.sock",
   );
@@ -107,7 +293,9 @@ export function resolveExistingTraefik(
         "Vibrail did not modify it.",
     );
   }
-  if (providerFlag !== true && !(hasDockerSocket && manual.network && manual.entrypoint)) {
+  const selectedNetwork = manual.network || detected.network;
+  const selectedEntrypoint = manual.entrypoint || detected.entrypoint;
+  if (providerFlag !== true && !(hasDockerSocket && selectedNetwork && selectedEntrypoint)) {
     throw new Error(
       `Existing Traefik container "${container.name}" could not be safely verified as using the Docker provider. ` +
         "Configure the server's Traefik network, HTTPS entrypoint and TLS settings manually; Vibrail will not modify or restart the existing proxy.",
@@ -121,6 +309,7 @@ export function resolveExistingTraefik(
   const network =
     manual.network ||
     configuredNetwork ||
+    detected.network ||
     (userNetworks.length === 1 ? userNetworks[0] : undefined);
   if (!network || !SAFE_NAME.test(network) || !container.networks.includes(network)) {
     throw new Error(
@@ -129,7 +318,8 @@ export function resolveExistingTraefik(
     );
   }
 
-  const entrypoint = manual.entrypoint || entrypointFromAddress(command, env);
+  const entrypoint =
+    manual.entrypoint || entrypointFromAddress(command, env) || detected.entrypoint;
   if (!entrypoint || !SAFE_NAME.test(entrypoint)) {
     throw new Error(
       `Could not safely identify the HTTPS entrypoint for Traefik "${container.name}". ` +
@@ -137,7 +327,8 @@ export function resolveExistingTraefik(
     );
   }
 
-  const certResolver = manual.certResolver || explicitCertResolver(command, env, entrypoint);
+  const certResolver =
+    manual.certResolver || explicitCertResolver(command, env, entrypoint) || detected.certResolver;
   if (certResolver && !SAFE_NAME.test(certResolver)) {
     throw new Error("The configured Traefik certificate resolver name is invalid.");
   }
@@ -145,7 +336,7 @@ export function resolveExistingTraefik(
   return {
     network,
     entrypoint,
-    tls: manual.tls ?? true,
+    tls: manual.tls ?? detected.tls ?? true,
     ...(certResolver ? { certResolver } : {}),
     source: container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ? "vibrail" : "existing",
     containerId: container.id,

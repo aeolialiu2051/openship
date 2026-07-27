@@ -1,16 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import {
-  Server,
-  Loader2,
-  Check,
-  KeyRound,
-  Lock,
-  ChevronDown,
-  Network,
-  X,
-} from "lucide-react";
+import { Server, Loader2, Check, KeyRound, Lock, ChevronDown, Network, X } from "lucide-react";
 import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
@@ -47,6 +38,10 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [jumpHost, setJumpHost] = useState("");
   const [extraArgs, setExtraArgs] = useState("");
+  const [traefikNetwork, setTraefikNetwork] = useState("");
+  const [traefikEntrypoint, setTraefikEntrypoint] = useState("");
+  const [traefikTls, setTraefikTls] = useState(true);
+  const [traefikCertResolver, setTraefikCertResolver] = useState("");
 
   const [testing, setTesting] = useState(false);
   const [testOk, setTestOk] = useState(false);
@@ -133,6 +128,10 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
         sshAuthMethod,
         sshJumpHost: jumpHost.trim() || null,
         sshArgs: extraArgs.trim() || null,
+        traefikNetwork: traefikNetwork.trim() || null,
+        traefikEntrypoint: traefikEntrypoint.trim() || null,
+        traefikTls,
+        traefikCertResolver: traefikCertResolver.trim() || null,
       };
       if (sshAuthMethod === "password" && sshPassword) {
         data.sshPassword = sshPassword;
@@ -163,12 +162,8 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
             <Server className="size-[18px] text-info" />
           </div>
           <div className="min-w-0">
-            <h2 className="font-semibold text-foreground text-[15px] truncate">
-              {tr.title}
-            </h2>
-            <p className="text-xs text-muted-foreground truncate">
-              {tr.subtitle}
-            </p>
+            <h2 className="font-semibold text-foreground text-[15px] truncate">{tr.title}</h2>
+            <p className="text-xs text-muted-foreground truncate">{tr.subtitle}</p>
           </div>
         </div>
         <button
@@ -194,9 +189,7 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
             autoComplete="off"
             className={INPUT}
           />
-          <p className="text-xs text-muted-foreground/60 mt-1.5">
-            {tr.serverNameHint}
-          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1.5">{tr.serverNameHint}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
@@ -343,36 +336,89 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
         </button>
 
         {showAdvanced && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>
-                {tr.jumpHost}{" "}
-                <span className="text-muted-foreground/50 font-normal">{tr.optional}</span>
-              </label>
-              <input
-                type="text"
-                value={jumpHost}
-                onChange={(e) => setJumpHost(e.target.value)}
-                placeholder="user@bastion.example.com"
-                spellCheck={false}
-                autoComplete="off"
-                className={INPUT}
-              />
+          <div className="space-y-[18px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className={LABEL}>
+                  {tr.jumpHost}{" "}
+                  <span className="text-muted-foreground/50 font-normal">{tr.optional}</span>
+                </label>
+                <input
+                  type="text"
+                  value={jumpHost}
+                  onChange={(e) => setJumpHost(e.target.value)}
+                  placeholder="user@bastion.example.com"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className={INPUT}
+                />
+              </div>
+              <div>
+                <label className={LABEL}>
+                  {tr.extraArgs}{" "}
+                  <span className="text-muted-foreground/50 font-normal">{tr.optional}</span>
+                </label>
+                <input
+                  type="text"
+                  value={extraArgs}
+                  onChange={(e) => setExtraArgs(e.target.value)}
+                  placeholder="-o StrictHostKeyChecking=no"
+                  spellCheck={false}
+                  autoComplete="off"
+                  className={INPUT}
+                />
+              </div>
             </div>
-            <div>
-              <label className={LABEL}>
-                {tr.extraArgs}{" "}
-                <span className="text-muted-foreground/50 font-normal">{tr.optional}</span>
-              </label>
-              <input
-                type="text"
-                value={extraArgs}
-                onChange={(e) => setExtraArgs(e.target.value)}
-                placeholder="-o StrictHostKeyChecking=no"
-                spellCheck={false}
-                autoComplete="off"
-                className={INPUT}
-              />
+
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Existing Traefik (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Vibrail detects existing Traefik settings automatically. Only fill these fields to
+                  override an ambiguous or non-standard setup; the proxy is never modified or
+                  restarted.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Docker network</label>
+                  <input
+                    value={traefikNetwork}
+                    onChange={(e) => setTraefikNetwork(e.target.value)}
+                    placeholder="proxy"
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>HTTPS entrypoint</label>
+                  <input
+                    value={traefikEntrypoint}
+                    onChange={(e) => setTraefikEntrypoint(e.target.value)}
+                    placeholder="websecure"
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <div>
+                  <label className={LABEL}>Certificate resolver</label>
+                  <input
+                    value={traefikCertResolver}
+                    onChange={(e) => setTraefikCertResolver(e.target.value)}
+                    placeholder="letsencrypt (optional)"
+                    className={INPUT}
+                  />
+                </div>
+                <label className="flex items-center gap-2.5 h-[42px] text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={traefikTls}
+                    onChange={(e) => setTraefikTls(e.target.checked)}
+                    className="size-4 rounded border-border"
+                  />
+                  Enable TLS labels
+                </label>
+              </div>
             </div>
           </div>
         )}
