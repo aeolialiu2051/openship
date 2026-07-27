@@ -9,7 +9,7 @@
     "start": "wrangler dev --port 3000 --show-interactive-dev-session=false",
     "types": "wrangler types",
     "deploy": "wrangler deploy",
-    "lint": "eslint .",
+    "lint": "oxlint .",
     "machine-translate": "inlang machine translate --project project.inlang"
   },
   "dependencies": {

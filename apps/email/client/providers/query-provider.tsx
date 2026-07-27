@@ -109,7 +109,6 @@ export const trpcClient = createTRPCClient<AppRouter>({
   ],
 });
 
-type TrpcHook = ReturnType<typeof useTRPC>;
 export function QueryProvider({
   children,
   connectionId,

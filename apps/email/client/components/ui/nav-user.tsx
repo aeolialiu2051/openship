@@ -1,5 +1,4 @@
 import {
-  HelpCircle,
   LogOut,
   MoonIcon,
   Settings,
