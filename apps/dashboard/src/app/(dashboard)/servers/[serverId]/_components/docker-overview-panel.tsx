@@ -5,6 +5,7 @@ import { ArrowDown, ArrowUp, Database, Loader2, RefreshCw } from "lucide-react";
 import { getApiErrorMessage, systemApi } from "@/lib/api";
 import type { DockerContainerOverview, DockerOverviewResponse } from "@/lib/api/system";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { groupDockerContainers, type DockerContainerGroup } from "./docker-overview-view";
 
 function metric(value: string | number | null, suffix = "") {
   return value == null ? "-" : `${value}${suffix}`;
@@ -32,15 +33,15 @@ function ContainerGauge({ value }: { value: number | null }) {
 
 function stateTone(container: DockerContainerOverview): string {
   if (container.health === "unhealthy") {
-    return "border-danger-border bg-danger-bg text-danger";
+    return "text-danger";
   }
   if (container.health === "starting") {
-    return "border-warning-border bg-warning-bg text-warning";
+    return "text-warning";
   }
   if (container.running) {
-    return "border-success-border bg-success-bg text-success";
+    return "text-success";
   }
-  return "border-border bg-muted/60 text-muted-foreground";
+  return "text-muted-foreground";
 }
 
 function IoMetric({
@@ -83,74 +84,128 @@ function IoMetric({
   );
 }
 
-function ContainerRow({ container }: { container: DockerContainerOverview }) {
+function ContainerCard({ container }: { container: DockerContainerOverview }) {
   return (
-    <div className="grid gap-4 px-4 py-4 sm:grid-cols-[minmax(0,1.5fr)_120px_130px_100px_100px] sm:items-center">
-      <div className="min-w-0">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-medium text-foreground">{container.name}</span>
+    <article className="rounded-2xl border border-border/50 bg-card/75 px-4 py-4 transition-colors hover:border-border">
+      <div className="flex min-w-0 items-start gap-3">
+        <span
+          className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
+            container.running ? "border-success/45" : "border-border"
+          }`}
+          aria-hidden="true"
+        >
           <span
-            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${stateTone(container)}`}
-          >
-            {container.health ?? container.state}
-          </span>
-        </div>
-        <p className="mt-1 truncate text-[11px] text-muted-foreground" title={container.image}>
-          {container.image}
-        </p>
-        <p className="mt-1 truncate text-[11px] text-muted-foreground/70" title={container.status}>
-          {container.status}
-        </p>
-      </div>
-
-      <div className="flex h-full min-h-16 items-center gap-3 self-stretch">
-        <ContainerGauge value={container.cpuPercent} />
-        <div>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-            CPU
-          </p>
-          <p className="text-xs tabular-nums text-foreground">
-            {metric(container.cpuPercent, "%")}
-          </p>
-        </div>
-      </div>
-
-      <div className="min-w-0">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
-            MEM
-          </p>
-          <span className="text-[10px] tabular-nums text-muted-foreground">
-            {metric(container.memoryPercent, "%")}
-          </span>
-        </div>
-        <p className="mt-1 truncate text-xs tabular-nums text-foreground">
-          {metric(container.memoryUsage)}
-          {container.memoryLimit ? ` / ${container.memoryLimit}` : ""}
-        </p>
-        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
-          <div
-            className="h-full rounded-full bg-foreground/55 transition-[width] duration-500"
-            style={{ width: `${Math.min(container.memoryPercent ?? 0, 100)}%` }}
+            className={`size-1.5 rounded-full ${
+              container.running ? "bg-success-solid" : "bg-muted-foreground/50"
+            }`}
           />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex min-w-0 items-start justify-between gap-3">
+            <span className="truncate text-sm font-medium text-foreground">{container.name}</span>
+            <span
+              className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide ${stateTone(container)}`}
+            >
+              {container.health ?? container.state}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground" title={container.image}>
+            {container.image}
+          </p>
+          <p
+            className="mt-1 truncate text-[11px] text-muted-foreground/70"
+            title={container.status}
+          >
+            {container.status}
+          </p>
         </div>
       </div>
 
-      <IoMetric
-        title="NET I/O"
-        first={container.networkTx}
-        second={container.networkRx}
-        firstLabel="up"
-        secondLabel="down"
-      />
-      <IoMetric
-        title="BLOCK I/O"
-        first={container.blockRead}
-        second={container.blockWrite}
-        firstLabel="read"
-        secondLabel="write"
-      />
-    </div>
+      <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border/40 pt-4 sm:grid-cols-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <ContainerGauge value={container.cpuPercent} />
+          <div>
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              CPU
+            </p>
+            <p className="mt-1 text-xs tabular-nums text-foreground">
+              {metric(container.cpuPercent, "%")}
+            </p>
+          </div>
+        </div>
+
+        <div className="min-w-0">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              MEM
+            </p>
+            <span className="text-[10px] tabular-nums text-muted-foreground">
+              {metric(container.memoryPercent, "%")}
+            </span>
+          </div>
+          <p className="mt-1 truncate text-xs tabular-nums text-foreground">
+            {metric(container.memoryUsage)}
+            {container.memoryLimit ? ` / ${container.memoryLimit}` : ""}
+          </p>
+          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-foreground/55 transition-[width] duration-500"
+              style={{ width: `${Math.min(container.memoryPercent ?? 0, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        <IoMetric
+          title="NET I/O"
+          first={container.networkTx}
+          second={container.networkRx}
+          firstLabel="up"
+          secondLabel="down"
+        />
+        <IoMetric
+          title="BLOCK I/O"
+          first={container.blockRead}
+          second={container.blockWrite}
+          firstLabel="read"
+          secondLabel="write"
+        />
+      </div>
+    </article>
+  );
+}
+
+function ContainerGroup({
+  group,
+  standaloneLabel,
+  projectLabel,
+}: {
+  group: DockerContainerGroup;
+  standaloneLabel: string;
+  projectLabel: string;
+}) {
+  const name = group.kind === "standalone" ? standaloneLabel : group.name;
+  const type =
+    group.kind === "standalone"
+      ? null
+      : group.kind === "compose" || !group.isApp
+        ? "Compose"
+        : projectLabel;
+
+  return (
+    <section>
+      <div className="mb-3 flex min-w-0 items-baseline gap-2 px-0.5">
+        <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {type ? `${type} · ` : "· "}
+          <span className="tabular-nums">{group.containers.length}</span>
+        </span>
+      </div>
+      <div className="grid gap-3 xl:grid-cols-2">
+        {group.containers.map((container) => (
+          <ContainerCard key={container.id || container.name} container={container} />
+        ))}
+      </div>
+    </section>
   );
 }
 
@@ -201,6 +256,7 @@ export function DockerOverviewPanel({ serverId }: { serverId: string }) {
 
   const running = data?.containers.filter((container) => container.running).length ?? 0;
   const total = data?.containers.length ?? 0;
+  const groups = data ? groupDockerContainers(data) : [];
 
   return (
     <div className="border-t border-border/40 bg-muted/15 px-5 py-4">
@@ -249,9 +305,14 @@ export function DockerOverviewPanel({ serverId }: { serverId: string }) {
           {t.servers.overview.dockerEmpty}
         </div>
       ) : (
-        <div className="divide-y divide-border/40 overflow-hidden rounded-xl border border-border/50 bg-card/70">
-          {data?.containers.map((container) => (
-            <ContainerRow key={container.id || container.name} container={container} />
+        <div className="space-y-5">
+          {groups.map((group) => (
+            <ContainerGroup
+              key={group.key}
+              group={group}
+              standaloneLabel={t.servers.overview.dockerStandalone}
+              projectLabel={t.servers.overview.dockerProject}
+            />
           ))}
         </div>
       )}

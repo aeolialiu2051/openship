@@ -190,6 +190,8 @@
     "unhealthy": "Con problemas",
     "noHealthData": "Aún no hay datos de estado",
     "dockerContainers": "Contenedores Docker",
+    "dockerProject": "Proyecto",
+    "dockerStandalone": "Contenedores independientes",
     "dockerSummary": "{running} en ejecución · {total} en total",
     "dockerEmpty": "No se encontraron contenedores Docker",
     "dockerLoadFailed": "No se pudieron cargar los contenedores Docker"

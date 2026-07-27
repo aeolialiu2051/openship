@@ -190,6 +190,8 @@
     "unhealthy": "غير سليم",
     "noHealthData": "لا توجد بيانات صحة بعد",
     "dockerContainers": "حاويات Docker",
+    "dockerProject": "مشروع",
+    "dockerStandalone": "حاويات مستقلة",
     "dockerSummary": "{running} قيد التشغيل · {total} إجمالاً",
     "dockerEmpty": "لم يتم العثور على حاويات Docker",
     "dockerLoadFailed": "تعذر تحميل حاويات Docker"

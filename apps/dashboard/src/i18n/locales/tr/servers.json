@@ -201,6 +201,8 @@
     "unhealthy": "Sağlıksız",
     "noHealthData": "Henüz sağlık verisi yok",
     "dockerContainers": "Docker konteynerleri",
+    "dockerProject": "Proje",
+    "dockerStandalone": "Bağımsız konteynerler",
     "dockerSummary": "{running} çalışıyor · toplam {total}",
     "dockerEmpty": "Docker konteyneri bulunamadı",
     "dockerLoadFailed": "Docker konteynerleri yüklenemedi"

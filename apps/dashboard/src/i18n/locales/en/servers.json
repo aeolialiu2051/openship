@@ -211,6 +211,8 @@
     "unhealthy": "Unhealthy",
     "noHealthData": "No health data yet",
     "dockerContainers": "Docker containers",
+    "dockerProject": "Project",
+    "dockerStandalone": "Standalone containers",
     "dockerSummary": "{running} running · {total} total",
     "dockerEmpty": "No Docker containers found",
     "dockerLoadFailed": "Couldn't load Docker containers"
