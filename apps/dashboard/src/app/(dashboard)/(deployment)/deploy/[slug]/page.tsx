@@ -58,7 +58,7 @@ const ProjectName: React.FC = () => {
 const DeployRepository: React.FC = () => {
     const params = useParams();
     const slug = params.slug as string;
-    const { config, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromProject, updateConfig } = useDeployment();
+    const { config, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromTemplate, initializeFromProject, updateConfig } = useDeployment();
     const { deployMode, userServers } = usePlatform();
     const { t } = useI18n();
     const searchParams = useSearchParams();
@@ -69,6 +69,7 @@ const DeployRepository: React.FC = () => {
     // carry it (and the folder name) so the wizard seeds from the stack defaults.
     const uploadStack = searchParams.get("stack") || undefined;
     const uploadName = searchParams.get("name") || undefined;
+    const uploadPackageManager = searchParams.get("packageManager") || undefined;
     // Edit-from-Runtime-tab: hydrate from SAVED settings, skip repo re-detection.
     const isConfigEdit = searchParams.get("mode") === "config" && !!projectId;
     const canPickTarget = canChooseDeployTarget({ deployMode, userServers });
@@ -84,12 +85,14 @@ const DeployRepository: React.FC = () => {
             const label =
                 d.kind === "local" ? d.path
                     : d.kind === "upload" ? t.deploy.page.uploadedFolder
+                    : d.kind === "template" ? d.stackId
                     : d.kind === "project" ? ""
                     : `${d.owner}/${d.repo}`;
             return { kind: "settings" as const, label };
         }
         if (d.kind === "local") return { kind: "local" as const, path: d.path };
         if (d.kind === "upload") return { kind: "local" as const, path: t.deploy.page.uploadedFolder };
+        if (d.kind === "template") return { kind: "settings" as const, label: d.stackId };
         // Repo-less app: hydrated from saved rows, no git fetch — neutral summary.
         if (d.kind === "project") return { kind: "settings" as const, label: "" };
         return {
@@ -212,7 +215,10 @@ const DeployRepository: React.FC = () => {
                     projectId,
                     stack: uploadStack,
                     name: uploadName,
+                    packageManager: uploadPackageManager,
                 });
+            } else if (decoded.kind === "template") {
+                result = await initializeFromTemplate(decoded.stackId);
             } else {
                 result = await initializeFromRepo(decoded.owner, decoded.repo, force, {
                     branch: branch ?? decoded.branch,
@@ -269,7 +275,7 @@ const DeployRepository: React.FC = () => {
         };
 
         initialize();
-    }, [slug, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromProject, isConfigEdit, force, projectId, branch, uploadStack, uploadName, toast, t]);
+    }, [slug, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromTemplate, initializeFromProject, isConfigEdit, force, projectId, branch, uploadStack, uploadName, uploadPackageManager, toast, t]);
 
     if (loading) {
         return <SkeletonLoader source={decodedSource} />;

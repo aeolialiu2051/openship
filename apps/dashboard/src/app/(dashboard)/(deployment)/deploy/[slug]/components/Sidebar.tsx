@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useRef } from "react";
-import { GitBranch, Rocket, Github, Loader2, Globe, Container, Server, Layers, Check, AlertCircle, Key, Plus, Copy, ExternalLink } from "lucide-react";
+import { GitBranch, Rocket, Github, Loader2, Globe, Container, Server, Layers, Check, AlertCircle, Key, Plus, Copy, ExternalLink, Package } from "lucide-react";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import DropdownMenu from "@/components/ui/DropdownMenu";
@@ -167,12 +167,19 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   const { showToast } = useToast();
   const router = useRouter();
   const isServices = usesServiceDeployment(config);
+  const hasGitSource =
+    !!config.owner &&
+    !!config.repo &&
+    !config.isApp &&
+    config.sourceProvider !== "template" &&
+    !config.localPath &&
+    !config.uploadSessionId;
 
   // Copy a ready-to-run `git clone` command with a short-lived GitHub App
   // installation token. Cloud / GitHub-App mode only — surfaces a clear
   // message otherwise (the backend 409s in gh-CLI / PAT mode).
   const handleCopyCloneToken = useCallback(async () => {
-    if (!config.owner || !config.repo || config.owner === "local") {
+    if (!hasGitSource) {
       showToast(t.deploy.sidebar.cloneTokenNoRepo, "error", t.deploy.sidebar.cloneTokenTitle);
       return;
     }
@@ -187,7 +194,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     } catch (err) {
       showToast(getApiErrorMessage(err, t.deploy.sidebar.cloneTokenFailed), "error", t.deploy.sidebar.cloneTokenTitle);
     }
-  }, [config.owner, config.repo, showToast, t]);
+  }, [config.owner, config.repo, hasGitSource, showToast, t]);
   const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
   // Clone-strategy gate - only meaningful for self-hosted server deploys
   // where we need to pick how the repo gets cloned on the remote (local
@@ -202,9 +209,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     if (
       pendingBranch ||
       nextBranch === config.branch ||
-      !config.owner ||
-      config.owner === "local" ||
-      !config.repo
+      !hasGitSource
     ) {
       return;
     }
@@ -238,6 +243,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     config.owner,
     config.projectId,
     config.repo,
+    hasGitSource,
     initializeFromRepo,
     onBranchScanningChange,
     pendingBranch,
@@ -252,7 +258,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   const branchesFetchedRef = useRef(false);
   const loadBranches = useCallback(async () => {
     if (branchesFetchedRef.current) return;
-    if (!config.projectId || !config.owner || config.owner === "local") return;
+    if (!config.projectId || !hasGitSource) return;
     // Only when the list is "thin" (config-edit seeds just the current branch);
     // the first-deploy path already preloads the full list via prepare.
     if (config.branches.length > 1) return;
@@ -269,7 +275,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     } catch {
       branchesFetchedRef.current = false; // allow a retry on next open
     }
-  }, [config.projectId, config.owner, config.branch, config.branches.length, updateConfig]);
+  }, [config.projectId, config.branch, config.branches.length, hasGitSource, updateConfig]);
 
   const handleOpenEnvironmentCreator = useCallback(() => {
     if (!config.projectId) return;
@@ -439,9 +445,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
         </div>
         <div className="p-4 pt-3">
           <div className="flex items-center gap-3">
-            <Github className="size-4 text-muted-foreground shrink-0" />
+            {config.uploadSessionId || config.sourceProvider === "template" ? (
+              <Package className="size-4 text-muted-foreground shrink-0" />
+            ) : (
+              <Github className="size-4 text-muted-foreground shrink-0" />
+            )}
             <div className="flex-1 min-w-0">
-              {config.owner && config.owner !== "local" && config.repo ? (
+              {hasGitSource ? (
                 <a
                   href={`https://github.com/${config.owner}/${config.repo}`}
                   target="_blank"
@@ -454,11 +464,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
                 </a>
               ) : (
                 <p className="text-sm font-medium text-foreground truncate">
-                  {config.owner}/{config.repo}
+                  {config.uploadSessionId || config.sourceProvider === "template"
+                    ? config.repo
+                    : `${config.owner}/${config.repo}`}
                 </p>
               )}
             </div>
-            {config.owner && config.owner !== "local" && config.repo && (
+            {hasGitSource && (
               <DropdownMenu
                 align="right"
                 triggerClassName="p-1.5 -me-1 rounded-lg text-muted-foreground hover:bg-muted transition-colors"
@@ -473,7 +485,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
               />
             )}
           </div>
-          {config.branches.length > 0 && (
+          {hasGitSource && config.branches.length > 0 && (
             <div className="mt-3">
               <CustomSelect
                 value={pendingBranch ?? config.branch}
@@ -499,7 +511,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
               />
             </div>
           )}
-          {config.branches.length === 0 && config.branch && (
+          {hasGitSource && config.branches.length === 0 && config.branch && (
             <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
               <GitBranch className="size-3" />
               {config.branch}

@@ -1,7 +1,7 @@
 import type { Terminal } from "@xterm/xterm";
 import type { FrameworkId, EnvironmentVariable } from "@/components/import-project/types";
 import type { PrepareComposeService, PrepareSingleAppCandidate } from "@/lib/api/deploy";
-import { getBuildImage, STACKS, type ProjectType, type BuildStrategy, type DeployTarget, type RuntimeMode, type StackId, type RoutingConfig } from "@repo/core";
+import { getBuildImage, STACKS, type ProjectType, type BuildStrategy, type DeployTarget, type RuntimeMode, type StackId, type RoutingConfig, type SourceProvider } from "@repo/core";
 import type { BuildLog } from "@/utils/deploymentPhaseDetector";
 import { randomUUID } from "@/lib/random-uuid";
 
@@ -242,6 +242,8 @@ export interface DeploymentConfig {
   /** Catalog template id (e.g. "n8n", "convex") — drives the schema-based app
    *  settings step in the wizard for apps with `management:"schema"`. */
   appTemplateId?: string;
+  /** Source discriminator for built-in starters and other repo-less flows. */
+  sourceProvider?: SourceProvider;
   projectName: string;
   repo: string;
   owner: string;
@@ -334,6 +336,7 @@ export const DEFAULT_CONFIG: DeploymentConfig = {
   owner: "",
   localPath: undefined,
   uploadSessionId: undefined,
+  sourceProvider: undefined,
   buildStrategy: "server",
   deployTarget: "cloud",
   runtimeMode: "bare",
@@ -734,6 +737,10 @@ export interface DeploymentContextType {
   initializeFromUpload: (
     sessionId: string,
     context?: { projectId?: string; stack?: string; packageManager?: string; name?: string },
+  ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
+  /** Built-in starter hydration — no network or workspace allocation. */
+  initializeFromTemplate: (
+    stackId: string,
   ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
   /** Config-edit hydration from SAVED project data — no repo re-detection. */
   initializeFromProject: (

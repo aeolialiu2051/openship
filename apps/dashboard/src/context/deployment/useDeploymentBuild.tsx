@@ -596,11 +596,12 @@ export function useDeploymentBuild(
     const saveConfigOnly = overrides?.saveConfigOnly === true;
     const isLocal = !!config.localPath;
     const isUpload = !!config.uploadSessionId;
+    const isTemplate = config.sourceProvider === "template";
     const isServiceDeployment = usesServiceDeployment(config);
     // A one-click app is a repo-less services project — no git/local source (its
     // prebuilt images are the source), so skip the git-completeness guard and the
     // git fields on ensure, exactly like local/upload.
-    const isSourceless = isLocal || isUpload || !!config.isApp;
+    const isSourceless = isLocal || isUpload || isTemplate || !!config.isApp;
     if (!isSourceless && (!config.repo || !config.owner || !config.branch)) {
       showToast("Repository data is incomplete", "error", "Error");
       return null;
@@ -726,7 +727,7 @@ export function useDeploymentBuild(
         localPath: config.localPath || undefined,
         // Folder-upload projects: mark the source so it renders correctly and
         // can later be switched to a GitHub repo (Source tab / linkRepo).
-        gitProvider: isUpload ? "upload" : undefined,
+        gitProvider: isTemplate ? "template" : isUpload ? "upload" : undefined,
         framework: config.framework,
         packageManager: config.packageManager,
         buildImage: config.buildImage,

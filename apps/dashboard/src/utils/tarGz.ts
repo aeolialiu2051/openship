@@ -119,6 +119,16 @@ async function buildTarParts(entries: FolderFile[]): Promise<Uint8Array[]> {
   return parts;
 }
 
+async function gzipEntries(entries: FolderFile[]): Promise<Blob> {
+  const parts = await buildTarParts(entries);
+  // Cast: TS 5.9 types these as Uint8Array<ArrayBufferLike>, which the DOM
+  // BlobPart (BufferSource) union doesn't structurally accept, though every
+  // chunk here is ArrayBuffer-backed and valid at runtime.
+  const tar = new Blob(parts as unknown as BlobPart[], { type: "application/x-tar" });
+  const gz = tar.stream().pipeThrough(new CompressionStream("gzip"));
+  return new Response(gz).blob();
+}
+
 /**
  * Pack the given files into a gzipped tar Blob. Returns the Blob plus the
  * count of files included (after ignore-filtering) for UI feedback.
@@ -130,12 +140,6 @@ export async function buildFolderTarGz(
   if (entries.length === 0) {
     throw new Error("No files to upload after filtering — is the folder empty?");
   }
-  const parts = await buildTarParts(entries);
-  // Cast: TS 5.9 types these as Uint8Array<ArrayBufferLike>, which the DOM
-  // BlobPart (BufferSource) union doesn't structurally accept, though every
-  // chunk here is ArrayBuffer-backed and valid at runtime.
-  const tar = new Blob(parts as unknown as BlobPart[], { type: "application/x-tar" });
-  const gz = tar.stream().pipeThrough(new CompressionStream("gzip"));
-  const blob = await new Response(gz).blob();
+  const blob = await gzipEntries(entries);
   return { blob, fileCount: entries.length };
 }

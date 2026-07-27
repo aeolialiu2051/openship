@@ -9,7 +9,7 @@ import type { Service } from "@/lib/api/services";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
 import type { BuildMode } from "@/lib/api/settings";
-import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STACKS, getBuildImage, type StackDefinition, type StackId } from "@repo/core";
+import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STARTER_TEMPLATES, hasStarterTemplate, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
 import type { BuildStrategy, DeploymentConfig, DeploymentModeSnapshot, MonorepoAppConfig, MonorepoWorkspaceConfig, PublicEndpoint } from "./types";
 import {
   DEFAULT_CONFIG,
@@ -26,6 +26,25 @@ import { normalizeSubdomain } from "@/utils/subdomain";
 
 type PersistedProject = Record<string, any> | null;
 
+function installCommandFor(packageManager: string): string {
+  switch (packageManager) {
+    case "npm": return "npm install";
+    case "yarn": return "yarn install --frozen-lockfile";
+    case "pnpm": return "pnpm install --frozen-lockfile";
+    case "bun": return "bun install";
+    case "pip": return "pip install -r requirements.txt";
+    case "bundler": return "bundle install";
+    case "go": return "go mod download";
+    case "cargo": return "cargo fetch";
+    case "maven": return "mvn dependency:go-offline";
+    case "gradle": return "gradle dependencies";
+    case "dotnet": return "dotnet restore";
+    case "composer": return "composer install --no-interaction";
+    case "mix": return "mix deps.get";
+    default: return "";
+  }
+}
+
 interface PreparedConfigArgs {
   response: PrepareProjectResponse;
   project: PersistedProject;
@@ -36,6 +55,7 @@ interface PreparedConfigArgs {
   projectId?: string;
   localPath?: string;
   uploadSessionId?: string;
+  sourceProvider?: SourceProvider;
 }
 
 interface PreparedProjectContext {
@@ -658,6 +678,7 @@ export function useDeploymentConfig() {
         projectId,
         localPath,
         uploadSessionId,
+        sourceProvider,
       } = args;
       const routeKey = project?.routeKey || (projectId ? undefined : (prev.routeKey || generateProjectRouteKey()));
       const projectName = project?.name || prev.projectName || repoName;
@@ -684,6 +705,7 @@ export function useDeploymentConfig() {
         owner,
         localPath,
         uploadSessionId,
+        sourceProvider,
         projectName,
         projectType: preparedContext.projectType,
         serviceDeploymentMode: preparedContext.serviceDeploymentMode,
@@ -867,6 +889,7 @@ export function useDeploymentConfig() {
           branches: [],
           projectId: context?.projectId,
           localPath: path,
+          sourceProvider: "local",
         }));
 
         return { success: true };
@@ -924,7 +947,7 @@ export function useDeploymentConfig() {
             projectType: "app",
             category: stackDef.category,
             packageManager: pm,
-            installCommand: "",
+            installCommand: installCommandFor(pm),
             buildCommand: stackDef.defaultBuildCommand ?? "",
             startCommand: stackDef.defaultStartCommand ?? "",
             buildImage: getBuildImage(context.stack as StackId, pm),
@@ -975,6 +998,7 @@ export function useDeploymentConfig() {
           branches: [],
           projectId: context?.projectId,
           uploadSessionId: sessionId,
+          sourceProvider: "upload",
         }));
 
         return { success: true };
@@ -986,6 +1010,58 @@ export function useDeploymentConfig() {
           errorType: err instanceof ApiError ? "api_error" : "network_error",
         };
       }
+    },
+    [buildPreparedConfig],
+  );
+
+  // ── Built-in starter: seed config without allocating a cloud workspace ────
+  const initializeFromTemplate = useCallback(
+    async (stackId: string): Promise<{ success: boolean; error?: string; errorType?: string }> => {
+      if (!hasStarterTemplate(stackId)) {
+        return { success: false, error: "This starter is not available yet", errorType: "api_error" };
+      }
+
+      const stackDef = STACKS[stackId as StackId] as StackDefinition | undefined;
+      if (!stackDef) {
+        return { success: false, error: "Unknown starter framework", errorType: "api_error" };
+      }
+
+      const starter = STARTER_TEMPLATES[stackId];
+      const response = {
+        repository: {
+          name: starter.name,
+          full_name: starter.name,
+          owner: { login: "template" },
+          private: false,
+          default_branch: "main",
+        },
+        stack: stackId,
+        projectType: "app",
+        category: stackDef.category,
+        packageManager: starter.packageManager,
+        installCommand: installCommandFor(starter.packageManager),
+        buildCommand: stackDef.defaultBuildCommand ?? "",
+        startCommand: stackDef.defaultStartCommand ?? "",
+        buildImage: getBuildImage(stackId as StackId, starter.packageManager),
+        outputDirectory: stackDef.outputDirectory ?? "",
+        rootDirectory: "",
+        productionPaths: stackDef.productionPaths ? [...stackDef.productionPaths] : [],
+        port: stackDef.defaultPort ?? 3000,
+      } as unknown as PrepareProjectResponse;
+
+      setConfig((prev) => ({
+        ...buildPreparedConfig(prev, {
+          response,
+          project: null,
+          repoName: starter.name,
+          owner: "template",
+          branch: "main",
+          branches: [],
+          sourceProvider: "template",
+        }),
+      }));
+
+      return { success: true };
     },
     [buildPreparedConfig],
   );
@@ -1056,6 +1132,13 @@ export function useDeploymentConfig() {
               branches: branch ? [branch] : [],
               projectId,
               localPath: project.localPath || undefined,
+              sourceProvider:
+                project.gitProvider === "template" ||
+                project.gitProvider === "upload" ||
+                project.gitProvider === "local" ||
+                project.gitProvider === "release"
+                  ? project.gitProvider
+                  : undefined,
             }),
             // buildPreparedConfig (shared with detection) doesn't load production
             // env — overlay the saved values we fetched above.
@@ -1087,6 +1170,7 @@ export function useDeploymentConfig() {
     initializeFromRepo,
     initializeFromLocal,
     initializeFromUpload,
+    initializeFromTemplate,
     initializeFromProject,
   };
 }

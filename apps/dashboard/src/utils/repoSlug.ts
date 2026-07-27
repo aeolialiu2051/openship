@@ -7,11 +7,13 @@ const LOCAL_PREFIX = "local:";
 const UPLOAD_PREFIX = "upload:";
 const REPO_V2_PREFIX = "repo:v2:";
 const PROJECT_PREFIX = "project:";
+const TEMPLATE_PREFIX = "template:";
 
 type DecodedSlug =
   | { kind: "repo"; owner: string; repo: string; branch?: string; projectId?: string }
   | { kind: "local"; path: string }
   | { kind: "upload"; sessionId: string }
+  | { kind: "template"; stackId: string }
   | { kind: "project"; projectId: string };
 
 function encodeBase64Url(data: string): string {
@@ -54,6 +56,13 @@ export function encodeProjectSlug(projectId: string): string {
   return encodeBase64Url(PROJECT_PREFIX + projectId);
 }
 
+/** Encodes a built-in framework starter. Unlike a repo slug, this never causes
+ * the deploy page to call GitHub; the API materializes the trusted starter at
+ * build time from the persisted `gitProvider="template"` project source. */
+export function encodeTemplateSlug(stackId: string): string {
+  return encodeBase64Url(TEMPLATE_PREFIX + stackId);
+}
+
 /**
  * Decodes a slug back to either a repo, local path, or upload session
  */
@@ -82,6 +91,11 @@ export function decodeSlug(slug: string): DecodedSlug | null {
     if (decoded.startsWith(PROJECT_PREFIX)) {
       const projectId = decoded.slice(PROJECT_PREFIX.length);
       return projectId ? { kind: "project", projectId } : null;
+    }
+
+    if (decoded.startsWith(TEMPLATE_PREFIX)) {
+      const stackId = decoded.slice(TEMPLATE_PREFIX.length);
+      return stackId ? { kind: "template", stackId } : null;
     }
 
     if (decoded.startsWith(REPO_V2_PREFIX)) {

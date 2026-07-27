@@ -24,6 +24,7 @@ import {
   safeErrorMessage,
   getRuntimeImage,
   isReleaseProvider,
+  isTemplateProvider,
   projectRoutingSlug,
   type StackId,
   type DeployTarget,
@@ -69,6 +70,7 @@ import {
 import { kickoffBuild, resolveServicePipelineMode } from "./build-pipeline";
 import { resolveReleaseDist, resolveLatestVersion, readApiVersion } from "../../lib/release-resolver";
 import { env } from "../../config";
+import { materializeStarterTemplate } from "./template-source";
 
 function throwPreflightFailure(preflight: PreflightResult): never {
   const failedChecks = preflight.checks.filter((check) => check.status === "fail");
@@ -402,6 +404,21 @@ export async function applyReleaseSourceToSnapshot(
   snapshot.releaseAsset = result.asset;
   snapshot.releaseRepo = source.mode === "github" ? source.repo : undefined;
   return result.version;
+}
+
+/** Resolve a built-in starter through the existing localPath transfer path.
+ * No workspace is allocated until the user actually presses Deploy. */
+export async function applyTemplateSourceToSnapshot(
+  project: Project,
+  snapshot: DeploymentConfigSnapshot,
+): Promise<void> {
+  if (!isTemplateProvider(project.gitProvider)) return;
+  if (!project.framework) {
+    throw new AppError("Template project has no framework configured", 400, "TEMPLATE_SOURCE_MISSING");
+  }
+  snapshot.localPath = await materializeStarterTemplate(project.framework);
+  snapshot.repoUrl = "";
+  snapshot.branch = "main";
 }
 
 function stripV(v: string | null | undefined): string | undefined {
@@ -940,6 +957,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   if (isReleaseProvider(project.gitProvider)) {
     await applyReleaseSourceToSnapshot(project, snapshot);
   }
+  await applyTemplateSourceToSnapshot(project, snapshot);
 
   // Caller-supplied endpoints win. If the caller omitted them (an MCP/API deploy)
   // AND the project has no route yet, default a free subdomain from the project
@@ -1312,6 +1330,7 @@ export async function redeployBuildSession(
       version: opts?.useExistingCommit ? frozenMeta?.releaseVersion : undefined,
     });
   }
+  await applyTemplateSourceToSnapshot(project, meta);
 
   // Two redeploy modes:
   //   default            — rebuild against the LATEST commit on the branch.
@@ -1539,7 +1558,12 @@ export async function triggerDeployment(
 
   // A release/dist-source project has neither a git URL nor a stored localPath —
   // its dist dir is resolved per-deploy by applyReleaseSourceToSnapshot below.
-  if (!project.gitUrl && !project.localPath && !isReleaseProvider(project.gitProvider)) {
+  if (
+    !project.gitUrl &&
+    !project.localPath &&
+    !isReleaseProvider(project.gitProvider) &&
+    !isTemplateProvider(project.gitProvider)
+  ) {
     throw new ForbiddenError("Project has no git repository or local path configured");
   }
   // GitHub access gate (default-deny; webhook ctx is the org owner and
@@ -1610,6 +1634,7 @@ export async function triggerDeployment(
   if (!reuse && isReleaseProvider(project.gitProvider)) {
     await applyReleaseSourceToSnapshot(project, snapshot, { version: data.releaseVersion });
   }
+  await applyTemplateSourceToSnapshot(project, snapshot);
 
   if (!reuse) {
     // Non-UI callers (CI, webhook, manual API) don't pass buildStrategy, so the

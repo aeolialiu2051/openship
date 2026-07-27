@@ -13,6 +13,7 @@ import {
   safeErrorMessage,
   compareSemver,
   isReleaseProvider,
+  isTemplateProvider,
   isBehind,
   GITHUB_REPO,
   type ReleaseSource,
@@ -225,6 +226,7 @@ function resolveProjectSource(data: TCreateProjectBody) {
   // releaseSource — the project-level gitOwner/gitRepo columns stay null so the
   // commit-drift path is never taken for it.
   const isRelease = isReleaseProvider(data.gitProvider);
+  const isTemplate = isTemplateProvider(data.gitProvider);
   // Release/dist deploys resolve a prebuilt dir onto THIS box's filesystem
   // (download + extract into ~/.openship) — a self-hosted runtime concern.
   // Blocked in cloud mode, same as localPath below: the SaaS builds in Oblien
@@ -232,15 +234,15 @@ function resolveProjectSource(data: TCreateProjectBody) {
   if (isRelease && env.CLOUD_MODE) {
     throw new ForbiddenError("Release/dist source projects are not available in cloud mode");
   }
-  const safeLocalPath = !isRelease && data.localPath && !env.CLOUD_MODE ? data.localPath : undefined;
-  const gitOwner = isRelease || safeLocalPath ? undefined : data.gitOwner;
-  const gitRepo = isRelease || safeLocalPath ? undefined : data.gitRepo;
+  const safeLocalPath = !isRelease && !isTemplate && data.localPath && !env.CLOUD_MODE ? data.localPath : undefined;
+  const gitOwner = isRelease || isTemplate || safeLocalPath ? undefined : data.gitOwner;
+  const gitRepo = isRelease || isTemplate || safeLocalPath ? undefined : data.gitRepo;
 
   return {
     safeLocalPath,
     gitOwner,
     gitRepo,
-    gitProvider: isRelease ? "release" : safeLocalPath ? "local" : (data.gitProvider ?? "github"),
+    gitProvider: isRelease ? "release" : isTemplate ? "template" : safeLocalPath ? "local" : (data.gitProvider ?? "github"),
     gitUrl: projectGitUrl(gitOwner, gitRepo),
     releaseSource: isRelease ? ((data.releaseSource as ReleaseSource | undefined) ?? null) : null,
   };

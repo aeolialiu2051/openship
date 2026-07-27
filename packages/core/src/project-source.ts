@@ -12,6 +12,7 @@ export const SOURCE_PROVIDERS = [
   "bitbucket",
   "local",
   "upload",
+  "template",
   "release",
 ] as const;
 export type SourceProvider = (typeof SOURCE_PROVIDERS)[number];
@@ -19,6 +20,11 @@ export type SourceProvider = (typeof SOURCE_PROVIDERS)[number];
 /** True for a release/dist source (no repo, no build — deploy a prebuilt distribution). */
 export function isReleaseProvider(gitProvider: string | null | undefined): boolean {
   return gitProvider === "release";
+}
+
+/** True for a trusted built-in starter materialized by the API at build time. */
+export function isTemplateProvider(gitProvider: string | null | undefined): boolean {
+  return gitProvider === "template";
 }
 
 /**

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   SOURCE_PROVIDERS,
   isReleaseProvider,
+  isTemplateProvider,
   renderAssetName,
 } from "../src/project-source";
 
@@ -19,6 +20,16 @@ describe("isReleaseProvider", () => {
 
   it("release is a member of SOURCE_PROVIDERS", () => {
     expect(SOURCE_PROVIDERS).toContain("release");
+  });
+});
+
+describe("isTemplateProvider", () => {
+  it("recognizes only the built-in template source", () => {
+    expect(isTemplateProvider("template")).toBe(true);
+    expect(isTemplateProvider("upload")).toBe(false);
+    expect(isTemplateProvider("github")).toBe(false);
+    expect(isTemplateProvider(null)).toBe(false);
+    expect(SOURCE_PROVIDERS).toContain("template");
   });
 });
 

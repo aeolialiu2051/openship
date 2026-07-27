@@ -89,7 +89,11 @@ export function FolderUpload() {
       });
       await folderApi.upload(session, blob);
 
-      const params = new URLSearchParams({ stack: stack.id, name: picked.name });
+      const params = new URLSearchParams({
+        stack: stack.id,
+        name: picked.name,
+        packageManager: picked.packageManager,
+      });
       router.push(`/deploy/${encodeUploadSlug(session.sessionId)}?${params.toString()}`);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : t.library.folderUpload.uploadError);
