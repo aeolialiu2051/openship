@@ -224,11 +224,10 @@ export function DeployCredentialModal({
   // when the App/cloud round-trip isn't wanted.
   const showConnectServer = deployTarget === "server" && !!serverId;
   const showAddToken = !!projectId;
-  // "Build locally" makes no sense for a local target (clone is already
-  // local) or when buildStrategy is already local. Otherwise show it for
-  // both server AND cloud targets — the cloud runtime supports local-build
-  // + artifact upload via CloudRuntime.build.
-  const showBuildLocal = targetIsRemote && buildStrategy !== "local";
+  // The managed cloud dashboard has no operator-controlled local build host.
+  // Keep this fallback aligned with the deployment picker so an unsupported
+  // "Build on this machine" action cannot reappear from a credential error.
+  const showBuildLocal = selfHosted && targetIsRemote && buildStrategy !== "local";
   // Used in the build-local sub-copy to acknowledge the gh CLI session
   // explicitly when it's logged in — clarifies that picking "build
   // locally" will use the user's existing gh session as one of the

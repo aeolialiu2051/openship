@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_CLOUD_INSTALL_AVAILABLE,
+  canUseLocalBuildLocation,
   canUseLocalAppDestination,
 } from "./app-destination-availability";
 
@@ -19,5 +20,19 @@ describe("app destination availability", () => {
 
   it("keeps Openship Cloud app installation in coming-soon state", () => {
     expect(APP_CLOUD_INSTALL_AVAILABLE).toBe(false);
+  });
+
+  it("allows local builds on operator-controlled hosts", () => {
+    expect(canUseLocalBuildLocation({ deployMode: "desktop" })).toBe(true);
+    expect(canUseLocalBuildLocation({ deployMode: "docker" })).toBe(true);
+    expect(canUseLocalBuildLocation({ deployMode: "bare" })).toBe(true);
+  });
+
+  it("hides local builds in managed cloud mode", () => {
+    expect(canUseLocalBuildLocation({ deployMode: "cloud" })).toBe(false);
+  });
+
+  it("fails closed for unknown deployment modes", () => {
+    expect(canUseLocalBuildLocation({ deployMode: "future-mode" })).toBe(false);
   });
 });

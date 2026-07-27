@@ -19,6 +19,7 @@ import { useAddServerModal } from "@/components/servers/AddServerModal";
 import ServerRuntimePicker from "./ServerRuntimePicker";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { isDeploySelectionComingSoon } from "./deploy-target-availability";
+import { canUseLocalBuildLocation } from "@/components/deploy/app-destination-availability";
 
 // ─── Option card ─────────────────────────────────────────────────────────────
 
@@ -855,6 +856,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // Git credential forwarding is desktop-only — the relay forwards the
   // operator's machine-local `gh`, which only exists on a desktop host.
   const isDesktop = deployMode === "desktop";
+  const localBuildAvailable = canUseLocalBuildLocation({ deployMode });
   const { showToast } = useToast();
   const openAddServerModal = useAddServerModal();
   const { t } = useI18n();
@@ -920,6 +922,15 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
       updateConfig({ buildStrategy: want });
     }
   }, [config.deployTarget, config.buildStrategy, updateConfig]);
+
+  // Cloud-hosted Openship has no operator-controlled local build host. Repair
+  // saved/legacy selections as well as hiding the card, so an invisible
+  // `buildStrategy="local"` can never leak into the deployment request.
+  useEffect(() => {
+    if (localBuildAvailable || config.buildStrategy !== "local") return;
+    buildStrategyTouchedRef.current = false;
+    updateConfig({ buildStrategy: "server" });
+  }, [localBuildAvailable, config.buildStrategy, updateConfig]);
 
   // Sandbox (docker) is the default for a fresh self-hosted server APP. Seeded
   // once, and only when the runtime choice actually applies (server app, not
@@ -1153,12 +1164,14 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     label: string;
     description: string;
   }> = [
-    {
-      value: "local",
-      icon: <Cpu className="size-5" />,
-      label: ts.build.localLabel,
-      description: ts.build.localDesc,
-    },
+    ...(localBuildAvailable
+      ? [{
+          value: "local" as const,
+          icon: <Cpu className="size-5" />,
+          label: ts.build.localLabel,
+          description: ts.build.localDesc,
+        }]
+      : []),
     {
       value: "server",
       icon: <Cloud className="size-5" />,
@@ -1185,7 +1198,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           label: ts.build.cloudLabel,
           description: ts.build.cloudDesc,
         },
-        ...(cloudSupportsLocalBuild
+        ...(cloudSupportsLocalBuild && localBuildAvailable
           ? [
               {
                 value: "local" as const,

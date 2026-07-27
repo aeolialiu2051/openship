@@ -16,3 +16,13 @@ export function canUseLocalAppDestination({
 }): boolean {
   return allowLocal && deployMode === "desktop";
 }
+
+/**
+ * A local build runs on the machine hosting the Openship API. That is a real,
+ * operator-controlled build host in desktop and self-hosted modes. In cloud
+ * mode it is the managed SaaS API host, so presenting it as "This machine" is
+ * both misleading and unsupported.
+ */
+export function canUseLocalBuildLocation({ deployMode }: { deployMode: string }): boolean {
+  return deployMode === "desktop" || deployMode === "docker" || deployMode === "bare";
+}
