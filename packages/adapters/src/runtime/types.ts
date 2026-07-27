@@ -23,6 +23,7 @@ import type {
   ResourceConfig,
   ShellOptions,
   ShellSession,
+  TraefikEdgeConfig,
 } from "../types";
 import type { ComposeAdvanced } from "@repo/core";
 import type { BuildLogger } from "./build-pipeline";
@@ -311,10 +312,7 @@ export interface RuntimeAdapter {
    * Open an interactive shell inside a deployed service. Optional —
    * runtimes without `serviceShell` capability throw if called.
    */
-  openServiceShell?(
-    containerId: string,
-    opts?: ShellOptions,
-  ): Promise<ShellSession>;
+  openServiceShell?(containerId: string, opts?: ShellOptions): Promise<ShellSession>;
 }
 
 // ─── Rollback primitive types ───────────────────────────────────────────────
@@ -409,6 +407,25 @@ export interface MultiServiceDeployConfig {
   /** Service names this service depends on (compose `depends_on`). Used for
    *  readiness ordering on runtimes with no native healthcheck. */
   dependsOn?: string[];
+  /** Shared Traefik route(s) for this service. When present Docker keeps all
+   * business ports internal and attaches the container to the edge network. */
+  traefik?: TraefikEdgeConfig;
+}
+
+export interface TraefikManualConfig {
+  network?: string;
+  entrypoint?: string;
+  tls?: boolean;
+  certResolver?: string;
+}
+
+export interface ResolvedTraefikEdge {
+  network: string;
+  entrypoint: string;
+  tls: boolean;
+  certResolver?: string;
+  source: "vibrail" | "existing";
+  containerId: string;
 }
 
 export interface MultiServiceDeployResult {
@@ -485,10 +502,7 @@ export interface MultiServiceRuntimeAdapter extends RuntimeAdapter {
    * reachable by name. Absent on runtimes with live DNS (Docker) — their real
    * network needs no post-pass.
    */
-  finalizeServiceGroup?(
-    group: MultiServiceGroupHandle,
-    onLog?: LogCallback,
-  ): Promise<void>;
+  finalizeServiceGroup?(group: MultiServiceGroupHandle, onLog?: LogCallback): Promise<void>;
 
   /**
    * Optional: seed an ALREADY-RUNNING service into the group's in-memory mesh

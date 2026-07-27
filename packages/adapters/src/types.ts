@@ -214,6 +214,27 @@ export interface DeployPublicEndpoint {
   domainType?: "free" | "custom";
 }
 
+export interface TraefikRouteConfig {
+  /** Stable router/service key. It must stay unchanged across redeploys. */
+  routerName: string;
+  /** Public hostname matched by this router. */
+  hostname: string;
+  /** Internal container port Traefik forwards to. */
+  port: number;
+}
+
+export interface TraefikEdgeConfig {
+  /** Docker network shared with the selected Traefik instance. */
+  network: string;
+  /** HTTPS entrypoint exposed by the selected Traefik instance. */
+  entrypoint: string;
+  /** Whether the router enables TLS (normally true). */
+  tls: boolean;
+  /** Optional Traefik certificate resolver selected by the operator. */
+  certResolver?: string;
+  routes: TraefikRouteConfig[];
+}
+
 export interface DeployConfig {
   /** Unique deployment id */
   deploymentId: string;
@@ -249,6 +270,9 @@ export interface DeployConfig {
   managedDomain?: string;
   /** Authoritative public route mappings for this workload. */
   publicEndpoints?: DeployPublicEndpoint[];
+  /** Runtime-owned shared Traefik routing. Docker joins `network`, adds only
+   * Vibrail router labels, and does not publish the workload port on the host. */
+  traefik?: TraefikEdgeConfig;
   /** Files/directories to copy into /app/production/ before starting the workload.
    *  When set, the workload runs from /app/production/ instead of /app/. */
   productionPaths?: string[];
@@ -310,7 +334,13 @@ export interface DeploymentResult {
  */
 export type BuildStep = "prepare" | "clone" | "install" | "build" | "deploy";
 
-export const BUILD_STEPS: readonly BuildStep[] = ["prepare", "clone", "install", "build", "deploy"] as const;
+export const BUILD_STEPS: readonly BuildStep[] = [
+  "prepare",
+  "clone",
+  "install",
+  "build",
+  "deploy",
+] as const;
 
 export interface LogEntry {
   timestamp: string;

@@ -24,6 +24,7 @@ import { resolveOrgCloudUserId } from "../../lib/cloud/transport";
 import { buildServiceRouteDomain } from "../../lib/routing-domains";
 import { createReachabilityProbe } from "../../lib/server-reachability";
 import { resolveLiveServiceState } from "../services/live-state";
+import { deleteVibrailDnsRecord } from "../../lib/cloudflare-dns";
 
 /** Hard ceiling on a docker-over-SSH volume inspect during manifest/preview.
  *  These calls `.catch(() => [])` on ERROR, but a half-open SSH socket never
@@ -41,6 +42,7 @@ export interface CleanupResource {
     | "route"
     | "volume"
     | "network"
+    | "managed_dns"
     | "cloud_workspace"
     /**
      * A resource we KNOW exists but can't reach right now (cloud down, or a
@@ -122,6 +124,7 @@ export async function collectProjectManifest(
   const seenContainers = new Set<string>();
   const seenVolumes = new Set<string>();
   const dockerRuntimes = new Set<DockerRuntime>();
+  let usesTraefikRouting = false;
   // Op-scoped reachability memo (single source: sshManager). Lets us fast-fail
   // an unreachable server in ~2.5s instead of hanging on SSH connect timeouts.
   const reachProbe = createReachabilityProbe();
@@ -202,9 +205,11 @@ export async function collectProjectManifest(
           const mode = meta.runtimeMode;
           const serviceRows = await repos.service.listByDeployment(dep.id).catch(() => []);
           for (const sd of serviceRows) {
-            if (sd.containerId) pushUnreachable(sd.containerId, serverId, mode, "service container");
+            if (sd.containerId)
+              pushUnreachable(sd.containerId, serverId, mode, "service container");
           }
-          if (dep.containerId) pushUnreachable(dep.containerId, serverId, mode, "deployment container");
+          if (dep.containerId)
+            pushUnreachable(dep.containerId, serverId, mode, "deployment container");
         } else {
           console.warn(
             `[cleanup] skipping deployment ${dep.id} — server ${serverId} removed from org`,
@@ -258,6 +263,14 @@ export async function collectProjectManifest(
     const serviceRows = await repos.service.listByDeployment(dep.id);
     for (const sd of serviceRows) {
       if (sd.containerId) {
+        if (runtime instanceof DockerRuntime && !usesTraefikRouting) {
+          const detail = await withTimeout(
+            runtime.inspectContainer(sd.containerId),
+            INSPECT_TIMEOUT_MS,
+            `inspect Traefik labels ${sd.containerId}`,
+          ).catch(() => null);
+          usesTraefikRouting = detail?.labels["traefik.enable"] === "true";
+        }
         await pushVolumesForContainer(sd.containerId, runtime, "service");
         pushContainer(sd.containerId, runtime, "service container");
       }
@@ -278,6 +291,14 @@ export async function collectProjectManifest(
 
     // Main deployment container - same order.
     if (dep.containerId) {
+      if (runtime instanceof DockerRuntime && !usesTraefikRouting) {
+        const detail = await withTimeout(
+          runtime.inspectContainer(dep.containerId),
+          INSPECT_TIMEOUT_MS,
+          `inspect Traefik labels ${dep.containerId}`,
+        ).catch(() => null);
+        usesTraefikRouting = detail?.labels["traefik.enable"] === "true";
+      }
       await pushVolumesForContainer(dep.containerId, runtime, "deployment");
       pushContainer(dep.containerId, runtime, "deployment container");
     }
@@ -469,13 +490,17 @@ export async function collectProjectManifest(
 
   // ── Domain routes (project-level) ──────────────────────────────────
   const domains = await repos.domain.listByProject(project.id).catch(() => []);
+  const dnsHostnames = new Set<string>();
   for (const d of domains) {
-    resources.push({
-      type: "route",
-      ref: d.hostname,
-      label: `route ${d.hostname}`,
-      runtime: null, // routes use routing adapter, not runtime
-    });
+    if (!usesTraefikRouting) {
+      resources.push({
+        type: "route",
+        ref: d.hostname,
+        label: `route ${d.hostname}`,
+        runtime: null, // routes use routing adapter, not runtime
+      });
+    }
+    dnsHostnames.add(d.hostname.toLowerCase());
   }
 
   // ── Service routes ─────────────────────────────────────────────────
@@ -487,13 +512,24 @@ export async function collectProjectManifest(
       usesManagedRouting: true,
     });
     if (route) {
-      resources.push({
-        type: "route",
-        ref: route.hostname,
-        label: `service route ${route.hostname}`,
-        runtime: null,
-      });
+      if (!usesTraefikRouting) {
+        resources.push({
+          type: "route",
+          ref: route.hostname,
+          label: `service route ${route.hostname}`,
+          runtime: null,
+        });
+      }
+      dnsHostnames.add(route.hostname.toLowerCase());
     }
+  }
+  for (const hostname of dnsHostnames) {
+    resources.push({
+      type: "managed_dns",
+      ref: hostname,
+      label: `Cloudflare DNS ${hostname}`,
+      runtime: null,
+    });
   }
 
   // Ordering matters: containers must be destroyed before their volumes
@@ -508,6 +544,7 @@ export async function collectProjectManifest(
     unreachable: 0,
     image: 1,
     route: 2,
+    managed_dns: 2,
     volume: 3,
     network: 4,
   };
@@ -540,7 +577,10 @@ export async function previewProjectDeletion(project: Project): Promise<Deletion
 
   // Map service id → its container id (most recent deployment wins, which
   // matches the order rows come back in). We resolve volumes per container.
-  const serviceContainerByServiceId = new Map<string, { containerId: string; runtime: RuntimeAdapter }>();
+  const serviceContainerByServiceId = new Map<
+    string,
+    { containerId: string; runtime: RuntimeAdapter }
+  >();
 
   for (const dep of allDeps) {
     let runtime: RuntimeAdapter;
@@ -620,7 +660,8 @@ export async function previewProjectDeletion(project: Project): Promise<Deletion
     });
   }
 
-  const totalVolumes = deploymentVolumes.length + previewServices.reduce((n, s) => n + s.volumes.length, 0);
+  const totalVolumes =
+    deploymentVolumes.length + previewServices.reduce((n, s) => n + s.volumes.length, 0);
 
   return {
     projectId: project.id,
@@ -731,10 +772,7 @@ const DESTROY_TIMEOUT_MS = 30_000;
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout>;
   const timeout = new Promise<T>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`cleanup timed out after ${ms}ms: ${label}`)),
-      ms,
-    );
+    timer = setTimeout(() => reject(new Error(`cleanup timed out after ${ms}ms: ${label}`)), ms);
     // Don't let the timer keep the process alive once the race settles.
     (timer as { unref?: () => void }).unref?.();
   });
@@ -826,6 +864,10 @@ async function destroyResourceOnce(
     }
     case "route": {
       await routing.removeRoute(resource.ref);
+      return;
+    }
+    case "managed_dns": {
+      await deleteVibrailDnsRecord(resource.ref);
       return;
     }
     case "volume": {

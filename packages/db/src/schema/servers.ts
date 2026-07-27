@@ -21,8 +21,9 @@ export const servers = pgTable("servers", {
     .primaryKey()
     .$defaultFn(() => crypto.randomUUID()),
 
-  organizationId: text("organization_id")
-    .references(() => organization.id, { onDelete: "cascade" }),
+  organizationId: text("organization_id").references(() => organization.id, {
+    onDelete: "cascade",
+  }),
 
   /** Human-readable label - defaults to sshHost when not set */
   name: text("name"),
@@ -44,6 +45,16 @@ export const servers = pgTable("servers", {
   sshKeyPassphrase: text("ssh_key_passphrase"),
   sshJumpHost: text("ssh_jump_host"),
   sshArgs: text("ssh_args"),
+
+  // ── Existing Traefik reuse (optional manual disambiguation) ──────────────
+  /** Docker network already shared by the user's Traefik container. */
+  traefikNetwork: text("traefik_network"),
+  /** HTTPS entrypoint name, e.g. `websecure`. */
+  traefikEntrypoint: text("traefik_entrypoint"),
+  /** Whether Vibrail's routers should enable TLS on that entrypoint. */
+  traefikTls: boolean("traefik_tls"),
+  /** Optional existing Traefik certificate resolver. */
+  traefikCertResolver: text("traefik_cert_resolver"),
 
   // ── Timestamps ─────────────────────────────────────────────────────────────
 

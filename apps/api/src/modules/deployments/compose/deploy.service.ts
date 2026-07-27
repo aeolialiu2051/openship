@@ -52,7 +52,10 @@ import {
   toRoutedDomainInputs,
   type PlannedRouteDomain,
 } from "../../../lib/routing-domains";
-import { resolveServiceEndpointUrls, resolveServicePublicEndpoints } from "../../../lib/public-endpoints";
+import {
+  resolveServiceEndpointUrls,
+  resolveServicePublicEndpoints,
+} from "../../../lib/public-endpoints";
 import { ensureManagedEdgeProxy } from "../../../lib/managed-edge-proxy";
 import * as sessionManager from "../session-manager";
 import { auditPorts } from "../port-audit.service";
@@ -62,6 +65,8 @@ import { buildCompositeRegistration, buildDomainFanoutRegistrations } from "./co
 import { serviceKind } from "./project-services";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../../lib/upstream-url";
 import { withLoopbackPublish } from "../../../lib/loopback-publish";
+import { prepareTraefikConfig, vibrailRouterName } from "../../../lib/traefik-routing";
+import { upsertVibrailDnsRecord } from "../../../lib/cloudflare-dns";
 
 export interface ComposeDeployResult {
   /** `reconciling` when at least one service's outcome is UNKNOWN because the
@@ -498,29 +503,46 @@ export async function deployComposeServices(
   // is serialized per server by the injected provision lock. (No per-service
   // host-port check: compose services are reached through openresty by hostname,
   // not by binding host ports the way a bare process does.)
+  const plannedRoutes = enabled.flatMap((svc) =>
+    buildServiceRouteDomains({
+      project,
+      service: svc,
+      runtimeName: runtime.name,
+      usesManagedRouting: opts?.usesManagedRouting ?? false,
+      domainByHostname,
+    }),
+  );
+  const usesTraefikEdge =
+    runtime instanceof DockerRuntime &&
+    plannedRoutes.some((route) => route.targetPort !== undefined);
+  const preparedTraefik =
+    usesTraefikEdge && runtime instanceof DockerRuntime
+      ? await prepareTraefikConfig({
+          runtime,
+          organizationId: dep.organizationId,
+          serverId: opts?.serverId,
+          routes: [],
+          onLog: (message) => logger.log(message),
+        })
+      : undefined;
+
   if (opts?.system) {
     const systemLog = (entry: { message: string; level: "info" | "warn" | "error" }) => {
       logger.log(`${entry.message}\n`, entry.level);
     };
-    const plannedRoutes = enabled.flatMap((svc) =>
-      buildServiceRouteDomains({
-        project,
-        service: svc,
-        runtimeName: runtime.name,
-        usesManagedRouting: opts.usesManagedRouting ?? false,
-        domainByHostname,
-      }),
-    );
-
     await opts.system.ensureFeature("deploy", systemLog);
     // Routing/SSL toolchain is best-effort — domains are optional, so failing to
     // install OpenResty/certbot must NOT fail the deploy. The services still run;
     // routing is flagged action-required and retried later.
     try {
-      if (plannedRoutes.length > 0) {
+      if (usesTraefikEdge) {
+        logger.log(
+          "Using shared Traefik for public service routes; OpenResty is not installed or changed.\n",
+        );
+      } else if (plannedRoutes.length > 0) {
         await opts.system.ensureFeature("routing", systemLog);
       }
-      if (plannedRoutes.some((route) => route.provisionSsl)) {
+      if (!usesTraefikEdge && plannedRoutes.some((route) => route.provisionSsl)) {
         await opts.system.ensureFeature("ssl", systemLog);
       }
     } catch (err) {
@@ -994,6 +1016,22 @@ export async function deployComposeServices(
       );
     }
 
+    if (preparedTraefik && proxyRoutes.length > 0) {
+      serviceRuntimeConfig.traefik = {
+        ...preparedTraefik,
+        routes: proxyRoutes.map((route) => ({
+          routerName: vibrailRouterName(
+            project.routeKey ?? project.id,
+            svc.id,
+            String(route.targetPort),
+          ),
+          hostname: route.hostname,
+          port: route.targetPort!,
+        })),
+      };
+      serviceRuntimeConfig.ports = [];
+    }
+
     // loopback-port routing (compose parity, mirrors single-app): republish the
     // PRIMARY routed container port on `127.0.0.1:<pinnedHostPort>` so the edge
     // reaches it on loopback and it isn't network-exposed. We OWN the pinned
@@ -1007,6 +1045,7 @@ export async function deployComposeServices(
     let servicePinnedHostPort: number | undefined;
     if (
       composeRouteStrategy === "loopback-port" &&
+      !serviceRuntimeConfig.traefik &&
       runtime.name !== "cloud" &&
       routedContainerPort !== undefined &&
       opts?.executor
@@ -1071,8 +1110,14 @@ export async function deployComposeServices(
           config: serviceDeployConfig,
           previousContainerId: previous?.containerId ?? undefined,
           domains: routeDomains,
-          routing: routeDomains.length ? routeContext?.routing : undefined,
-          ssl: routeDomains.length ? routeContext?.trackedSsl : undefined,
+          routing:
+            routeDomains.length && !serviceRuntimeConfig.traefik
+              ? routeContext?.routing
+              : undefined,
+          ssl:
+            routeDomains.length && !serviceRuntimeConfig.traefik
+              ? routeContext?.trackedSsl
+              : undefined,
           routeOptions: routeDomains.length ? routeContext?.routeOptions : undefined,
         },
         serviceLogger,
@@ -1231,6 +1276,31 @@ export async function deployComposeServices(
         : runtime.name === "cloud"
           ? resolveServicePublicUrl(project, svc)
           : undefined;
+
+      for (const route of proxyRoutes) {
+        try {
+          const action = await upsertVibrailDnsRecord({
+            hostname: route.hostname,
+            organizationId: dep.organizationId,
+            serverId: opts?.serverId,
+          });
+          if (action !== "skipped") {
+            logger.log(
+              `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}.\n`,
+              "info",
+              { serviceName: svc.name },
+            );
+          }
+        } catch (dnsErr) {
+          const dnsMessage = dnsErr instanceof Error ? dnsErr.message : "Unknown error";
+          composeRouteWarnings.push(`${route.hostname}: ${dnsMessage}`);
+          logger.log(
+            `Warning: could not sync Cloudflare DNS for ${route.hostname}: ${dnsMessage}.\n`,
+            "warn",
+            { serviceName: svc.name },
+          );
+        }
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
 
@@ -1470,7 +1540,7 @@ export async function deployComposeServices(
   // the static frontend must be exposed with a routable port for this to form
   // (otherwise buildServiceRouteDomain/port resolution yields nothing and we
   // no-op) — verify end-to-end on a live self-hosted deploy.
-  if (routeContext?.routing && runtime.name !== "cloud") {
+  if (routeContext?.routing && runtime.name !== "cloud" && !usesTraefikEdge) {
     try {
       // Reusable routing core (shared with the routing API): resolve each
       // service's live upstream from this deploy's results.

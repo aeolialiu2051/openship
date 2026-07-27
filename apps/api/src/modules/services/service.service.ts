@@ -2,8 +2,19 @@
  * Service business logic - CRUD and compose sync.
  */
 
-import { normalizeRoutingFields, repos, composeSpecDiff, type Service, type ServicePublicEndpoint } from "@repo/db";
-import { isValidCustomHostname, ValidationError, withTimeout, type ServiceContainerState } from "@repo/core";
+import {
+  normalizeRoutingFields,
+  repos,
+  composeSpecDiff,
+  type Service,
+  type ServicePublicEndpoint,
+} from "@repo/db";
+import {
+  isValidCustomHostname,
+  ValidationError,
+  withTimeout,
+  type ServiceContainerState,
+} from "@repo/core";
 import {
   BuildLogger,
   DockerRuntime,
@@ -29,7 +40,11 @@ import { deployComposeServices } from "../deployments/compose/deploy.service";
 import { buildServiceRouteDomains, serviceCustomHostnames } from "../../lib/routing-domains";
 import { resolveServicePublicEndpoints } from "../../lib/public-endpoints";
 import { assertFreeEndpointsAllowed } from "../../lib/free-domain-guard";
-import { ensurePendingServiceDomain, removeServiceDomain, reuseServerCertForDomain } from "../domains/domain.service";
+import {
+  ensurePendingServiceDomain,
+  removeServiceDomain,
+  reuseServerCertForDomain,
+} from "../domains/domain.service";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
 import {
   reconcileProjectRoutes,
@@ -42,6 +57,7 @@ import type {
   TSetServiceEnvVarsBody,
 } from "./service.schema";
 import { findContainerByTrackedId } from "./container-id";
+import { deleteVibrailDnsRecord } from "../../lib/cloudflare-dns";
 
 /** Cap how long a route update AWAITS the (SSH) edge re-register before
  *  returning. Past this, the DB change is already saved and the edge apply
@@ -53,11 +69,7 @@ const ROUTE_EDGE_APPLY_TIMEOUT_MS = 6000;
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Verify a service exists and belongs to a project in the given org */
-async function assertServiceAccess(
-  ctx: RequestContext,
-  projectId: string,
-  serviceId: string,
-) {
+async function assertServiceAccess(ctx: RequestContext, projectId: string, serviceId: string) {
   const project = await repos.project.findById(projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
   const svc = await repos.service.findById(serviceId);
@@ -132,11 +144,7 @@ export async function listServices(ctx: RequestContext, projectId: string) {
   return (await repos.service.listByProject(projectId)).map(withDrift);
 }
 
-export async function getService(
-  ctx: RequestContext,
-  projectId: string,
-  serviceId: string,
-) {
+export async function getService(ctx: RequestContext, projectId: string, serviceId: string) {
   const { svc } = await assertServiceAccess(ctx, projectId, serviceId);
   return withDrift(svc);
 }
@@ -176,11 +184,7 @@ export async function acceptServiceDrift(
  * Keep the user's edits: advance the baseline to the upstream spec (so it stops
  * re-flagging on every deploy) WITHOUT changing the row's current values.
  */
-export async function keepServiceDrift(
-  ctx: RequestContext,
-  projectId: string,
-  serviceId: string,
-) {
+export async function keepServiceDrift(ctx: RequestContext, projectId: string, serviceId: string) {
   const { svc } = await assertServiceAccess(ctx, projectId, serviceId);
   if (!svc.driftSpec) return withDrift(svc);
   await repos.service.update(serviceId, { importedSpec: svc.driftSpec, driftSpec: null });
@@ -393,21 +397,39 @@ export async function updateService(
       // Diff the SET of routes (a service can publish several ports). A hostname
       // present before but gone now is removed; every current route is
       // (re-)registered (register is additive/idempotent upstream).
-      const oldRoutes = buildServiceRouteDomains({ project, service: svc, runtimeName, usesManagedRouting: true });
+      const oldRoutes = buildServiceRouteDomains({
+        project,
+        service: svc,
+        runtimeName,
+        usesManagedRouting: true,
+      });
       const nextRoutes = isRoutable
-        ? buildServiceRouteDomains({ project, service: updated, runtimeName, usesManagedRouting: true })
+        ? buildServiceRouteDomains({
+            project,
+            service: updated,
+            runtimeName,
+            usesManagedRouting: true,
+          })
         : [];
       const nextByHost = new Map(nextRoutes.map((route) => [route.hostname.toLowerCase(), route]));
 
       const removes: RouteRemove[] = oldRoutes
         .filter((route) => !nextByHost.has(route.hostname.toLowerCase()))
-        .map((route) => ({ hostname: route.hostname, isCustomDomain: route.domainType === "custom" }));
+        .map((route) => ({
+          hostname: route.hostname,
+          isCustomDomain: route.domainType === "custom",
+        }));
 
       // Self-hosted upstream = loopback host port (published) or the active
       // deployment's service-row IP; cloud ignores targetUrl. Resolve once.
       let ip: string | undefined;
       let hostPort: number | undefined;
-      if (isRoutable && nextRoutes.length > 0 && !project.cloudWorkspaceId && project.activeDeploymentId) {
+      if (
+        isRoutable &&
+        nextRoutes.length > 0 &&
+        !project.cloudWorkspaceId &&
+        project.activeDeploymentId
+      ) {
         const rows = await repos.service.listByDeployment(project.activeDeploymentId);
         const row = rows.find((r) => r.serviceId === serviceId);
         ip = row?.ip ?? undefined;
@@ -417,7 +439,8 @@ export async function updateService(
       const registers: RouteRegister[] = nextRoutes.map((route) => ({
         hostname: route.hostname,
         targetUrl: route.targetPort
-          ? (buildUpstreamUrl({ strategy, ip, hostPort, containerPort: route.targetPort }) ?? undefined)
+          ? (buildUpstreamUrl({ strategy, ip, hostPort, containerPort: route.targetPort }) ??
+            undefined)
           : undefined,
         port: route.targetPort,
         isCustomDomain: route.domainType === "custom",
@@ -506,12 +529,9 @@ export async function updateService(
  *  can't hang the delete request past the DB-row removal (the authoritative op). */
 const SERVICE_TEARDOWN_TIMEOUT_MS = 20_000;
 
-export async function deleteService(
-  ctx: RequestContext,
-  projectId: string,
-  serviceId: string,
-) {
+export async function deleteService(ctx: RequestContext, projectId: string, serviceId: string) {
   const { project, svc } = await assertServiceAccess(ctx, projectId, serviceId);
+  let usedTraefikRouting = false;
 
   if (project.activeDeploymentId) {
     const dep = await repos.deployment.findById(project.activeDeploymentId);
@@ -531,6 +551,10 @@ export async function deleteService(
       await withTimeout(
         (async () => {
           const { platform } = await resolveServicePlatform(project, dep);
+          if (platform.runtime instanceof DockerRuntime) {
+            const detail = await platform.runtime.inspectContainer(containerId).catch(() => null);
+            usedTraefikRouting = detail?.labels["traefik.enable"] === "true";
+          }
           await platform.runtime.destroy(containerId).catch((err: unknown) => {
             console.error(`[SERVICE] Failed to destroy service container ${containerId}:`, err);
           });
@@ -575,16 +599,28 @@ export async function deleteService(
           !project.cloudWorkspaceId && project.activeDeploymentId
             ? await repos.deployment.findById(project.activeDeploymentId)
             : null;
-        await withTimeout(
-          reconcileProjectRoutes(project, {
-            deployment: dep,
-            removes: routes.map((route) => ({
-              hostname: route.hostname,
-              isCustomDomain: route.domainType === "custom",
-            })),
-          }),
-          SERVICE_TEARDOWN_TIMEOUT_MS,
-          `route teardown timed out for ${svc.name}`,
+        if (!usedTraefikRouting) {
+          await withTimeout(
+            reconcileProjectRoutes(project, {
+              deployment: dep,
+              removes: routes.map((route) => ({
+                hostname: route.hostname,
+                isCustomDomain: route.domainType === "custom",
+              })),
+            }),
+            SERVICE_TEARDOWN_TIMEOUT_MS,
+            `route teardown timed out for ${svc.name}`,
+          );
+        }
+        await Promise.all(
+          routes.map((route) =>
+            deleteVibrailDnsRecord(route.hostname).catch((err) => {
+              console.error(
+                `[SERVICE] Failed to remove Cloudflare DNS for ${route.hostname}:`,
+                err,
+              );
+            }),
+          ),
         );
       }
     } catch (err) {
@@ -817,7 +853,8 @@ export async function getActiveServiceContainers(
                   matchedBy: null,
                   duplicates: [],
                 };
-                if (!hint?.containerId) return { ...base, status: "stopped" as ServiceContainerState };
+                if (!hint?.containerId)
+                  return { ...base, status: "stopped" as ServiceContainerState };
                 const info = await runtime.getContainerInfo(hint.containerId).catch(() => null);
                 return {
                   ...base,
@@ -949,7 +986,8 @@ export async function getServiceVolumeSizes(
     partial: parsed.length > 0,
   });
 
-  if (parsed.length === 0) return { measurable: true, volumes: [], totalBytes: null, partial: false };
+  if (parsed.length === 0)
+    return { measurable: true, volumes: [], totalBytes: null, partial: false };
   if (!project.activeDeploymentId) return unmeasured(false);
 
   const dep = await repos.deployment.findById(project.activeDeploymentId);
@@ -1014,20 +1052,36 @@ export async function getServiceVolumeSizes(
     }
   }
 
-  const volumes = await bounded(parsed, VOL_SIZE_CONCURRENCY, async (p): Promise<ServiceVolumeSize> => {
-    const hostPath = p.target ? mountsByDest.get(p.target) : undefined;
-    let bytes: number | null;
-    if (hostPath) {
-      bytes = await duBytes(executor, hostPath);
-    } else if (p.kind === "bind" && p.source) {
-      bytes = await duBytes(executor, p.source);
-    } else if (p.kind === "named" && p.source) {
-      bytes = await namedVolumeBytesByName(executor, project.slug, p.source, !!svc.namespaceVolumes);
-    } else {
-      bytes = null; // anonymous volume with no running container → unknown
-    }
-    return { raw: p.raw, source: p.source, target: p.target, kind: p.kind, readOnly: p.readOnly, bytes };
-  });
+  const volumes = await bounded(
+    parsed,
+    VOL_SIZE_CONCURRENCY,
+    async (p): Promise<ServiceVolumeSize> => {
+      const hostPath = p.target ? mountsByDest.get(p.target) : undefined;
+      let bytes: number | null;
+      if (hostPath) {
+        bytes = await duBytes(executor, hostPath);
+      } else if (p.kind === "bind" && p.source) {
+        bytes = await duBytes(executor, p.source);
+      } else if (p.kind === "named" && p.source) {
+        bytes = await namedVolumeBytesByName(
+          executor,
+          project.slug,
+          p.source,
+          !!svc.namespaceVolumes,
+        );
+      } else {
+        bytes = null; // anonymous volume with no running container → unknown
+      }
+      return {
+        raw: p.raw,
+        source: p.source,
+        target: p.target,
+        kind: p.kind,
+        readOnly: p.readOnly,
+        bytes,
+      };
+    },
+  );
 
   let totalBytes: number | null = null;
   let partial = false;
@@ -1055,11 +1109,7 @@ export async function getServiceVolumeSizes(
  * (it's the only key an adopted container with a foreign name has) — see
  * live-state.ts for the resolution order.
  */
-async function resolveServiceContainer(
-  ctx: RequestContext,
-  projectId: string,
-  serviceId: string,
-) {
+async function resolveServiceContainer(ctx: RequestContext, projectId: string, serviceId: string) {
   const project = await repos.project.findById(projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
   if (!project.activeDeploymentId) throw new Error("No active deployment");
@@ -1148,7 +1198,9 @@ async function provisionServiceContainer(
   const resolved = await resolveServicePlatform(project, dep);
   const runtime = resolved.platform.runtime;
   if (!isMultiServiceRuntime(runtime)) {
-    throw new Error(`The ${runtime.name} runtime cannot run services — enable Docker on this target.`);
+    throw new Error(
+      `The ${runtime.name} runtime cannot run services — enable Docker on this target.`,
+    );
   }
 
   // Surface the per-service provisioning trace (and any Oblien failure reason)
@@ -1222,11 +1274,7 @@ export async function stopServiceContainer(
   projectId: string,
   serviceId: string,
 ) {
-  const { runtime, containerId, row } = await resolveServiceContainer(
-    ctx,
-    projectId,
-    serviceId,
-  );
+  const { runtime, containerId, row } = await resolveServiceContainer(ctx, projectId, serviceId);
   try {
     await runtime.stop(containerId);
     // Deploy-history bookkeeping only — the panel reads state from the host.
@@ -1244,11 +1292,7 @@ export async function restartServiceContainer(
   projectId: string,
   serviceId: string,
 ) {
-  const { runtime, containerId, row } = await resolveServiceContainer(
-    ctx,
-    projectId,
-    serviceId,
-  );
+  const { runtime, containerId, row } = await resolveServiceContainer(ctx, projectId, serviceId);
   try {
     await runtime.restart(containerId);
     if (row) {
@@ -1266,11 +1310,7 @@ export async function getServiceRuntimeLogs(
   serviceId: string,
   tail?: number,
 ) {
-  const { runtime, containerId } = await resolveServiceContainer(
-    ctx,
-    projectId,
-    serviceId,
-  );
+  const { runtime, containerId } = await resolveServiceContainer(ctx, projectId, serviceId);
   try {
     return await runtime.getRuntimeLogs(containerId, tail);
   } finally {

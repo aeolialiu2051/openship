@@ -84,6 +84,8 @@ import type {
   DockerPortBinding,
   DockerVolumeInfo,
   DockerNetworkInfo,
+  TraefikManualConfig,
+  ResolvedTraefikEdge,
 } from "./types";
 import { BuildLogger, parseLogLevel, sq, assembleGitClone } from "./build-pipeline";
 import { materializeGitSsh, shellGitSshWriter, type GitSshMaterial } from "./git-ssh-material";
@@ -104,6 +106,17 @@ import {
   resolveDockerTransport,
 } from "./docker-transport";
 import { resolveRemoteDockerSocketPath } from "./docker-ssh-agent";
+import {
+  VIBRAIL_EDGE_CERT_RESOLVER,
+  VIBRAIL_EDGE_CONTAINER,
+  VIBRAIL_EDGE_ENTRYPOINT,
+  VIBRAIL_EDGE_IMAGE,
+  VIBRAIL_EDGE_MANAGED_LABEL,
+  VIBRAIL_EDGE_NETWORK,
+  buildTraefikLabels,
+  isTraefikContainer,
+  resolveExistingTraefik,
+} from "./traefik-edge";
 
 // ─── Connection config ───────────────────────────────────────────────────────
 export type { DockerConnectionOptions } from "./docker-transport";
@@ -537,6 +550,7 @@ export class DockerRuntime implements RuntimeAdapter {
   readonly transport: DockerTransport;
   private readonly systemManager: DockerSystemManager | null;
   private readonly provisionLock?: ProvisionLock;
+  private traefikEdgePromise?: Promise<ResolvedTraefikEdge>;
   private disposed = false;
 
   private constructor(
@@ -720,6 +734,202 @@ export class DockerRuntime implements RuntimeAdapter {
     if (config.deploymentId) l["openship.deployment"] = config.deploymentId;
     if (config.sessionId) l["openship.build"] = config.sessionId;
     return l;
+  }
+
+  /**
+   * Resolve one shared Traefik edge for this Docker host.
+   *
+   * Existing user Traefik is strictly read-only: Vibrail only reuses it when
+   * Docker-provider/network/HTTPS entrypoint settings are unambiguous (or the
+   * operator supplied the missing values). Otherwise deployment stops with an
+   * actionable error. When no Traefik exists, Vibrail creates its own
+   * `vibrail-edge` network/container exactly once.
+   */
+  async ensureSharedTraefik(manual: TraefikManualConfig = {}): Promise<ResolvedTraefikEdge> {
+    if (this.traefikEdgePromise) return this.traefikEdgePromise;
+    const run = async (): Promise<ResolvedTraefikEdge> => {
+      const summaries = await this.listAllContainers();
+      const details = (
+        await Promise.all(
+          summaries.map((container) => this.inspectContainer(container.id).catch(() => null)),
+        )
+      ).filter((container): container is NonNullable<typeof container> => !!container);
+
+      const owned = details.find((container) => container.name === VIBRAIL_EDGE_CONTAINER);
+      if (owned && !isTraefikContainer(owned)) {
+        throw new Error(
+          `A non-Traefik container already uses the reserved name "${VIBRAIL_EDGE_CONTAINER}". ` +
+            "Vibrail did not replace or remove it.",
+        );
+      }
+      if (owned) {
+        const vibrailManaged = owned.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true";
+        if (!vibrailManaged) {
+          if (owned.state !== "running") {
+            throw new Error(
+              `A stopped user-managed Traefik container uses the reserved name "${VIBRAIL_EDGE_CONTAINER}". ` +
+                "Vibrail did not start, replace or modify it. Start it yourself or rename it, then retry.",
+            );
+          }
+          return resolveExistingTraefik(owned, manual);
+        }
+        if (owned.state !== "running") await this.start(owned.id);
+        const refreshed = (await this.inspectContainer(owned.id)) ?? owned;
+        return resolveExistingTraefik(refreshed, manual);
+      }
+
+      const existing = details.filter(
+        (container) => container.state === "running" && isTraefikContainer(container),
+      );
+      let selected = existing[0];
+      if (existing.length > 1) {
+        const matchingNetwork = manual.network
+          ? existing.filter((container) => container.networks.includes(manual.network!))
+          : [];
+        if (matchingNetwork.length === 1) selected = matchingNetwork[0];
+        else {
+          throw new Error(
+            `Multiple running Traefik containers were detected (${existing.map((c) => c.name).join(", ")}). ` +
+              "Set this server's traefikNetwork and traefikEntrypoint so Vibrail can safely select one; no proxy was modified.",
+          );
+        }
+      }
+      if (selected) return resolveExistingTraefik(selected, manual);
+
+      const portOwners = summaries.filter(
+        (container) =>
+          container.state === "running" &&
+          container.ports.some((port) => port.publicPort === 80 || port.publicPort === 443),
+      );
+      if (portOwners.length > 0) {
+        throw new Error(
+          `Ports 80/443 are already published by ${portOwners.map((c) => c.names[0] || c.id.slice(0, 12)).join(", ")}. ` +
+            "Vibrail will not take over the existing reverse proxy. If it is Traefik, provide its network, HTTPS entrypoint and TLS settings manually.",
+        );
+      }
+
+      const networkId = await this.ensureNamedNetwork(VIBRAIL_EDGE_NETWORK, {
+        [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
+      });
+      const args = [
+        "--api.dashboard=false",
+        "--providers.docker=true",
+        "--providers.docker.exposedbydefault=false",
+        `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
+        "--entrypoints.web.address=:80",
+        `--entrypoints.web.http.redirections.entrypoint.to=${VIBRAIL_EDGE_ENTRYPOINT}`,
+        "--entrypoints.web.http.redirections.entrypoint.scheme=https",
+        `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
+        `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.http.tls.certresolver=${VIBRAIL_EDGE_CERT_RESOLVER}`,
+        `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.storage=/letsencrypt/acme.json`,
+        `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.httpchallenge.entrypoint=web`,
+      ];
+
+      await this.pullImage(VIBRAIL_EDGE_IMAGE).catch((error) => {
+        throw new Error(`Could not pull ${VIBRAIL_EDGE_IMAGE}: ${safeErrorMessage(error)}`);
+      });
+
+      let containerId: string;
+      if (this.usesRemoteDockerCli()) {
+        const socketPath = await resolveRemoteDockerSocketPath(this.connectionOptions!);
+        const command = [
+          "run -d",
+          `--name ${sq(VIBRAIL_EDGE_CONTAINER)}`,
+          `--network ${sq(VIBRAIL_EDGE_NETWORK)}`,
+          `--label ${sq(`${VIBRAIL_EDGE_MANAGED_LABEL}=true`)}`,
+          `--publish ${sq("80:80")}`,
+          `--publish ${sq("443:443")}`,
+          `--volume ${sq(`${socketPath}:/var/run/docker.sock:ro`)}`,
+          `--volume ${sq("vibrail-edge-acme:/letsencrypt")}`,
+          `--restart ${sq("unless-stopped")}`,
+          sq(VIBRAIL_EDGE_IMAGE),
+          ...args.map(sq),
+        ].join(" ");
+        try {
+          containerId = await this.remoteDockerExec(command, { timeout: 2 * 60_000 });
+        } catch (error) {
+          throw new Error(
+            `Could not create the shared Vibrail Traefik edge without taking over ports 80/443: ${safeErrorMessage(error)}`,
+          );
+        }
+      } else {
+        let container: Dockerode.Container;
+        try {
+          container = await this.docker.createContainer({
+            name: VIBRAIL_EDGE_CONTAINER,
+            Image: VIBRAIL_EDGE_IMAGE,
+            Cmd: args,
+            Labels: { [VIBRAIL_EDGE_MANAGED_LABEL]: "true" },
+            ExposedPorts: { "80/tcp": {}, "443/tcp": {} },
+            HostConfig: {
+              RestartPolicy: { Name: "unless-stopped" },
+              Binds: [
+                "/var/run/docker.sock:/var/run/docker.sock:ro",
+                "vibrail-edge-acme:/letsencrypt",
+              ],
+              NetworkMode: networkId,
+              PortBindings: {
+                "80/tcp": [{ HostIp: "0.0.0.0", HostPort: "80" }],
+                "443/tcp": [{ HostIp: "0.0.0.0", HostPort: "443" }],
+              },
+            },
+            NetworkingConfig: { EndpointsConfig: { [networkId]: {} } },
+          });
+          await container.start();
+          containerId = container.id;
+        } catch (error) {
+          throw new Error(
+            `Could not create the shared Vibrail Traefik edge without taking over ports 80/443: ${safeErrorMessage(error)}`,
+          );
+        }
+      }
+
+      return {
+        network: VIBRAIL_EDGE_NETWORK,
+        entrypoint: VIBRAIL_EDGE_ENTRYPOINT,
+        tls: true,
+        certResolver: VIBRAIL_EDGE_CERT_RESOLVER,
+        source: "vibrail",
+        containerId: containerId.trim(),
+      };
+    };
+
+    this.traefikEdgePromise = this.provisionLock ? this.provisionLock.run(run) : run();
+    try {
+      return await this.traefikEdgePromise;
+    } catch (error) {
+      this.traefikEdgePromise = undefined;
+      throw error;
+    }
+  }
+
+  private async ensureNamedNetwork(name: string, labels: Record<string, string>): Promise<string> {
+    if (this.usesRemoteDockerCli()) {
+      try {
+        return await this.remoteDockerExec(
+          `network inspect --format ${sq("{{.Id}}")}` + ` ${sq(name)}`,
+          { timeout: SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS },
+        );
+      } catch (error) {
+        if (!/no such network|not found/i.test(safeErrorMessage(error))) throw error;
+      }
+      const labelArgs = Object.entries(labels)
+        .map(([key, value]) => `--label ${sq(`${key}=${value}`)}`)
+        .join(" ");
+      return this.remoteDockerExec(`network create --driver bridge ${labelArgs} ${sq(name)}`, {
+        timeout: SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS,
+      });
+    }
+
+    const networks = await this.docker.listNetworks({ filters: { name: [name] } });
+    const existing = networks.find((network) => network.Name === name);
+    if (existing) return existing.Id;
+    const created = await this.docker.createNetwork({
+      Name: name,
+      Driver: "bridge",
+      Labels: labels,
+    });
+    return created.id;
   }
 
   /**
@@ -1101,7 +1311,11 @@ export class DockerRuntime implements RuntimeAdapter {
     }
 
     // Centralized clone assembly (token / relay / ssh / ambient) — see git-clone.ts.
-    const { cloneUrl, gitEnv: GIT_ENV, credFlag: CRED } = assembleGitClone({
+    const {
+      cloneUrl,
+      gitEnv: GIT_ENV,
+      credFlag: CRED,
+    } = assembleGitClone({
       repoUrl: config.repoUrl,
       gitToken: config.gitToken,
       gitCredentialHelperPath: config.gitCredentialHelperPath,
@@ -1506,8 +1720,7 @@ export class DockerRuntime implements RuntimeAdapter {
     const extractStart = Date.now();
     const DOC_ROOT = "/usr/share/nginx/html";
     try {
-      const sshExecutor =
-        this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
+      const sshExecutor = this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
       log.log("Extracting static files from the build sandbox...\n");
 
       if (sshExecutor) {
@@ -1520,7 +1733,9 @@ export class DockerRuntime implements RuntimeAdapter {
           await sshExecutor.exec(`mkdir -p ${sq(hostOutDir)}`);
           await sshExecutor.exec(`docker cp ${sq(`${cid}:${DOC_ROOT}/.`)} ${sq(hostOutDir)}`);
         } finally {
-          await sshExecutor.exec(`docker rm ${sq(cid)}`).catch(() => { /* best effort */ });
+          await sshExecutor.exec(`docker rm ${sq(cid)}`).catch(() => {
+            /* best effort */
+          });
         }
       } else {
         // Local socket / TCP: pull the tar via dockerode (portable across a
@@ -1544,11 +1759,15 @@ export class DockerRuntime implements RuntimeAdapter {
             extract.on("close", (code) =>
               code === 0
                 ? resolve()
-                : reject(new Error(`static extract failed (tar ${code}): ${errBuf.trim().slice(-500)}`)),
+                : reject(
+                    new Error(`static extract failed (tar ${code}): ${errBuf.trim().slice(-500)}`),
+                  ),
             );
           });
         } finally {
-          await container.remove({ force: true }).catch(() => { /* best effort */ });
+          await container.remove({ force: true }).catch(() => {
+            /* best effort */
+          });
         }
       }
 
@@ -1571,7 +1790,9 @@ export class DockerRuntime implements RuntimeAdapter {
     } finally {
       // The files now live on the host dir; the transient nginx image is dead
       // weight. Best-effort cleanup (a lingering image is harmless).
-      await this.removeImage(tag).catch(() => { /* best effort */ });
+      await this.removeImage(tag).catch(() => {
+        /* best effort */
+      });
     }
   }
 
@@ -1826,16 +2047,26 @@ export class DockerRuntime implements RuntimeAdapter {
       level: "info",
     });
 
+    const traefikLabels = config.traefik ? buildTraefikLabels(config.traefik) : {};
+    const exposedPorts = Object.fromEntries(
+      (config.traefik?.routes.map((route) => route.port) ?? [config.port]).map((port) => [
+        `${port}/tcp`,
+        {},
+      ]),
+    );
     const container = await this.docker.createContainer({
       name: containerName,
       Image: imageRef,
       Cmd: cmd,
       Env: env,
-      Labels: this.labels({
-        deploymentId: config.deploymentId,
-        projectId: config.projectId,
-      }),
-      ExposedPorts: { [`${config.port}/tcp`]: {} },
+      Labels: {
+        ...this.labels({
+          deploymentId: config.deploymentId,
+          projectId: config.projectId,
+        }),
+        ...traefikLabels,
+      },
+      ExposedPorts: exposedPorts,
       HostConfig: {
         RestartPolicy: restartPolicy,
         Memory: config.resources.memoryMb * 1024 * 1024,
@@ -1846,12 +2077,26 @@ export class DockerRuntime implements RuntimeAdapter {
         // app directly, bypassing the edge's SSL/rate-limit/rules (and Docker's
         // iptables bypass ufw). A pinned `config.hostPort` (loopback-port route
         // strategy) is stable across redeploys; otherwise a random loopback port.
-        PortBindings: {
-          [`${config.port}/tcp`]: [
-            { HostIp: "127.0.0.1", HostPort: config.hostPort ? String(config.hostPort) : "" },
-          ],
-        },
+        ...(config.traefik
+          ? { NetworkMode: config.traefik.network }
+          : {
+              PortBindings: {
+                [`${config.port}/tcp`]: [
+                  {
+                    HostIp: "127.0.0.1",
+                    HostPort: config.hostPort ? String(config.hostPort) : "",
+                  },
+                ],
+              },
+            }),
       },
+      ...(config.traefik
+        ? {
+            NetworkingConfig: {
+              EndpointsConfig: { [config.traefik.network]: {} },
+            },
+          }
+        : {}),
     });
 
     await container.start();
@@ -1924,10 +2169,14 @@ export class DockerRuntime implements RuntimeAdapter {
     if (containerId.startsWith("/")) {
       const executor = this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
       if (executor) {
-        await executor.exec(`rm -rf ${sq(containerId)}`).catch(() => { /* best effort */ });
+        await executor.exec(`rm -rf ${sq(containerId)}`).catch(() => {
+          /* best effort */
+        });
       } else {
         const { rm } = await import("node:fs/promises");
-        await rm(containerId, { recursive: true, force: true }).catch(() => { /* best effort */ });
+        await rm(containerId, { recursive: true, force: true }).catch(() => {
+          /* best effort */
+        });
       }
       return;
     }
@@ -1981,7 +2230,9 @@ export class DockerRuntime implements RuntimeAdapter {
    */
   async listProjectImages(
     projectId: string,
-  ): Promise<Array<{ id: string; repoTags: string[]; buildId?: string; deploymentId?: string; size: number }>> {
+  ): Promise<
+    Array<{ id: string; repoTags: string[]; buildId?: string; deploymentId?: string; size: number }>
+  > {
     const images = await this.docker.listImages({
       filters: { label: [`openship.project=${projectId}`] },
     });
@@ -2480,7 +2731,8 @@ export class DockerRuntime implements RuntimeAdapter {
     const executor = this.transport.kind === "ssh" ? this.connectionOptions?.executor : null;
     if (executor?.execWithInput) {
       const { code, stderr, stdout } = await executor.execWithInput(`docker load`, body);
-      if (code !== 0) throw new Error(`docker load exited ${code}${stderr ? `: ${stderr.slice(0, 500)}` : ""}`);
+      if (code !== 0)
+        throw new Error(`docker load exited ${code}${stderr ? `: ${stderr.slice(0, 500)}` : ""}`);
       return parseLoadedImageRef(stdout);
     }
     const stream = await this.docker.loadImage(body);
@@ -2511,7 +2763,9 @@ export class DockerRuntime implements RuntimeAdapter {
       return;
     }
     // dockerode tag wants repo + optional tag split.
-    const [repo, tag] = target.includes(":") ? [target.slice(0, target.lastIndexOf(":")), target.slice(target.lastIndexOf(":") + 1)] : [target, undefined];
+    const [repo, tag] = target.includes(":")
+      ? [target.slice(0, target.lastIndexOf(":")), target.slice(target.lastIndexOf(":") + 1)]
+      : [target, undefined];
     await this.docker.getImage(source).tag({ repo, ...(tag ? { tag } : {}) });
   }
 
@@ -3384,9 +3638,7 @@ export class DockerRuntime implements RuntimeAdapter {
         } catch (err) {
           const msg = (err as { message?: string })?.message ?? "";
           if (!/already exists|already connected/i.test(msg)) {
-            console.warn(
-              `[docker] link-connect failed for ${c.Id.slice(0, 12)} → ${name}: ${msg}`,
-            );
+            console.warn(`[docker] link-connect failed for ${c.Id.slice(0, 12)} → ${name}: ${msg}`);
           }
         }
       }
@@ -3447,7 +3699,10 @@ export class DockerRuntime implements RuntimeAdapter {
     ];
 
     // Port bindings
-    const { exposedPorts, portBindings } = parsePortBindings(config.ports);
+    const { exposedPorts, portBindings } = parsePortBindings(config.traefik ? [] : config.ports);
+    if (config.traefik) {
+      for (const route of config.traefik.routes) exposedPorts[`${route.port}/tcp`] = {};
+    }
 
     // Project-scope NAMED volumes (openship-<slug>-<name>) so two projects can
     // never share one docker volume; bind mounts / anonymous volumes pass
@@ -3560,6 +3815,7 @@ export class DockerRuntime implements RuntimeAdapter {
           projectId: config.projectId,
         }),
         "openship.service": config.serviceName,
+        ...(config.traefik ? buildTraefikLabels(config.traefik) : {}),
       };
       const args: string[] = [
         "run",
@@ -3591,7 +3847,11 @@ export class DockerRuntime implements RuntimeAdapter {
       } else {
         for (const value of env) args.push("--env", sq(value));
       }
-      for (const port of config.ports) args.push("--publish", sq(port));
+      if (config.traefik) {
+        for (const route of config.traefik.routes) args.push("--expose", sq(String(route.port)));
+      } else {
+        for (const port of config.ports) args.push("--publish", sq(port));
+      }
       for (const bind of scopedBinds) args.push("--volume", sq(bind));
 
       const restart = config.restart?.trim() || "unless-stopped";
@@ -3626,6 +3886,11 @@ export class DockerRuntime implements RuntimeAdapter {
         let containerId: string;
         try {
           containerId = await this.remoteDockerExec(args.join(" "), { timeout: 2 * 60_000 });
+          if (config.traefik && config.traefik.network !== group.id) {
+            await this.remoteDockerExec(
+              `network connect ${sq(config.traefik.network)} ${sq(containerId)}`,
+            );
+          }
         } catch (error) {
           await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
           throw error;
@@ -3665,6 +3930,7 @@ export class DockerRuntime implements RuntimeAdapter {
           projectId: config.projectId,
         }),
         "openship.service": config.serviceName,
+        ...(config.traefik ? buildTraefikLabels(config.traefik) : {}),
       },
       ...(healthcheck && { Healthcheck: healthcheck }),
       ExposedPorts: exposedPorts,
@@ -3691,6 +3957,9 @@ export class DockerRuntime implements RuntimeAdapter {
 
     try {
       await container.start();
+      if (config.traefik && config.traefik.network !== group.id) {
+        await this.docker.getNetwork(config.traefik.network).connect({ Container: container.id });
+      }
     } catch (startErr) {
       // Clean up the created container so it doesn't become orphaned
       try {

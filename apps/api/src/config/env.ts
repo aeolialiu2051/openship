@@ -133,8 +133,8 @@ const envSchema = z.object({
   CLOUD_MAX_PROJECTS_PER_USER: z.coerce.number().int().min(1).default(2),
   /**
    * Deployment mode - determines the runtime + infrastructure combination:
-    *   - "docker"  (default) → Docker runtime + OpenResty routing/SSL (self-hosted)
-    *   - "bare"              → Process runtime + OpenResty routing/SSL (self-hosted)
+   *   - "docker"  (default) → Docker runtime + OpenResty routing/SSL (self-hosted)
+   *   - "bare"              → Process runtime + OpenResty routing/SSL (self-hosted)
    *   - "cloud"             → Oblien cloud API for everything (auto-set when CLOUD_MODE=true)
    *   - "desktop"           → Bare runtime, no routing/SSL (desktop app)
    */
@@ -168,9 +168,7 @@ const envSchema = z.object({
    *                        Higher security, may break legit users that
    *                        change network/device.
    */
-  CLOUD_SESSION_PINNING: z
-    .enum(["off", "warn", "strict"])
-    .default("warn"),
+  CLOUD_SESSION_PINNING: z.enum(["off", "warn", "strict"]).default("warn"),
 
   /* ---------- OAuth Providers ---------- */
   GITHUB_CLIENT_ID: z.string().optional(),
@@ -243,7 +241,12 @@ const envSchema = z.object({
    * SSL is NOT auto-provisioned for these - only for custom domains.
    */
   HOST_DOMAIN: z.string().optional(),
-
+  /** Managed Vibrail zone. It becomes the routing base when Cloudflare DNS is configured. */
+  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrail.warpgateapi.com"),
+  /** Backend-only Cloudflare credentials; never injected into deployed workloads. */
+  VIBRAIL_CLOUDFLARE_API_TOKEN: z.string().optional(),
+  VIBRAIL_CLOUDFLARE_ZONE_ID: z.string().optional(),
+  VIBRAIL_CLOUDFLARE_PROXY: envBool("true"),
   /* ---------- Oblien Cloud ---------- */
   OBLIEN_CLIENT_ID: z.string().optional(),
   OBLIEN_CLIENT_SECRET: z.string().optional(),
@@ -323,7 +326,11 @@ const envSchema = z.object({
    * regardless of activity. Defaults to 1 hour. Limits long-lived
    * sessions from accumulating across operator forgetting to close tabs.
    */
-  TERMINAL_HARD_CAP_MS: z.coerce.number().int().min(60_000).default(60 * 60_000),
+  TERMINAL_HARD_CAP_MS: z.coerce
+    .number()
+    .int()
+    .min(60_000)
+    .default(60 * 60_000),
   /**
    * Maximum concurrent terminal sessions per user across all servers.
    * Enforced at handshake against the audit table (rows with endedAt IS
@@ -393,10 +400,7 @@ export const REDIS_REQUIRED =
 // Safety guard — never boot on a deployable target with the placeholder
 // auth secret. `local` is allowed because that's pure-dev / desktop.
 // The secret is a real secret in every saas-shaped deployment.
-if (
-  runtimeTargetId !== "local" &&
-  env.BETTER_AUTH_SECRET === DEFAULT_BETTER_AUTH_SECRET
-) {
+if (runtimeTargetId !== "local" && env.BETTER_AUTH_SECRET === DEFAULT_BETTER_AUTH_SECRET) {
   throw new Error(
     `BETTER_AUTH_SECRET must be set to a secure value when OPENSHIP_TARGET="${runtimeTargetId}".`,
   );
@@ -438,11 +442,7 @@ if (env.CLOUD_MODE && (env.GITHUB_AUTH_MODE === "cli" || env.GITHUB_AUTH_MODE ==
 // unless the flag is true (desktop is exempt — zero-auth is default
 // there). Logging here surfaces the misconfiguration in the boot
 // banner so the operator sees it.
-if (
-  env.DEPLOY_MODE !== "desktop" &&
-  !env.OPENSHIP_ALLOW_ZERO_AUTH &&
-  env.NODE_ENV !== "test"
-) {
+if (env.DEPLOY_MODE !== "desktop" && !env.OPENSHIP_ALLOW_ZERO_AUTH && env.NODE_ENV !== "test") {
   console.log(
     `[env] OPENSHIP_ALLOW_ZERO_AUTH=false (default) — zero-auth fallback disabled on this non-desktop instance.`,
   );
@@ -504,9 +504,7 @@ if (env.OPENSHIP_ADVERTISED_ORIGIN) {
 function validateCookieDomain(raw: string): void {
   const value = raw.trim();
   if (!value.startsWith(".")) {
-    throw new Error(
-      `BETTER_AUTH_COOKIE_DOMAIN must start with "." (got "${raw}").`,
-    );
+    throw new Error(`BETTER_AUTH_COOKIE_DOMAIN must start with "." (got "${raw}").`);
   }
   const labels = value.slice(1).split(".").filter(Boolean);
   if (labels.length < 2) {
@@ -564,8 +562,8 @@ if (!env.CLOUD_MODE) {
   if (stale.length > 0) {
     console.warn(
       `[env] Self-hosted instances no longer use local GitHub App credentials. ` +
-      `These env vars are ignored: ${stale.join(", ")}. ` +
-      `Connect to Openship Cloud in Settings to enable App-scoped GitHub access.`,
+        `These env vars are ignored: ${stale.join(", ")}. ` +
+        `Connect to Openship Cloud in Settings to enable App-scoped GitHub access.`,
     );
   }
 }
@@ -589,9 +587,7 @@ export const trustedOrigins = [
     // and Better Auth's login CSRF check — otherwise remote login is rejected.
     ...(env.OPENSHIP_PUBLIC_URL ? [env.OPENSHIP_PUBLIC_URL.replace(/\/+$/, "")] : []),
     ...extraTrustedOrigins,
-    ...(env.NODE_ENV === "production"
-      ? []
-      : [LOCAL_WEB_URL, ...dashboardRuntimeOrigins]),
+    ...(env.NODE_ENV === "production" ? [] : [LOCAL_WEB_URL, ...dashboardRuntimeOrigins]),
   ]),
 ];
 

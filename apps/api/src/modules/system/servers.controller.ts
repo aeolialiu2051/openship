@@ -87,6 +87,10 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
     hasInlineSshKey: isInlinePrivateKey(s.sshKeyPath),
     sshJumpHost: s.sshJumpHost,
     sshArgs: s.sshArgs,
+    traefikNetwork: s.traefikNetwork,
+    traefikEntrypoint: s.traefikEntrypoint,
+    traefikTls: s.traefikTls,
+    traefikCertResolver: s.traefikCertResolver,
     createdAt: s.createdAt,
     // ISO country for the row's flag; null for hostnames/private IPs or until
     // the geo DB is warmed (callers prime it via primeGeo before serializing).
@@ -96,7 +100,8 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
 
 /** GET /servers - list servers in the caller's active organization. */
 export async function listServers(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   // Org-scoped: only the caller's org's servers.
   const ctx = getRequestContext(c);
@@ -105,17 +110,24 @@ export async function listServers(c: Context) {
   // Projects currently deployed to each server (active deployment → meta.serverId).
   const projectCounts = await repos.project
     .countActiveByServer(ctx.organizationId)
-    .catch(() => ({} as Record<string, number>));
-  return c.json(all.map((s) => ({ ...serializeServer(s), projectCount: projectCounts[s.id] ?? 0 })));
+    .catch(() => ({}) as Record<string, number>);
+  return c.json(
+    all.map((s) => ({ ...serializeServer(s), projectCount: projectCounts[s.id] ?? 0 })),
+  );
 }
 
 /** GET /servers/:id - get a single server. */
 export async function getServer(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver (404 on deny, IDOR-safe).
-  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "server",
+    resourceId: id,
+    action: "read",
+  });
   // Org-scoped: out-of-org server ids 404 indistinguishably from missing.
   const ctx = getRequestContext(c);
   const server = await repos.server.getInOrganization(id, ctx.organizationId);
@@ -132,10 +144,15 @@ export async function getServer(c: Context) {
  * host or transient failure is just `{ reachable: false }`.
  */
 export async function probeReachability(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
-  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "server",
+    resourceId: id,
+    action: "read",
+  });
   const ctx = getRequestContext(c);
   const server = await repos.server.getInOrganization(id, ctx.organizationId);
   if (!server) return c.json({ error: "Server not found" }, 404);
@@ -146,7 +163,8 @@ export async function probeReachability(c: Context) {
 
 /** POST /servers - create a new server */
 export async function createServer(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   const body = await c.req.json();
 
@@ -159,11 +177,7 @@ export async function createServer(c: Context) {
   const ctx = getRequestContext(c);
   const port = body.sshPort ?? 22;
 
-  const duplicate = await repos.server.findByEndpointInOrganization(
-    ctx.organizationId,
-    host,
-    port,
-  );
+  const duplicate = await repos.server.findByEndpointInOrganization(ctx.organizationId, host, port);
   if (duplicate) return duplicateServerFailure(c, host, port);
 
   // Saving a server is the binding boundary. Do not persist credentials that
@@ -201,6 +215,10 @@ export async function createServer(c: Context) {
     sshKeyPassphrase: encryptSecretField(body.sshKeyPassphrase),
     sshJumpHost: body.sshJumpHost?.trim() || null,
     sshArgs: body.sshArgs?.trim() || null,
+    traefikNetwork: body.traefikNetwork?.trim() || null,
+    traefikEntrypoint: body.traefikEntrypoint?.trim() || null,
+    traefikTls: typeof body.traefikTls === "boolean" ? body.traefikTls : null,
+    traefikCertResolver: body.traefikCertResolver?.trim() || null,
   });
 
   sshManager.invalidate(server.id);
@@ -227,11 +245,16 @@ export async function createServer(c: Context) {
 
 /** PATCH /servers/:id - update a server */
 export async function updateServer(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: permission resolver. Updating server config is a write.
-  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "server",
+    resourceId: id,
+    action: "write",
+  });
   // Org-scoped: refuse to update a server outside the caller's org.
   const ctx = getRequestContext(c);
   const existing = await repos.server.getInOrganization(id, ctx.organizationId);
@@ -251,15 +274,21 @@ export async function updateServer(c: Context) {
   // Sensitive fields are encrypted at rest; see lib/credential-encryption.
   if (body.sshPassword !== undefined) patch.sshPassword = encryptSecretField(body.sshPassword);
   if (body.sshPrivateKey !== undefined) {
-    patch.sshKeyPath = body.sshPrivateKey
-      ? encodeInlinePrivateKey(body.sshPrivateKey)
-      : null;
+    patch.sshKeyPath = body.sshPrivateKey ? encodeInlinePrivateKey(body.sshPrivateKey) : null;
   } else if (body.sshKeyPath !== undefined) {
     patch.sshKeyPath = body.sshKeyPath || null;
   }
-  if (body.sshKeyPassphrase !== undefined) patch.sshKeyPassphrase = encryptSecretField(body.sshKeyPassphrase);
+  if (body.sshKeyPassphrase !== undefined)
+    patch.sshKeyPassphrase = encryptSecretField(body.sshKeyPassphrase);
   if (body.sshJumpHost !== undefined) patch.sshJumpHost = body.sshJumpHost?.trim() || null;
   if (body.sshArgs !== undefined) patch.sshArgs = body.sshArgs?.trim() || null;
+  if (body.traefikNetwork !== undefined) patch.traefikNetwork = body.traefikNetwork?.trim() || null;
+  if (body.traefikEntrypoint !== undefined)
+    patch.traefikEntrypoint = body.traefikEntrypoint?.trim() || null;
+  if (body.traefikTls !== undefined)
+    patch.traefikTls = typeof body.traefikTls === "boolean" ? body.traefikTls : null;
+  if (body.traefikCertResolver !== undefined)
+    patch.traefikCertResolver = body.traefikCertResolver?.trim() || null;
 
   if (Object.keys(patch).length === 0) {
     return c.json({ error: "No fields to update" }, 400);
@@ -287,16 +316,17 @@ export async function updateServer(c: Context) {
       sshUser: body.sshUser?.trim() || existing.sshUser,
       sshAuthMethod: body.sshAuthMethod ?? existing.sshAuthMethod,
       sshPassword: body.sshPassword !== undefined ? body.sshPassword : existing.sshPassword,
-      sshKeyPath: body.sshPrivateKey !== undefined
-        ? null
-        : body.sshKeyPath !== undefined
-          ? body.sshKeyPath
-          : existing.sshKeyPath,
+      sshKeyPath:
+        body.sshPrivateKey !== undefined
+          ? null
+          : body.sshKeyPath !== undefined
+            ? body.sshKeyPath
+            : existing.sshKeyPath,
       sshPrivateKey: body.sshPrivateKey || null,
-      sshKeyPassphrase: body.sshKeyPassphrase !== undefined
-        ? body.sshKeyPassphrase
-        : existing.sshKeyPassphrase,
-      sshJumpHost: body.sshJumpHost !== undefined ? body.sshJumpHost?.trim() || null : existing.sshJumpHost,
+      sshKeyPassphrase:
+        body.sshKeyPassphrase !== undefined ? body.sshKeyPassphrase : existing.sshKeyPassphrase,
+      sshJumpHost:
+        body.sshJumpHost !== undefined ? body.sshJumpHost?.trim() || null : existing.sshJumpHost,
       sshArgs: body.sshArgs !== undefined ? body.sshArgs?.trim() || null : existing.sshArgs,
     });
     if (!access.ok) return managementAccessFailure(c, access);
@@ -317,6 +347,13 @@ export async function updateServer(c: Context) {
   if (body.sshPrivateKey !== undefined) auditAfter.sshPrivateKeyChanged = true;
   if (body.sshJumpHost !== undefined) auditAfter.sshJumpHost = updated?.sshJumpHost ?? null;
   if (body.sshArgs !== undefined) auditAfter.sshArgs = updated?.sshArgs ?? null;
+  if (body.traefikNetwork !== undefined)
+    auditAfter.traefikNetwork = updated?.traefikNetwork ?? null;
+  if (body.traefikEntrypoint !== undefined)
+    auditAfter.traefikEntrypoint = updated?.traefikEntrypoint ?? null;
+  if (body.traefikTls !== undefined) auditAfter.traefikTls = updated?.traefikTls ?? null;
+  if (body.traefikCertResolver !== undefined)
+    auditAfter.traefikCertResolver = updated?.traefikCertResolver ?? null;
   // Sentinels for credential rotation (no values).
   if (body.sshPassword !== undefined) auditAfter.sshPasswordChanged = true;
   if (body.sshKeyPassphrase !== undefined) auditAfter.sshKeyPassphraseChanged = true;
@@ -333,11 +370,16 @@ export async function updateServer(c: Context) {
 
 /** DELETE /servers/:id - delete a server */
 export async function deleteServer(c: Context) {
-  const cloudGuard = assertUserServersEnabled(c); if (cloudGuard) return cloudGuard;
+  const cloudGuard = assertUserServersEnabled(c);
+  if (cloudGuard) return cloudGuard;
 
   const id = c.req.param("id")!;
   // Primary gate: deleting a server is admin-tier (destructive).
-  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "server",
+    resourceId: id,
+    action: "admin",
+  });
   // Org-scoped: refuse to delete a server outside the caller's org.
   const ctx = getRequestContext(c);
   const existing = await repos.server.getInOrganization(id, ctx.organizationId);
@@ -354,9 +396,7 @@ export async function deleteServer(c: Context) {
   // id need cleanup too since they share the server's id.
   await repos.resourceGrant
     .deleteForResource(ctx.organizationId, "server", id)
-    .catch((err: unknown) =>
-      console.error("[server.delete] grant cleanup failed:", err),
-    );
+    .catch((err: unknown) => console.error("[server.delete] grant cleanup failed:", err));
   await repos.resourceGrant
     .deleteForResource(ctx.organizationId, "mail_server", id)
     .catch((err: unknown) =>

@@ -1,6 +1,12 @@
 import { repos, type Domain, type Project, type Service } from "@repo/db";
 import type { RoutedDomainInput, SslProvider, SslResult } from "@repo/adapters";
-import { SYSTEM, ConflictError, resolveServiceHostnameLabel, normalizeCustomHostname, appendProjectRouteKey } from "@repo/core";
+import {
+  SYSTEM,
+  ConflictError,
+  resolveServiceHostnameLabel,
+  normalizeCustomHostname,
+  appendProjectRouteKey,
+} from "@repo/core";
 import { env } from "../config/env";
 import { serviceKind } from "./deployable-service";
 import { resolveServicePublicEndpoints } from "./public-endpoints";
@@ -23,7 +29,11 @@ export interface PlannedRouteDomain {
 }
 
 export function getRoutingBaseDomain(): string {
-  return env.HOST_DOMAIN || SYSTEM.DOMAINS.CLOUD_DOMAIN;
+  if (env.HOST_DOMAIN) return env.HOST_DOMAIN;
+  if (env.VIBRAIL_CLOUDFLARE_API_TOKEN && env.VIBRAIL_CLOUDFLARE_ZONE_ID) {
+    return env.VIBRAIL_MANAGED_DOMAIN;
+  }
+  return SYSTEM.DOMAINS.CLOUD_DOMAIN;
 }
 
 /**
@@ -36,7 +46,10 @@ export function getRoutingBaseDomain(): string {
  * Openship still installs the concrete hostname route on the target VPS.
  */
 export function managedDomainsUseCloudEdge(): boolean {
-  return !env.HOST_DOMAIN?.trim();
+  return (
+    !env.HOST_DOMAIN?.trim() &&
+    !(env.VIBRAIL_CLOUDFLARE_API_TOKEN && env.VIBRAIL_CLOUDFLARE_ZONE_ID)
+  );
 }
 
 /**
@@ -53,7 +66,10 @@ function usesCertbotSsl(runtimeName: string): boolean {
   return runtimeName === "bare" || runtimeName === "docker";
 }
 
-export function resolveManagedHostname(hostname: string): { isManaged: boolean; subdomain?: string } {
+export function resolveManagedHostname(hostname: string): {
+  isManaged: boolean;
+  subdomain?: string;
+} {
   const baseDomain = getRoutingBaseDomain().toLowerCase();
   const normalized = hostname.trim().toLowerCase();
   const suffix = `.${baseDomain}`;
@@ -115,9 +131,7 @@ export function buildProjectRouteDomains(opts: {
 
     const managed = resolveManagedHostname(normalized);
     const domainRow = domainByHostname.get(normalized);
-    const isVerified = managed.isManaged
-      ? true
-      : route.verified ?? domainRow?.verified ?? false;
+    const isVerified = managed.isManaged ? true : (route.verified ?? domainRow?.verified ?? false);
     // Externally-managed ingress (Cloudflare Tunnel / LB): TLS terminates
     // upstream and DNS points at the user's edge, so serve a plain-HTTP route
     // (tls:false) and never run certbot for this host.
@@ -130,7 +144,12 @@ export function buildProjectRouteDomains(opts: {
       hostname: normalized,
       tls: !external || manualSsl,
       provisionSsl:
-        usesCertbotSsl(runtimeName) && !managed.isManaged && !route.skipSsl && !external && !manualSsl && isVerified,
+        usesCertbotSsl(runtimeName) &&
+        !managed.isManaged &&
+        !route.skipSsl &&
+        !external &&
+        !manualSsl &&
+        isVerified,
       isCloud: managed.isManaged,
       ...(route.destination?.targetPort !== undefined
         ? { targetPort: route.destination.targetPort }
@@ -248,11 +267,14 @@ export function buildServiceRouteDomains(opts: {
     const managedLabel = project.routeKey
       ? appendProjectRouteKey(serviceLabel, project.routeKey)
       : serviceLabel;
-    const hostname = endpoint.domainType === "custom"
-      ? (endpoint.customDomain ? normalizeCustomHostname(endpoint.customDomain) : null)
-      : usesManagedRouting
-        ? `${managedLabel}.${getRoutingBaseDomain()}`
-        : null;
+    const hostname =
+      endpoint.domainType === "custom"
+        ? endpoint.customDomain
+          ? normalizeCustomHostname(endpoint.customDomain)
+          : null
+        : usesManagedRouting
+          ? `${managedLabel}.${getRoutingBaseDomain()}`
+          : null;
 
     if (!hostname) continue;
     const normalized = hostname.toLowerCase();
@@ -273,7 +295,11 @@ export function buildServiceRouteDomains(opts: {
       hostname,
       tls: !external || manualSsl,
       provisionSsl:
-        usesCertbotSsl(runtimeName) && endpoint.domainType === "custom" && !external && !manualSsl && isVerified,
+        usesCertbotSsl(runtimeName) &&
+        endpoint.domainType === "custom" &&
+        !external &&
+        !manualSsl &&
+        isVerified,
       isCloud: managed.isManaged,
       targetPort: endpoint.port,
       domainType: endpoint.domainType,

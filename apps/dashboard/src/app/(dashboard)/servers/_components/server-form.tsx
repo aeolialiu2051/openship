@@ -1,15 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  Server,
-  Loader2,
-  Check,
-  KeyRound,
-  Lock,
-  ChevronDown,
-  Network,
-} from "lucide-react";
+import { Server, Loader2, Check, KeyRound, Lock, ChevronDown, Network } from "lucide-react";
 import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
@@ -61,10 +53,20 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
   const [sshPrivateKey, setSshPrivateKey] = useState("");
   const [sshKeyPassphrase, setSshKeyPassphrase] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(
-    !!(server?.sshJumpHost || server?.sshArgs),
+    !!(
+      server?.sshJumpHost ||
+      server?.sshArgs ||
+      server?.traefikNetwork ||
+      server?.traefikEntrypoint ||
+      server?.traefikCertResolver
+    ),
   );
   const [jumpHost, setJumpHost] = useState(server?.sshJumpHost ?? "");
   const [extraArgs, setExtraArgs] = useState(server?.sshArgs ?? "");
+  const [traefikNetwork, setTraefikNetwork] = useState(server?.traefikNetwork ?? "");
+  const [traefikEntrypoint, setTraefikEntrypoint] = useState(server?.traefikEntrypoint ?? "");
+  const [traefikTls, setTraefikTls] = useState(server?.traefikTls ?? true);
+  const [traefikCertResolver, setTraefikCertResolver] = useState(server?.traefikCertResolver ?? "");
 
   const localizedConnectionError = (err: unknown, fallback: string) =>
     getApiErrorCode(err) === "permission_denied"
@@ -86,13 +88,21 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
 
     // When editing and not switching auth method, the stored secret is reused -
     // so a blank password/key is only an error on create or when switching.
-    if (sshAuthMethod === "password" && (!isEditing || server?.sshAuthMethod !== "password") && !sshPassword) {
+    if (
+      sshAuthMethod === "password" &&
+      (!isEditing || server?.sshAuthMethod !== "password") &&
+      !sshPassword
+    ) {
       showToast(t.servers.form.toastPasswordSwitchRequired, "error", t.servers.toastTitles.server);
       return;
     }
 
     const keyCredential = useInlinePrivateKey ? sshPrivateKey : sshKeyPath;
-    if (sshAuthMethod === "key" && (!isEditing || server?.sshAuthMethod !== "key") && !keyCredential) {
+    if (
+      sshAuthMethod === "key" &&
+      (!isEditing || server?.sshAuthMethod !== "key") &&
+      !keyCredential
+    ) {
       showToast(
         useInlinePrivateKey
           ? t.servers.form.toastPrivateKeySwitchRequired
@@ -113,8 +123,11 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         sshAuthMethod,
         sshJumpHost: trimmedJumpHost || null,
         sshArgs: trimmedExtraArgs || null,
+        traefikNetwork: traefikNetwork.trim() || null,
+        traefikEntrypoint: traefikEntrypoint.trim() || null,
+        traefikTls,
+        traefikCertResolver: traefikCertResolver.trim() || null,
       };
-
 
       if (sshAuthMethod === "password" && sshPassword) {
         data.sshPassword = sshPassword;
@@ -130,7 +143,11 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         : await systemApi.createServerEntry(data);
 
       invalidateServersList();
-      showToast(isEditing ? t.servers.form.toastUpdated : t.servers.form.toastSaved, "success", t.servers.toastTitles.server);
+      showToast(
+        isEditing ? t.servers.form.toastUpdated : t.servers.form.toastSaved,
+        "success",
+        t.servers.toastTitles.server,
+      );
       onSaved({ server: saved, isEditing });
     } catch (err) {
       showToast(
@@ -149,7 +166,11 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
       return;
     }
 
-    if (sshAuthMethod === "password" && !sshPassword && !(isEditing && server?.sshAuthMethod === "password")) {
+    if (
+      sshAuthMethod === "password" &&
+      !sshPassword &&
+      !(isEditing && server?.sshAuthMethod === "password")
+    ) {
       showToast(t.servers.form.toastPasswordTestRequired, "error", t.servers.toastTitles.server);
       return;
     }
@@ -183,15 +204,22 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
         if (!useInlinePrivateKey && sshKeyPath) payload.sshKeyPath = sshKeyPath;
         if (sshKeyPassphrase) payload.sshKeyPassphrase = sshKeyPassphrase;
       }
-      const result = await systemApi.testConnection(payload as Parameters<typeof systemApi.testConnection>[0]);
-      const message = result.code === "permission_denied"
-        ? t.servers.form.managementAccessRequired
-        : result.message;
+      const result = await systemApi.testConnection(
+        payload as Parameters<typeof systemApi.testConnection>[0],
+      );
+      const message =
+        result.code === "permission_denied"
+          ? t.servers.form.managementAccessRequired
+          : result.message;
       setTestResult({ ok: result.ok, message });
       if (result.ok) {
         showToast(t.servers.form.toastConnectionSuccess, "success", t.servers.toastTitles.server);
       } else {
-        showToast(message || t.servers.form.toastConnectionFailed, "error", t.servers.toastTitles.server);
+        showToast(
+          message || t.servers.form.toastConnectionFailed,
+          "error",
+          t.servers.toastTitles.server,
+        );
       }
     } catch (err) {
       const message = localizedConnectionError(err, t.servers.form.toastConnectionTestFailed);
@@ -212,9 +240,7 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
           <h2 className="font-semibold text-foreground text-[15px]">
             {t.servers.form.sshConnection}
           </h2>
-          <p className="text-xs text-muted-foreground">
-            {t.servers.form.sshConnectionDesc}
-          </p>
+          <p className="text-xs text-muted-foreground">{t.servers.form.sshConnectionDesc}</p>
         </div>
       </div>
 
@@ -230,9 +256,7 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
             autoComplete="off"
             className={INPUT}
           />
-          <p className="text-xs text-muted-foreground/60 mt-1.5">
-            {t.servers.form.serverNameHelp}
-          </p>
+          <p className="text-xs text-muted-foreground/60 mt-1.5">{t.servers.form.serverNameHelp}</p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-3">
@@ -336,7 +360,9 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
             <div className="flex items-start gap-2.5 rounded-xl border border-border/50 bg-muted/30 px-3.5 py-3">
               <Network className="size-4 shrink-0 mt-0.5 text-primary" />
               <p className="text-[13px] leading-relaxed text-muted-foreground">
-                {t.servers.form.agentInfoBefore}<span className="text-foreground/80">ssh-agent</span>{t.servers.form.agentInfoAfter}
+                {t.servers.form.agentInfoBefore}
+                <span className="text-foreground/80">ssh-agent</span>
+                {t.servers.form.agentInfoAfter}
               </p>
             </div>
           ) : (
@@ -441,6 +467,55 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
                 />
               </div>
             </div>
+            <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Existing Traefik (optional)</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Only fill these when Vibrail cannot safely infer an existing Traefik setup. The
+                  proxy is never modified or restarted.
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>Docker network</label>
+                  <input
+                    value={traefikNetwork}
+                    onChange={(e) => setTraefikNetwork(e.target.value)}
+                    placeholder="proxy"
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>HTTPS entrypoint</label>
+                  <input
+                    value={traefikEntrypoint}
+                    onChange={(e) => setTraefikEntrypoint(e.target.value)}
+                    placeholder="websecure"
+                    className={INPUT}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+                <div>
+                  <label className={LABEL}>Certificate resolver</label>
+                  <input
+                    value={traefikCertResolver}
+                    onChange={(e) => setTraefikCertResolver(e.target.value)}
+                    placeholder="letsencrypt (optional)"
+                    className={INPUT}
+                  />
+                </div>
+                <label className="flex items-center gap-2.5 h-[42px] text-sm text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={traefikTls}
+                    onChange={(e) => setTraefikTls(e.target.checked)}
+                    className="size-4 rounded border-border"
+                  />
+                  Enable TLS labels
+                </label>
+              </div>
+            </div>
           </div>
         )}
 
@@ -457,7 +532,11 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
             ) : (
               <Network className="size-4" />
             )}
-            {testing ? t.servers.form.testing : testResult?.ok ? t.servers.form.connected : t.servers.form.testConnection}
+            {testing
+              ? t.servers.form.testing
+              : testResult?.ok
+                ? t.servers.form.connected
+                : t.servers.form.testConnection}
           </button>
           {testResult && !testResult.ok && (
             <p className="text-xs text-danger text-center">{testResult.message}</p>
@@ -467,12 +546,9 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
             disabled={saving || !sshHost.trim()}
             className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Check className="size-4" />
-            )}
-            {submitLabel ?? (isEditing ? t.servers.form.saveChanges : t.servers.form.saveAndContinue)}
+            {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            {submitLabel ??
+              (isEditing ? t.servers.form.saveChanges : t.servers.form.saveAndContinue)}
           </button>
         </div>
       </div>

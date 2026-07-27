@@ -512,6 +512,13 @@
       "when": 1785358598651,
       "tag": "0072_resource_operation",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1785358698651,
+      "tag": "0073_server_traefik",
+      "breakpoints": true
     }
   ]
 }

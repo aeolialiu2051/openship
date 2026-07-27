@@ -17,6 +17,8 @@ export type {
   BuildStrategy,
   BuildConfig,
   DeployPublicEndpoint,
+  TraefikRouteConfig,
+  TraefikEdgeConfig,
   DeployConfig,
   BuildResult,
   DeploymentResult,
@@ -71,6 +73,8 @@ export type {
   DockerContainerDetail,
   DockerVolumeInfo,
   DockerNetworkInfo,
+  TraefikManualConfig,
+  ResolvedTraefikEdge,
 } from "./runtime/types";
 export { assertCapability, isMultiServiceRuntime } from "./runtime/types";
 export { DockerRuntime, type DockerConnectionOptions } from "./runtime/docker";
@@ -106,11 +110,7 @@ export {
   probeListeningPort,
   ensurePortAvailable,
 } from "./runtime/port-conflict";
-export {
-  allocateHostPort,
-  pickHostPort,
-  type AllocateHostPortOptions,
-} from "./runtime/host-port";
+export { allocateHostPort, pickHostPort, type AllocateHostPortOptions } from "./runtime/host-port";
 export { type RuntimeMode, type CreateRuntimeOptions, createRuntime } from "./runtime/index";
 export { resolveDockerfileCandidates } from "./runtime/docker-paths";
 export { scopedVolumeName, scopeVolumeBinds, isHostPathSource } from "./runtime/volume-namespace";
@@ -125,10 +125,7 @@ export {
   type CompiledRedirect,
   type CompiledHeaderRule,
 } from "./infra/vercel-routing";
-export {
-  compileRoutingToOblien,
-  type OblienRoutingContext,
-} from "./runtime/oblien-routing";
+export { compileRoutingToOblien, type OblienRoutingContext } from "./runtime/oblien-routing";
 export { CloudInfraProvider } from "./infra/cloud";
 export { NoopInfraProvider } from "./infra/noop";
 export {
@@ -183,7 +180,13 @@ export {
   completeEdgeTakeover,
 } from "./system/proxy/takeover-journal";
 // The consolidated reverse-proxy / edge facade (single point for the chain).
-export { detectEdge, importSites, takeoverOnMigrate, foreignProxyOnEdge, ensureEdge } from "./system/proxy";
+export {
+  detectEdge,
+  importSites,
+  takeoverOnMigrate,
+  foreignProxyOnEdge,
+  ensureEdge,
+} from "./system/proxy";
 
 export type { SetupState, SetupStateStore, ComponentState } from "./system/state";
 export { FileStateStore } from "./system/state";
@@ -246,7 +249,13 @@ export {
 } from "./system/port-scan";
 export { probeStaticOutput, type OutputProbeResult } from "./system/output-exists";
 
-export { LocalExecutor, SshExecutor, SystemSshExecutor, createExecutor, createHostExecutor } from "./system/executor";
+export {
+  LocalExecutor,
+  SshExecutor,
+  SystemSshExecutor,
+  createExecutor,
+  createHostExecutor,
+} from "./system/executor";
 export { DockerEdgeExecutor } from "./system/docker-edge-executor";
 export {
   ensureRemoteJournal,
