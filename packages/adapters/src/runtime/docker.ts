@@ -2198,7 +2198,14 @@ export class DockerRuntime implements RuntimeAdapter {
   async inspectContainer(id: string): Promise<DockerContainerDetail | null> {
     let data: Dockerode.ContainerInspectInfo;
     try {
-      data = await this.docker.getContainer(id).inspect();
+      // For SSH targets, use the executor-backed Docker CLI instead of opening
+      // another HTTP-over-SSH bridge connection per container. Discovery fans
+      // out several inspect calls at once; some sshd configurations reap those
+      // short-lived bridge channels and surface a generic network error even
+      // though listing the daemon succeeded moments earlier.
+      data = this.usesRemoteDockerCli()
+        ? await this.inspectRemoteContainer(id)
+        : await this.docker.getContainer(id).inspect();
     } catch (err) {
       if (isDockerNotFoundError(err)) return null;
       throw err;

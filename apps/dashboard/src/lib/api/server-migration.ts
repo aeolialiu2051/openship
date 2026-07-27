@@ -262,7 +262,9 @@ export interface TransferProgress {
 }
 
 /**
- * Docker migration API client — talks to /api/migration (self-hosted only).
+ * Docker migration API client — talks to /api/migration. Cloud deployments
+ * with user-owned servers expose the read-only scan subset; the complete
+ * migration workflow remains self-hosted-only.
  * Distinct from `migrationApi` (lib/api/migration.ts), which is the unrelated
  * team-instance/data migration.
  */
@@ -390,6 +392,8 @@ export const dockerMigrationApi = {
     targetServerId: string;
     serviceNames: string[];
     projectName: string;
+    /** Stable six-character Base36 suffix reserved by the migration wizard. */
+    routeKey?: string;
     killOriginals?: boolean;
     /** Same-server only: serviceName → "reuse" (take over in place) | "copy". */
     volumeStrategies?: Record<string, "reuse" | "copy">;

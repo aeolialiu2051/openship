@@ -2,14 +2,15 @@
  * Docker migration controller — inspect an existing Docker deployment on a
  * server so it can be adopted as an Openship project.
  *
- * Self-hosted only (mounted behind `localOnly`): inspection requires SSH into
- * a user's own server, which cloud mode has no notion of. Mirrors the mail
- * scan/adopt shape: read-only `/scan` returns what's adoptable, no mutation.
+ * The full migration workflow is self-hosted-only. Cloud deployments with the
+ * explicit user-server capability mount only the read-only scan handlers so
+ * they can inspect an organization-owned SSH server without exposing the
+ * adopt/move/cutover surface.
  */
 
 import type { Context } from "hono";
 import { repos } from "@repo/db";
-import { safeErrorMessage } from "@repo/core";
+import { normalizeProjectRouteKey, safeErrorMessage } from "@repo/core";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { isServerInOrg, param } from "../../lib/controller-helpers";
@@ -132,21 +133,41 @@ export async function scanServerStream(c: Context) {
   }
 
   return streamSSE(c, async (s) => {
+    // Container inspection runs with bounded concurrency, so progress callbacks
+    // can fire almost simultaneously. Hono's SSE writer is a single stream and
+    // must not receive overlapping writes — doing so can terminate the response
+    // as a browser-level "Failed to fetch". Chain progress frames and always
+    // drain them before the terminal result/error frame.
+    let progressWrites = Promise.resolve();
+    const writeProgress = (message: string) => {
+      progressWrites = progressWrites
+        .then(() =>
+          s.writeSSE({
+            event: "progress",
+            data: JSON.stringify({ type: "progress", message }),
+          }),
+        )
+        .then(() => undefined)
+        .catch(() => undefined);
+    };
+
     try {
       const stack = await discoverServerStack(
         serverId,
         ctx.organizationId,
-        (message) => {
-          void s.writeSSE({ event: "progress", data: JSON.stringify({ type: "progress", message }) });
-        },
+        writeProgress,
         { flatDocker },
       );
+      await progressWrites;
       await s.writeSSE({ event: "result", data: JSON.stringify({ type: "result", stack }) });
     } catch (err) {
-      await s.writeSSE({
-        event: "error",
-        data: JSON.stringify({ type: "error", error: `Scan failed: ${safeErrorMessage(err)}` }),
-      });
+      await progressWrites;
+      await s
+        .writeSSE({
+          event: "error",
+          data: JSON.stringify({ type: "error", error: `Scan failed: ${safeErrorMessage(err)}` }),
+        })
+        .catch(() => {});
     }
   });
 }
@@ -298,6 +319,7 @@ export async function startMigration(c: Context) {
     targetServerId?: string;
     serviceNames?: string[];
     projectName?: string;
+    routeKey?: string;
     killOriginals?: boolean;
     volumeStrategies?: Record<string, unknown>;
     transferMode?: unknown;
@@ -322,6 +344,14 @@ export async function startMigration(c: Context) {
   if (!Array.isArray(body.serviceNames) || body.serviceNames.length === 0) {
     return c.json({ error: "Select at least one service to migrate" }, 400);
   }
+  let routeKey: string | undefined;
+  if (body.routeKey !== undefined) {
+    try {
+      routeKey = normalizeProjectRouteKey(body.routeKey);
+    } catch {
+      return c.json({ error: "routeKey must be a six-character Base36 value" }, 400);
+    }
+  }
 
   const guard = await assertServersWritable(c, sourceServerId, targetServerId);
   if (guard instanceof Response) return guard;
@@ -342,6 +372,7 @@ export async function startMigration(c: Context) {
       targetServerId,
       serviceNames: body.serviceNames,
       projectName: body.projectName.trim(),
+      routeKey,
       killOriginals: body.killOriginals === true,
       volumeStrategies: sanitizeVolumeStrategies(body.volumeStrategies),
       transferMode,

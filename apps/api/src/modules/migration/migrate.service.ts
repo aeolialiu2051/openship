@@ -297,6 +297,8 @@ export async function adoptServerStack(opts: {
   serverId: string;
   organizationId: string;
   projectName: string;
+  /** Stable managed-hostname suffix reserved before the project is created. */
+  routeKey?: string;
   serviceNames: string[];
   /** True when target == source. Only then is "copy" (below) meaningful. */
   sameServer?: boolean;
@@ -321,7 +323,7 @@ export async function adoptServerStack(opts: {
    *  and the returned `handover` lets the first deploy reuse the running image. */
   repoServices?: Map<string, RepoComposeService>;
 }): Promise<AdoptResult> {
-  const { serverId, organizationId, projectName, serviceNames, sameServer, volumeStrategies, serviceSubpaths, serviceEnv, serviceRenames, flatDocker, repoServices } = opts;
+  const { serverId, organizationId, projectName, routeKey, serviceNames, sameServer, volumeStrategies, serviceSubpaths, serviceEnv, serviceRenames, flatDocker, repoServices } = opts;
 
   const stack = await discoverServerStack(serverId, organizationId, undefined, { flatDocker });
   const selected = new Set(serviceNames);
@@ -371,6 +373,7 @@ export async function adoptServerStack(opts: {
   const anyBuild = chosen.some((s) => !s.image && Boolean(s.build));
   const ensureBody: EnsureBody = {
     name: projectName,
+    routeKey,
     projectType: "services",
     hasServer: true,
     hasBuild: anyBuild,

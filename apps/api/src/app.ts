@@ -208,6 +208,14 @@ if (env.CLOUD_MODE) {
 
     const { terminalRoutes } = await import("./modules/terminal/terminal.routes");
     app.route("/api/terminal", terminalRoutes);
+
+    // Read-only Docker discovery for organization-owned SSH servers. The full
+    // migration FSM remains self-hosted-only because it performs data movement,
+    // cutover, and in-process crash recovery.
+    const { serverMigrationRoutes } = await import(
+      "./modules/migration/server-migration.routes"
+    );
+    app.route("/api/migration", serverMigrationRoutes);
   }
 } else {
   /**

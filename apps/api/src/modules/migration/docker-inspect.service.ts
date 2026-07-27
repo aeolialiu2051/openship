@@ -8,7 +8,7 @@
  * into one normalized `DiscoveredStack`. Nothing here mutates the server.
  */
 
-import type { DockerContainerDetail } from "@repo/adapters";
+import type { DockerContainerDetail, DockerContainerSummary } from "@repo/adapters";
 import { safeErrorMessage, withTimeout } from "@repo/core";
 import { repos } from "@repo/db";
 import { createServerDockerRuntime } from "../../lib/deployment-runtime";
@@ -55,6 +55,51 @@ async function mapLimit<T, R>(
   });
   await Promise.all(workers);
   return results;
+}
+
+export async function inspectDiscoveredContainers(
+  candidates: DockerContainerSummary[],
+  managedApp: DockerContainerSummary[],
+  inspect: (id: string) => Promise<DockerContainerDetail | null>,
+  onProgress?: (message: string) => void,
+): Promise<{
+  details: DockerContainerDetail[];
+  managedDetails: DockerContainerDetail[];
+  failures: string[];
+}> {
+  const inspectTargets = [
+    ...candidates.map((container) => ({ container, managed: false as const })),
+    ...managedApp.map((container) => ({ container, managed: true as const })),
+  ];
+  onProgress?.(`Inspecting ${inspectTargets.length} container(s)…`);
+  const failures: string[] = [];
+  let inspected = 0;
+  const inspectedTargets = await mapLimit(inspectTargets, 3, async (target) => {
+    try {
+      const detail = await inspect(target.container.id);
+      return detail ? { detail, managed: target.managed } : null;
+    } catch (err) {
+      const name = target.container.names[0] || target.container.id.slice(0, 12);
+      failures.push(`${name}: ${safeErrorMessage(err)}`);
+      return null;
+    } finally {
+      inspected += 1;
+      onProgress?.(`Inspected ${inspected}/${inspectTargets.length} container(s)…`);
+    }
+  });
+  const successful = inspectedTargets.filter(
+    (item): item is { detail: DockerContainerDetail; managed: boolean } => item !== null,
+  );
+  if (inspectTargets.length > 0 && successful.length === 0) {
+    throw new Error(
+      `Could not inspect any of the ${inspectTargets.length} discovered containers. ${failures[0] ?? "Docker inspect returned no data."}`,
+    );
+  }
+  return {
+    details: successful.filter((item) => !item.managed).map((item) => item.detail),
+    managedDetails: successful.filter((item) => item.managed).map((item) => item.detail),
+    failures,
+  };
 }
 
 /**
@@ -164,15 +209,16 @@ export async function discoverServerStack(
       (c) => c.labels["openship.project"] && !isBuildHelper(c.labels),
     );
 
-    step(`Inspecting ${candidates.length} container(s)…`);
-    const [details, managedDetails] = await Promise.all([
-      mapLimit(candidates, 5, (c) => rt.inspectContainer(c.id)).then((d) =>
-        d.filter((x): x is DockerContainerDetail => x !== null),
-      ),
-      mapLimit(managedApp, 5, (c) => rt.inspectContainer(c.id)).then((d) =>
-        d.filter((x): x is DockerContainerDetail => x !== null),
-      ),
-    ]);
+    const {
+      details,
+      managedDetails,
+      failures: inspectFailures,
+    } = await inspectDiscoveredContainers(
+      candidates,
+      managedApp,
+      (id) => rt.inspectContainer(id),
+      step,
+    );
 
     // Group by compose project (standalone containers key on "") for the
     // compose-file reads; reconciliation itself is pure (see reconcileStack).
@@ -278,7 +324,7 @@ export async function discoverServerStack(
       alreadyManaged = managedApp.filter((c) => knownHereIds.has(c.labels["openship.project"]!)).length;
     }
 
-    return reconcileStack({
+    const stack = reconcileStack({
       serverId,
       details,
       volumes,
@@ -290,6 +336,12 @@ export async function discoverServerStack(
       openshipProjects,
       proxyRoutesByPort,
     });
+    if (inspectFailures.length > 0) {
+      stack.warnings.unshift(
+        `${inspectFailures.length} container(s) could not be inspected and were skipped: ${inspectFailures.join("; ")}`,
+      );
+    }
+    return stack;
   } finally {
     await rt.dispose();
   }

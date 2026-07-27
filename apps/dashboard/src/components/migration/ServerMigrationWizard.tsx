@@ -32,6 +32,7 @@ import {
   deployApi,
   githubApi,
   getApiErrorMessage,
+  isNetworkError,
   type DiscoveredStack,
   type DiscoveredGroup,
   type DiscoveredService,
@@ -57,6 +58,11 @@ import {
 } from "@/context/deployment/types";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { randomUUID } from "@/lib/random-uuid";
+import {
+  appendProjectRouteKey,
+  generateProjectRouteKey,
+  removeProjectRouteKey,
+} from "@repo/core";
 import { extractOwnerRepoFromUrl } from "@/utils/repoSlug";
 import { AppLogo } from "@/components/AppLogo";
 import { Logo } from "@/components/logo";
@@ -190,6 +196,8 @@ interface RepoLink {
  */
 interface ImportProject {
   id: string;
+  /** Stable Base36 suffix reserved for this project's managed hostnames. */
+  routeKey: string;
   name: string;
   /** True once the user typed a name — stops the auto-derive (from the selected
    *  stack) from overwriting it. False = name still tracks the picked stack. */
@@ -221,6 +229,7 @@ type VolumeStrategy = "reuse" | "copy";
 
 interface MigrateItem {
   name: string;
+  routeKey?: string;
   serviceNames: string[];
   /** serviceName → "copy" (only copy entries are sent; reuse is the default). */
   volumeStrategies: Record<string, VolumeStrategy>;
@@ -279,13 +288,19 @@ type ServerRouteSpec = {
 };
 function toServerRoutes(
   routes: Record<string, PublicEndpoint[]> | undefined,
+  routeKey: string,
 ): Record<string, ServerRouteSpec> | undefined {
   if (!routes) return undefined;
   const out: Record<string, ServerRouteSpec> = {};
   for (const [name, endpoints] of Object.entries(routes)) {
     const ep = endpoints[0];
     if (!ep) continue;
-    const domain = (ep.domainType === "custom" ? ep.customDomain : ep.domain)?.trim().toLowerCase();
+    const rawDomain = (ep.domainType === "custom" ? ep.customDomain : ep.domain)
+      ?.trim()
+      .toLowerCase();
+    const domain = rawDomain && ep.domainType !== "custom"
+      ? removeProjectRouteKey(rawDomain, routeKey)
+      : rawDomain;
     if (!domain) continue;
     const targetPath = ep.targetPath?.trim();
     out[name] = {
@@ -507,10 +522,24 @@ export function ServerMigrationWizard({
       // Stream the inspect (SSE): step progress + no fixed timeout, so a slow
       // SSH + docker inspect doesn't get aborted (the old plain POST hit the
       // 15s client default through the same-origin proxy).
-      const scanned = await dockerMigrationApi.scanStream(selectedId, {
-        onProgress: setScanStatus,
-        flatDocker: flat,
-      });
+      let scanned: DiscoveredStack;
+      try {
+        scanned = await dockerMigrationApi.scanStream(selectedId, {
+          onProgress: setScanStatus,
+          flatDocker: flat,
+        });
+      } catch (streamError) {
+        // Some CDN / same-origin proxy paths can drop a long-lived SSE response
+        // after progress has already arrived. Retry once through the bounded
+        // JSON endpoint instead of discarding a scan that reached Docker.
+        const message = streamError instanceof Error ? streamError.message : "";
+        const retryWithoutStream =
+          isNetworkError(streamError) || /network error|stream ended without a result/i.test(message);
+        if (!retryWithoutStream) throw streamError;
+        setScanStatus(m.wizard.scanning);
+        const fallback = await dockerMigrationApi.scan(selectedId, { flatDocker: flat });
+        scanned = fallback.stack;
+      }
       setStack(scanned);
       if (!scanned.adoptable) {
         setError(m.discover.nothing);
@@ -530,6 +559,7 @@ export function ServerMigrationWizard({
         setProjects([
           {
             id: randomUUID(),
+            routeKey: generateProjectRouteKey(),
             name: "",
             nameEdited: false,
             services: new Set(),
@@ -569,6 +599,7 @@ export function ServerMigrationWizard({
   const addProject = () => {
     const p: ImportProject = {
       id: randomUUID(),
+      routeKey: generateProjectRouteKey(),
       name: "", // derived from the stack the user picks (never auto-guessed)
       nameEdited: false,
       services: new Set(),
@@ -769,6 +800,7 @@ export function ServerMigrationWizard({
   // ── Migrate (sequential, one project at a time) ────────────────────────────
   const startMigration = async (item: MigrateItem) => {
     if (!selectedId || !targetId) return;
+    const routeKey = item.routeKey ?? generateProjectRouteKey();
     setStarting(true);
     setError(null);
     try {
@@ -777,6 +809,7 @@ export function ServerMigrationWizard({
         targetServerId: targetId,
         serviceNames: item.serviceNames,
         projectName: item.name,
+        routeKey,
         killOriginals,
         volumeStrategies: Object.keys(item.volumeStrategies).length
           ? item.volumeStrategies
@@ -787,7 +820,7 @@ export function ServerMigrationWizard({
         // Publish domains SERVER-SIDE (was a client-only effect, lost when the
         // wizard unmounted or a run was opened from the list). Map each
         // service's chosen endpoint → the server route spec.
-        routesByServiceName: toServerRoutes(item.routesByServiceName),
+        routesByServiceName: toServerRoutes(item.routesByServiceName, routeKey),
         conflictResolution: Object.keys(conflictResolution).length ? conflictResolution : undefined,
         gitSource: item.gitSource,
         serviceSubpaths: item.serviceSubpaths,
@@ -884,6 +917,7 @@ export function ServerMigrationWizard({
       }
       return {
         name: p.name.trim(),
+        routeKey: p.routeKey,
         serviceNames: picked.map((s) => s.name),
         volumeStrategies,
         gitSource: p.repo
@@ -1462,6 +1496,7 @@ export function ServerMigrationWizard({
                           <ServiceConfigCard
                             key={uid}
                             service={service}
+                            routeKey={active.routeKey}
                             isNew={isNew}
                             deployAction={action}
                             routes={active.serviceRoutes[uid]}
@@ -1946,6 +1981,7 @@ export function ServerMigrationWizard({
                   <ServiceConfigCard
                     key={uid}
                     service={service}
+                    routeKey={active.routeKey}
                     isNew={isNew}
                     deployAction={action}
                     routes={active.serviceRoutes[uid]}
@@ -2179,6 +2215,7 @@ export function ServerMigrationWizard({
                       <ServiceConfigCard
                         key={uid}
                         service={service}
+                        routeKey={active.routeKey}
                         isNew={isNew}
                         deployAction={action}
                         routes={active.serviceRoutes[uid]}
@@ -3068,6 +3105,7 @@ function ServiceMapPanel({
  *  discovered container's env and only carries an override once edited. */
 function ServiceConfigCard({
   service,
+  routeKey,
   routes,
   envOverride,
   sameServer,
@@ -3081,6 +3119,7 @@ function ServiceConfigCard({
   onSetRouteMode,
 }: {
   service: DiscoveredService;
+  routeKey: string;
   routes: PublicEndpoint[] | undefined;
   envOverride: Record<string, string> | undefined;
   sameServer: boolean;
@@ -3128,7 +3167,13 @@ function ServiceConfigCard({
       onSetRoutes([
         mode === "custom" && routeMode === "keep" && keptDomain0
           ? { ...base, domainType: "custom", customDomain: keptDomain0 }
-          : { ...base, domainType: mode },
+          : mode === "free"
+            ? {
+                ...base,
+                domainType: "free",
+                domain: base.domain || appendProjectRouteKey(service.name, routeKey),
+              }
+            : { ...base, domainType: "custom" },
       ]);
     }
     onSetRouteMode(mode);
@@ -3247,6 +3292,7 @@ function ServiceConfigCard({
             {(routeMode === "free" || routeMode === "custom") && (
               <PublicEndpointsCard
                 projectName={service.name}
+                routeKey={routeKey}
                 endpoints={shownEndpoints}
                 hasServer
                 runtimePort={port}

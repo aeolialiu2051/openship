@@ -82,6 +82,8 @@ export interface StartMigrationInput {
   targetServerId: string;
   serviceNames: string[];
   projectName: string;
+  /** Stable managed-hostname suffix reserved by the migration wizard. */
+  routeKey?: string;
   killOriginals: boolean;
   /** serviceName → strategy. Same-server only; absent/"reuse" = current behavior. */
   volumeStrategies?: Record<string, VolumeStrategy>;
@@ -426,6 +428,7 @@ class MigrationOrchestratorImpl {
         serverId: sourceServerId,
         organizationId,
         projectName: input.projectName,
+        routeKey: input.routeKey,
         serviceNames,
         sameServer,
         volumeStrategies: input.volumeStrategies,
