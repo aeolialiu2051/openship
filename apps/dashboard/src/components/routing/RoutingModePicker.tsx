@@ -30,6 +30,7 @@ interface RoutingModePickerProps {
   labels: RoutingModeLabels;
   // PublicEndpointsCard passthrough (rendered only when mode !== "none").
   projectName: string;
+  routeKey?: string;
   endpoints: PublicEndpoint[];
   hasServer: boolean;
   runtimePort: string;
@@ -49,6 +50,7 @@ export function RoutingModePicker({
   onModeChange,
   labels,
   projectName,
+  routeKey,
   endpoints,
   hasServer,
   runtimePort,
@@ -86,6 +88,7 @@ export function RoutingModePicker({
         <div className="pt-1">
           <PublicEndpointsCard
             projectName={projectName}
+            routeKey={routeKey}
             endpoints={endpoints}
             hasServer={hasServer}
             runtimePort={runtimePort}

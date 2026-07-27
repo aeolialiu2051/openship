@@ -18,6 +18,7 @@ export interface ProjectDeleteOperationInput {
   force: boolean;
   forceOrphan: boolean;
   wipeVolumes: boolean;
+  recordOnly?: boolean;
 }
 
 type OperationRepo = typeof repos.resourceOperation;
@@ -293,6 +294,7 @@ export class ResourceOperationService {
         force: input.force === true,
         forceOrphan: input.forceOrphan === true,
         wipeVolumes: input.wipeVolumes === true,
+        recordOnly: input.recordOnly === true,
         deletionLockClaimed: true,
       },
     );

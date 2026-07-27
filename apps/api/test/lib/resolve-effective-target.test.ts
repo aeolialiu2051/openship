@@ -33,7 +33,9 @@ describe("resolveEffectiveTarget", () => {
     ).toBe("cloud");
   });
 
-  it("the SaaS (cloud base) never routes to SSH even with a stray serverId", () => {
-    expect(resolveEffectiveTarget("cloud", meta({ serverId: "srv_1" }))).toBe("cloud");
+  it("routes SaaS user-server targets only when the capability is enabled", () => {
+    const snapshot = meta({ serverId: "srv_1", deployTarget: "server" });
+    expect(resolveEffectiveTarget("cloud", snapshot, false)).toBe("cloud");
+    expect(resolveEffectiveTarget("cloud", snapshot, true)).toBe("server");
   });
 });

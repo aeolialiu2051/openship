@@ -13,7 +13,12 @@ import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { getRequestContext, type RequestContext } from "../../../lib/request-context";
 import { permission } from "../../../lib/permission";
-import { param, isServerInOrg, assertUserServersEnabled } from "../../../lib/controller-helpers";
+import {
+  param,
+  isServerInOrg,
+  assertNotCloud,
+  assertUserServersEnabled,
+} from "../../../lib/controller-helpers";
 import {
   countDomainDependents,
   createDomain,

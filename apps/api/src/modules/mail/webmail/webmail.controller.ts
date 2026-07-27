@@ -8,7 +8,7 @@
  */
 
 import type { Context } from "hono";
-import { USER_SERVERS_ENABLED } from "../../../config";
+import { env, USER_SERVERS_ENABLED } from "../../../config";
 import { getRequestContext } from "../../../lib/request-context";
 import { listWebmailTargets } from "./webmail.service";
 import {
