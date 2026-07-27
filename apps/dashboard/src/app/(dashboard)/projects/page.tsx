@@ -27,19 +27,23 @@ export default function ProjectsPage() {
   const [filter, setFilter] = useState<ProjectFilter>({ kind: "all" });
   const { userServers } = usePlatform();
 
+  // Catalog-installed apps have their own Apps page. Keep every piece of the
+  // Projects UI (count, empty state, filters, search) on the same project-only
+  // collection so an app cannot make this page claim it has a project while
+  // rendering an empty list.
+  const projectItems = useMemo(() => projects.filter((project) => !project.isApp), [projects]);
+
   // Target filters derived from the loaded projects (Cloud / each server /
   // Local). Show the filter card once there's more than one group to pick
   // from; the right column also carries a "connect a server" CTA when none of
   // the projects deploy to a server, so it's never empty.
-  const filterOptions = useMemo(() => buildProjectFilterOptions(projects, t), [projects, t]);
+  const filterOptions = useMemo(() => buildProjectFilterOptions(projectItems, t), [projectItems, t]);
   const showFilterCard = filterOptions.length > 1;
-  const hasServers = projects.some((p) => p.deployTarget === "server");
+  const hasServers = projectItems.some((project) => project.deployTarget === "server");
 
   const filteredProjects = useMemo(() => {
     const q = deferredSearchQuery.trim().toLowerCase();
-    return projects.filter((p) => {
-      // Apps (catalog-installed: Convex, webmail, …) live under the Apps tab.
-      if (p.isApp) return false;
+    return projectItems.filter((p) => {
       if (!projectMatchesFilter(p, filter)) return false;
       return (
         p.name.toLowerCase().includes(q) ||
@@ -47,7 +51,7 @@ export default function ProjectsPage() {
         p.framework.toLowerCase().includes(q)
       );
     });
-  }, [deferredSearchQuery, filter, projects]);
+  }, [deferredSearchQuery, filter, projectItems]);
 
   return (
     <PageContainer outerClassName="pb-20">
@@ -61,8 +65,8 @@ export default function ProjectsPage() {
               {isLoading
                 ? t.projects.list.loading
                 : interpolate(
-                    projects.length === 1 ? t.projects.list.countOne : t.projects.list.countOther,
-                    { count: String(projects.length) },
+                    projectItems.length === 1 ? t.projects.list.countOne : t.projects.list.countOther,
+                    { count: String(projectItems.length) },
                   )}
             </p>
           </div>
@@ -90,13 +94,13 @@ export default function ProjectsPage() {
               ))}
             </div>
           </div>
-        ) : projects.length === 0 ? (
+        ) : projectItems.length === 0 ? (
           <EmptyState />
         ) : (
           <>
             {/* Search — above the columns so the right column starts level
                 with the list, not the search box. */}
-            {projects.length > 3 && (
+            {projectItems.length > 3 && (
               <div className="relative max-w-md mb-4">
                 <Search className="absolute start-3.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
                 <input

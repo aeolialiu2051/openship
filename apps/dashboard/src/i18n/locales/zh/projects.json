@@ -3,7 +3,8 @@
     "loading": "加载中……",
     "countOne": "{count} 个项目",
     "countOther": "{count} 个项目",
-    "noTargetProjects": "尚未有项目部署到此目标。"
+    "noTargetProjects": "尚未有项目部署到此目标。",
+    "noTargetDesc": "将应用部署到此目标，或创建一个新项目以开始使用。"
   },
   "status": {
     "live": "运行中",
