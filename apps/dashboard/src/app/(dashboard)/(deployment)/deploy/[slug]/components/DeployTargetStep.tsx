@@ -15,7 +15,7 @@ import { useToast } from "@/context/ToastContext";
 import { useModal } from "@/context/ModalContext";
 import type { DeployTarget, BuildStrategy, CloneStrategy, RuntimeMode } from "@/context/deployment/types";
 import { createPersistedValue } from "@/lib/persisted-value";
-import { AddServerModal } from "./AddServerModal";
+import { useAddServerModal } from "@/components/servers/AddServerModal";
 import ServerRuntimePicker from "./ServerRuntimePicker";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { isDeploySelectionComingSoon } from "./deploy-target-availability";
@@ -437,7 +437,7 @@ export interface ResolvedTargets {
   hasCloudOption: boolean;
   /** True when there's a real choice to make */
   hasChoice: boolean;
-  /** Refetch the server list - used after returning from /servers/new */
+  /** Refetch the server list after a server is added. */
   refreshServers: () => void;
 }
 
@@ -448,7 +448,7 @@ export function useDeployTargets(): ResolvedTargets {
   const [serversReady, setServersReady] = useState(false);
 
   // Fetch servers + filter to ones that can run apps. Exposed so the picker
-  // can re-pull after the user adds a new server in another tab.
+  // can re-pull after the user adds a new server.
   const fetchServers = useCallback(() => {
     if (!userServers) {
       setServersReady(true);
@@ -846,7 +846,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // operator's machine-local `gh`, which only exists on a desktop host.
   const isDesktop = deployMode === "desktop";
   const { showToast } = useToast();
-  const { showModal, hideModal } = useModal();
+  const openAddServerModal = useAddServerModal();
   const { t } = useI18n();
   const ts = t.deploy.targetStep;
   const { ready, servers, hasCloudConnected, hasCloudOption, hasChoice, refreshServers } = targets;
@@ -883,20 +883,11 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // auto-select the new one so the user lands on it immediately - no extra
   // clicks, no tab juggling, deploy config stays intact.
   const openAddServer = () => {
-    const id = showModal({
-      width: "720px",
-      maxWidth: "92vw",
-      showCloseButton: false,
-      customContent: (
-        <AddServerModal
-          onCancel={() => hideModal(id)}
-          onCreated={(server) => {
-            hideModal(id);
-            refreshServers();
-            updateConfig({ deployTarget: "server", serverId: server.id });
-          }}
-        />
-      ),
+    openAddServerModal({
+      onCreated: (server) => {
+        refreshServers();
+        updateConfig({ deployTarget: "server", serverId: server.id });
+      },
     });
   };
   const isServiceDeployment = usesServiceDeployment(config);

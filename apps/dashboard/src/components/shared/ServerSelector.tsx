@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { BlurIp } from "@/components/BlurIp";
+import { useAddServerModal } from "@/components/servers/AddServerModal";
 import {
   Server,
   CheckCircle2,
@@ -70,7 +70,7 @@ export default function ServerSelector({
   dropUp = false,
   autoSelectFirst = false,
 }: ServerSelectorProps) {
-  const router = useRouter();
+  const showAddServer = useAddServerModal();
   const { t } = useI18n();
   const w = t.widgets.shared.serverSelector;
   const labelText = label ?? w.serverLabel;
@@ -78,7 +78,7 @@ export default function ServerSelector({
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
-  const fetchServers = useCallback(async () => {
+  const fetchServers = useCallback(async (preferredId?: string) => {
     try {
       setLoading(true);
       const list = await systemApi.listServers();
@@ -87,7 +87,11 @@ export default function ServerSelector({
         setServers(opts);
         // Re-emit a selected server so callers also receive its host metadata;
         // otherwise auto-select the lone/first option when requested.
-        const selectedOption = value ? opts.find((option) => option.id === value) : null;
+        const selectedOption = preferredId
+          ? opts.find((option) => option.id === preferredId)
+          : value
+            ? opts.find((option) => option.id === value)
+            : null;
         if (selectedOption) onSelect(selectedOption);
         else if (opts.length === 1 || (autoSelectFirst && !value)) onSelect(opts[0]);
       } else {
@@ -106,6 +110,14 @@ export default function ServerSelector({
   useEffect(() => {
     fetchServers();
   }, [fetchServers]);
+
+  const openAddServer = () => {
+    showAddServer({
+      onCreated: (server) => {
+        void fetchServers(server.id);
+      },
+    });
+  };
 
   // A persisted selection may arrive just after the initial fetch starts.
   // Hydrate its host metadata once the list is available, or report a stale id.
@@ -152,7 +164,8 @@ export default function ServerSelector({
             {w.connectServerFirst}
           </p>
           <button
-            onClick={() => router.push("/servers/new")}
+            type="button"
+            onClick={openAddServer}
             className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
           >
             <Plus className="size-4" />
@@ -271,7 +284,7 @@ export default function ServerSelector({
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  router.push("/servers/new");
+                  openAddServer();
                 }}
                 className="w-full flex items-center gap-3 px-3.5 py-3 text-start transition-colors hover:bg-muted/40"
               >

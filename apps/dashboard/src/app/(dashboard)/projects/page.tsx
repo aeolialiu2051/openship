@@ -16,10 +16,12 @@ import { Plus, Search, Server } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { usePlatform } from "@/context/PlatformContext";
 import { useProjectsHome } from "@/hooks/useProjectsHome";
+import { useAddServerModal } from "@/components/servers/AddServerModal";
 
 export default function ProjectsPage() {
   const { t } = useI18n();
-  const { projects, isLoading } = useProjectsHome();
+  const { projects, isLoading, refresh } = useProjectsHome();
+  const showAddServer = useAddServerModal();
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filter, setFilter] = useState<ProjectFilter>({ kind: "all" });
@@ -161,13 +163,20 @@ export default function ProjectsPage() {
                         capability. Local SaaS can orchestrate a user's own VPS;
                         production cloud SaaS cannot. */}
                     {userServers ? (
-                      <Link
-                        href="/servers/new"
+                      <button
+                        type="button"
+                        onClick={() => {
+                          showAddServer({
+                            onCreated: () => {
+                              void refresh();
+                            },
+                          });
+                        }}
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted/50 text-foreground text-[13px] font-medium transition-colors hover:bg-muted"
                       >
                         <Plus className="size-3.5" />
                         {t.projects.serverCta.button}
-                      </Link>
+                      </button>
                     ) : (
                       <a
                         href="https://openship.io/download"

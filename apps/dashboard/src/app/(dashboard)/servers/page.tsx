@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { BlurIp } from "@/components/BlurIp";
+import { useAddServerModal } from "@/components/servers/AddServerModal";
 import {
   Server,
   Plus,
@@ -61,7 +61,7 @@ const STATUS: Record<Reachability, { dot: string; text: string }> = {
 
 export default function ServersPage() {
   const { t } = useI18n();
-  const router = useRouter();
+  const showAddServer = useAddServerModal();
   const { deployMode } = usePlatform();
   const isDesktop = deployMode === "desktop";
 
@@ -100,6 +100,14 @@ export default function ServersPage() {
   useEffect(() => {
     fetchServers();
   }, [fetchServers]);
+
+  const openAddServer = () => {
+    showAddServer({
+      onCreated: () => {
+        void fetchServers();
+      },
+    });
+  };
 
   // Real reachability: seed every server to "checking", then probe each in
   // parallel and flip its dot as the probe resolves (mirrors the tunnel fan-out).
@@ -174,7 +182,8 @@ export default function ServersPage() {
         </div>
         {activeTab === "servers" && (
           <button
-            onClick={() => router.push("/servers/new")}
+            type="button"
+            onClick={openAddServer}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25"
           >
             <Plus className="size-4" />
@@ -210,7 +219,7 @@ export default function ServersPage() {
           </div>
         ) : servers.length === 0 ? (
           // Empty state stands alone (no Quick Info card) and centers.
-          <EmptyState onAdd={() => router.push("/servers/new")} />
+          <EmptyState onAdd={openAddServer} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
             {/* ── LEFT COLUMN ── */}

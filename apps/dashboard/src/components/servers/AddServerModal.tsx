@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import {
   Server,
   Loader2,
@@ -14,6 +14,7 @@ import {
 import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
+import { useModal } from "@/context/ModalContext";
 import { useI18n } from "@/components/i18n-provider";
 
 const INPUT =
@@ -405,5 +406,31 @@ export function AddServerModal({ onCancel, onCreated }: AddServerModalProps) {
         </button>
       </div>
     </div>
+  );
+}
+
+export function useAddServerModal() {
+  const { showModal, hideModal } = useModal();
+
+  return useCallback(
+    (options?: { onCreated?: (server: ServerInfo) => void }) => {
+      let modalId = "";
+      modalId = showModal({
+        width: "720px",
+        maxWidth: "92vw",
+        showCloseButton: false,
+        customContent: (
+          <AddServerModal
+            onCancel={() => hideModal(modalId)}
+            onCreated={(server) => {
+              hideModal(modalId);
+              options?.onCreated?.(server);
+            }}
+          />
+        ),
+      });
+      return modalId;
+    },
+    [hideModal, showModal],
   );
 }
