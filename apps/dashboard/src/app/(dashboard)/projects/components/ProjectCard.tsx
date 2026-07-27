@@ -107,6 +107,9 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
       title: t.projects.draft.deleteTitle,
       message: `${t.projects.draft.deleteConfirmPrefix} ${project.name}${t.projects.draft.deleteConfirmSuffix}`,
       icon: "warning",
+      width: "100%",
+      maxWidth: "420px",
+      showCloseButton: false,
       buttons: [
         { label: t.projects.draft.cancel, variant: "secondary", onClick: () => hideModal(id) },
         {
