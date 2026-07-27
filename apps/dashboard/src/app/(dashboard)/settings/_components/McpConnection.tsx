@@ -155,7 +155,7 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: ChatGPTLogo,
     setup: (e) => ({
       label: "Run in your terminal",
-      code: `codex mcp add openship --url ${e}\ncodex mcp login openship`,
+      code: `codex mcp add vibrail --url ${e}\ncodex mcp login vibrail`,
       note: "Codex opens your browser to authorize when you run the login command.",
     }),
   },
@@ -165,7 +165,7 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: ClaudeLogo,
     setup: (e) => ({
       label: "Run in your terminal",
-      code: `claude mcp add --transport http openship ${e}`,
+      code: `claude mcp add --transport http vibrail ${e}`,
       note: "Claude Code opens your browser to authorize on first use.",
     }),
   },
@@ -175,8 +175,8 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: CursorLogo,
     setup: (e) => ({
       label: "Add to ~/.cursor/mcp.json",
-      code: JSON.stringify({ mcpServers: { openship: { url: e } } }, null, 2),
-      deeplink: `cursor://anysphere.cursor-deeplink/mcp/install?name=openship&config=${encodeConfig({ url: e })}`,
+      code: JSON.stringify({ mcpServers: { vibrail: { url: e } } }, null, 2),
+      deeplink: `cursor://anysphere.cursor-deeplink/mcp/install?name=vibrail&config=${encodeConfig({ url: e })}`,
       deeplinkLabel: "Add to Cursor",
       note: "Restart Cursor after saving; it authorizes in the browser.",
     }),
@@ -187,7 +187,7 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: CopilotLogo,
     setup: (e) => ({
       label: "Run once to register the server",
-      code: `code --add-mcp '{"name":"openship","type":"http","url":"${e}"}'`,
+      code: `code --add-mcp '{"name":"vibrail","type":"http","url":"${e}"}'`,
       note: 'Runs through GitHub Copilot. Or add it under "servers" in .vscode/mcp.json.',
     }),
   },
@@ -200,7 +200,7 @@ const MCP_CLIENTS: McpClientDef[] = [
       steps: [
         "Open ChatGPT Desktop → Settings",
         "Select Plugins",
-        "Open MCPs and add a new MCP server named Openship",
+        "Open MCPs and add a new MCP server named Vibrail",
         "Set Type to Streamable HTTP",
         "Paste the endpoint below as the MCP server URL",
         "Complete OAuth authorization in the browser",
@@ -228,7 +228,7 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: WindsurfLogo,
     setup: (e) => ({
       label: "Add to ~/.codeium/windsurf/mcp_config.json",
-      code: JSON.stringify({ mcpServers: { openship: { serverUrl: e } } }, null, 2),
+      code: JSON.stringify({ mcpServers: { vibrail: { serverUrl: e } } }, null, 2),
     }),
   },
   {
@@ -240,7 +240,7 @@ const MCP_CLIENTS: McpClientDef[] = [
       code: JSON.stringify(
         {
           context_servers: {
-            openship: { source: "custom", command: { path: "npx", args: ["-y", "mcp-remote", e] } },
+            vibrail: { source: "custom", command: { path: "npx", args: ["-y", "mcp-remote", e] } },
           },
         },
         null,
@@ -255,7 +255,7 @@ const MCP_CLIENTS: McpClientDef[] = [
     Icon: Boxes,
     setup: (e) => ({
       label: "Generic MCP client config",
-      code: JSON.stringify({ mcpServers: { openship: { url: e } } }, null, 2),
+      code: JSON.stringify({ mcpServers: { vibrail: { url: e } } }, null, 2),
       note: "Most MCP clients accept a { mcpServers: { <name>: { url } } } block.",
     }),
   },
@@ -384,7 +384,7 @@ export function McpConnection() {
   const configSnippet = [
     "{",
     '  "mcpServers": {',
-    '    "openship": {',
+    '    "vibrail": {',
     `      "url": "${endpoint || "https://<your-openship>/api/mcp"}",`,
     '      "headers": { "Authorization": "Bearer opsh_pat_…" }',
     "    }",

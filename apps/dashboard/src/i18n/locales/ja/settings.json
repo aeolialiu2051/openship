@@ -238,7 +238,7 @@
   },
   "mcp": {
     "title": "MCP",
-    "description": "Model Context Protocol を介して AI エージェントを Openship API に接続します。",
+    "description": "Model Context Protocol を介して AI エージェントを Vibrail API に接続します。",
     "loading": "読み込み中…",
     "connectAnother": "別のクライアントを接続",
     "toolsTitle": "ツール",
@@ -250,7 +250,7 @@
     "toolWrite": "書き込み",
     "toolDestructive": "慎重に使用",
     "bannerStrong": "以下のエンドポイントを MCP クライアントに貼り付けてください",
-    "bannerRest": "（Claude、Cursor など） — ブラウザウィンドウが開き、アクセスを承認してクライアントが到達できる範囲を選択できます。コピーするトークンはありません。Openship は標準準拠の OAuth 2.1 MCP サーバーです。",
+    "bannerRest": "（Claude、Cursor など） — ブラウザウィンドウが開き、アクセスを承認してクライアントが到達できる範囲を選択できます。コピーするトークンはありません。Vibrail は標準準拠の OAuth 2.1 MCP サーバーです。",
     "addToClient": "クライアントに追加",
     "install": "インストール",
     "endpoint": "エンドポイント",

@@ -238,7 +238,7 @@
   },
   "mcp": {
     "title": "MCP",
-    "description": "Conecte agentes de IA à sua API do Openship através do Model Context Protocol.",
+    "description": "Conecte agentes de IA à sua API do Vibrail através do Model Context Protocol.",
     "loading": "Carregando…",
     "connectAnother": "Conectar outro cliente",
     "toolsTitle": "Ferramentas",
@@ -250,7 +250,7 @@
     "toolWrite": "Escrita",
     "toolDestructive": "Usar com cuidado",
     "bannerStrong": "Cole o endpoint abaixo no seu cliente MCP",
-    "bannerRest": "(Claude, Cursor, …) — ele abre uma janela do navegador onde você aprova o acesso e escolhe o que o cliente pode alcançar. Nenhum token para copiar. O Openship é um servidor MCP OAuth 2.1 compatível com os padrões.",
+    "bannerRest": "(Claude, Cursor, …) — ele abre uma janela do navegador onde você aprova o acesso e escolhe o que o cliente pode alcançar. Nenhum token para copiar. O Vibrail é um servidor MCP OAuth 2.1 compatível com os padrões.",
     "addToClient": "Adicionar ao seu cliente",
     "install": "Instalar",
     "endpoint": "Endpoint",
