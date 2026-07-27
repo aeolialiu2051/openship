@@ -17,8 +17,6 @@ import {
   Container,
   Globe,
   GitBranch,
-  BookOpen,
-  ExternalLink,
   Layers,
   MapPin,
 } from "lucide-react";
@@ -427,7 +425,7 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         {t.servers.list.emptyDescription}
       </p>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-3 mb-10">
+      <div className="flex items-center justify-center mb-10">
         <button
           onClick={onAdd}
           className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5"
@@ -435,16 +433,6 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
           <Plus className="size-4" />
           {t.servers.list.addFirstServer}
         </button>
-        <a
-          href="https://openship.io/docs/self-hosting"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-xl bg-muted/50 px-6 py-3 text-sm font-medium text-foreground transition-colors hover:bg-muted"
-        >
-          <BookOpen className="size-4" />
-          {t.servers.list.seeDocs}
-          <ExternalLink className="size-3.5 opacity-60" />
-        </a>
       </div>
 
       <div className="max-w-2xl mx-auto">

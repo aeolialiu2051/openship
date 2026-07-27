@@ -1524,6 +1524,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
                 onSelect={() => handleDeployTargetChange(opt.value)}
                 icon={opt.icon}
                 label={opt.label}
+                badge={opt.value === "cloud" ? ts.comingSoon : undefined}
                 description={opt.description}
               >
                 {/* Collapsed, searchable picker for multiple servers — carries
