@@ -15,6 +15,7 @@ import type { ComponentStatus, ServerInfo } from "@/lib/api/system";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
+import { usePlatform } from "@/context/PlatformContext";
 import { useSetupStream } from "@/hooks/useSetupStream";
 import { ServerForm } from "../_components/server-form";
 import { AutoSetupFlow } from "./_components/auto-setup-flow";
@@ -72,6 +73,7 @@ export default function AddServerPage() {
   const router = useRouter();
   const { showToast } = useToast();
   const { t } = useI18n();
+  const { selfHosted, userServers } = usePlatform();
 
   const [loaded, setLoaded] = useState(false);
 
@@ -394,6 +396,8 @@ export default function AddServerPage() {
             <ServerForm
               key={initialServer?.id ?? "new"}
               server={initialServer}
+              selfHosted={selfHosted}
+              userServers={userServers}
               onSaved={handleSaved}
             />
           </div>

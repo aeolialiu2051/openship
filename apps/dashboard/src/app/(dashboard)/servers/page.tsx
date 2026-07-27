@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { BlurIp } from "@/components/BlurIp";
-import { useAddServerModal } from "@/components/servers/AddServerModal";
+import { useAddServerModal } from "@/components/servers/ServerModal";
 import {
   Server,
   Plus,

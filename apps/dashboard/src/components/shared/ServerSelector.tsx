@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { BlurIp } from "@/components/BlurIp";
-import { useAddServerModal } from "@/components/servers/AddServerModal";
+import { useAddServerModal } from "@/components/servers/ServerModal";
 import {
   Server,
   CheckCircle2,

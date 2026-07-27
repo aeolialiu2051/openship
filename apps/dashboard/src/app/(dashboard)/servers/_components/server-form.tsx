@@ -6,7 +6,6 @@ import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
-import { usePlatform } from "@/context/PlatformContext";
 import { invalidateServersList } from "@/hooks/useServersList";
 
 const INPUT =
@@ -21,15 +20,24 @@ interface ServerFormProps {
   onSaved: (result: { server: ServerInfo; isEditing: boolean }) => void;
   /** Optional override for the primary button label. */
   submitLabel?: string;
+  /** Platform capabilities are passed explicitly because modal content is
+   * rendered by the root ModalProvider, outside DashboardProviders. */
+  selfHosted: boolean;
+  userServers: boolean;
 }
 
-// The "SSH Connection" credentials card, shared by the add (/servers/new) and
-// edit (/servers/[serverId]?edit=true) flows. It owns all field state plus the
-// test/save logic; the surrounding page header and sidebars stay in the pages.
-export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
+// The shared add/edit credentials card used by /servers/new and the server
+// modal. It owns all field state plus the test/save logic so both modes stay in
+// sync.
+export function ServerForm({
+  server,
+  onSaved,
+  submitLabel,
+  selfHosted,
+  userServers,
+}: ServerFormProps) {
   const { showToast } = useToast();
   const { t } = useI18n();
-  const { selfHosted, userServers } = usePlatform();
   const isEditing = !!server;
   const useInlinePrivateKey = userServers && !selfHosted;
 
@@ -68,10 +76,12 @@ export function ServerForm({ server, onSaved, submitLabel }: ServerFormProps) {
   const [traefikTls, setTraefikTls] = useState(server?.traefikTls ?? true);
   const [traefikCertResolver, setTraefikCertResolver] = useState(server?.traefikCertResolver ?? "");
 
-  const localizedConnectionError = (err: unknown, fallback: string) =>
-    getApiErrorCode(err) === "permission_denied"
-      ? t.servers.form.managementAccessRequired
-      : getApiErrorMessage(err, fallback);
+  const localizedConnectionError = (err: unknown, fallback: string) => {
+    const code = getApiErrorCode(err);
+    if (code === "permission_denied") return t.servers.form.managementAccessRequired;
+    if (code === "duplicate_server") return t.deploy.addServer.duplicateServer;
+    return getApiErrorMessage(err, fallback);
+  };
 
   async function handleSave() {
     if (!sshHost.trim()) {

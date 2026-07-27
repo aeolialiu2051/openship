@@ -16,7 +16,7 @@ import { Plus, Search, Server } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { usePlatform } from "@/context/PlatformContext";
 import { useProjectsHome } from "@/hooks/useProjectsHome";
-import { useAddServerModal } from "@/components/servers/AddServerModal";
+import { useAddServerModal } from "@/components/servers/ServerModal";
 
 export default function ProjectsPage() {
   const { t } = useI18n();

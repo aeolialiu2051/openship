@@ -33,7 +33,7 @@ import { useSetupStream } from "@/hooks/useSetupStream";
 import { useMonitorStream } from "@/hooks/useMonitorStream";
 import type { ServerInfo, ComponentStatus, SetupComponentProgress, SetupLogEvent } from "@/lib/api/system";
 import { PromptDetails } from "@/components/import-project/PromptDetails";
-import { ServerForm } from "../_components/server-form";
+import { useServerModal } from "@/components/servers/ServerModal";
 import { OverviewTab } from "./_components/overview-tab";
 import { ComponentsTab } from "./_components/components-tab";
 import { ServerModuleUpdates } from "./_components/module-updates";
@@ -89,6 +89,7 @@ export default function ServerDetailPage({
   const editing = searchParams.get("edit") === "true";
   const { showToast } = useToast();
   const { showModal, hideModal } = useModal();
+  const showServerModal = useServerModal();
   const { t } = useI18n();
   // Port forwarding is meaningful only in desktop mode (the orchestrator IS
   // the user's machine). Backend routes are independently gated by assertDesktop.
@@ -141,6 +142,7 @@ export default function ServerDetailPage({
   const [manualActionMode, setManualActionMode] = useState<ManualActionMode>(null);
   const [manualActionDone, setManualActionDone] = useState(false);
   const [manualActionFinalStatus, setManualActionFinalStatus] = useState<"completed" | "failed" | null>(null);
+  const editModalOpened = useRef(false);
 
   const setupStream = useSetupStream({
     onComplete: (event) => {
@@ -267,6 +269,33 @@ export default function ServerDetailPage({
       setChecking(false);
     }
   }, [serverId, showToast, t]);
+
+  const openEditServer = useCallback(() => {
+    if (!server) return;
+    showServerModal({
+      server,
+      onSaved: (updated) => {
+        setServer(updated);
+        void runHealthCheck();
+      },
+    });
+  }, [runHealthCheck, server, showServerModal]);
+
+  // Preserve old/deep-linked ?edit=true URLs, but render the editor as the
+  // shared modal and immediately clean the obsolete route state from the URL.
+  useEffect(() => {
+    if (!editing) {
+      editModalOpened.current = false;
+      return;
+    }
+    if (!server || editModalOpened.current) return;
+    editModalOpened.current = true;
+    const nextParams = new URLSearchParams(Array.from(searchParams.entries()));
+    nextParams.delete("edit");
+    const query = nextParams.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    openEditServer();
+  }, [editing, openEditServer, pathname, router, searchParams, server]);
 
   const installMissingComponents = useCallback(async () => {
     const missing = components.filter(
@@ -526,46 +555,6 @@ export default function ServerDetailPage({
     );
   }
 
-  // Edit view shares the same route as the detail page (?edit=true) and reuses
-  // the credentials form so add/edit stay in sync.
-  if (editing) {
-    return (
-      <PageContainer>
-          <div className="flex items-center gap-3 mb-6">
-            <button
-              onClick={() => router.push(`/servers/${serverId}`)}
-              className="w-8 h-8 rounded-lg hover:bg-muted flex items-center justify-center transition-colors"
-            >
-              <ArrowLeft className="size-4 text-muted-foreground rtl:rotate-180" />
-            </button>
-            <div>
-              <h1
-                className="text-2xl font-medium text-foreground/80"
-                style={{ letterSpacing: "-0.2px" }}
-              >
-                {t.servers.detail.editServer}
-              </h1>
-              <p className="text-sm text-muted-foreground/70 mt-0.5">
-                {interpolate(t.servers.detail.editSubtitle, { name: server.name || server.sshHost })}
-              </p>
-            </div>
-          </div>
-
-          <div className="max-w-2xl">
-            <ServerForm
-              key={server.id}
-              server={server}
-              submitLabel={t.servers.detail.saveChanges}
-              onSaved={({ server: updated }) => {
-                setServer(updated);
-                router.push(`/servers/${serverId}`);
-              }}
-            />
-          </div>
-      </PageContainer>
-    );
-  }
-
   const allHealthy =
     components.length > 0 && components.every((c) => c.healthy);
   const actionBusy = setupStream.isConnected || setupStream.isConnecting || isRemoving;
@@ -628,7 +617,7 @@ export default function ServerDetailPage({
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => router.push(`/servers/${serverId}?edit=true`)}
+              onClick={openEditServer}
               className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 text-foreground text-sm font-medium rounded-xl hover:bg-muted transition-colors"
             >
               <Settings2 className="size-4" />
@@ -670,13 +659,13 @@ export default function ServerDetailPage({
             moment they open the page, not just a toast that disappears. */}
         {checkErrorKind && checkError && (
           <ConnectionBanner
-            serverId={serverId}
             kind={checkErrorKind}
             host={server.sshHost}
             port={server.sshPort ?? 22}
             message={checkError}
             retrying={checking}
             onRetry={runHealthCheck}
+            onEdit={openEditServer}
           />
         )}
 

@@ -15,7 +15,7 @@ import { useToast } from "@/context/ToastContext";
 import { useModal } from "@/context/ModalContext";
 import type { DeployTarget, BuildStrategy, CloneStrategy, RuntimeMode } from "@/context/deployment/types";
 import { createPersistedValue } from "@/lib/persisted-value";
-import { useAddServerModal } from "@/components/servers/AddServerModal";
+import { useAddServerModal } from "@/components/servers/ServerModal";
 import ServerRuntimePicker from "./ServerRuntimePicker";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { isDeploySelectionComingSoon } from "./deploy-target-availability";

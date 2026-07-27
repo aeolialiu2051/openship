@@ -1,5 +1,4 @@
 import { AlertTriangle, KeyRound, RefreshCw, Settings2, Wifi, WifiOff } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { classifyConnectivityError, type ConnectivityCode } from "@repo/core";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -43,17 +42,16 @@ export function classifyConnectionError(
 }
 
 export function ConnectionBanner(props: {
-  serverId: string;
   kind: ConnectionErrorKind;
   host: string;
   port: number;
   message: string;
   retrying: boolean;
   onRetry: () => void;
+  onEdit: () => void;
 }) {
-  const router = useRouter();
   const { t } = useI18n();
-  const { kind, host, port, message, retrying, onRetry, serverId } = props;
+  const { kind, host, port, message, retrying, onRetry, onEdit } = props;
 
   const copy = (() => {
     switch (kind) {
@@ -121,7 +119,7 @@ export function ConnectionBanner(props: {
               {retrying ? t.servers.banner.checking : t.servers.banner.retry}
             </button>
             <button
-              onClick={() => router.push(`/servers/${serverId}?edit=true`)}
+              onClick={onEdit}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium bg-foreground/[0.06] hover:bg-foreground/[0.1] text-foreground rounded-lg transition-colors"
             >
               <Settings2 className="size-3" />
