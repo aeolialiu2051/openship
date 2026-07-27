@@ -68,7 +68,7 @@ export function ConnectPrompt({
   onConnectCloud,
 }: {
   connecting: boolean;
-  /** source: "oauth" → Openship App (OAuth+install), "cli" → gh CLI. */
+  /** source: "oauth" → Vibrail GitHub App (OAuth+install), "cli" → gh CLI. */
   onConnect: (source?: "oauth" | "cli") => void;
   cliAction: CliAction | null;
   onRefresh: () => void;
@@ -214,7 +214,7 @@ export function ConnectPrompt({
             </button>
           </div>
         ) : (
-          // SaaS: one path — the Openship GitHub App via OAuth.
+          // SaaS: one path — the Vibrail GitHub App via OAuth.
           <div className="flex flex-col items-center gap-3">
             <button
               onClick={() => onConnect("oauth")}

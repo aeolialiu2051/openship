@@ -170,8 +170,8 @@ export async function connect(c: Context) {
   const mode = await githubAuth.resolveGitHubAuthMode(ctx);
 
   // Optional `source` discriminator from the dashboard's dual-source
-  // (Openship App vs gh CLI) settings panel. When the user explicitly
-  // clicks "Connect Openship App", source="oauth" forces the App
+  // (Vibrail GitHub App vs gh CLI) settings panel. When the user explicitly
+  // clicks "Connect Vibrail GitHub App", source="oauth" forces the App
   // install flow regardless of whether gh CLI is already authenticated;
   // otherwise the two buttons would be indistinguishable to the server
   // and both would short-circuit on the cli token.
@@ -674,7 +674,7 @@ export async function getCloneToken(c: Context) {
     return c.json(
       {
         error:
-          "No GitHub App installation token is available for this owner. Connect the Openship GitHub App (cloud) for this account to use a clone token.",
+          "No GitHub App installation token is available for this owner. Connect the Vibrail GitHub App (cloud) for this account to use a clone token.",
       },
       409,
     );

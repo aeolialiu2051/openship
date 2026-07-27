@@ -212,7 +212,7 @@ async function checkGitHubAppInstallation(
     status: "fail",
     code: PREFLIGHT_ERROR_CODES.GITHUB_APP_INSTALLATION_REQUIRED,
     message:
-      `The Openship GitHub App is not installed on "${owner}". ` +
+      `The Vibrail GitHub App is not installed on "${owner}". ` +
       `Deploys need it to mint a scoped token for cloning the repo. ` +
       `Install it at ${getInstallUrl()} and deploy again.`,
   };
@@ -302,7 +302,7 @@ async function checkRemoteBuildTokenLeak(
       code: PREFLIGHT_ERROR_CODES.GITHUB_CLI_REMOTE_BUILD_REJECTED,
       message:
         `gh CLI auth only works for local builds. ` +
-        `Connect the Openship App in Settings → GitHub, or set a per-project ` +
+        `Connect the Vibrail GitHub App in Settings → GitHub, or set a per-project ` +
         `clone token, then deploy again.`,
     };
   }
@@ -381,7 +381,7 @@ async function checkRemoteCloneToken(
     code: PREFLIGHT_ERROR_CODES.GITHUB_REMOTE_TOKEN_REQUIRED,
     message:
       `No GitHub credential available to clone "${owner}" onto the build worker. ` +
-      `Install the Openship App on this owner, add a per-project clone token, ` +
+      `Install the Vibrail GitHub App on this owner, add a per-project clone token, ` +
       `or switch to "Build on this machine" so the credential stays on the API host.`,
   };
 }
@@ -445,7 +445,7 @@ async function checkCloneOnServerCredential(
       `(a \`gh\` login, a credential helper, or its ssh key) and clone there if it does — otherwise it ` +
       `falls back to cloning on the API host and transferring the context. To make the on-server clone ` +
       `deterministic, connect the server under Servers → GitHub (a read-only per-repo deploy key is the ` +
-      `narrowest option), install the Openship App on "${owner}", or add a per-project clone token.`,
+      `narrowest option), install the Vibrail GitHub App on "${owner}", or add a per-project clone token.`,
   };
 }
 

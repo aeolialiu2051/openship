@@ -399,7 +399,7 @@
     },
     "appBanner": {
       "title": "GitHub App not installed",
-      "description": "Install the Openship GitHub App on your account or organization to enable auto-deploy and webhook-triggered deployments for cloud projects.",
+      "description": "Install the Vibrail GitHub App on your account or organization to enable auto-deploy and webhook-triggered deployments for cloud projects.",
       "install": "Install GitHub App"
     },
     "webhookBanner": {

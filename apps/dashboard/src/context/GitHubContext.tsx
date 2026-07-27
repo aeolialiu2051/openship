@@ -103,7 +103,7 @@ interface GitHubContextValue {
   loading: boolean;
   /**
    * Initiate a GitHub connection. `source` discriminates which dual-source
-   * card was clicked in cli mode — "oauth" forces the Openship App install
+   * card was clicked in cli mode — "oauth" forces the Vibrail GitHub App install
    * flow even when gh CLI is already authenticated. Omit on legacy modes.
    */
   connect: (source?: "oauth" | "cli") => Promise<void>;
@@ -354,7 +354,7 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
         // Always refresh — the canonical state on the backend is now the
         // source of truth, and a per-source disconnect may still leave
         // the other source connected (e.g. cli logged out but the
-        // Openship App still installed).
+        // Vibrail GitHub App still installed).
         await refresh();
       } catch (err) {
         if (isAbortError(err) || isNetworkError(err)) return;

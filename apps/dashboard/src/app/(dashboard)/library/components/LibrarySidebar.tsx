@@ -55,7 +55,7 @@ export function LibrarySidebar({
   return (
     <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
       {/* ── Connection status ─────────────────────────────────────
-          SaaS mode (!selfHosted) → single card: Openship GitHub App.
+          SaaS mode (!selfHosted) → single card: Vibrail GitHub App.
           Self-hosted/desktop → gh CLI primary + Openship Cloud optional. */}
       {selfHosted ? (
         <SelfHostedConnectionCard
@@ -124,7 +124,7 @@ export function LibrarySidebar({
 // ─── Connection cards ───────────────────────────────────────────────────────
 
 /**
- * SaaS connection card. In CLOUD_MODE the Openship GitHub App is the
+ * SaaS connection card. In CLOUD_MODE the Vibrail GitHub App is the
  * only credential source — there's no gh CLI on the SaaS server.
  */
 function SaasConnectionCard({
@@ -144,7 +144,7 @@ function SaasConnectionCard({
       </div>
       <SourceRow
         icon={Github}
-        label={t.library.sidebar.openshipGithubApp}
+        label={t.library.sidebar.vibrailGithubApp}
         sublabel={
           connected
             ? state.sources.openshipApp.login ?? selectedOwner ?? t.library.sidebar.connected
@@ -159,7 +159,7 @@ function SaasConnectionCard({
 /**
  * Self-hosted / desktop connection card. Per the architecture rules:
  *   - gh CLI is the PRIMARY source of truth for listing.
- *   - Openship Cloud App is the OPTIONAL secondary source that mints
+ *   - Vibrail GitHub App is the OPTIONAL secondary source that mints
  *     safer short-lived install tokens for remote cloning.
  *
  * Both rows read straight from the canonical state — no derivation,
@@ -227,11 +227,11 @@ function SelfHostedConnectionCard({
           tone="primary"
         />
 
-        {/* SECONDARY: Openship Cloud App. Real status comes from the async
+        {/* SECONDARY: Vibrail GitHub App. Real status comes from the async
             /github/status probe above — accurate without blocking the library. */}
         <SourceRow
           icon={Cloud}
-          label={t.library.sidebar.openshipCloudApp}
+          label={t.library.sidebar.vibrailGithubAppCloud}
           sublabel={appSublabel}
           connected={appStatus?.connected ?? false}
           tone="secondary"

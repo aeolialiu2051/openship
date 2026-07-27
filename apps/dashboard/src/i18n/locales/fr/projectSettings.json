@@ -276,7 +276,7 @@
     },
     "appBanner": {
       "title": "Application GitHub non installée",
-      "description": "Installez l'application GitHub Openship sur votre compte ou votre organisation pour activer le déploiement automatique et les déploiements déclenchés par webhook pour les projets cloud.",
+      "description": "Installez l'application GitHub Vibrail sur votre compte ou votre organisation pour activer le déploiement automatique et les déploiements déclenchés par webhook pour les projets cloud.",
       "install": "Installer l'application GitHub"
     },
     "webhookBanner": {

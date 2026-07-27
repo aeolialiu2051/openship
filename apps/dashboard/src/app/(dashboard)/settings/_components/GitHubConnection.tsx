@@ -166,7 +166,7 @@ export function GitHubConnection() {
 
   return (
     <>
-      {/* ─── Openship GitHub App card (legacy single-source layout) ─────
+      {/* ─── Vibrail GitHub App card (legacy single-source layout) ─────
           The clean accounts table that was already good. On self-hosted
           + not cloud-connected we swap the "Connect GitHub" CTA for a
           "Connect Openship Cloud" prompt, because the App can't function

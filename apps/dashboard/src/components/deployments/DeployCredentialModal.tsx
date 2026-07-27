@@ -11,7 +11,7 @@
  *
  * Up to four options are surfaced, conditionally:
  *
- *   1. Install Openship App on {owner}             — recommended, short-lived
+ *   1. Install Vibrail GitHub App on {owner}       — recommended, short-lived
  *                                                    repo-scoped tokens. Works
  *                                                    for buildStrategy=local
  *                                                    AND remote. Shown when
@@ -88,7 +88,7 @@ export interface DeployCredentialModalProps {
 
   /** Repo owner. Used in copy + as the App install target. */
   owner: string;
-  /** URL to install the Openship App on this owner. Null if unavailable
+  /** URL to install the Vibrail GitHub App on this owner. Null if unavailable
    *  (e.g. no cloud connection yet on self-hosted). */
   installUrl: string | null;
   /** Project id — required for the "add a project clone token" option. */
@@ -280,7 +280,7 @@ export function DeployCredentialModal({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold text-foreground">
-                    Install the Openship GitHub App on {owner}
+                    Install the Vibrail GitHub App on {owner}
                   </p>
                   <span className="text-[10px] font-semibold uppercase tracking-wider text-primary">
                     Recommended

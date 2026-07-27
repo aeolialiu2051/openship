@@ -1019,7 +1019,7 @@ export async function githubInstallCallback(c: Context) {
       return c.html(
         renderCallbackHtml(
           "Installation requested",
-          "An organization admin needs to approve the install. The Openship App will activate once approved.",
+          "An organization admin needs to approve the install. The Vibrail GitHub App will activate once approved.",
         ),
       );
     case "ok":

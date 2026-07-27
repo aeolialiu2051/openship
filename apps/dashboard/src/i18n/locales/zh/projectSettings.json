@@ -269,7 +269,7 @@
     },
     "appBanner": {
       "title": "尚未安装 GitHub App",
-      "description": "在你的账户或组织上安装 Openship GitHub App，以便为云端项目启用自动部署和由 webhook 触发的部署。",
+      "description": "在你的账户或组织上安装 Vibrail GitHub App，以便为云端项目启用自动部署和由 webhook 触发的部署。",
       "install": "安装 GitHub App"
     },
     "webhookBanner": {

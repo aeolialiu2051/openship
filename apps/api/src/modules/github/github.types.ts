@@ -263,7 +263,7 @@ export interface RepositoryDetail {
 
 export interface GitHubConnectionState {
   sources: {
-    /** Openship GitHub App. In SaaS mode this is the local installation;
+    /** Vibrail GitHub App. In SaaS mode this is the local installation;
      *  in self-hosted+cloud-connected this is the cloud-proxied install. */
     openshipApp: {
       connected: boolean;

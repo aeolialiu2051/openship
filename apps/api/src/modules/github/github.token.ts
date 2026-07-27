@@ -19,7 +19,7 @@
  *   block at the dispatcher):
  *     1. gh CLI                ← least config: just needs the operator's
  *                                 CLI present; opt-in gated for multi-user
- *     2. Openship App installation (org-scoped, short-lived, repo-scoped)
+ *     2. Vibrail GitHub App installation (org-scoped, short-lived, repo-scoped)
  *     3. Project clone token   (per-project user PAT override)
  *     4. User-global clone token (user PAT, when marked as default)
  *     5. User OAuth (Better-Auth)
@@ -28,7 +28,7 @@
  *   SaaS priority:
  *     1. Project clone token
  *     2. User-global clone token
- *     3. Openship App installation
+ *     3. Vibrail GitHub App installation
  *     4. User OAuth
  *     5. null
  *
@@ -44,7 +44,7 @@
  *
  *     1. Project clone token
  *     2. User-global clone token
- *     3. Openship App installation (short-lived, repo-scoped)
+ *     3. Vibrail GitHub App installation (short-lived, repo-scoped)
  *     4. null  ← caller throws "install App or set per-project token"
  *
  * The dispatcher returns `{ token, source }` so callers (logging,
@@ -75,7 +75,7 @@ export type GitHubTokenSource =
   | "project"          // per-project clone_token_encrypted
   | "user-pat"         // user_settings clone_token_encrypted (cloneTokenAsDefault=true)
   | "gh-cli"           // local gh CLI token
-  | "app-installation" // Openship App installation token (short-lived, scoped)
+  | "app-installation" // Vibrail GitHub App installation token (short-lived, scoped)
   | "user-oauth";      // Better-Auth GitHub OAuth (rare fallback)
 
 export interface TokenResult {
@@ -348,7 +348,7 @@ export async function requireTokenFor(
 
   const hint =
     purpose === "remote"
-      ? "Install the Openship GitHub App on this owner, or set a per-project clone token in Settings."
+      ? "Install the Vibrail GitHub App on this owner, or set a per-project clone token in Settings."
       : "Run `gh auth login`, connect Openship Cloud, or set a per-project clone token in Settings.";
 
   throw new AppError(

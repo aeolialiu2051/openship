@@ -74,7 +74,7 @@ export default function LibraryPage() {
     localStorage.setItem(GH_CLI_CONSENT_KEY, "1");
     setGhCliConsent(true);
   }, []);
-  // Gate only the gh-CLI source; the Openship App (OAuth) is already an explicit
+  // Gate only the gh-CLI source; the Vibrail GitHub App (OAuth) is already an explicit
   // connection and needs no extra prompt.
   const needsGhCliConsent = state.primary === "gh-cli" && !ghCliConsent;
 

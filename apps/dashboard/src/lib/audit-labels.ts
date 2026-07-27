@@ -185,7 +185,7 @@ export const AUDIT_EVENT_LABELS: Record<string, AuditLabel> = {
   /* ---------- GitHub ---------- */
   "github.install": {
     label: "GitHub app installed",
-    description: "The Openship GitHub app was installed on an account or organization.",
+    description: "The Vibrail GitHub app was installed on an account or organization.",
   },
   "github.disconnect": {
     label: "GitHub disconnected",

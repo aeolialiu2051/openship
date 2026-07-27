@@ -276,7 +276,7 @@
     },
     "appBanner": {
       "title": "تطبيق GitHub غير مثبّت",
-      "description": "ثبّت تطبيق Openship على GitHub في حسابك أو مؤسستك لتفعيل النشر التلقائي وعمليات النشر المُشغّلة عبر webhook للمشاريع السحابية.",
+      "description": "ثبّت تطبيق Vibrail على GitHub في حسابك أو مؤسستك لتفعيل النشر التلقائي وعمليات النشر المُشغّلة عبر webhook للمشاريع السحابية.",
       "install": "تثبيت تطبيق GitHub"
     },
     "webhookBanner": {

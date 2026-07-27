@@ -269,7 +269,7 @@
     },
     "appBanner": {
       "title": "Aplicação GitHub não instalada",
-      "description": "Instale a Aplicação GitHub da Openship na sua conta ou organização para ativar a implementação automática e as implementações despoletadas por webhook para projetos na cloud.",
+      "description": "Instale a Aplicação GitHub da Vibrail na sua conta ou organização para ativar a implementação automática e as implementações despoletadas por webhook para projetos na cloud.",
       "install": "Instalar Aplicação GitHub"
     },
     "webhookBanner": {

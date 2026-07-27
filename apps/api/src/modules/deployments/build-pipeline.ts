@@ -665,7 +665,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
           "the server has no GitHub identity of its own, no App/PAT token is available, and no git " +
           "identity could be forwarded. Falling back to cloning on the API host and transferring the " +
           "build context. To clone directly on the server, connect it under Servers → GitHub " +
-          "(a read-only per-repo deploy key is the narrowest option), or install the Openship App / " +
+          "(a read-only per-repo deploy key is the narrowest option), or install the Vibrail GitHub App / " +
           "add a per-project clone token.",
         "warn",
       );

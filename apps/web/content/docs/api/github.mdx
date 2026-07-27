@@ -5,7 +5,7 @@ description: Connect a GitHub account or App, browse repos, branches and files, 
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The GitHub API connects an Openship instance to GitHub — via the Openship GitHub App, an OAuth account,
+The GitHub API connects an Openship instance to GitHub — via the Vibrail GitHub App, an OAuth account,
 or the local `gh` CLI — and then lets you browse the accounts, repositories, branches and files you can
 deploy from. It also manages the push webhooks that drive [auto-deploy](/docs/guides/deploy-from-github).
 In the dashboard this is the **GitHub** connection card in Settings and the repo picker in the deploy wizard.
@@ -80,7 +80,7 @@ POST /api/github/connect
 ```
 
 The optional body field `source` (`"oauth"` | `"cli"`) forces a specific path when the dashboard shows both
-the "Connect Openship App" and "Use gh CLI" buttons; omit it to let the server pick based on the instance's
+the "Connect Vibrail GitHub App" and "Use gh CLI" buttons; omit it to let the server pick based on the instance's
 auth mode.
 
 ```bash
@@ -184,7 +184,7 @@ openship api /github/repos/acme/my-app/webhooks -X DELETE -d '{"hookId":123456}'
 
 `GET /api/github/repos/:owner/:repo/clone-token` mints a short-lived (under an hour) GitHub App installation
 token and returns `{ token, cloneUrl, command }` — a ready-to-run `git clone`. This is the same credential
-the build pipeline clones with, and is available only when the Openship GitHub App is installed for the owner.
+the build pipeline clones with, and is available only when the Vibrail GitHub App is installed for the owner.
 
 ## Errors you might see
 
@@ -195,7 +195,7 @@ CLI) is configured. Connect first with `POST /api/github/connect`, then retry.
 
 <Callout title="409 — no installation token" type="warn">
 `clone-token` needs a GitHub App installation for the owner. In `gh` CLI or PAT modes there is no
-installation token, so this route 409s. Install the Openship GitHub App on that account to use clone tokens.
+installation token, so this route 409s. Install the Vibrail GitHub App on that account to use clone tokens.
 </Callout>
 
 <Callout title="503 — cloud_unreachable" type="error">

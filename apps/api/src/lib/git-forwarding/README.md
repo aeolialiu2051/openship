@@ -1,7 +1,7 @@
 # Git credential forwarding (desktop-only)
 
 Lets a **server build clone on a remote server using the operator's LOCAL `gh` identity** — so you
-don't have to use the Openship Cloud GitHub App token *and* don't have to build locally then upload —
+don't have to use the Vibrail GitHub App token from Openship Cloud *and* don't have to build locally then upload —
 **without persisting any credential on the remote**. One consumer:
 
 | Consumer | Entry point | Use |

@@ -269,7 +269,7 @@
     },
     "appBanner": {
       "title": "GitHub App がインストールされていません",
-      "description": "アカウントまたは組織に Openship GitHub App をインストールして、クラウドプロジェクトの自動デプロイと webhook でトリガーされるデプロイを有効にします。",
+      "description": "アカウントまたは組織に Vibrail GitHub App をインストールして、クラウドプロジェクトの自動デプロイと webhook でトリガーされるデプロイを有効にします。",
       "install": "GitHub App をインストール"
     },
     "webhookBanner": {

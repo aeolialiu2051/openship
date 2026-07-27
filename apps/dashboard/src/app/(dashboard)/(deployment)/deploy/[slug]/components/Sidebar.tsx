@@ -314,7 +314,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     // ── Clone-strategy resolution (self-hosted server deploys) ──────────
     // Deterministic — never ask when the answer is knowable. Server-side clone
     // is the DEFAULT: any resolvable credential (local gh forwarded over the
-    // relay, Openship App / custom PAT, or a per-server credential) lets the
+    // relay, Vibrail GitHub App / custom PAT, or a per-server credential) lets the
     // clone run on the remote worker. We no longer flip to a local build just
     // because gh is logged in — the gh token is now forwarded for the clone,
     // which the user opted into as the default. Only an EXPLICIT "build local"

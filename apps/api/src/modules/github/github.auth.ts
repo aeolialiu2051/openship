@@ -743,7 +743,7 @@ export async function getUserStatusWithDiagnostics(
  *     on the wire.
  *
  * Priority for `primary`:
- *   1. Openship App when connected — safest (short-lived install tokens)
+ *   1. Vibrail GitHub App when connected — safest (short-lived install tokens)
  *   2. gh CLI when available — local builds only
  *   3. null — nothing usable
  */
@@ -753,7 +753,7 @@ export async function getGitHubConnectionState(
   const userId = ctx.userId;
   const onSelfHosted = !env.CLOUD_MODE;
 
-  // ── Openship App side ──────────────────────────────────────────────
+  // ── Vibrail GitHub App side ────────────────────────────────────────
   // In CLOUD_MODE the App is local-signed; in self-hosted+cloud-connected
   // the App is cloud-proxied. Both flow through getUserStatus which
   // already abstracts that.
@@ -1207,7 +1207,7 @@ export async function resolveOauthHandoffUrl(
  * Disconnect a user from a GitHub source.
  *
  * `source`:
- *   - "oauth" → remove the OAuth account row (Openship App / standalone OAuth)
+ *   - "oauth" → remove the OAuth account row (Vibrail GitHub App / standalone OAuth)
  *   - "cli"   → set the cli-suppression flag so the host's `gh auth token`
  *               is ignored even when present. NEVER touches the host's gh
  *               config - we only refuse to use it.
