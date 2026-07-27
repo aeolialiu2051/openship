@@ -14,6 +14,14 @@ export interface DockerContainerOverview {
   id: string;
   name: string;
   image: string;
+  /** Openship ownership labels, when this is a managed workload. */
+  projectId: string | null;
+  deploymentId: string | null;
+  serviceName: string | null;
+  buildId: string | null;
+  /** Native Docker Compose identity, including non-Openship stacks. */
+  composeProject: string | null;
+  composeService: string | null;
   state: string;
   status: string;
   health: DockerHealth;
@@ -33,6 +41,7 @@ interface DockerPsRow {
   ID?: string;
   Image?: string;
   Names?: string;
+  Labels?: string;
   State?: string;
   Status?: string;
 }
@@ -86,6 +95,23 @@ function normalizeName(value?: string): string {
   return (value ?? "").replace(/^\//, "").trim();
 }
 
+const OPENSHIP_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
+
+/**
+ * `docker ps --format '{{json .}}'` emits labels as a comma-delimited string.
+ * Openship's identity labels never contain commas, so only parse the small,
+ * known allowlist we use for workload correlation. Unknown/user labels are not
+ * returned by this endpoint.
+ */
+function labelValue(raw: string | undefined, key: string): string | null {
+  if (!raw) return null;
+  const prefix = `${key}=`;
+  for (const entry of raw.split(",")) {
+    if (entry.startsWith(prefix)) return entry.slice(prefix.length) || null;
+  }
+  return null;
+}
+
 function healthFromStatus(status: string): DockerHealth {
   if (/\(healthy\)/i.test(status)) return "healthy";
   if (/\(unhealthy\)/i.test(status)) return "unhealthy";
@@ -125,11 +151,24 @@ export function parseDockerOverview(raw: string): DockerContainerOverview[] {
       const [blockRead, blockWrite] = splitPair(stats?.BlockIO);
       const state = (row.State ?? "unknown").toLowerCase();
       const status = row.Status ?? state;
+      const labelledProjectId = labelValue(row.Labels, "openship.project");
+      // Container labels are attacker-controlled input. Only retain the
+      // canonical project-id shape before the API uses it in a DB lookup.
+      const projectId =
+        labelledProjectId && OPENSHIP_PROJECT_ID_RE.test(labelledProjectId)
+          ? labelledProjectId
+          : null;
 
       return {
         id,
         name,
         image: row.Image ?? "-",
+        projectId,
+        deploymentId: labelValue(row.Labels, "openship.deployment"),
+        serviceName: labelValue(row.Labels, "openship.service"),
+        buildId: labelValue(row.Labels, "openship.build"),
+        composeProject: labelValue(row.Labels, "com.docker.compose.project"),
+        composeService: labelValue(row.Labels, "com.docker.compose.service"),
         state,
         status,
         health: healthFromStatus(status),

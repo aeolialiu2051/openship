@@ -203,6 +203,12 @@ export interface DockerContainerOverview {
   id: string;
   name: string;
   image: string;
+  projectId: string | null;
+  deploymentId: string | null;
+  serviceName: string | null;
+  buildId: string | null;
+  composeProject: string | null;
+  composeService: string | null;
   state: string;
   status: string;
   health: "healthy" | "unhealthy" | "starting" | null;
@@ -219,6 +225,28 @@ export interface DockerContainerOverview {
 }
 
 export interface DockerOverviewResponse {
+  server: {
+    id: string;
+    name: string | null;
+    isLocal: boolean;
+    sshHost: string;
+    sshPort: number;
+    sshUser: string;
+  };
+  summary: {
+    runningProjects: number;
+    runningContainers: number;
+    totalContainers: number;
+  };
+  projects: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    environmentName: string;
+    environmentSlug: string;
+    isApp: boolean;
+    containers: DockerContainerOverview[];
+  }>;
   containers: DockerContainerOverview[];
   collectedAt: string;
 }

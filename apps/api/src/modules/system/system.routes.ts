@@ -94,8 +94,8 @@ r.public(
 );
 
 /* ── Servers CRUD ───────────────────────────────────────────────── */
-r.get("/servers", { tag: "server:list" }, serversCtrl.listServers);
-r.get("/servers/:id", { tag: "server:read" }, serversCtrl.getServer);
+r.get("/servers", { tag: "server:list", mcp: { description: "List the current organization's servers so a server id can be selected for inspection." } }, serversCtrl.listServers);
+r.get("/servers/:id", { tag: "server:read", mcp: { description: "Get one server's non-secret connection details." } }, serversCtrl.getServer);
 r.get("/servers/:id/reachability", { tag: "server:read" }, serversCtrl.probeReachability);
 // Create has no :id in the URL — org scope comes from the request and the
 // row is created in the active org. collection:true keeps the permission
@@ -114,7 +114,14 @@ r.post(
 );
 r.get(
   "/servers/:id/docker/overview",
-  { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
+  {
+    tag: "server:read",
+    readOnly: true,
+    rateLimit: "server-probe",
+    mcp: {
+      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Openship projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
+    },
+  },
   dockerOverview.getDockerOverview,
 );
 

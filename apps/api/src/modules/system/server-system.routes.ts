@@ -21,8 +21,8 @@ const r = secureRouter(new Hono(), {
 
 r.use("*", userServersOnly);
 
-r.get("/servers", { tag: "server:list" }, serversCtrl.listServers);
-r.get("/servers/:id", { tag: "server:read" }, serversCtrl.getServer);
+r.get("/servers", { tag: "server:list", mcp: { description: "List the current organization's servers so a server id can be selected for inspection." } }, serversCtrl.listServers);
+r.get("/servers/:id", { tag: "server:read", mcp: { description: "Get one server's non-secret connection details." } }, serversCtrl.getServer);
 r.get("/servers/:id/reachability", { tag: "server:read" }, serversCtrl.probeReachability);
 r.post("/servers", { tag: "server:write", collection: true }, serversCtrl.createServer);
 r.patch("/servers/:id", { tag: "server:write" }, serversCtrl.updateServer);
@@ -37,7 +37,14 @@ r.post(
 );
 r.get(
   "/servers/:id/docker/overview",
-  { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
+  {
+    tag: "server:read",
+    readOnly: true,
+    rateLimit: "server-probe",
+    mcp: {
+      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Openship projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
+    },
+  },
   dockerOverview.getDockerOverview,
 );
 

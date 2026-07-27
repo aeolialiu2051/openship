@@ -9,6 +9,8 @@ describe("parseDockerOverview", () => {
         ID: "abcdef1234567890",
         Image: "ghcr.io/openship/api:latest",
         Names: "openship-api-1",
+        Labels:
+          "openship.project=proj_abc123,openship.deployment=dep_123,openship.service=api,com.docker.compose.project=openship",
         State: "running",
         Status: "Up 16 hours (healthy)",
       }),
@@ -37,6 +39,10 @@ describe("parseDockerOverview", () => {
         name: "openship-api-1",
         running: true,
         health: "healthy",
+        projectId: "proj_abc123",
+        deploymentId: "dep_123",
+        serviceName: "api",
+        composeProject: "openship",
         cpuPercent: 2.75,
         memoryUsage: "242MiB",
         memoryLimit: "1GiB",
@@ -53,5 +59,29 @@ describe("parseDockerOverview", () => {
         cpuPercent: null,
       }),
     ]);
+  });
+
+  it("drops malformed Openship project labels while retaining compose identity", () => {
+    const raw = [
+      "__OPENSHIP_DOCKER_PS__",
+      JSON.stringify({
+        ID: "abcdef1234567890",
+        Image: "nginx:latest",
+        Names: "foreign-web",
+        Labels:
+          "openship.project=../../other,com.docker.compose.project=foreign,com.docker.compose.service=web",
+        State: "running",
+        Status: "Up 2 minutes",
+      }),
+      "__OPENSHIP_DOCKER_STATS__",
+    ].join("\n");
+
+    expect(parseDockerOverview(raw)[0]).toEqual(
+      expect.objectContaining({
+        projectId: null,
+        composeProject: "foreign",
+        composeService: "web",
+      }),
+    );
   });
 });

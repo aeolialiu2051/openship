@@ -237,6 +237,18 @@ export function createProjectRepo(db: Database) {
       });
     },
 
+    /** Org-scoped batch lookup used when runtime labels reference projects. */
+    async findManyByIdsInOrganization(ids: string[], organizationId: string) {
+      if (ids.length === 0) return [];
+      return db.query.project.findMany({
+        where: and(
+          inArray(project.id, ids),
+          eq(project.organizationId, organizationId),
+          isNull(project.deletedAt),
+        ),
+      });
+    },
+
     /**
      * Same as listForUser but filtered to production environments only.
      * Used for the "primary" view that hides preview branch deploys.

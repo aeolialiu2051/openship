@@ -6,7 +6,54 @@ import { sshManager } from "../../lib/ssh-manager";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { isSshAuthError } from "@repo/adapters";
-import { DOCKER_OVERVIEW_COMMAND, parseDockerOverview } from "./docker-overview";
+import {
+  DOCKER_OVERVIEW_COMMAND,
+  parseDockerOverview,
+  type DockerContainerOverview,
+} from "./docker-overview";
+
+interface RunningProjectOverview {
+  id: string;
+  name: string;
+  slug: string;
+  environmentName: string;
+  environmentSlug: string;
+  isApp: boolean;
+  containers: DockerContainerOverview[];
+}
+
+function runningProjectsFor(
+  containers: DockerContainerOverview[],
+  projects: Awaited<ReturnType<typeof repos.project.findManyByIdsInOrganization>>,
+): RunningProjectOverview[] {
+  const runningByProject = new Map<string, DockerContainerOverview[]>();
+  for (const container of containers) {
+    // Build helpers also carry openship.project, but they are transient build
+    // infrastructure rather than a running project workload.
+    if (!container.running || !container.projectId || container.buildId) continue;
+    const rows = runningByProject.get(container.projectId) ?? [];
+    rows.push(container);
+    runningByProject.set(container.projectId, rows);
+  }
+
+  return projects
+    .flatMap((project): RunningProjectOverview[] => {
+      const runningContainers = runningByProject.get(project.id);
+      if (!runningContainers?.length) return [];
+      return [
+        {
+          id: project.id,
+          name: project.name,
+          slug: project.slug,
+          environmentName: project.environmentName,
+          environmentSlug: project.environmentSlug,
+          isApp: project.isApp,
+          containers: runningContainers,
+        },
+      ];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 /** Read-only, on-demand Docker container metrics for the server overview. */
 export async function getDockerOverview(c: Context) {
@@ -28,7 +75,39 @@ export async function getDockerOverview(c: Context) {
       executor.exec(DOCKER_OVERVIEW_COMMAND, { timeout: 20_000 }),
     );
     const containers = parseDockerOverview(raw);
-    return c.json({ containers, collectedAt: new Date().toISOString() });
+    const projectIds = [
+      ...new Set(
+        containers
+          .filter((container) => container.running && !container.buildId)
+          .map((container) => container.projectId)
+          .filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    const projects = await repos.project.findManyByIdsInOrganization(
+      projectIds,
+      requestContext.organizationId,
+    );
+    const runningProjects = runningProjectsFor(containers, projects);
+    const runningContainers = containers.filter((container) => container.running).length;
+
+    return c.json({
+      server: {
+        id: server.id,
+        name: server.name,
+        isLocal: server.isLocal,
+        sshHost: server.sshHost,
+        sshPort: server.sshPort,
+        sshUser: server.sshUser,
+      },
+      summary: {
+        runningProjects: runningProjects.length,
+        runningContainers,
+        totalContainers: containers.length,
+      },
+      projects: runningProjects,
+      containers,
+      collectedAt: new Date().toISOString(),
+    });
   } catch (err) {
     const message = safeErrorMessage(err);
     if (isSshAuthError(err)) {
