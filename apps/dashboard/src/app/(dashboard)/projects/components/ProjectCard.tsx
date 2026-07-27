@@ -128,7 +128,13 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
   return (
     <div
       className="group relative flex min-h-14 items-center gap-3 px-4 py-3.5 transition-colors hover:bg-muted/40 sm:gap-4 sm:px-5"
-      style={{ contentVisibility: "auto", containIntrinsicSize: "68px" }}
+      style={{
+        // `content-visibility: auto` applies paint containment, which clips the
+        // draft actions menu at the card boundary. Keep the list optimization
+        // while idle, but release containment for as long as the menu is open.
+        contentVisibility: menuOpen ? "visible" : "auto",
+        containIntrinsicSize: "68px",
+      }}
     >
       {/* Stretched-link overlay: the whole row is a real anchor (cmd/middle-click
           → open in new tab) without nesting a <button> inside an <a>. It sits

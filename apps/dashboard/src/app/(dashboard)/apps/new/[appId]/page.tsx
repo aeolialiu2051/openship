@@ -39,6 +39,7 @@ import {
   AppDestinationPicker,
   type AppDestination,
 } from "@/components/deploy/AppDestinationPicker";
+import { APP_CLOUD_INSTALL_AVAILABLE } from "@/components/deploy/app-destination-availability";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { createPublicEndpoint, type PublicEndpoint } from "@/context/deployment/types";
 import {
@@ -234,6 +235,8 @@ export default function AppInstallPage() {
       return cur?.kind === "http" ? { ...p, [key]: { ...cur, ep } } : p;
     });
   const [destination, setDestination] = useState<AppDestination | null>(null);
+  const cloudInstallComingSoon =
+    !APP_CLOUD_INSTALL_AVAILABLE && destination?.deployTarget === "cloud";
   const [routeKey, setRouteKey] = useState<string>();
   // Project name shown in Openship. Editable for a fresh install (a second
   // install of the same app auto-suffixes server-side, e.g. "Convex 2"); hidden
@@ -435,7 +438,7 @@ export default function AppInstallPage() {
   };
 
   const install = async () => {
-    if (busy || !destination || !routeKey) return;
+    if (busy || !destination || cloudInstallComingSoon || !routeKey) return;
     // Business-field validity gate (required + per-field rules). The form reports
     // this; block with a clear message rather than shipping an invalid install.
     if (formValidity && !formValidity.valid) {
@@ -861,15 +864,25 @@ export default function AppInstallPage() {
               <button
                 type="button"
                 onClick={install}
-                disabled={busy || !destination || !routeKey || (formValidity ? !formValidity.valid : false)}
+                disabled={
+                  busy ||
+                  !destination ||
+                  cloudInstallComingSoon ||
+                  !routeKey ||
+                  (formValidity ? !formValidity.valid : false)
+                }
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
               >
                 {busy ? (
                   <Loader2 className="size-4 animate-spin" />
-                ) : (
+                ) : !cloudInstallComingSoon ? (
                   <ArrowRight className="size-4 rtl:rotate-180" />
-                )}
-                {busy ? w.installing : w.install}
+                ) : null}
+                {cloudInstallComingSoon
+                  ? t.deploy.targetStep.comingSoon
+                  : busy
+                    ? w.installing
+                    : w.install}
               </button>
               <button
                 type="button"

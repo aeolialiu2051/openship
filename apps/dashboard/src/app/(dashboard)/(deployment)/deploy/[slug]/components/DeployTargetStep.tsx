@@ -29,6 +29,8 @@ interface OptionCardProps {
   icon: React.ReactNode;
   label: string;
   description: string;
+  /** Small status label rendered beside the option name. */
+  badge?: React.ReactNode;
   /** Optional children rendered below when selected */
   children?: React.ReactNode;
   /** Extra classes for the outer wrapper - e.g. `h-full` for equal-height grids. */
@@ -41,6 +43,7 @@ export const OptionCard: React.FC<OptionCardProps> = ({
   icon,
   label,
   description,
+  badge,
   children,
   className,
 }) => (
@@ -62,9 +65,16 @@ export const OptionCard: React.FC<OptionCardProps> = ({
           {icon}
         </div>
         <div className="flex-1 min-w-0">
-          <p className={`text-sm font-semibold ${selected ? "text-foreground" : "text-foreground/80"}`}>
-            {label}
-          </p>
+          <div className="flex items-center gap-2">
+            <p className={`text-sm font-semibold ${selected ? "text-foreground" : "text-foreground/80"}`}>
+              {label}
+            </p>
+            {badge && (
+              <span className="shrink-0 rounded-full border border-border/60 bg-background/60 px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                {badge}
+              </span>
+            )}
+          </div>
           <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
             {description}
           </p>

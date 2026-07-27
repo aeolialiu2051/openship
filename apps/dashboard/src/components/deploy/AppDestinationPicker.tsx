@@ -9,8 +9,11 @@ import {
 import ServerSelector, { type ServerOption } from "@/components/shared/ServerSelector";
 import type { DeployTarget } from "@/context/deployment/types";
 import { useI18n } from "@/components/i18n-provider";
-import { useCloud } from "@/context/CloudContext";
 import { usePlatform } from "@/context/PlatformContext";
+import {
+  APP_CLOUD_INSTALL_AVAILABLE,
+  canUseLocalAppDestination,
+} from "./app-destination-availability";
 
 export interface AppDestination {
   deployTarget: DeployTarget;
@@ -34,15 +37,19 @@ export function AppDestinationPicker({
   allowLocal = false,
 }: {
   value: AppDestination | null;
-  onChange: (d: AppDestination) => void;
+  onChange: (d: AppDestination | null) => void;
   allowLocal?: boolean;
 }) {
   const { t } = useI18n();
   const w = t.projectSettings.appInstall;
   const opt = t.deploy.targetStep.options;
-  const { connected: cloudConnected } = useCloud();
-  const { userServers } = usePlatform();
+  const { deployMode, userServers } = usePlatform();
   const remembered = useMemo(() => lastPickStore.read(), []);
+  const localAvailable = canUseLocalAppDestination({ allowLocal, deployMode });
+  const hasUsableRememberedTarget =
+    (remembered?.target === "server" && userServers) ||
+    (remembered?.target === "local" && localAvailable) ||
+    remembered?.target === "cloud";
 
   const pick = (destination: AppDestination) => {
     onChange(destination);
@@ -53,14 +60,16 @@ export function AppDestinationPicker({
   };
 
   useEffect(() => {
+    if (value?.deployTarget === "local" && !localAvailable) {
+      onChange(null);
+      return;
+    }
     if (value) return;
     if (remembered?.target === "server" && remembered.serverId && userServers) {
       pick({ deployTarget: "server", serverId: remembered.serverId });
-    } else if (remembered?.target === "local" && allowLocal) {
+    } else if (remembered?.target === "local" && localAvailable) {
       pick({ deployTarget: "local" });
-    } else if (remembered?.target === "cloud") {
-      pick({ deployTarget: "cloud" });
-    } else if (!userServers) {
+    } else if (remembered?.target === "cloud" || !userServers) {
       pick({ deployTarget: "cloud" });
     }
     // Seed once from persisted browser state; subsequent changes are user-driven.
@@ -79,11 +88,14 @@ export function AppDestinationPicker({
         >
           <ServerSelector
             compact
-            autoSelectFirst={!remembered}
+            autoSelectFirst={!hasUsableRememberedTarget}
             value={serverActive ? (value?.serverId ?? null) : null}
             onSelect={(s: ServerOption | null) => {
               if (s) pick({ deployTarget: "server", serverId: s.id, serverHost: s.host });
-              else if (serverActive) pick({ deployTarget: "cloud" });
+              else if (serverActive) {
+                lastPickStore.clear();
+                onChange(null);
+              }
             }}
           />
         </div>
@@ -93,12 +105,13 @@ export function AppDestinationPicker({
         value="cloud"
         selected={value?.deployTarget === "cloud"}
         onSelect={() => pick({ deployTarget: "cloud" })}
+        badge={!APP_CLOUD_INSTALL_AVAILABLE ? t.deploy.targetStep.comingSoon : undefined}
         icon={<Cloud className="size-4" />}
         label={opt.cloud}
-        description={cloudConnected ? opt.cloudConnectedDesc : opt.cloudDisconnectedDesc}
+        description={opt.cloudConnectedDesc}
       />
 
-      {allowLocal && (
+      {localAvailable && (
         <OptionCard
           value="local"
           selected={value?.deployTarget === "local"}
