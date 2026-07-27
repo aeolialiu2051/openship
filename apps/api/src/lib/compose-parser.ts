@@ -368,6 +368,7 @@ function buildInterpolationEnv(options: ComposeParseOptions): Record<string, str
 
 export function parseComposeEnvFile(content: string): Record<string, string> {
   const result: Record<string, string> = {};
+  const literalKeys = new Set<string>();
 
   for (const rawLine of content.replace(/^\uFEFF/, "").split(/\r?\n/)) {
     let line = rawLine.trim();
@@ -380,35 +381,43 @@ export function parseComposeEnvFile(content: string): Record<string, string> {
     const key = line.slice(0, eqIdx).trim();
     if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue;
 
-    result[key] = parseEnvValue(line.slice(eqIdx + 1));
+    const parsed = parseEnvValue(line.slice(eqIdx + 1));
+    result[key] = parsed.value;
+    if (parsed.expand) literalKeys.delete(key);
+    else literalKeys.add(key);
   }
 
   for (const [key, value] of Object.entries(result)) {
+    if (literalKeys.has(key)) continue;
     result[key] = interpolateComposeString(value, result);
   }
 
   return result;
 }
 
-function parseEnvValue(rawValue: string): string {
+function parseEnvValue(rawValue: string): { value: string; expand: boolean } {
   const value = rawValue.trimStart();
-  if (!value) return "";
+  if (!value) return { value: "", expand: true };
 
   if (value.startsWith('"')) {
     const end = findClosingQuote(value, '"');
     const quoted = end >= 0 ? value.slice(1, end) : value.slice(1);
-    return quoted.replace(/\\([nrt"\\])/g, (_m, ch: string) =>
-      ch === "n" ? "\n" : ch === "r" ? "\r" : ch === "t" ? "\t" : ch,
-    );
+    return {
+      value: quoted.replace(/\\([nrt"\\])/g, (_m, ch: string) =>
+        ch === "n" ? "\n" : ch === "r" ? "\r" : ch === "t" ? "\t" : ch,
+      ),
+      expand: true,
+    };
   }
 
   if (value.startsWith("'")) {
     const end = findClosingQuote(value, "'");
-    return end >= 0 ? value.slice(1, end) : value.slice(1);
+    return { value: end >= 0 ? value.slice(1, end) : value.slice(1), expand: false };
   }
 
   const commentMatch = value.match(/\s+#/);
-  return (commentMatch?.index === undefined ? value : value.slice(0, commentMatch.index)).trimEnd();
+  const bare = commentMatch?.index === undefined ? value : value.slice(0, commentMatch.index);
+  return { value: bare.trimEnd(), expand: true };
 }
 
 function findClosingQuote(value: string, quote: '"' | "'"): number {
@@ -422,13 +431,14 @@ function interpolateComposeString(input: string, env: Record<string, string>): s
   const escapedDollar = "\0COMPOSE_ESCAPED_DOLLAR\0";
   const protectedInput = input.replace(/\$\$/g, escapedDollar);
 
-  const withBraced = protectedInput.replace(
-    /\$\{([^}]+)\}/g,
-    (_match, expression: string) => resolveInterpolationExpression(expression, env).value,
-  );
-
-  return withBraced
-    .replace(/\$([A-Za-z_][A-Za-z0-9_]*)/g, (_match, key: string) => env[key] ?? "")
+  return protectedInput
+    .replace(
+      /\$(?:\{([^}]+)\}|([A-Za-z_][A-Za-z0-9_]*))/g,
+      (_match, braced: string | undefined, bare: string | undefined) =>
+        braced !== undefined
+          ? resolveInterpolationExpression(braced, env).value
+          : (env[bare!] ?? ""),
+    )
     .replaceAll(escapedDollar, "$");
 }
 
@@ -535,17 +545,11 @@ function resolveInterpolationExpression(
         return { value: fallback, source: "default", variable: key, defaultValue: fallback };
       }
     case ":?":
-      return {
-        value: isNonEmpty ? value : "",
-        source: isNonEmpty ? "env-file" : "missing",
-        variable: key,
-      };
+      if (isNonEmpty) return { value, source: "env-file", variable: key };
+      throw new Error(word());
     case "?":
-      return {
-        value: hasValue ? value : "",
-        source: hasValue ? "env-file" : "missing",
-        variable: key,
-      };
+      if (hasValue) return { value, source: "env-file", variable: key };
+      throw new Error(word());
     case ":+":
       if (!isNonEmpty) return { value: "", source: "missing", variable: key };
       {

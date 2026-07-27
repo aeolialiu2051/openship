@@ -125,6 +125,14 @@ export type ComposeAdvanced = {
    * legacy Vibrail shell wrapping for backward compatibility; newly parsed
    * compose files persist `exec`, matching Docker Compose semantics. */
   commandMode?: "exec" | "shell";
+  /**
+   * Generated config files bind-mounted (read-only) into this service's
+   * container at deploy — seeded from an app template's `files` (e.g. Kong's
+   * `kong.yml`, Postgres init `.sql`). Content is resolved at install (generated
+   * keys) with `{{publicUrl:…}}` left for deploy-time substitution. JSONB blob —
+   * no migration.
+   */
+  files?: { path: string; content: string }[];
 };
 
 /**

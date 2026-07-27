@@ -11,10 +11,16 @@ import {
 } from "../system/ssh-client";
 import type { SshConfig, CommandExecutor } from "../types";
 import type { DockerConnectionOptions } from "./docker-transport";
-import { safeErrorMessage } from "@repo/core";
+import { safeErrorMessage, withTimeout } from "@repo/core";
 
 const DEFAULT_REMOTE_DOCKER_SOCKET_PATH = "/var/run/docker.sock";
 const resolvedDockerSocketPathCache = new WeakMap<DockerConnectionOptions, Promise<string>>();
+
+// Opening a streamlocal channel to the remote Docker socket can hang FOREVER when
+// the SSH server silently refuses forwarding (AllowStreamLocalForwarding no) — the
+// request is accepted but never answered. Bound it so reachability fails fast with
+// the diagnostic below instead of stalling behind dockerode's 10-minute API timeout.
+const DOCKER_STREAMLOCAL_TIMEOUT_MS = 15_000;
 
 function toSshConfig(opts: DockerConnectionOptions): SshConfig {
   return {
@@ -287,9 +293,33 @@ async function probeDockerApiStream(stream: Duplex): Promise<void> {
 export async function verifyDockerSshBridge(opts: DockerConnectionOptions): Promise<void> {
   const socketPath = await resolveRemoteDockerSocketPath(opts).catch(() => getFallbackDockerSocketPath(opts));
 
-  // Exercise the exact upstream mechanism used by the loopback bridge. Merely
-  // opening an SSH channel is insufficient: the Docker CLI relay must answer a
-  // real Engine API request.
+  // Fast path: use the pooled executor's streamlocal channel, but still exercise
+  // the exact Docker Engine request the relay must carry. Opening a channel by
+  // itself can succeed even when the daemon behind the socket is unavailable.
+  if (opts.executor?.forwardUnixSocket) {
+    try {
+      const stream = await withTimeout(
+        opts.executor.forwardUnixSocket(socketPath),
+        DOCKER_STREAMLOCAL_TIMEOUT_MS,
+        `Opening a streamlocal channel to ${socketPath} timed out after ${DOCKER_STREAMLOCAL_TIMEOUT_MS / 1000}s — ` +
+          "the SSH server likely disallows streamlocal forwarding (AllowStreamLocalForwarding).",
+      );
+      await probeDockerApiStream(stream);
+      return;
+    } catch (error) {
+      const diagnostics = shouldCollectSocketDiagnostics(error)
+        ? formatSocketDiagnostics(await collectDockerSocketDiagnostics(opts, socketPath))
+        : "";
+
+      throw new Error(
+        `Cannot reach Docker daemon: ${safeErrorMessage(error)}. ` +
+          `Current failure: streamlocal tunnel could not be opened for ${socketPath}. ` +
+          "Check that the remote Docker-compatible socket exists, the SSH server allows streamlocal forwarding, and the SSH user can access that socket." +
+          diagnostics,
+      );
+    }
+  }
+
   try {
     const stream = await openDockerUpstream(opts);
     await probeDockerApiStream(stream);

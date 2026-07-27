@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { BlurIp } from "@/components/BlurIp";
 import {
   Server,
   Plus,
@@ -27,8 +28,12 @@ import { Tabs, type TabDef } from "@/components/ui/Tabs";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { ComingSoonPanel } from "./_components/coming-soon-panel";
-import { useServersList } from "@/hooks/useServersList";
-import { countryCodeToFlagEmoji } from "@/lib/country-flag";
+import * as CountryFlags from "country-flag-icons/react/3x2";
+
+const FLAGS = CountryFlags as Record<
+  string,
+  React.ComponentType<{ title?: string; className?: string }>
+>;
 
 type Reachability = "checking" | "online" | "offline";
 type ServersTab = "servers" | "cluster" | "networking";
@@ -41,6 +46,8 @@ interface ServerEntry {
   user: string;
   auth: "key" | "password" | null;
   country: string | null;
+  /** The auto-registered host row ("This Server") — deploys run locally, not SSH. */
+  isLocal: boolean;
   /** Projects currently deployed to this server (active deployment → this host). */
   projectCount: number;
 }
@@ -59,25 +66,40 @@ export default function ServersPage() {
   const isDesktop = deployMode === "desktop";
 
   const [activeTab, setActiveTab] = useState<ServersTab>("servers");
-  const { data: serverRows, isLoading: loading } = useServersList();
-  const servers = useMemo<ServerEntry[]>(
-    () =>
-      (serverRows ?? []).map((s) => ({
-        id: s.id,
-        name: s.name || s.sshHost,
-        host: s.sshHost,
-        port: s.sshPort ?? 22,
-        user: s.sshUser ?? "root",
-        auth: (s.sshAuthMethod as "key" | "password" | null) ?? null,
-        country: s.country ?? null,
-        projectCount: s.projectCount ?? 0,
-      })),
-    [serverRows],
-  );
+  const [servers, setServers] = useState<ServerEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   /** Live reachability per server (see probeReachability). */
   const [reach, setReach] = useState<Record<string, Reachability>>({});
   /** Active (running) port-forward count per server — desktop-only. */
   const [forwardCounts, setForwardCounts] = useState<Record<string, number>>({});
+
+  const fetchServers = useCallback(async () => {
+    try {
+      setLoading(true);
+      const list = await systemApi.listServers();
+      setServers(
+        list.map((s) => ({
+          id: s.id,
+          name: s.name || s.sshHost,
+          host: s.sshHost,
+          port: s.sshPort ?? 22,
+          user: s.sshUser ?? "root",
+          auth: (s.sshAuthMethod as "key" | "password" | null) ?? null,
+          country: s.country ?? null,
+          isLocal: s.isLocal ?? false,
+          projectCount: s.projectCount ?? 0,
+        })),
+      );
+    } catch {
+      setServers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchServers();
+  }, [fetchServers]);
 
   // Real reachability: seed every server to "checking", then probe each in
   // parallel and flip its dot as the probe resolves (mirrors the tunnel fan-out).
@@ -214,10 +236,13 @@ export default function ServersPage() {
                       {/* Avatar — full country flag when we can geolocate the IP, else glyph.
                           Fixed 36px slot keeps the name column aligned across rows. */}
                       {(() => {
-                        const flag = countryCodeToFlagEmoji(server.country);
-                        return flag ? (
+                        const Flag = server.country ? FLAGS[server.country] : undefined;
+                        return Flag ? (
                           <div className="flex size-9 shrink-0 items-center justify-center">
-                            <span title={server.country ?? undefined} className="text-[20px] leading-none">{flag}</span>
+                            <Flag
+                              title={server.country ?? undefined}
+                              className="h-[18px] w-auto rounded-[2px] ring-1 ring-border/50"
+                            />
                           </div>
                         ) : (
                           <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-muted/60 transition-colors group-hover:bg-muted">
@@ -228,8 +253,17 @@ export default function ServersPage() {
 
                       {/* Name + host (fixed column — keeps meta aligned, no dead gap) */}
                       <div className="min-w-0 flex-1 text-start sm:w-44 sm:flex-none lg:w-56">
-                        <p className="truncate text-sm font-medium text-foreground">{server.name}</p>
-                        <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">{server.host}</p>
+                        <p className="truncate text-sm font-medium text-foreground">
+                          {server.name}
+                          {server.isLocal && (
+                            <span className="ms-2 rounded bg-info/10 px-1.5 py-0.5 text-[10px] font-medium text-info align-middle">
+                              {t.servers.list.thisServer}
+                            </span>
+                          )}
+                        </p>
+                        <p className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                          {server.isLocal ? t.servers.list.currentHost : <BlurIp>{server.host}</BlurIp>}
+                        </p>
                       </div>
 
                       {/* Meta chips */}

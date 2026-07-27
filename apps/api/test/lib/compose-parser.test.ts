@@ -126,6 +126,24 @@ services:
     expect(parsed.services[0]?.command).toBe("echo $BETTER_AUTH_SECRET");
     expect(parsed.services[0]?.environment.LITERAL).toBe("$BETTER_AUTH_SECRET");
   });
+
+  it("does not re-interpolate a '$' inside a resolved value embedded in a larger string", () => {
+    const parsed = parseComposeFile(
+      `
+services:
+  app:
+    environment:
+      DIRECT: \${DB_PASS}
+      EMBEDDED: postgres://user:\${DB_PASS}@db:5432/app
+`,
+      { envFileContent: `DB_PASS='p$ss'\n` },
+    );
+
+    expect(parsed.services[0]?.environment).toEqual({
+      DIRECT: "p$ss",
+      EMBEDDED: "postgres://user:p$ss@db:5432/app",
+    });
+  });
 });
 
 // ─── parseComposeEnvFile - direct .env content scenarios ─────────────────────
@@ -216,6 +234,25 @@ BAZ=qux
       BASE: "foo",
       FULL: "foo-bar",
     });
+  });
+
+  it("does NOT interpolate inside single-quoted values (literal)", () => {
+    expect(parseComposeEnvFile(`BASE=foo\nA='$BASE-bar'\nB='\${BASE}-bar'`)).toEqual({
+      BASE: "foo",
+      A: "$BASE-bar",
+      B: "${BASE}-bar",
+    });
+  });
+
+  it("does not re-interpolate a literal '$' carried in by an interpolated entry", () => {
+    expect(parseComposeEnvFile(`PW='a$bc'\nURL=x\${PW}y`)).toEqual({
+      PW: "a$bc",
+      URL: "xa$bcy",
+    });
+  });
+
+  it("keeps '$$' literal inside single-quoted values (no un-escaping)", () => {
+    expect(parseComposeEnvFile(`PWD='p@$$w0rd'`)).toEqual({ PWD: "p@$$w0rd" });
   });
 
   it("handles CRLF line endings", () => {

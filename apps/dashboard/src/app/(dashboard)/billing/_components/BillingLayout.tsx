@@ -9,13 +9,22 @@ export async function BillingLayout({ children }: { children: React.ReactNode })
   const result = await getBillingStateResult();
   const state: BillingState | null = result.kind === "ok" ? result.state : null;
 
+  // No billing state — cloud not connected, billing not enabled, or the fetch
+  // errored. Don't render the header + tab-bar chrome (and its formatters) above
+  // an "unavailable" screen: the tab page renders <BillingUnavailable> with the
+  // precise reason. This also keeps billing effectively cloud-gated when reached
+  // by direct URL / RSC prefetch (the sidebar link is already hidden).
+  if (!state) {
+    return <PageContainer className="space-y-6">{children}</PageContainer>;
+  }
+
   return (
     <PageContainer className="space-y-6">
       <BillingHeader state={state} />
 
       <BillingTabBar />
 
-      <BillingContent sidebar={state ? <BillingSidebar state={state} /> : null}>
+      <BillingContent sidebar={<BillingSidebar state={state} />}>
         {children}
       </BillingContent>
     </PageContainer>

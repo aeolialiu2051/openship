@@ -26,12 +26,15 @@ export const endpoints = {
     outputCheck: (id: string | number) => `projects/${id}/output-check`,
     toggle: (id: string | number, action: "enable" | "disable") => `projects/${id}/${action}`,
     retryRouting: (id: string | number) => `projects/${id}/routing/retry`,
+    edgeStatus: (id: string | number) => `projects/${id}/routing/edge-status`,
     clearCache: (id: string | number) => `projects/${id}/clear-cache`,
     clearBuild: (id: string | number) => `projects/${id}/clear-build`,
     routeRules: (id: string | number) => `projects/${id}/route-rules`,
     routeRule: (id: string | number, ruleId: string) => `projects/${id}/route-rules/${ruleId}`,
     deploymentSession: (id: string | number) => `projects/${id}/deployment-session`,
     connect: (id: string | number) => `projects/${id}/connect`,
+    connections: (id: string | number) => `projects/${id}/connections`,
+    connection: (id: string | number, linkId: string) => `projects/${id}/connections/${linkId}`,
     env: (id: string | number) => `projects/${id}/env`,
     git: (id: string | number) => `projects/${id}/git`,
     gitLink: (id: string | number) => `projects/${id}/git/link`,
@@ -39,6 +42,14 @@ export const endpoints = {
     branch: (id: string | number) => `projects/${id}/branch`,
     autoDeploy: (id: string | number) => `projects/${id}/auto-deploy`,
     webhookDomain: (id: string | number) => `projects/${id}/webhook-domain`,
+    incomingWebhooks: (id: string | number) => `projects/${id}/incoming-webhooks`,
+    incomingWebhook: (id: string | number, hookId: string) =>
+      `projects/${id}/incoming-webhooks/${hookId}`,
+    incomingWebhookRotate: (id: string | number, hookId: string) =>
+      `projects/${id}/incoming-webhooks/${hookId}/rotate`,
+    webhookDeliveries: (id: string | number) => `projects/${id}/webhook-deliveries`,
+    incomingWebhookDeliveries: (id: string | number, hookId: string) =>
+      `projects/${id}/incoming-webhooks/${hookId}/deliveries`,
     resources: (id: string | number) => `projects/${id}/resources`,
     cloneToken: (id: string | number) => `projects/${id}/clone-token`,
     sleepMode: (id: string | number) => `projects/${id}/sleep-mode`,
@@ -59,8 +70,12 @@ export const endpoints = {
   /* ---------------------------------------------------------------- */
   apps: {
     catalog: "apps/catalog",
+    catalogEntry: (id: string) => `apps/catalog/${id}`,
     install: "apps",
+    custom: "apps/custom",
+    customEntry: (appId: string) => `apps/custom/${appId}`,
     settings: (projectId: string | number) => `projects/${projectId}/app-settings`,
+    connection: (projectId: string | number) => `projects/${projectId}/app-connection`,
   },
 
   /* ---------------------------------------------------------------- */
@@ -71,6 +86,8 @@ export const endpoints = {
     create: (projectId: string | number) => `projects/${projectId}/services`,
     get: (projectId: string | number, serviceId: string) =>
       `projects/${projectId}/services/${serviceId}`,
+    volumeSizes: (projectId: string | number, serviceId: string) =>
+      `projects/${projectId}/services/${serviceId}/volume-sizes`,
     update: (projectId: string | number, serviceId: string) =>
       `projects/${projectId}/services/${serviceId}`,
     delete: (projectId: string | number, serviceId: string) =>
@@ -123,6 +140,7 @@ export const endpoints = {
   /* ---------------------------------------------------------------- */
   domains: {
     preview: "domains/preview",
+    byId: (id: string) => `domains/${encodeURIComponent(id)}`,
     verify: (id: string) => `domains/${encodeURIComponent(id)}/verify`,
     verifySsl: (id: string) => `domains/${encodeURIComponent(id)}/verify-ssl`,
     certificate: (id: string) => `domains/${encodeURIComponent(id)}/certificate`,
@@ -175,6 +193,8 @@ export const endpoints = {
     userRepos: "github/repos",
     cloneToken: (owner: string, repo: string) =>
       `github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/clone-token`,
+    repoBranches: (owner: string, repo: string) =>
+      `github/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/branches`,
     status: "github/status",
     connect: "github/connect",
     connectRedirect: "github/connect/redirect",
@@ -242,6 +262,7 @@ export const endpoints = {
     server: (id: string) => `system/servers/${id}`,
     serverReachability: (id: string) => `system/servers/${id}/reachability`,
     serverRateLimit: (id: string) => `system/servers/${id}/rate-limit`,
+    serverPortsScan: (id: string) => `system/servers/${id}/ports/scan`,
     // Native-module versioning + migration (OpenResty, …)
     serverModules: (id: string) => `system/servers/${id}/modules`,
     serverModulesScan: (id: string) => `system/servers/${id}/modules/scan`,
@@ -353,10 +374,16 @@ export const endpoints = {
     scanStream: "migration/scan/stream",
     adopt: "migration/adopt",
     reimport: "migration/reimport",
+    repoCompose: "migration/repo-compose",
     preview: "migration/preview",
     migrate: "migration/migrate",
     migration: (id: string) => `migration/migrations/${id}`,
     cutover: (id: string) => `migration/migrations/${id}/cutover`,
+    cancel: (id: string) => `migration/migrations/${id}/cancel`,
+    resume: (id: string) => `migration/migrations/${id}/resume`,
+    cleanupTarget: (id: string) => `migration/migrations/${id}/cleanup-target`,
+    active: "migration/active",
+    runs: "migration/runs",
   },
 
   /* ---------------------------------------------------------------- */
@@ -366,9 +393,11 @@ export const endpoints = {
     get: "settings",
     upsert: "settings",
     buildMode: "settings/build-mode",
+    routeStrategy: "settings/route-strategy",
     deployDefaults: "settings/deploy-defaults",
     cloneCredentials: "settings/clone-credentials",
     cloneStrategyPreference: "settings/clone-strategy-preference",
+    forwardGit: "settings/forward-git",
   },
 
   /* ---------------------------------------------------------------- */
@@ -378,6 +407,7 @@ export const endpoints = {
     categories: "notifications/categories",
     channels: "notifications/channels",
     channel: (id: string) => `notifications/channels/${id}`,
+    channelTest: (id: string) => `notifications/channels/${id}/test`,
     subscriptions: "notifications/subscriptions",
     subscription: (id: string) => `notifications/subscriptions/${id}`,
     defaults: "notifications/defaults",

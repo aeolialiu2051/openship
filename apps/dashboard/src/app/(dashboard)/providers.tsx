@@ -11,6 +11,7 @@ interface DashboardProvidersProps {
   selfHosted: boolean;
   userServers: boolean;
   deployMode: string;
+  isServerHost?: boolean;
   authMode: "cloud" | "local" | "none";
   version?: string;
   cloudAuthUrl: string;
@@ -28,6 +29,7 @@ export function DashboardProviders({
   selfHosted,
   userServers,
   deployMode,
+  isServerHost,
   authMode,
   version,
   cloudAuthUrl,
@@ -41,6 +43,7 @@ export function DashboardProviders({
         selfHosted={selfHosted}
         userServers={userServers}
         deployMode={deployMode}
+        isServerHost={isServerHost}
         authMode={authMode}
         version={version}
         cloudAuthUrl={cloudAuthUrl}

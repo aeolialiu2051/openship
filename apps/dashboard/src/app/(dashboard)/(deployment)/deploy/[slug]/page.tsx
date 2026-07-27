@@ -10,7 +10,7 @@ import EnvironmentVariables from "@/components/import-project/EnvironmentVariabl
 import MonorepoApps from "@/components/import-project/MonorepoApps";
 import RoutingSection from "@/components/import-project/RoutingSection";
 import Sidebar from "./components/Sidebar";
-import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDeployTargets } from "./components/DeployTargetStep";
+import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDesktopTargets } from "./components/DeployTargetStep";
 // Clone-strategy gate moved from inline render to a preflight modal
 // triggered from <Sidebar>'s handleDeploy. The inline placement was
 // wrong (showed before the user clicked Deploy). See
@@ -18,8 +18,8 @@ import DeployTargetStep, { DeployTargetSummary, lastPickStore, useDeployTargets 
 import { decodeSlug } from "@/utils/repoSlug";
 import { useDeployment } from "@/context/DeploymentContext";
 import { usesServiceDeployment } from "@/context/deployment/types";
-import { canChooseDeployTarget, usePlatform } from "@/context/PlatformContext";
-import SkeletonLoader, { DeploymentAnalysisStatus } from "./components/SkeletonLoader";
+import { usePlatform } from "@/context/PlatformContext";
+import SkeletonLoader from "./components/SkeletonLoader";
 import ErrorState from "@/components/shared/ErrorState";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { useToast } from "@/components/toast";
@@ -59,7 +59,7 @@ const DeployRepository: React.FC = () => {
     const params = useParams();
     const slug = params.slug as string;
     const { config, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromProject, updateConfig } = useDeployment();
-    const { deployMode, userServers } = usePlatform();
+    const { deployMode } = usePlatform();
     const { t } = useI18n();
     const searchParams = useSearchParams();
     const force = searchParams.get("force") || undefined;
@@ -71,7 +71,7 @@ const DeployRepository: React.FC = () => {
     const uploadName = searchParams.get("name") || undefined;
     // Edit-from-Runtime-tab: hydrate from SAVED settings, skip repo re-detection.
     const isConfigEdit = searchParams.get("mode") === "config" && !!projectId;
-    const canPickTarget = canChooseDeployTarget({ deployMode, userServers });
+    const isDesktop = deployMode === "desktop";
 
     // Decode the slug at render time so the skeleton can name the source
     // ("Fetching owner/repo from GitHub") on the very first paint, before the
@@ -101,18 +101,15 @@ const DeployRepository: React.FC = () => {
     }, [slug, branch, isConfigEdit, t]);
 
     const [loading, setLoading] = useState<boolean>(true);
-    const [scanningBranch, setScanningBranch] = useState<string | null>(null);
     const [error, setError] = useState<DeployError | null>(null);
     const hasInitialized = useRef<boolean>(false);
     const { toast } = useToast();
 
-    // Resolve available deploy targets (user-owned servers / managed cloud).
-    // Local SaaS participates because userServers is an explicit capability.
-    const targets = useDeployTargets();
+    // Desktop-only: resolve available deploy targets (server / cloud)
+    const targets = useDesktopTargets();
 
     // Step: "target" = pick build/deploy target, "config" = project settings
-    // Desktop and runtimes that manage user-owned servers get step 1.
-    // Production cloud SaaS skips straight to config.
+    // Only desktop gets step 1. Non-desktop skips straight to config.
     //
     // Returning users land directly on "config": we read their soft
     // last-pick from localStorage SYNCHRONOUSLY in the useState initializer
@@ -122,12 +119,9 @@ const DeployRepository: React.FC = () => {
     // The settings-API default is still authoritative and gets applied
     // if the user clicks "edit" to reopen the picker.
     const [step, setStep] = useState<"target" | "config">(() => {
-        if (!canPickTarget) return "config";
+        if (!isDesktop) return "config";
         if (typeof window === "undefined") return "target";
-        const lastPick = lastPickStore.read();
-        // Cloud is selectable for preview, but cannot advance while the
-        // managed deployment path is marked as coming soon.
-        return lastPick && lastPick.target !== "cloud" ? "config" : "target";
+        return lastPickStore.read() ? "config" : "target";
     });
 
     // Apply the soft last-pick to config so step="config" renders with the
@@ -142,7 +136,7 @@ const DeployRepository: React.FC = () => {
     const appliedLastPickRef = useRef(false);
 
     const applyLastPick = useCallback(() => {
-        if (!canPickTarget || appliedLastPickRef.current) return;
+        if (!isDesktop || appliedLastPickRef.current) return;
         const last = typeof window !== "undefined" ? lastPickStore.read() : null;
         if (!last) return;
         appliedLastPickRef.current = true;
@@ -153,7 +147,7 @@ const DeployRepository: React.FC = () => {
         } else if (last.target === "local") {
             updateConfig({ deployTarget: "local", serverId: undefined });
         }
-    }, [canPickTarget, updateConfig]);
+    }, [isDesktop, updateConfig]);
 
     useLayoutEffect(() => {
         applyLastPick();
@@ -323,11 +317,11 @@ const DeployRepository: React.FC = () => {
 
     return (
         <PageContainer>
-                {/* Step 1: Deploy target picker - centered onboarding style.
+                {/* Step 1: Deploy target picker - centered onboarding style (desktop only).
                     DeployTargetStep owns its own max-width: it widens to two columns
                     when a right-hand panel (cloud power / server runtime) is shown, and
                     stays narrow single-column otherwise. The page just centers it. */}
-                {step === "target" && canPickTarget && (
+                {step === "target" && isDesktop && (
                     <div className="flex items-center justify-center min-h-[calc(100vh-8rem)] py-8">
                         <DeployTargetStep
                             targets={targets}
@@ -339,54 +333,42 @@ const DeployRepository: React.FC = () => {
 
                 {/* Step 2: Project configuration */}
                 {step === "config" && (
-                    <>
-                        {/* Keep this in normal flow: a sticky layer would overlap the
-                            translucent configuration cards while the page scrolls. */}
-                        {scanningBranch && config.owner && config.repo && (
-                            <DeploymentAnalysisStatus
-                                source={{
-                                    kind: "repo",
-                                    owner: config.owner,
-                                    repo: config.repo,
-                                    branch: scanningBranch,
-                                }}
-                            />
-                        )}
-                        <div className="grid lg:grid-cols-[1fr_340px] gap-6">
-                            <div className="space-y-5">
-                                {/* Target summary bar - click to go back to step 1. */}
-                                {canPickTarget && (
-                                    <DeployTargetSummary
-                                        deployTarget={config.deployTarget}
-                                        buildStrategy={config.buildStrategy}
-                                        showBuildStrategy={isSingleAppFlow}
-                                        cloudResourceTier={config.cloudResourceTier}
-                                        hasServer={config.options.hasServer}
-                                        serverName={(() => {
-                                            // Resolve the selected server by id; if id isn't set yet but
-                                            // there's exactly one server, use it (covers the paint before
-                                            // the single-server auto-select effect wires serverId).
-                                            const s = config.serverId
-                                                ? targets.servers.find((x) => x.id === config.serverId)
-                                                : targets.servers.length === 1
-                                                    ? targets.servers[0]
-                                                    : undefined;
-                                            return s?.name ?? s?.sshHost ?? null;
-                                        })()}
-                                        onEdit={() => {
-                                            // User explicitly came back to change something - don't
-                                            // auto-skip them past the picker again.
-                                            autoSkipTargetRef.current = false;
-                                            setStep("target");
-                                        }}
-                                    />
-                                )}
+                    <div className="grid lg:grid-cols-[1fr_340px] gap-6">
+                        <div className="space-y-5">
+                            {/* Target summary bar - click to go back to step 1 (desktop only) */}
+                            {isDesktop && (
+                                <DeployTargetSummary
+                                    deployTarget={config.deployTarget}
+                                    buildStrategy={config.buildStrategy}
+                                    showBuildStrategy={isSingleAppFlow}
+                                    cloudResourceTier={config.cloudResourceTier}
+                                    hasServer={config.options.hasServer}
+                                    runtimeMode={config.runtimeMode}
+                                    isServices={usesServiceDeployment(config)}
+                                    serverName={(() => {
+                                        // Resolve the selected server by id; if id isn't set yet but
+                                        // there's exactly one server, use it (covers the paint before
+                                        // the single-server auto-select effect wires serverId).
+                                        const s = config.serverId
+                                            ? targets.servers.find((x) => x.id === config.serverId)
+                                            : targets.servers.length === 1
+                                                ? targets.servers[0]
+                                                : undefined;
+                                        return s?.name ?? s?.sshHost ?? null;
+                                    })()}
+                                    onEdit={() => {
+                                        // User explicitly came back to change something - don't
+                                        // auto-skip them past the picker again.
+                                        autoSkipTargetRef.current = false;
+                                        setStep("target");
+                                    }}
+                                />
+                            )}
 
-                                {deploymentSections}
-                            </div>
-                            <Sidebar onBranchScanningChange={setScanningBranch} />
+                            {deploymentSections}
                         </div>
-                    </>
+                        <Sidebar />
+                    </div>
                 )}
         </PageContainer>
     );

@@ -16,7 +16,7 @@ import {
   Clock,
   ArrowRight,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   backupDestinationsApi,
   type BackupDestinationSummary,
@@ -41,7 +41,6 @@ import { useBackupDestinationsList } from "@/hooks/useBackupDestinationsList";
 export default function BackupsPage() {
   const { showToast } = useToast();
   const { t } = useI18n();
-  const router = useRouter();
   const m = t.misc.backups;
   const {
     data: cachedItems,
@@ -180,17 +179,13 @@ export default function BackupsPage() {
               return (
                 <li
                   key={row.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => router.push(`/backups/${row.id}`)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      router.push(`/backups/${row.id}`);
-                    }
-                  }}
-                  className="group flex cursor-pointer items-center gap-4 px-6 py-4 transition-colors hover:bg-foreground/[0.03] first:rounded-t-2xl last:rounded-b-2xl"
+                  className="group relative flex items-center gap-4 px-6 py-4 transition-colors hover:bg-foreground/[0.03] first:rounded-t-2xl last:rounded-b-2xl"
                 >
+                  <Link
+                    href={`/backups/${row.id}`}
+                    aria-label={row.name}
+                    className="absolute inset-0 z-0"
+                  />
                   <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-muted/50 text-muted-foreground">
                     <Icon className="size-4" />
                   </div>
@@ -259,7 +254,7 @@ export default function BackupsPage() {
                   </div>
                   {/* Actions stop row navigation; the arrow signals the row opens
                       the destination's detail page. */}
-                  <div className="flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                  <div className="relative z-10 flex shrink-0 items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => handleVerify(row)}
                       disabled={verifyingIds.has(row.id)}
@@ -543,11 +538,10 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
         <p className="text-xs text-muted-foreground/60 uppercase tracking-wider mb-4">
           {m.supportedTitle}
         </p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <KindCard icon={Cloud} label={m.kindS3} sub={m.cardS3Sub} />
           <KindCard icon={Server} label={m.kindSftp} sub={m.cardSftpSub} />
           <KindCard icon={Server} label={m.kindServer} sub={m.cardServerSub} />
-          <KindCard icon={HardDrive} label={m.kindLocal} sub={m.cardLocalSub} />
         </div>
       </div>
     </div>

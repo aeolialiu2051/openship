@@ -1,6 +1,6 @@
 {
-  "id": "3056f452-24a9-4703-8478-25063e2aaaaf",
-  "prevId": "04285a6d-de30-4321-a7a6-ea3e70e3621a",
+  "id": "41fb59f5-cf45-4179-b840-325eb29b4d20",
+  "prevId": "013f12a4-3f52-4c0c-93f2-a072524ea51d",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2828,11 +2828,24 @@
           "primaryKey": true,
           "notNull": true
         },
+        "owner_type": {
+          "name": "owner_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'project'"
+        },
         "project_id": {
           "name": "project_id",
           "type": "text",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
+        },
+        "webhook_source_id": {
+          "name": "webhook_source_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "service_id": {
           "name": "service_id",
@@ -3000,6 +3013,21 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "idx_domain_webhook_source": {
+          "name": "idx_domain_webhook_source",
+          "columns": [
+            {
+              "expression": "webhook_source_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -3009,6 +3037,19 @@
           "tableTo": "project",
           "columnsFrom": [
             "project_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "domain_webhook_source_id_webhook_source_id_fk": {
+          "name": "domain_webhook_source_id_webhook_source_id_fk",
+          "tableFrom": "domain",
+          "tableTo": "webhook_source",
+          "columnsFrom": [
+            "webhook_source_id"
           ],
           "columnsTo": [
             "id"
@@ -5982,12 +6023,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "route_key": {
-          "name": "route_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
         "environment_name": {
           "name": "environment_name",
           "type": "text",
@@ -6344,22 +6379,6 @@
           "method": "btree",
           "with": {}
         },
-        "uq_project_route_key": {
-          "name": "uq_project_route_key",
-          "columns": [
-            {
-              "expression": "route_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"project\".\"route_key\" IS NOT NULL",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
         "uq_project_cloud_workspace_id": {
           "name": "uq_project_cloud_workspace_id",
           "columns": [
@@ -6696,239 +6715,6 @@
           "tableTo": "user",
           "columnsFrom": [
             "granted_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.resource_operation": {
-      "name": "resource_operation",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "organization_id": {
-          "name": "organization_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "actor_user_id": {
-          "name": "actor_user_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resource_type": {
-          "name": "resource_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resource_id": {
-          "name": "resource_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "current_step": {
-          "name": "current_step",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "progress_current": {
-          "name": "progress_current",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "progress_total": {
-          "name": "progress_total",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "attempt_count": {
-          "name": "attempt_count",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "input": {
-          "name": "input",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'::jsonb"
-        },
-        "result": {
-          "name": "result",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error_code": {
-          "name": "error_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "error_message": {
-          "name": "error_message",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "started_at": {
-          "name": "started_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "finished_at": {
-          "name": "finished_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "last_event_at": {
-          "name": "last_event_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "idx_resource_operation_org_created": {
-          "name": "idx_resource_operation_org_created",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_resource_operation_queue": {
-          "name": "idx_resource_operation_queue",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "where": "\"resource_operation\".\"status\" = 'queued'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "uq_resource_operation_active": {
-          "name": "uq_resource_operation_active",
-          "columns": [
-            {
-              "expression": "organization_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "kind",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "resource_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"resource_operation\".\"status\" IN ('queued','running','needs_action')",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "resource_operation_organization_id_organization_id_fk": {
-          "name": "resource_operation_organization_id_organization_id_fk",
-          "tableFrom": "resource_operation",
-          "tableTo": "organization",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "resource_operation_actor_user_id_user_id_fk": {
-          "name": "resource_operation_actor_user_id_user_id_fk",
-          "tableFrom": "resource_operation",
-          "tableTo": "user",
-          "columnsFrom": [
-            "actor_user_id"
           ],
           "columnsTo": [
             "id"
@@ -7770,6 +7556,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "is_local": {
+          "name": "is_local",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "ssh_host": {
           "name": "ssh_host",
@@ -9425,6 +9218,100 @@
       },
       "indexes": {},
       "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.webhook_source": {
+      "name": "webhook_source",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "organization_id": {
+          "name": "organization_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secret": {
+          "name": "secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "enabled": {
+          "name": "enabled",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_webhook_source_org": {
+          "name": "idx_webhook_source_org",
+          "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "webhook_source_organization_id_organization_id_fk": {
+          "name": "webhook_source_organization_id_organization_id_fk",
+          "tableFrom": "webhook_source",
+          "tableTo": "organization",
+          "columnsFrom": [
+            "organization_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "policies": {},
