@@ -450,6 +450,8 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({
             showToast(t.projectDetail.logs.terminal.connectFailed, 'error', t.projectDetail.logs.terminal.connectFailedTitle);
         },
     });
+    const connectLogStream = logStream.connect;
+    const disconnectLogStream = logStream.disconnect;
 
     const loadRecentLogs = useCallback(async (force = false) => {
         if (!historyTarget) return;
@@ -471,13 +473,13 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({
 
     const connectLiveStream = useCallback(async () => {
         if (!streamTarget) return;
-        await logStream.connect(appendQueryParam(streamTarget, 'tail', '0'));
-    }, [streamTarget, logStream]);
+        await connectLogStream(appendQueryParam(streamTarget, 'tail', '0'));
+    }, [streamTarget, connectLogStream]);
 
     const toggleStreaming = async () => {
         if (terminalLogsData.isStreaming) {
             // Disconnect using the clean hook
-            logStream.disconnect();
+            disconnectLogStream();
 
             if (streamIntervalRef.current) {
                 clearInterval(streamIntervalRef.current);
@@ -514,7 +516,7 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({
 
         const wasStreaming = terminalLogsData.isStreaming;
 
-        logStream.disconnect();
+        disconnectLogStream();
         if (streamIntervalRef.current) {
             clearInterval(streamIntervalRef.current);
             streamIntervalRef.current = null;
@@ -539,7 +541,14 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({
             console.error('Error switching log stream:', error);
             setTerminalStreaming(false);
         });
-    }, [streamTarget, loadRecentLogs, connectLiveStream]);
+    }, [
+        streamTarget,
+        loadRecentLogs,
+        connectLiveStream,
+        disconnectLogStream,
+        clearTerminalLogs,
+        setTerminalStreaming,
+    ]);
 
     // Auto-start streaming when terminal is ready
     const autoStarted = useRef(false);
@@ -555,19 +564,15 @@ export const TerminalLogs: React.FC<TerminalLogsProps> = ({
         });
     }, [terminalReady, streamTarget, loadRecentLogs, connectLiveStream]);
 
-    const logStreamRef = useRef(logStream);
-    useEffect(() => { logStreamRef.current = logStream; });
-
     useEffect(() => {
         return () => {
             if (streamIntervalRef.current) {
                 clearInterval(streamIntervalRef.current);
             }
-            logStreamRef.current.disconnect();
+            disconnectLogStream();
             setTerminalStreaming(false);
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [disconnectLogStream, setTerminalStreaming]);
 
     // Listen for clear logs event
     useEffect(() => {

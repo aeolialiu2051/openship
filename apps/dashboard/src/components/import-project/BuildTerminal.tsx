@@ -66,6 +66,8 @@ const BuildTerminal: React.FC<BuildTerminalProps> = ({
       }
     },
   });
+  const connectLogStream = logStream.connect;
+  const disconnectLogStream = logStream.disconnect;
 
   // Track if we've already started container streaming to prevent infinite loops
   const hasStartedStreamingRef = useRef(false);
@@ -112,7 +114,7 @@ const BuildTerminal: React.FC<BuildTerminalProps> = ({
       onContainerStreamStart?.();
 
       // Connect using the clean hook - no more manual connection management!
-      await logStream.connect(state.projectId);
+      await connectLogStream(state.projectId);
     } catch (error) {
       console.error('[BuildTerminal] Error starting container streaming:', error);
       hasStartedStreamingRef.current = false; // Reset on error so it can retry
@@ -121,7 +123,7 @@ const BuildTerminal: React.FC<BuildTerminalProps> = ({
         terminalInstanceRef.current.write(' [Failed to Start Container Stream]\r\n');
       }
     }
-  }, [enableContainerStreaming, state.projectId, config.options.hasServer, isStreamingContainer, logStream, onContainerStreamStart]);
+  }, [enableContainerStreaming, state.projectId, config.options.hasServer, isStreamingContainer, connectLogStream, onContainerStreamStart]);
 
   // Effect to start container streaming when deployment succeeds
   useEffect(() => {
@@ -159,11 +161,9 @@ const BuildTerminal: React.FC<BuildTerminalProps> = ({
       containerExitedRef.current = false;
       
       // Disconnect log stream
-      if (isStreamingContainer) {
-        logStream.disconnect();
-      }
+      disconnectLogStream();
     };
-  }, [isStreamingContainer, logStream]);
+  }, [disconnectLogStream]);
 
   return (
     <TerminalSurface

@@ -14,6 +14,13 @@ import { SSEMessage, useSSEStream } from './useSSEStream';
 import { createLogMessageProcessor, createBuildMessageProcessor, LogMessageCallbacks, BuildMessageCallbacks } from '@/lib/sseMessageProcessors';
 import { getApiBaseUrl } from '@/lib/api';
 import type { Terminal } from '@xterm/xterm';
+import {
+  createLogStreamHandle,
+  type LogStreamState,
+  type UseLogStreamReturn,
+} from './log-stream-handle';
+
+export type { UseLogStreamReturn } from './log-stream-handle';
 
 const BUILD_RECONNECT_BASE_DELAY_MS = 1000;
 const BUILD_RECONNECT_MAX_DELAY_MS = 15000;
@@ -35,14 +42,6 @@ export interface UseLogStreamOptions {
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Error) => void;
-}
-
-export interface UseLogStreamReturn {
-  connect: (target: string) => Promise<void>;
-  disconnect: () => void;
-  isConnected: boolean;
-  isConnecting: boolean;
-  error: Error | null;
 }
 
 /**
@@ -79,6 +78,9 @@ export const useLogStream = (options: UseLogStreamOptions = {}): UseLogStreamRet
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<Error | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isConnectingRef = useRef(false);
+  const stateRef = useRef<LogStreamState>({ isConnected, isConnecting, error });
+  stateRef.current = { isConnected, isConnecting, error };
   const callbacksRef = useRef(callbacks);
   const onConnectRef = useRef(onConnect);
   const onDisconnectRef = useRef(onDisconnect);
@@ -105,6 +107,7 @@ export const useLogStream = (options: UseLogStreamOptions = {}): UseLogStreamRet
   }), []);
 
   const handleConnect = useCallback(() => {
+    isConnectingRef.current = false;
     setIsConnected(true);
     setIsConnecting(false);
     setError(null);
@@ -112,12 +115,14 @@ export const useLogStream = (options: UseLogStreamOptions = {}): UseLogStreamRet
   }, []);
 
   const handleDisconnect = useCallback(() => {
+    isConnectingRef.current = false;
     setIsConnected(false);
     setIsConnecting(false);
     onDisconnectRef.current?.();
   }, []);
 
   const handleError = useCallback((err: Error) => {
+    isConnectingRef.current = false;
     setError(err);
     setIsConnected(false);
     setIsConnecting(false);
@@ -138,7 +143,6 @@ export const useLogStream = (options: UseLogStreamOptions = {}): UseLogStreamRet
    * Connect to live logs stream
    */
 
-  const isConnectingRef = useRef(false);
   const connect = useCallback(async (target: string) => {
     try {
       if (isConnectingRef.current) return;
@@ -188,13 +192,10 @@ export const useLogStream = (options: UseLogStreamOptions = {}): UseLogStreamRet
     setIsConnecting(false);
   }, [sseStream]);
 
-  return useMemo(() => ({
-    connect,
-    disconnect,
-    get isConnected() { return isConnected; },
-    get isConnecting() { return isConnecting; },
-    get error() { return error; },
-  }), [connect, disconnect]);
+  return useMemo(
+    () => createLogStreamHandle(connect, disconnect, stateRef),
+    [connect, disconnect],
+  );
 };
 
 // ============================================================================
