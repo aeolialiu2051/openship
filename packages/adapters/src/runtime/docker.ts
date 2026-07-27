@@ -125,6 +125,7 @@ const DOCKER_BUILD_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
 const SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS = 20_000;
 const SSH_DOCKER_API_DRAIN_TIMEOUT_MS = 5_000;
 const SSH_DOCKER_RECONCILE_TIMEOUT_MS = 10_000;
+const REMOTE_DOCKER_INSPECT_BATCH_SIZE = 100;
 
 function resolveRestartPolicy(policy?: string) {
   return RESTART_POLICIES[policy ?? "always"] ?? RESTART_POLICIES.always;
@@ -606,6 +607,39 @@ export class DockerRuntime implements RuntimeAdapter {
 
   private usesRemoteDockerCli(): boolean {
     return this.transport.kind === "ssh" && !!this.connectionOptions?.executor;
+  }
+
+  /**
+   * Enumerate then inspect a complete remote Docker resource set through the
+   * bounded CLI channel. Discovery used to perform these reads through the
+   * long-lived dockerode-over-SSH bridge; on some production sshd/Docker
+   * combinations that bridge accepts the request but never returns a response,
+   * leaving the migration scan parked on "Listing containers…" until the
+   * transport's 10-minute timeout. The management executor is already the
+   * reliable path for remote inspect/build operations, so use it here too.
+   */
+  private async inspectAllRemote<T>(listArgs: string, inspectCommand: string): Promise<T[]> {
+    const listed = await this.remoteDockerExec(listArgs, { timeout: 30_000 });
+    const ids = listed
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    if (ids.length === 0) return [];
+
+    const results: T[] = [];
+    for (let start = 0; start < ids.length; start += REMOTE_DOCKER_INSPECT_BATCH_SIZE) {
+      const batch = ids.slice(start, start + REMOTE_DOCKER_INSPECT_BATCH_SIZE);
+      const raw = await this.remoteDockerExec(
+        `${inspectCommand} ${batch.map((id) => sq(id)).join(" ")}`,
+        { timeout: 30_000 },
+      );
+      const parsed = JSON.parse(raw) as unknown;
+      if (!Array.isArray(parsed)) {
+        throw new Error(`Docker ${inspectCommand} returned an invalid response.`);
+      }
+      results.push(...(parsed as T[]));
+    }
+    return results;
   }
 
   private async inspectRemoteContainer(
@@ -2166,6 +2200,35 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Every container on the host (running or stopped), summarized. */
   async listAllContainers(): Promise<DockerContainerSummary[]> {
+    if (this.usesRemoteDockerCli()) {
+      const containers = await this.inspectAllRemote<Dockerode.ContainerInspectInfo>(
+        "container ls --all --quiet --no-trunc",
+        "container inspect",
+      );
+      return containers.map((c) => {
+        const labels = c.Config?.Labels ?? {};
+        const ip = firstNetworkIp(c.NetworkSettings?.Networks);
+        const state = (c.State?.Status ?? "").toLowerCase().trim();
+        const health = c.State?.Health?.Status?.toLowerCase().trim();
+        return {
+          id: c.Id,
+          names: c.Name ? [c.Name.replace(/^\//, "")] : [],
+          image: c.Config?.Image ?? c.Image,
+          imageId: c.Image,
+          state,
+          // The live-state resolver only needs the health suffix from Docker's
+          // human `ps` status line. Inspect exposes that authoritatively here.
+          status: health ? `${state} (${health})` : state,
+          labels,
+          ports: normalizeInspectPorts(c),
+          mounts: (c.Mounts ?? []).map(normalizeDockerMount),
+          ...(ip ? { ip } : {}),
+          composeProject: labels["com.docker.compose.project"] || undefined,
+          composeService: labels["com.docker.compose.service"] || undefined,
+        };
+      });
+    }
+
     const containers = await this.docker.listContainers({ all: true });
     return containers.map((c) => {
       const labels = c.Labels ?? {};
@@ -2255,6 +2318,13 @@ export class DockerRuntime implements RuntimeAdapter {
    *  defaults a base image (postgres, node, …) ships with. [] if unavailable. */
   async inspectImageEnv(ref: string): Promise<string[]> {
     try {
+      if (this.usesRemoteDockerCli()) {
+        const raw = await this.remoteDockerExec(
+          `image inspect --format ${sq("{{json .Config.Env}}")}` + ` ${sq(ref)}`,
+          { timeout: 30_000 },
+        );
+        return toStringArray(JSON.parse(raw) as string | string[] | null) ?? [];
+      }
       const data = await this.docker.getImage(ref).inspect();
       return data.Config?.Env ?? [];
     } catch {
@@ -2447,8 +2517,13 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Every named volume on the host. */
   async listAllVolumes(): Promise<DockerVolumeInfo[]> {
-    const res = await this.docker.listVolumes();
-    return (res?.Volumes ?? []).map((v) => ({
+    const volumes = this.usesRemoteDockerCli()
+      ? await this.inspectAllRemote<Dockerode.VolumeInspectInfo>(
+          "volume ls --quiet",
+          "volume inspect",
+        )
+      : ((await this.docker.listVolumes())?.Volumes ?? []);
+    return volumes.map((v) => ({
       name: v.Name,
       driver: v.Driver,
       mountpoint: v.Mountpoint,
@@ -2459,7 +2534,12 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Every network on the host. */
   async listAllNetworks(): Promise<DockerNetworkInfo[]> {
-    const nets = await this.docker.listNetworks();
+    const nets = this.usesRemoteDockerCli()
+      ? await this.inspectAllRemote<Dockerode.NetworkInspectInfo>(
+          "network ls --quiet --no-trunc",
+          "network inspect",
+        )
+      : await this.docker.listNetworks();
     return nets.map((n) => ({
       id: n.Id,
       name: n.Name,

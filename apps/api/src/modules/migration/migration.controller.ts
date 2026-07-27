@@ -132,6 +132,9 @@ export async function scanServerStream(c: Context) {
     return c.json({ error: "Server not found" }, 404);
   }
 
+  const logPrefix = `[migration:scan] server=${serverId}`;
+  console.info(`${logPrefix} started flatDocker=${flatDocker}`);
+
   return streamSSE(c, async (s) => {
     // Container inspection runs with bounded concurrency, so progress callbacks
     // can fire almost simultaneously. Hono's SSE writer is a single stream and
@@ -140,6 +143,11 @@ export async function scanServerStream(c: Context) {
     // drain them before the terminal result/error frame.
     let progressWrites = Promise.resolve();
     const writeProgress = (message: string) => {
+      // Mirror SSE progress to the API log. In production the dashboard adds a
+      // same-origin proxy hop, so the browser spinner alone cannot distinguish
+      // "backend stuck" from "result frame buffered/dropped by the proxy".
+      // These low-volume, on-demand markers make that boundary observable.
+      console.info(`${logPrefix} ${message}`);
       progressWrites = progressWrites
         .then(() =>
           s.writeSSE({
@@ -160,7 +168,11 @@ export async function scanServerStream(c: Context) {
       );
       await progressWrites;
       await s.writeSSE({ event: "result", data: JSON.stringify({ type: "result", stack }) });
+      console.info(
+        `${logPrefix} completed groups=${stack.groups.length} adoptable=${stack.adoptable}`,
+      );
     } catch (err) {
+      console.warn(`${logPrefix} failed: ${safeErrorMessage(err)}`);
       await progressWrites;
       await s
         .writeSSE({

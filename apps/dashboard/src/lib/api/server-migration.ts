@@ -314,12 +314,27 @@ export const dockerMigrationApi = {
         const decoder = new TextDecoder();
         let buf = "";
         let settled = false;
+        // Heartbeats keep the byte stream alive, but they do not prove that the
+        // scan is advancing or that a production proxy will deliver the final
+        // result frame. If no meaningful event arrives within this window,
+        // reject so the wizard can retry via the bounded JSON endpoint.
+        const PROGRESS_STALL_TIMEOUT_MS = 90_000;
+        let progressTimer: ReturnType<typeof setTimeout> | undefined;
         const finish = (fn: () => void) => {
           if (settled) return;
           settled = true;
+          if (progressTimer) clearTimeout(progressTimer);
           try { void reader.cancel(); } catch { /* noop */ }
           fn();
         };
+        const armProgressTimer = () => {
+          if (progressTimer) clearTimeout(progressTimer);
+          progressTimer = setTimeout(
+            () => finish(() => reject(new Error("Scan stream stalled without progress"))),
+            PROGRESS_STALL_TIMEOUT_MS,
+          );
+        };
+        armProgressTimer();
         try {
           for (;;) {
             const { value, done } = await reader.read();
@@ -339,14 +354,19 @@ export const dockerMigrationApi = {
               } catch {
                 continue;
               }
-              if (msg.type === "progress" && msg.message) opts.onProgress?.(msg.message);
-              else if (msg.type === "result" && msg.stack) return finish(() => resolve(msg.stack!));
-              else if (msg.type === "error") return finish(() => reject(new Error(msg.error || "Scan failed")));
+              if (msg.type === "progress" && msg.message) {
+                armProgressTimer();
+                opts.onProgress?.(msg.message);
+              } else if (msg.type === "result" && msg.stack) {
+                return finish(() => resolve(msg.stack!));
+              } else if (msg.type === "error") {
+                return finish(() => reject(new Error(msg.error || "Scan failed")));
+              }
             }
           }
-          if (!settled) reject(new Error("Scan stream ended without a result"));
+          if (!settled) finish(() => reject(new Error("Scan stream ended without a result")));
         } catch (e) {
-          if (!settled) reject(e instanceof Error ? e : new Error(String(e)));
+          if (!settled) finish(() => reject(e instanceof Error ? e : new Error(String(e))));
         }
       })();
     }),

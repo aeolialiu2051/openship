@@ -39,6 +39,7 @@ export { reconcileStack } from "./docker-reconcile";
 // Cap the connect+reachability probe so a hung SSH docker forward can't leave the
 // migration scan spinning on "Connecting to Docker…" forever (the reported bug).
 const REACHABILITY_TIMEOUT_MS = 25_000;
+const RESOURCE_LIST_TIMEOUT_MS = 60_000;
 
 async function mapLimit<T, R>(
   items: T[],
@@ -186,11 +187,24 @@ export async function discoverServerStack(
     }
 
     step("Listing containers, volumes and networks…");
-    const [containers, volumes, networks] = await Promise.all([
-      rt.listAllContainers(),
-      rt.listAllVolumes(),
-      rt.listAllNetworks(),
-    ]);
+    const [containers, volumes, networks] = await withTimeout(
+      Promise.all([
+        rt.listAllContainers().then((items) => {
+          step(`Listed ${items.length} container(s).`);
+          return items;
+        }),
+        rt.listAllVolumes().then((items) => {
+          step(`Listed ${items.length} volume(s).`);
+          return items;
+        }),
+        rt.listAllNetworks().then((items) => {
+          step(`Listed ${items.length} network(s).`);
+          return items;
+        }),
+      ]),
+      RESOURCE_LIST_TIMEOUT_MS,
+      `timed out after ${RESOURCE_LIST_TIMEOUT_MS / 1000}s listing Docker containers, volumes and networks`,
+    );
 
     // Split by ownership. GENERIC candidates (no openship.* label) feed the
     // normal adopt grid. OPENSHIP-owned deploy containers are recovered as their

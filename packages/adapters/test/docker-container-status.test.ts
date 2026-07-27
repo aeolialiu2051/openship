@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DockerRuntime } from "../src/runtime/docker";
 
 describe("DockerRuntime container status normalization", () => {
@@ -150,5 +150,100 @@ describe("DockerRuntime container status normalization", () => {
     const [c] = await runtime.listAllContainers();
     expect(c.ip).toBeUndefined();
     expect(c.state).toBe("exited");
+  });
+
+  it("uses bounded Docker CLI reads for SSH discovery instead of the HTTP bridge", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args === "container ls --all --quiet --no-trunc") return "container-1\n";
+      if (args === "container inspect 'container-1'") {
+        return JSON.stringify([
+          {
+            Id: "container-1",
+            Name: "/web",
+            Image: "sha256:image-1",
+            Config: {
+              Image: "nginx:latest",
+              Labels: { "com.docker.compose.project": "site" },
+            },
+            State: { Status: "running", Health: { Status: "healthy" } },
+            Mounts: [],
+            NetworkSettings: {
+              Networks: { site: { IPAddress: "172.20.0.2" } },
+              Ports: { "80/tcp": [{ HostIp: "0.0.0.0", HostPort: "8080" }] },
+            },
+          },
+        ]);
+      }
+      if (args === "volume ls --quiet") return "site_data\n";
+      if (args === "volume inspect 'site_data'") {
+        return JSON.stringify([
+          {
+            Name: "site_data",
+            Driver: "local",
+            Mountpoint: "/var/lib/docker/volumes/site_data/_data",
+            Labels: { "com.docker.compose.project": "site" },
+          },
+        ]);
+      }
+      if (args === "network ls --quiet --no-trunc") return "network-1\n";
+      if (args === "network inspect 'network-1'") {
+        return JSON.stringify([
+          {
+            Id: "network-1",
+            Name: "site_default",
+            Driver: "bridge",
+            Labels: { "com.docker.compose.project": "site" },
+          },
+        ]);
+      }
+      if (args.includes("image inspect --format")) return '["NGINX_VERSION=1.27"]';
+      throw new Error(`Unexpected command: ${args}`);
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: { value: { executor: {} } },
+      remoteDockerExec: { value: remoteDockerExec },
+      _docker: {
+        value: {
+          listContainers: () => {
+            throw new Error("HTTP bridge must not be used");
+          },
+          listVolumes: () => {
+            throw new Error("HTTP bridge must not be used");
+          },
+          listNetworks: () => {
+            throw new Error("HTTP bridge must not be used");
+          },
+        },
+      },
+    });
+
+    const [containers, volumes, networks, env] = await Promise.all([
+      runtime.listAllContainers(),
+      runtime.listAllVolumes(),
+      runtime.listAllNetworks(),
+      runtime.inspectImageEnv("nginx:latest"),
+    ]);
+
+    expect(containers[0]).toMatchObject({
+      id: "container-1",
+      names: ["web"],
+      state: "running",
+      status: "running (healthy)",
+      ip: "172.20.0.2",
+      composeProject: "site",
+    });
+    expect(containers[0]?.ports[0]).toMatchObject({
+      privatePort: 80,
+      publicPort: 8080,
+      ip: "0.0.0.0",
+    });
+    expect(volumes[0]).toMatchObject({ name: "site_data", composeProject: "site" });
+    expect(networks[0]).toMatchObject({ id: "network-1", name: "site_default" });
+    expect(env).toEqual(["NGINX_VERSION=1.27"]);
+    expect(remoteDockerExec).toHaveBeenCalledWith("container ls --all --quiet --no-trunc", {
+      timeout: 30_000,
+    });
   });
 });

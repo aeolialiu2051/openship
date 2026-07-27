@@ -534,7 +534,8 @@ export function ServerMigrationWizard({
         // JSON endpoint instead of discarding a scan that reached Docker.
         const message = streamError instanceof Error ? streamError.message : "";
         const retryWithoutStream =
-          isNetworkError(streamError) || /network error|stream ended without a result/i.test(message);
+          isNetworkError(streamError) ||
+          /network error|stream ended without a result|stream stalled without progress/i.test(message);
         if (!retryWithoutStream) throw streamError;
         setScanStatus(m.wizard.scanning);
         const fallback = await dockerMigrationApi.scan(selectedId, { flatDocker: flat });
