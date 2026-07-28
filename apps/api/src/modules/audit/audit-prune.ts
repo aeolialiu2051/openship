@@ -9,6 +9,7 @@
  */
 
 import { repos, db, schema } from "@repo/db";
+import { lt } from "drizzle-orm";
 
 const DEFAULT_RETENTION_DAYS = 90;
 const MAX_RETENTION_DAYS = 365 * 5; // 5 years upper bound
@@ -34,7 +35,11 @@ function parseRetentionDays(metadataJson: string | null): number {
  * multiple times. Logs per-org row counts to console (no audit emission
  * for the prune itself; that would be circular).
  */
-export async function pruneAuditEvents(): Promise<{ orgsProcessed: number; totalPruned: number }> {
+export async function pruneAuditEvents(): Promise<{
+  orgsProcessed: number;
+  totalPruned: number;
+  accessLogsPruned: number;
+}> {
   // We don't have a "listAllOrgs" repo method (intentionally — Better Auth
   // owns org writes). Read directly via the schema.
   const orgs = await db
@@ -53,5 +58,15 @@ export async function pruneAuditEvents(): Promise<{ orgsProcessed: number; total
     }
   }
 
-  return { orgsProcessed: orgs.length, totalPruned };
+  const accessCutoff = new Date(Date.now() - DEFAULT_RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  const deletedAccessLogs = await db
+    .delete(schema.userAccessLog)
+    .where(lt(schema.userAccessLog.createdAt, accessCutoff))
+    .returning();
+
+  return {
+    orgsProcessed: orgs.length,
+    totalPruned,
+    accessLogsPruned: deletedAccessLogs.length,
+  };
 }

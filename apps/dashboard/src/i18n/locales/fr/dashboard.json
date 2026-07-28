@@ -63,10 +63,12 @@
     "emails": "Serveurs de messagerie",
     "settings": "Paramètres",
     "billing": "Facturation et utilisation",
+    "admin": "Administration",
     "sections": {
       "main": "Principal",
       "settings": "Paramètres",
       "infrastructure": "Infrastructure",
+      "administration": "Administration",
       "account": "Compte"
     },
     "apps": "Applications",

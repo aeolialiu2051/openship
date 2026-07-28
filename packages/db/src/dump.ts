@@ -458,6 +458,12 @@ const TABLES: ReadonlyArray<TableSpec> = [
     scopes: [{ in: "instance", via: "all-rows" }],
     hasOrganizationId: false,
   },
+  {
+    sqlName: "user_access_log",
+    table: schema.userAccessLog,
+    scopes: [{ in: "instance", via: "all-rows" }],
+    hasOrganizationId: false,
+  },
 ];
 
 // Deliberately NOT in the catalogue — ephemeral, cloud-only, or re-derived on
