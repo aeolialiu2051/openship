@@ -29,7 +29,7 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
-import { resolveServiceHostnameLabel } from "@repo/core";
+import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
 import { useEdgeModal, useVerifyModal } from "@/hooks/useSystemPrepareModal";
@@ -163,17 +163,24 @@ function buildPublicEndpointPayload(
   };
 }
 
-function resolveProjectEndpointHostname(endpoint: any, baseDomain: string): string {
-  if (typeof endpoint?.hostname === "string" && endpoint.hostname.trim()) {
-    return endpoint.hostname.trim().toLowerCase();
-  }
-
+function resolveProjectEndpointHostname(
+  endpoint: any,
+  baseDomain: string,
+  routeKey?: string,
+): string {
   if (endpoint?.domainType === "custom") {
-    return endpoint?.customDomain?.trim().toLowerCase() || "";
+    return endpoint?.customDomain?.trim().toLowerCase() || endpoint?.hostname?.trim().toLowerCase() || "";
   }
 
-  const domain = endpoint?.domain?.trim().toLowerCase();
-  return domain ? `${domain}.${baseDomain}` : "";
+  const hostname = endpoint?.hostname?.trim().toLowerCase();
+  const managedSuffix = `.${baseDomain.toLowerCase()}`;
+  const domain = endpoint?.domain?.trim().toLowerCase() || (
+    hostname?.endsWith(managedSuffix) ? hostname.slice(0, -managedSuffix.length) : ""
+  );
+  if (!domain) return "";
+
+  const managedDomain = routeKey ? appendProjectRouteKey(domain, routeKey) : domain;
+  return `${managedDomain}.${baseDomain}`;
 }
 
 function resolveDomainStatus(domain: any, t: Dictionary): { label: string; tone: DomainTone } {
@@ -383,6 +390,11 @@ export const DomainSettings = () => {
   const [outputChecks, setOutputChecks] = useState<OutputCheckUI[]>([]);
   const services = servicesData.services;
   const servicesLoading = servicesData.isLoading;
+  const projectRouteKey = typeof projectData.routeKey === "string"
+    ? projectData.routeKey
+    : typeof projectData.route_key === "string"
+      ? projectData.route_key
+      : undefined;
   const hasProjectServer = projectData.options?.hasServer ?? buildData.hasServer ?? true;
 
   const projectRuntimePort = String(
@@ -419,7 +431,7 @@ export const DomainSettings = () => {
 
     return endpointSource
       .map((endpoint: any, index: number): DomainSummaryItem | null => {
-        const hostname = resolveProjectEndpointHostname(endpoint, baseDomain);
+        const hostname = resolveProjectEndpointHostname(endpoint, baseDomain, projectRouteKey);
         if (!hostname) return null;
 
         const domain =
@@ -457,7 +469,7 @@ export const DomainSettings = () => {
         };
       })
       .filter((domain): domain is DomainSummaryItem => domain !== null);
-  }, [projectData.publicEndpoints, publicEndpoints, domainsData.domains, baseDomain, hasProjectServer, projectRuntimePort, t]);
+  }, [projectData.publicEndpoints, publicEndpoints, domainsData.domains, baseDomain, projectRouteKey, hasProjectServer, projectRuntimePort, t]);
 
   const primaryProjectDomain = domainSummaries[0] ?? null;
 
@@ -728,7 +740,9 @@ export const DomainSettings = () => {
         ...(isCustom ? { customDomain: host } : { domain: host }),
         ...(hasProjectServer ? { port: portValue } : { targetPath: newDomainPath.trim() || "/" }),
       });
-      const label = isCustom ? host : `${host}.${baseDomain}`;
+      const label = isCustom
+        ? host
+        : `${projectRouteKey ? appendProjectRouteKey(host, projectRouteKey) : host}.${baseDomain}`;
       const ok = await persistPublicEndpoints(
         [...publicEndpoints, nextEndpoint],
         isCustom
@@ -1081,7 +1095,7 @@ export const DomainSettings = () => {
       await updateDomains(payload.map((endpoint, index) => {
         const hostname = endpoint.domainType === "custom"
           ? endpoint.customDomain || ""
-          : `${endpoint.domain}.${baseDomain}`;
+          : `${projectRouteKey ? appendProjectRouteKey(endpoint.domain || "", projectRouteKey) : endpoint.domain}.${baseDomain}`;
         const existing = domainsData.domains.find((domain) => (
           (typeof domain?.id === "string" && domain.id === endpoints[index]?.id) ||
           domain?.hostname === hostname
@@ -1140,7 +1154,7 @@ export const DomainSettings = () => {
     const idx = publicEndpoints.findIndex((ep) =>
       (!!summary.domainId && ep.id === summary.domainId) ||
       ep.id === summary.id ||
-      resolveProjectEndpointHostname(ep, baseDomain)?.toLowerCase() === summary.hostname.toLowerCase(),
+      resolveProjectEndpointHostname(ep, baseDomain, projectRouteKey)?.toLowerCase() === summary.hostname.toLowerCase(),
     );
     if (idx <= 0) return; // -1 = not found, 0 = already primary
     const reordered = [...publicEndpoints];
@@ -1216,7 +1230,7 @@ export const DomainSettings = () => {
             e.domainType === "custom"
               ? (e.customDomain ?? "")
               : e.domain
-                ? `${e.domain}.${baseDomain}`
+                ? `${projectRouteKey ? appendProjectRouteKey(e.domain, projectRouteKey) : e.domain}.${baseDomain}`
                 : "";
           return e.id !== summary.id && host.toLowerCase() !== summary.hostname.toLowerCase();
         });
@@ -1236,7 +1250,8 @@ export const DomainSettings = () => {
     if (service.domainType === "custom" && service.customDomain) {
       return service.customDomain;
     }
-    return `${resolveServiceHostnameLabel(projectLabel, service.name, service.domain, serviceKind(service))}.${baseDomain}`;
+    const label = resolveServiceHostnameLabel(projectLabel, service.name, service.domain, serviceKind(service));
+    return `${projectRouteKey ? appendProjectRouteKey(label, projectRouteKey) : label}.${baseDomain}`;
   };
 
   const getServiceRouteSummary = (service: Service) => {
@@ -1671,7 +1686,9 @@ export const DomainSettings = () => {
                     className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
                   />
                   {newDomainType === "free" && (
-                    <span className="shrink-0 pe-4 text-sm text-muted-foreground">.{baseDomain}</span>
+                    <span className="shrink-0 pe-4 text-sm text-muted-foreground">
+                      {projectRouteKey ? `-${projectRouteKey}` : ""}.{baseDomain}
+                    </span>
                   )}
                 </div>
                 {newDomainHasWww && (
@@ -1902,6 +1919,7 @@ export const DomainSettings = () => {
             <div className="px-5 py-5">
               <PublicEndpointsCard
                 projectName={projectLabel}
+                routeKey={projectRouteKey}
                 endpoints={publicEndpoints}
                 hasServer={hasProjectServer}
                 runtimePort={publicEndpoints[0]?.port || projectRuntimePort}
@@ -1977,7 +1995,9 @@ export const DomainSettings = () => {
                     className="flex-1 bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
                   />
                   {addRouteDraft.domainType === "free" && (
-                    <span className="shrink-0 pe-3 text-sm text-muted-foreground">.{baseDomain}</span>
+                    <span className="shrink-0 pe-3 text-sm text-muted-foreground">
+                      {projectRouteKey ? `-${projectRouteKey}` : ""}.{baseDomain}
+                    </span>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -2074,6 +2094,7 @@ export const DomainSettings = () => {
             <div className="px-5 py-5">
               <RoutingSettingsCard
                 projectName={projectLabel}
+                routeKey={projectRouteKey}
                 domain={routeDraft.domain}
                 customDomain={routeDraft.customDomain}
                 domainType={routeDraft.domainType}
