@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { X, Github, GitCommit, ExternalLink, User, Calendar } from "lucide-react";
 import { formatDate } from "@/utils/date";
 import FileIcon from "@/components/ui/FileIcon";
@@ -21,7 +22,7 @@ export const CommitDetailsModal: React.FC<CommitDetailsModalProps> = ({
   const { t } = useI18n();
   const [expandedSection, setExpandedSection] = useState<'added' | 'modified' | 'removed' | null>('modified');
 
-  if (!isOpen) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const modalStatusMap: Record<string, string> = {
     success: t.deployments.modal.statusName.success,
@@ -49,18 +50,21 @@ export const CommitDetailsModal: React.FC<CommitDetailsModalProps> = ({
 
   const changedFiles = deployment.commit?.changedFiles || [];
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 transition-opacity"
+        className="fixed inset-0 z-[10000] bg-black/50 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div className="pointer-events-none fixed inset-0 z-[10000] flex items-center justify-center p-4">
         <div
-          className="bg-card rounded-2xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-hidden pointer-events-auto animate-in zoom-in-95 duration-200 border border-border/50"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="commit-details-title"
+          className="pointer-events-auto max-h-[85vh] w-full max-w-3xl overflow-hidden rounded-2xl border border-border/50 bg-card shadow-2xl animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -70,7 +74,9 @@ export const CommitDetailsModal: React.FC<CommitDetailsModalProps> = ({
                 <GitCommit className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-foreground">{t.deployments.modal.title}</h2>
+                <h2 id="commit-details-title" className="text-xl font-bold text-foreground">
+                  {t.deployments.modal.title}
+                </h2>
                 {hasCommitData && (
                   <p className="text-sm text-muted-foreground font-mono">{deployment.commit.hash}</p>
                 )}
@@ -255,7 +261,7 @@ export const CommitDetailsModal: React.FC<CommitDetailsModalProps> = ({
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 };
-
