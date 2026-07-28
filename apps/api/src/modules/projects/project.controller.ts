@@ -32,16 +32,15 @@ import type {
   TUpdateResourcesBody,
 } from "./project.schema";
 import { stat } from "node:fs/promises";
-import { repos, type Domain, type Project } from "@repo/db";
+import { repos, type Domain } from "@repo/db";
 import { encrypt } from "../../lib/encryption";
-import { DockerRuntime, VIBRAIL_EDGE_CONTAINER } from "@repo/adapters";
+import { DockerRuntime } from "@repo/adapters";
 import * as domainService from "../domains/domain.service";
 import * as prepareService from "../deployments/prepare.service";
 import { sshManager } from "../../lib/ssh-manager";
 import { env } from "../../config";
 import { domainWebhookUrl } from "../../lib/public-url";
 import { resolveProjectTrafficSource } from "../../lib/project-analytics";
-import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
 import { refreshProjectFaviconIfStale } from "../../lib/favicon-detector";
 import { getAdminOblienClient } from "../../lib/oblien-user-client";
 import { cloudClient } from "../../lib/cloud/client";
@@ -62,51 +61,7 @@ import { listProjectRouteRows, resolveProjectRouteState } from "../domains/proje
 import { resourceOperationService } from "../operations/resource-operation.service";
 import { toOperationDto } from "../operations/operation.controller";
 import { parseTraefikAccessLog } from "./traefik-access-logs";
-
-function isTraefikSummary(container: {
-  names: string[];
-  image?: string;
-  labels: Record<string, string>;
-}): boolean {
-  return (
-    container.names.some((name) => name.replace(/^\//, "") === VIBRAIL_EDGE_CONTAINER) ||
-    container.labels["vibrail.edge.managed"] === "true" ||
-    /(^|\/|:)traefik(?::|@|$)/i.test(container.image ?? "")
-  );
-}
-
-async function resolveTraefikLogSource(project: Project) {
-  if (!project.activeDeploymentId) throw new Error("No active deployment for project");
-  const dep = await repos.deployment.findById(project.activeDeploymentId);
-  if (!dep) throw new Error("Active deployment not found");
-
-  // The edge itself is always a Docker container, independently of how the
-  // project's application runs. A bare app can still be routed by the shared
-  // Traefik stack, so never inherit its runtimeMode here.
-  const resolved = await resolveDeploymentRuntimeOnly(
-    { ...((dep.meta ?? {}) as Record<string, unknown>), runtimeMode: "docker" },
-    {
-      organizationId: dep.organizationId,
-    },
-  );
-  if (!(resolved.runtime instanceof DockerRuntime)) {
-    await resolved.runtime.dispose?.();
-    throw new Error("Traefik request logs require a Docker deployment");
-  }
-
-  try {
-    const containers = await resolved.runtime.listAllContainers();
-    const edge =
-      containers.find((container) =>
-        container.names.some((name) => name.replace(/^\//, "") === VIBRAIL_EDGE_CONTAINER),
-      ) ?? containers.find(isTraefikSummary);
-    if (!edge) throw new Error("No running Traefik edge was found on this server");
-    return { runtime: resolved.runtime, serverId: resolved.serverId, containerId: edge.id };
-  } catch (error) {
-    await resolved.runtime.dispose?.();
-    throw error;
-  }
-}
+import { resolveTraefikLogSource } from "./traefik-log-source";
 
 function logEnsureProjectError(
   userId: string,

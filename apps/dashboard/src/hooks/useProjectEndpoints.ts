@@ -398,7 +398,7 @@ export function mapAnalyticsData(
       firstRequest,
       lastRequest,
       timeRangeHours,
-      avgRequestsPerHour: Math.round(totalRequests / timeRangeHours),
+      avgRequestsPerHour: Math.round((totalRequests / timeRangeHours) * 10) / 10,
     },
     performance: {
       avgResponseTime: summary.avgResponseTimeMs / 1000,

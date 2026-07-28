@@ -1,30 +1,21 @@
 /**
  * Analytics service - request analytics, resource usage, and deployment stats.
  *
- * Data flow:
- *   - OpenResty shared-dict accumulates counters in real-time (log_by_lua)
- *   - Scraper (analytics-scraper.ts) flushes completed minutes from OpenResty → DB
- *     via POST /analytics/flush (read + delete), every 5 min
- *   - DB has all flushed history, OpenResty has only unflushed recent data
- *   - Reading always combines both: DB (flushed archive) + live (unflushed tail)
- *   - No overlap, no duplication, no data loss on OpenResty restart
- *
  * Source selection is deployment-mode aware:
  *   - SaaS / OpenShip Cloud: Oblien analytics is the source of truth
- *   - Self-hosted: DB archive + live OpenResty tail are merged
+ *   - Self-hosted: Traefik JSON access logs are parsed and aggregated directly
  */
 
 import { repos } from "@repo/db";
 import { NotFoundError, AppError, safeErrorMessage } from "@repo/core";
 import type { ResourceUsage } from "@repo/adapters";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
-import {
-  resolveProjectTrafficSources,
-  fetchMgmt,
-} from "../../lib/project-analytics";
+import { resolveProjectTrafficSources } from "../../lib/project-analytics";
 import { getAdminOblienClient } from "../../lib/oblien-user-client";
 import { cloudClient } from "../../lib/cloud/client";
 import type { RequestContext } from "../../lib/request-context";
+import { parseTraefikAccessLog, type TraefikRequestLog } from "../projects/traefik-access-logs";
+import { resolveTraefikLogSource } from "../projects/traefik-log-source";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -40,102 +31,6 @@ interface CloudAnalyticsBucket {
 interface CloudTimeseriesResponse {
   data: CloudAnalyticsBucket[];
   meta?: { to?: number };
-}
-
-interface MgmtAnalyticsBucket {
-  minute: number;
-  requests: number;
-  unique_requests: number;
-  bandwidth_in: number;
-  bandwidth_out: number;
-  response_time: number;
-}
-
-function getBucketArray(value: unknown): MgmtAnalyticsBucket[] {
-  return Array.isArray(value) ? (value as MgmtAnalyticsBucket[]) : [];
-}
-
-async function fetchLiveBuckets(
-  serverId: string,
-  domain: string,
-  fromMinute: number,
-  toMinute: number,
-): Promise<MgmtAnalyticsBucket[]> {
-  const result = await fetchMgmt<{ buckets?: MgmtAnalyticsBucket[] }>(
-    serverId,
-    `/analytics?domain=${encodeURIComponent(domain)}&from=${fromMinute}&to=${toMinute}`,
-  );
-  return getBucketArray(result?.buckets);
-}
-
-/**
- * The live OpenResty tail is only the last few UNFLUSHED minutes — the DB
- * already holds every flushed minute (the real snapshot). The tail is fetched
- * over an SSH tunnel to the edge, which is slow/unreachable when the server is
- * remote (desktop mode) — and letting it block times out the WHOLE overview
- * (the "analytics request timed out, works after a huge time" symptom). Cap it
- * hard and fall back to the DB archive; a few missing seconds of live data is a
- * fair trade for an overview that always returns fast. Best-effort, never throws.
- */
-const LIVE_TAIL_TIMEOUT_MS = 3500;
-
-async function fetchLiveBucketsBounded(
-  serverId: string,
-  domain: string,
-  fromMinute: number,
-  toMinute: number,
-): Promise<MgmtAnalyticsBucket[]> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  const capped = new Promise<MgmtAnalyticsBucket[]>((resolve) => {
-    timer = setTimeout(() => resolve([]), LIVE_TAIL_TIMEOUT_MS);
-  });
-  try {
-    return await Promise.race([
-      fetchLiveBuckets(serverId, domain, fromMinute, toMinute).catch(() => []),
-      capped,
-    ]);
-  } finally {
-    if (timer) clearTimeout(timer);
-  }
-}
-
-/** Convert a DB row to the unified bucket shape. */
-function toMgmtBucket(b: {
-  minute: number;
-  requests: number;
-  uniqueRequests: number;
-  bandwidthIn: number;
-  bandwidthOut: number;
-  responseTime: number;
-}): MgmtAnalyticsBucket {
-  return {
-    minute: b.minute,
-    requests: b.requests,
-    unique_requests: b.uniqueRequests,
-    bandwidth_in: b.bandwidthIn,
-    bandwidth_out: b.bandwidthOut,
-    response_time: b.responseTime,
-  };
-}
-
-/** Reduce an array of buckets into a summary. */
-export function summariseBuckets(
-  buckets: MgmtAnalyticsBucket[],
-  lastUpdated: string,
-): AnalyticsSummary {
-  const totalReqs = buckets.reduce((s, b) => s + b.requests, 0);
-  const totalUnique = buckets.reduce((s, b) => s + b.unique_requests, 0);
-  const totalIn = buckets.reduce((s, b) => s + b.bandwidth_in, 0);
-  const totalOut = buckets.reduce((s, b) => s + b.bandwidth_out, 0);
-  const weightedRt = buckets.reduce((s, b) => s + b.response_time * b.requests, 0);
-  return {
-    totalRequests: totalReqs,
-    uniqueVisitors: totalUnique,
-    bandwidthIn: totalIn,
-    bandwidthOut: totalOut,
-    avgResponseTimeMs: totalReqs > 0 ? Math.round((weightedRt / totalReqs) * 1000) : 0,
-    lastUpdated,
-  };
 }
 
 function summariseCloudBuckets(
@@ -156,68 +51,6 @@ function summariseCloudBuckets(
     avgResponseTimeMs: totalReqs > 0 ? Math.round(totalResponseTime / totalReqs) : 0,
     lastUpdated,
   };
-}
-
-export function buildHourlyPeriods(
-  buckets: MgmtAnalyticsBucket[],
-  fromMinute: number,
-  toMinute: number,
-): AnalyticsPeriod[] {
-  const hourly = new Map<
-    number,
-    {
-      requests: number;
-      uniqueVisitors: number;
-      bandwidthIn: number;
-      bandwidthOut: number;
-      responseTimeWeighted: number;
-    }
-  >();
-
-  for (const bucket of buckets) {
-    const hourKey = Math.floor(bucket.minute / 60);
-    const current = hourly.get(hourKey) ?? {
-      requests: 0,
-      uniqueVisitors: 0,
-      bandwidthIn: 0,
-      bandwidthOut: 0,
-      responseTimeWeighted: 0,
-    };
-
-    current.requests += bucket.requests;
-    current.uniqueVisitors += bucket.unique_requests;
-    current.bandwidthIn += bucket.bandwidth_in;
-    current.bandwidthOut += bucket.bandwidth_out;
-    current.responseTimeWeighted += bucket.response_time * bucket.requests;
-    hourly.set(hourKey, current);
-  }
-
-  const periods: AnalyticsPeriod[] = [];
-  const startHour = Math.floor(fromMinute / 60);
-  const endHour = Math.floor(toMinute / 60);
-
-  for (let hourKey = startHour; hourKey <= endHour; hourKey += 1) {
-    const hourStart = new Date(hourKey * 60 * 60_000);
-    const hourEnd = new Date((hourKey + 1) * 60 * 60_000);
-    const current = hourly.get(hourKey);
-
-    periods.push({
-      from: hourStart.toISOString(),
-      to: hourEnd.toISOString(),
-      requests: current?.requests ?? 0,
-      uniqueVisitors: current?.uniqueVisitors ?? 0,
-      bandwidthIn: current?.bandwidthIn ?? 0,
-      bandwidthOut: current?.bandwidthOut ?? 0,
-      avgResponseTimeMs:
-        current && current.requests > 0
-          ? Math.round((current.responseTimeWeighted / current.requests) * 1000)
-          : 0,
-      topPaths: [],
-      trafficByHour: {},
-    });
-  }
-
-  return periods;
 }
 
 function buildCloudHourlyPeriods(
@@ -386,22 +219,115 @@ export interface ContainerUsageSnapshot {
   networkTxBytes: number;
 }
 
+const TRAEFIK_ANALYTICS_LOG_TAIL = 5_000;
+
+/** Aggregate one Traefik log read into the complete overview response. Keeping
+ * IP sets at the overview/hour level avoids the old minute-bucket behaviour
+ * that counted the same visitor repeatedly across minutes. */
+export function buildTraefikAnalyticsOverview(
+  requests: TraefikRequestLog[],
+  fromMs: number,
+  toMs: number,
+): { summary: AnalyticsSummary; periods: AnalyticsPeriod[] } {
+  const valid = requests
+    .map((request) => ({ request, timestampMs: new Date(request.timestamp).getTime() }))
+    .filter(
+      (item) =>
+        Number.isFinite(item.timestampMs) && item.timestampMs >= fromMs && item.timestampMs <= toMs,
+    );
+
+  if (valid.length === 0) return { summary: EMPTY_SUMMARY, periods: [] };
+
+  const uniqueVisitors = new Set<string>();
+  let bandwidthIn = 0;
+  let bandwidthOut = 0;
+  let responseTimeMsTotal = 0;
+  let lastTimestampMs = 0;
+  const byHour = new Map<
+    number,
+    {
+      requests: number;
+      visitors: Set<string>;
+      bandwidthIn: number;
+      bandwidthOut: number;
+      responseTimeMsTotal: number;
+      paths: Map<string, number>;
+    }
+  >();
+
+  for (const { request, timestampMs } of valid) {
+    uniqueVisitors.add(request.ip);
+    bandwidthIn += request.requestSize;
+    bandwidthOut += request.responseSize;
+    responseTimeMsTotal += request.responseTime * 1000;
+    lastTimestampMs = Math.max(lastTimestampMs, timestampMs);
+
+    const hourKey = Math.floor(timestampMs / 3_600_000);
+    const hour = byHour.get(hourKey) ?? {
+      requests: 0,
+      visitors: new Set<string>(),
+      bandwidthIn: 0,
+      bandwidthOut: 0,
+      responseTimeMsTotal: 0,
+      paths: new Map<string, number>(),
+    };
+    hour.requests += 1;
+    hour.visitors.add(request.ip);
+    hour.bandwidthIn += request.requestSize;
+    hour.bandwidthOut += request.responseSize;
+    hour.responseTimeMsTotal += request.responseTime * 1000;
+    hour.paths.set(request.path, (hour.paths.get(request.path) ?? 0) + 1);
+    byHour.set(hourKey, hour);
+  }
+
+  const periods: AnalyticsPeriod[] = [];
+  const startHour = Math.floor(fromMs / 3_600_000);
+  const endHour = Math.floor(toMs / 3_600_000);
+  for (let hourKey = startHour; hourKey <= endHour; hourKey += 1) {
+    const hour = byHour.get(hourKey);
+    const hourStartMs = hourKey * 3_600_000;
+    periods.push({
+      from: new Date(hourStartMs).toISOString(),
+      to: new Date(hourStartMs + 3_600_000).toISOString(),
+      requests: hour?.requests ?? 0,
+      uniqueVisitors: hour?.visitors.size ?? 0,
+      bandwidthIn: hour?.bandwidthIn ?? 0,
+      bandwidthOut: hour?.bandwidthOut ?? 0,
+      avgResponseTimeMs:
+        hour && hour.requests > 0 ? Math.round(hour.responseTimeMsTotal / hour.requests) : 0,
+      topPaths: hour
+        ? [...hour.paths.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 10)
+            .map(([path, count]) => ({ path, count }))
+        : [],
+      trafficByHour: {},
+    });
+  }
+
+  return {
+    summary: {
+      totalRequests: valid.length,
+      uniqueVisitors: uniqueVisitors.size,
+      bandwidthIn,
+      bandwidthOut,
+      avgResponseTimeMs: Math.round(responseTimeMsTotal / valid.length),
+      lastUpdated: new Date(lastTimestampMs).toISOString(),
+    },
+    periods,
+  };
+}
+
 // ─── Analytics summary ───────────────────────────────────────────────────────
 
-/**
- * Get cumulative analytics summary for a project.
- *
- * SaaS/OpenShip Cloud projects read from Oblien only.
- * Self-hosted projects combine DB history with the live OpenResty tail.
- */
 /**
  * Fetch a project's traffic ONCE and derive BOTH the cumulative summary and the
  * hourly periods from the same buckets. The dashboard reads this single endpoint
  * so a project view makes ONE cloud round-trip, instead of the two it used to
  * (separate /summary + /periods each re-fetching the identical timeseries).
  *
- * Cloud projects read from Oblien; self-hosted combine DB history + the live
- * OpenResty tail. `from`/`to` default to the last 24h. No caching — the SaaS is
+ * Cloud projects read from Oblien; self-hosted projects aggregate the Traefik
+ * JSON access log. `from`/`to` default to the last 24h. No caching — the SaaS is
  * the live source of truth; request volume is controlled on the client.
  */
 export async function getAnalyticsOverview(
@@ -456,29 +382,31 @@ export async function getAnalyticsOverview(
     };
   }
 
-  const now = Math.floor(Date.now() / 60_000);
-  const fromMinute = from ? Math.floor(new Date(from).getTime() / 60_000) : now - 1440;
-  const toMinute = to ? Math.floor(new Date(to).getTime() / 60_000) : now;
+  const toMs = to ? new Date(to).getTime() : Date.now();
+  const fromMs = from ? new Date(from).getTime() : toMs - 24 * 60 * 60 * 1000;
   const selfHostedSources = sources.filter((source) => source.kind === "self-hosted");
-  const bucketSets = await Promise.all(
-    selfHostedSources.map(async ({ domain, serverId }) => {
-      // DB: flushed archive for the requested range.
-      const dbBuckets = await repos.analytics.queryBuckets({ serverId, domain, fromMinute, toMinute });
-      // Live OpenResty: unflushed tail (starts after the last persisted minute).
-      const lastDbMinute =
-        dbBuckets.length > 0 ? Math.max(...dbBuckets.map((b) => b.minute)) : fromMinute - 1;
-      const liveFrom = Math.max(lastDbMinute + 1, fromMinute);
-      const liveBuckets =
-        liveFrom <= toMinute ? await fetchLiveBucketsBounded(serverId, domain, liveFrom, toMinute) : [];
-      return [...dbBuckets.map(toMgmtBucket), ...liveBuckets];
-    }),
-  );
-  const allBuckets: MgmtAnalyticsBucket[] = bucketSets.flat();
-  if (allBuckets.length === 0) return { summary: EMPTY_SUMMARY, periods: [] };
-  return {
-    summary: summariseBuckets(allBuckets, new Date().toISOString()),
-    periods: buildHourlyPeriods(allBuckets, fromMinute, toMinute),
-  };
+  let logSource: Awaited<ReturnType<typeof resolveTraefikLogSource>> | null = null;
+  try {
+    logSource = await resolveTraefikLogSource(project);
+    const entries = await logSource.runtime.getRuntimeLogs(
+      logSource.containerId,
+      TRAEFIK_ANALYTICS_LOG_TAIL,
+    );
+    const requests = selfHostedSources.flatMap(({ domain }) =>
+      entries
+        .map((entry) => parseTraefikAccessLog(entry, domain))
+        .filter((entry): entry is TraefikRequestLog => entry !== null),
+    );
+    return buildTraefikAnalyticsOverview(requests, fromMs, toMs);
+  } catch (error) {
+    throw new AppError(
+      `Traefik analytics is unavailable: ${safeErrorMessage(error)}`,
+      502,
+      "ANALYTICS_UPSTREAM_UNAVAILABLE",
+    );
+  } finally {
+    await logSource?.runtime.dispose?.();
+  }
 }
 
 // ─── Deployment stats ────────────────────────────────────────────────────────
