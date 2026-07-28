@@ -99,6 +99,16 @@ export type {
   CatalogEntry,
 } from "./permissions";
 export { settingsApi } from "./settings";
+export { adminApi } from "./admin";
+export type {
+  AdminOverview,
+  AdminUserRow,
+  AdminAccessLogRow,
+  AdminActivityLogRow,
+  AdminPage,
+  AdminTrendRangeDays,
+  AdminTrendGranularity,
+} from "./admin";
 export type {
   BuildMode,
   UserSettingsResponse,

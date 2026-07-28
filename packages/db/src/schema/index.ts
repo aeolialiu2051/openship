@@ -1,6 +1,7 @@
 export { user, session, account, verification } from "./auth";
 export { organization, member, invitation } from "./organization";
 export { auditEvent } from "./audit-event";
+export { userAccessLog } from "./user-access-log";
 export { jobRun } from "./job-run";
 export { job } from "./job";
 export { orphanedResource } from "./orphaned-resource";

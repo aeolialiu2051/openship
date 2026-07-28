@@ -64,10 +64,12 @@
     "jobs": "Görevler",
     "settings": "Ayarlar",
     "billing": "Faturalandırma ve Kullanım",
+    "admin": "Yönetim",
     "sections": {
       "main": "Ana Menü",
       "settings": "Ayarlar",
       "infrastructure": "Altyapı",
+      "administration": "Yönetim",
       "account": "Hesap"
     }
   },

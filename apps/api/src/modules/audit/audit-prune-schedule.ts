@@ -20,7 +20,7 @@ export async function scheduleAuditPrune(): Promise<void> {
       try {
         const stats = await pruneAuditEvents();
         console.log(
-          `[audit-prune] processed ${stats.orgsProcessed} orgs, pruned ${stats.totalPruned} batches`,
+          `[audit-prune] processed ${stats.orgsProcessed} orgs, pruned ${stats.totalPruned} audit batches and ${stats.accessLogsPruned} access logs`,
         );
       } catch (err) {
         console.error("[audit-prune] sweep failed", err);

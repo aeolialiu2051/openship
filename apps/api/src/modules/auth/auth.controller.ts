@@ -29,6 +29,20 @@ import { auth } from "../../lib/auth";
 import { setSessionCookie } from "../../lib/session-cookie";
 import { localDashboardUrl } from "../../config/env";
 import { alignLoopbackOrigin } from "@repo/core";
+import { repos } from "@repo/db";
+
+export function mergeCanonicalInstanceUser<
+  T extends { role?: string; autoProvisioned?: boolean },
+>(
+  sessionUser: T,
+  databaseUser: { role: string; autoProvisioned: boolean },
+): T & { role: string; autoProvisioned: boolean } {
+  return {
+    ...sessionUser,
+    role: databaseUser.role,
+    autoProvisioned: databaseUser.autoProvisioned,
+  };
+}
 
 // ─── HTML result page ────────────────────────────────────────────────────────
 
@@ -62,11 +76,21 @@ export async function getSession(c: Context) {
       headers: c.req.raw.headers,
     });
     if (realSession) {
+      // Better Auth's session cookie cache can retain custom user fields for
+      // up to 24 hours. Instance roles are authorization state, so always
+      // replace the cached role with the canonical database value. This makes
+      // promotions and revocations visible to the dashboard immediately.
+      const databaseUser = await repos.user.findById(realSession.user.id);
+      if (!databaseUser) return c.json({ error: "Unauthorized" }, 401);
+
       // activeOrganizationId is NOT NULL at the schema level — set by
       // the session.create.before hook in lib/auth.ts and by the
       // local-cookie mintSession path's explicit insert. No reactive
       // backfill needed; the migration handled any legacy rows.
-      return c.json(realSession);
+      return c.json({
+        ...realSession,
+        user: mergeCanonicalInstanceUser(realSession.user, databaseUser),
+      });
     }
   } catch {
     // session lookup failed — fall through to zero-auth bootstrap below

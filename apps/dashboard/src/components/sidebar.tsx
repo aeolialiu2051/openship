@@ -27,6 +27,7 @@ import {
   Check,
   Menu,
   X,
+  ShieldCheck,
 } from "lucide-react";
 import { authClient, signOut } from "@/lib/auth-client";
 import { useTheme } from "@/components/theme-provider";
@@ -96,7 +97,12 @@ const MAIN_ITEMS: NavItem[] = [
 ];
 
 /** Build nav sections dynamically */
-function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boolean): NavSection[] {
+function getNavSections(
+  isSaaS: boolean,
+  selfHosted: boolean,
+  userServers: boolean,
+  isInstanceAdmin: boolean,
+): NavSection[] {
   const settingsItems: NavItem[] = [
     { key: "backups", href: "/backups", icon: DatabaseBackup },
     { key: "settings", href: "/settings", icon: Settings },
@@ -116,11 +122,18 @@ function getNavSections(isSaaS: boolean, selfHosted: boolean, userServers: boole
   }
   // infraItems.push({ key: "monitoring", href: "/monitoring", icon: Activity });
 
-  return [
+  const sections: NavSection[] = [
     { section: "main", items: MAIN_ITEMS },
     { section: "settings", items: settingsItems },
     { section: "infrastructure", items: infraItems },
-  ].filter((s) => s.items.length > 0);
+  ];
+  if (isInstanceAdmin) {
+    sections.push({
+      section: "administration",
+      items: [{ key: "admin", href: "/admin", icon: ShieldCheck }],
+    });
+  }
+  return sections.filter((s) => s.items.length > 0);
 }
 
 export function Sidebar({
@@ -158,7 +171,7 @@ export function Sidebar({
   const cloudBadge = cloudConnected ? cloudUser : null;
   const displayInitial = displayName?.[0] ?? displayEmail?.[0] ?? "?";
   const isSaaS = !selfHosted || cloudConnected;
-  const navSections = getNavSections(isSaaS, selfHosted, userServers);
+  const navSections = getNavSections(isSaaS, selfHosted, userServers, user?.role === "admin");
   const pathname = usePathname();
   const router = useRouter();
   const { resolvedTheme, toggle } = useTheme();

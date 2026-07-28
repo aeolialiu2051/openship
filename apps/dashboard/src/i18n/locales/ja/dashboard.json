@@ -61,10 +61,12 @@
     "emails": "メールサーバー",
     "settings": "設定",
     "billing": "請求と使用状況",
+    "admin": "管理",
     "sections": {
       "main": "メイン",
       "settings": "設定",
       "infrastructure": "インフラストラクチャ",
+      "administration": "管理",
       "account": "アカウント"
     }
   },

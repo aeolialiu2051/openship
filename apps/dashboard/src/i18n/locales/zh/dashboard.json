@@ -61,10 +61,12 @@
     "emails": "邮件服务器",
     "settings": "设置",
     "billing": "账单与用量",
+    "admin": "管理后台",
     "sections": {
       "main": "主要",
       "settings": "设置",
       "infrastructure": "基础设施",
+      "administration": "系统管理",
       "account": "账户"
     }
   },

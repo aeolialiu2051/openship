@@ -92,7 +92,7 @@ export const SYSTEM_JOB_DEFS: SystemJobDef[] = [
   },
   {
     key: "audit:retention-prune",
-    label: "Audit log prune",
+    label: "Audit and access log prune",
     defaultCron: "17 3 * * *",
     run: async () => pruneAuditEvents(),
   },

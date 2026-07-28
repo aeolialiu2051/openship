@@ -53,6 +53,8 @@ import { getJobRunner } from "./lib/job-runner";
 import { repos } from "@repo/db";
 import { resourceOperationService } from "./modules/operations/resource-operation.service";
 import { operationRoutes } from "./modules/operations/operation.routes";
+import { adminRoutes } from "./modules/admin/admin.routes";
+import { telemetryRoutes } from "./modules/telemetry/telemetry.routes";
 
 /* ---------- Initialize platform (runtime + infra + system) ---------- */
 await initPlatform(resolvePlatformConfig());
@@ -144,6 +146,8 @@ app.route("/api/notifications", notificationsRoutes);
 app.route("/api/updates", updatesRoutes);
 app.route("/api/jobs", jobRoutes);
 app.route("/api/operations", operationRoutes);
+app.route("/api/admin", adminRoutes);
+app.route("/api/telemetry", telemetryRoutes);
 // Platform status notices — banner feed (public read) + operator push (internal).
 // Both modes; primarily consumed on the SaaS.
 app.route("/api/notices", noticeRoutes);

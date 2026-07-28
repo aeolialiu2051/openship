@@ -61,10 +61,12 @@
     "emails": "Servidores de e-mail",
     "settings": "Configurações",
     "billing": "Faturamento e uso",
+    "admin": "Administração",
     "sections": {
       "main": "Principal",
       "settings": "Configurações",
       "infrastructure": "Infraestrutura",
+      "administration": "Administração",
       "account": "Conta"
     }
   },

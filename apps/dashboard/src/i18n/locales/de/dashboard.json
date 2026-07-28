@@ -61,10 +61,12 @@
     "emails": "Mailserver",
     "settings": "Einstellungen",
     "billing": "Abrechnung & Nutzung",
+    "admin": "Administration",
     "sections": {
       "main": "Allgemein",
       "settings": "Einstellungen",
       "infrastructure": "Infrastruktur",
+      "administration": "Administration",
       "account": "Konto"
     }
   },

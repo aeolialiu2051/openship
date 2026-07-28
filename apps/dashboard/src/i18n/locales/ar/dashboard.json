@@ -61,10 +61,12 @@
     "emails": "خوادم البريد",
     "settings": "الإعدادات",
     "billing": "الفوترة والاستخدام",
+    "admin": "الإدارة",
     "sections": {
       "main": "الرئيسية",
       "settings": "الإعدادات",
       "infrastructure": "البنية التحتية",
+      "administration": "الإدارة",
       "account": "الحساب"
     }
   },
