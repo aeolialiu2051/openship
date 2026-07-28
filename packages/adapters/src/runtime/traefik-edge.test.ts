@@ -178,4 +178,44 @@ describe("buildTraefikLabels", () => {
       "traefik.http.services.vibrail-oo198w.loadbalancer.server.port": "8000",
     });
   });
+
+  it("builds native middleware labels and path-scoped routers", () => {
+    const labels = buildTraefikLabels({
+      network: "proxy",
+      entrypoint: "websecure",
+      tls: true,
+      routes: [{ routerName: "vibrail-api", hostname: "api.example.com", port: 8000 }],
+      routeRules: {
+        "api.example.com": [
+          {
+            name: "vibrail-rr-global",
+            rateLimit: { average: 10, burst: 20 },
+            inFlightReq: { amount: 100 },
+          },
+          {
+            name: "vibrail-rr-admin",
+            pathPrefix: "/admin",
+            ipAllowList: { sourceRange: ["203.0.113.10", "10.0.0.0/8"] },
+          },
+        ],
+      },
+    });
+
+    expect(labels).toMatchObject({
+      "traefik.http.middlewares.vibrail-rr-global-rate.ratelimit.average": "10",
+      "traefik.http.middlewares.vibrail-rr-global-rate.ratelimit.period": "1s",
+      "traefik.http.middlewares.vibrail-rr-global-rate.ratelimit.burst": "20",
+      "traefik.http.middlewares.vibrail-rr-global-flight.inflightreq.amount": "100",
+      "traefik.http.routers.vibrail-api.middlewares":
+        "vibrail-rr-global-rate@docker,vibrail-rr-global-flight@docker",
+      "traefik.http.middlewares.vibrail-rr-admin-ip.ipallowlist.sourcerange":
+        "203.0.113.10,10.0.0.0/8",
+      "traefik.http.routers.vibrail-api-rule-0.rule":
+        "Host(`api.example.com`) && PathPrefix(`/admin`)",
+      "traefik.http.routers.vibrail-api-rule-0.service": "vibrail-api",
+      "traefik.http.routers.vibrail-api-rule-0.middlewares":
+        "vibrail-rr-global-rate@docker,vibrail-rr-global-flight@docker,vibrail-rr-admin-ip@docker",
+      "traefik.http.routers.vibrail-api-rule-0.priority": "10006",
+    });
+  });
 });

@@ -1,4 +1,4 @@
-import type { TraefikEdgeConfig } from "../types";
+import type { TraefikEdgeConfig, TraefikRouteRuleConfig } from "../types";
 import type { DockerContainerDetail, ResolvedTraefikEdge, TraefikManualConfig } from "./types";
 
 export const VIBRAIL_EDGE_CONTAINER = "vibrail-edge";
@@ -347,6 +347,36 @@ function safeLabelValue(value: string): string {
   return value.replace(/[\r\n]/g, "");
 }
 
+function middlewareNames(rule: TraefikRouteRuleConfig): string[] {
+  return [
+    rule.rateLimit ? `${rule.name}-rate` : null,
+    rule.ipAllowList ? `${rule.name}-ip` : null,
+    rule.inFlightReq ? `${rule.name}-flight` : null,
+  ].filter((name): name is string => !!name);
+}
+
+function addMiddlewareLabels(
+  labels: Record<string, string>,
+  rule: TraefikRouteRuleConfig,
+): void {
+  if (!SAFE_NAME.test(rule.name)) throw new Error(`Invalid Traefik rule name: ${rule.name}`);
+  if (rule.rateLimit) {
+    const middleware = `traefik.http.middlewares.${rule.name}-rate.ratelimit`;
+    labels[`${middleware}.average`] = String(rule.rateLimit.average);
+    labels[`${middleware}.period`] = "1s";
+    labels[`${middleware}.burst`] = String(rule.rateLimit.burst);
+  }
+  if (rule.ipAllowList) {
+    labels[`traefik.http.middlewares.${rule.name}-ip.ipallowlist.sourcerange`] =
+      rule.ipAllowList.sourceRange.map(safeLabelValue).join(",");
+  }
+  if (rule.inFlightReq) {
+    labels[`traefik.http.middlewares.${rule.name}-flight.inflightreq.amount`] = String(
+      rule.inFlightReq.amount,
+    );
+  }
+}
+
 export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, string> {
   const labels: Record<string, string> = {
     "traefik.enable": "true",
@@ -367,6 +397,44 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
     labels[`${router}.service`] = route.routerName;
     if (config.certResolver) labels[`${router}.tls.certresolver`] = config.certResolver;
     labels[`${service}.loadbalancer.server.port`] = String(route.port);
+
+    const rules = config.routeRules?.[route.hostname.trim().toLowerCase()] ?? [];
+    for (const rule of rules) addMiddlewareLabels(labels, rule);
+
+    const hostRules = rules.filter((rule) => !rule.pathPrefix);
+    const hostMiddlewares = hostRules.flatMap(middlewareNames);
+    if (hostMiddlewares.length > 0) {
+      labels[`${router}.middlewares`] = hostMiddlewares.map((name) => `${name}@docker`).join(",");
+    }
+
+    const pathGroups = new Map<string, TraefikRouteRuleConfig[]>();
+    for (const rule of rules) {
+      if (!rule.pathPrefix) continue;
+      const group = pathGroups.get(rule.pathPrefix) ?? [];
+      group.push(rule);
+      pathGroups.set(rule.pathPrefix, group);
+    }
+    let pathIndex = 0;
+    for (const [pathPrefix, pathRules] of pathGroups) {
+      const pathRouterName = `${route.routerName}-rule-${pathIndex++}`;
+      if (!SAFE_NAME.test(pathRouterName)) {
+        throw new Error(`Invalid Traefik path router name: ${pathRouterName}`);
+      }
+      const pathRouter = `traefik.http.routers.${pathRouterName}`;
+      labels[`${pathRouter}.rule`] =
+        `Host(\`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`;
+      labels[`${pathRouter}.entrypoints`] = config.entrypoint;
+      labels[`${pathRouter}.tls`] = String(config.tls);
+      labels[`${pathRouter}.service`] = route.routerName;
+      labels[`${pathRouter}.priority`] = String(10_000 + pathPrefix.length);
+      if (config.certResolver) labels[`${pathRouter}.tls.certresolver`] = config.certResolver;
+      // A more-specific path router wins over the base host router, so repeat
+      // host-wide middlewares here before the path-specific chain.
+      const names = [...hostRules, ...pathRules].flatMap(middlewareNames);
+      if (names.length > 0) {
+        labels[`${pathRouter}.middlewares`] = names.map((name) => `${name}@docker`).join(",");
+      }
+    }
   }
   return labels;
 }

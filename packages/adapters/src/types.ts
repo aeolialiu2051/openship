@@ -223,6 +223,16 @@ export interface TraefikRouteConfig {
   port: number;
 }
 
+export interface TraefikRouteRuleConfig {
+  /** Stable name derived from the persisted RouteRule id. */
+  name: string;
+  /** Optional PathPrefix scope; omit for the hostname's base router. */
+  pathPrefix?: string;
+  rateLimit?: { average: number; burst: number };
+  ipAllowList?: { sourceRange: string[] };
+  inFlightReq?: { amount: number };
+}
+
 export interface TraefikEdgeConfig {
   /** Docker network shared with the selected Traefik instance. */
   network: string;
@@ -233,6 +243,8 @@ export interface TraefikEdgeConfig {
   /** Optional Traefik certificate resolver selected by the operator. */
   certResolver?: string;
   routes: TraefikRouteConfig[];
+  /** Native middleware rules grouped by normalized hostname. */
+  routeRules?: Record<string, TraefikRouteRuleConfig[]>;
 }
 
 export interface DeployConfig {

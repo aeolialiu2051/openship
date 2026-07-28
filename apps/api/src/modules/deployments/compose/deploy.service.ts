@@ -521,6 +521,7 @@ export async function deployComposeServices(
           runtime,
           organizationId: dep.organizationId,
           serverId: opts?.serverId,
+          projectId: project.id,
           routes: [],
           onLog: (message) => logger.log(message),
         })

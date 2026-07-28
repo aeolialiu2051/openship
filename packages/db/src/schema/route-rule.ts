@@ -14,12 +14,9 @@ import { domain } from "./domain";
 // ─── Route rules ───────────────────────────────────────────────────────────────
 
 /**
- * Per-route edge rules (rate-limit, ban, allow/deny) for the self-hosted
- * OpenResty guard. The DB is the source of truth; the API serializes each
- * project's rules and pushes them into OpenResty's `rules` shared dict via the
- * mgmt API (reload-free), where `rules_guard.lua` enforces them in the access
- * phase. Complements the per-server global rate-limit (the box-wide ceiling),
- * which stays a native `limit_req` snippet.
+ * Per-route edge rules compiled into native Traefik routers and middlewares at
+ * deployment time. The DB is the source of truth; the JSONB body allows new
+ * middleware capabilities without a database migration.
  *
  * Scope: a rule applies to `domainId` (a specific hostname) or, when null, to
  * ALL of the project's hostnames; `pathPrefix` narrows it to a path (null/"/" =
@@ -38,7 +35,7 @@ export const routeRule = pgTable("route_rule", {
   domainId: text("domain_id").references(() => domain.id, { onDelete: "cascade" }),
   /** Path-prefix scope (null / "/" = the whole host). */
   pathPrefix: text("path_prefix"),
-  /** The rule body — see RouteRuleSpec (rate-limit, ban, allow/deny). */
+  /** The rule body — see RouteRuleSpec (Traefik middleware settings). */
   spec: jsonb("spec").$type<RouteRuleSpec>().notNull().default({}),
   enabled: boolean("enabled").notNull().default(true),
   createdAt: timestamp("created_at").notNull().defaultNow(),

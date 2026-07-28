@@ -51,11 +51,11 @@ r.get("/local", { tag: "project:list", localOnly: true }, ctrl.listLocal);
 r.post("/scan", { tag: "project:write", collection: true, localOnly: true }, ctrl.scanLocal);
 r.post("/import", { tag: "project:write", collection: true, localOnly: true }, ctrl.importLocal);
 
-/* ─── Route rules (self-hosted OpenResty edge: rate-limit · ban · allow/deny) ── */
-r.get("/:id/route-rules", { tag: "project:read", localOnly: true }, routeRules.listRouteRules);
-r.post("/:id/route-rules", { tag: "project:write", localOnly: true }, routeRules.createRouteRule);
-r.patch("/:id/route-rules/:ruleId", { tag: "project:write", localOnly: true }, routeRules.updateRouteRule);
-r.delete("/:id/route-rules/:ruleId", { tag: "project:write", localOnly: true }, routeRules.deleteRouteRule);
+/* ─── Route rules (Traefik middleware labels, active after redeploy) ───────── */
+r.get("/:id/route-rules", { tag: "project:read" }, routeRules.listRouteRules);
+r.post("/:id/route-rules", { tag: "project:write" }, routeRules.createRouteRule);
+r.patch("/:id/route-rules/:ruleId", { tag: "project:write" }, routeRules.updateRouteRule);
+r.delete("/:id/route-rules/:ruleId", { tag: "project:write" }, routeRules.deleteRouteRule);
 
 /* ─── Folder upload → deploy ─────────────────────────────────────────────
  * Browser-based folder deploy for clients with no filesystem-shared API.

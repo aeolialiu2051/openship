@@ -18,6 +18,7 @@ export type {
   BuildConfig,
   DeployPublicEndpoint,
   TraefikRouteConfig,
+  TraefikRouteRuleConfig,
   TraefikEdgeConfig,
   DeployConfig,
   BuildResult,

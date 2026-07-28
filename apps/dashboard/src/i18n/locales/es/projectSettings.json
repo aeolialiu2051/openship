@@ -104,6 +104,29 @@
       }
     }
   },
+  "routeRules": {
+    "title": "Reglas de ruta",
+    "description": "Límites nativos de Traefik y reglas de acceso IP por host o ruta.",
+    "deploymentNotice": "Las etiquetas de Docker son inmutables. Los cambios se activarán en el próximo despliegue.",
+    "loading": "Cargando reglas…",
+    "empty": "Aún no hay reglas de ruta. Añada una abajo.",
+    "allHosts": "Todos los hosts",
+    "allPaths": "Todas las rutas",
+    "addTitle": "Añadir una regla",
+    "hostLabel": "Host",
+    "pathLabel": "Prefijo de ruta (opcional)",
+    "rps": "Solicitudes / seg.",
+    "burst": "Ráfaga",
+    "allowCidrs": "IP / CIDR permitidos",
+    "maxInFlight": "Máx. solicitudes simultáneas",
+    "add": "Añadir regla",
+    "remove": "Eliminar",
+    "enabled": "Activada",
+    "disabled": "Desactivada",
+    "saved": "Regla guardada — vuelva a desplegar para activarla",
+    "saveFailed": "No se pudo guardar la regla",
+    "loadFailed": "No se pudieron cargar las reglas"
+  },
   "backup": {
     "live": {
       "title": "Copia de seguridad en vivo",

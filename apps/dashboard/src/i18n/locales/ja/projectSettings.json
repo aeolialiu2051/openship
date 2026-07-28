@@ -104,6 +104,29 @@
       }
     }
   },
+  "routeRules": {
+    "title": "ルートルール",
+    "description": "ホスト名またはパスごとに Traefik ネイティブの制限と IP アクセスルールを設定します。",
+    "deploymentNotice": "Docker ラベルは変更できません。保存した変更は次回のデプロイ時に有効になります。",
+    "loading": "ルールを読み込み中…",
+    "empty": "ルートルールはまだありません。下から追加してください。",
+    "allHosts": "すべてのホスト名",
+    "allPaths": "すべてのパス",
+    "addTitle": "ルールを追加",
+    "hostLabel": "ホスト名",
+    "pathLabel": "パスプレフィックス（任意）",
+    "rps": "リクエスト / 秒",
+    "burst": "バースト",
+    "allowCidrs": "許可する IP / CIDR",
+    "maxInFlight": "最大同時リクエスト数",
+    "add": "ルールを追加",
+    "remove": "削除",
+    "enabled": "有効",
+    "disabled": "無効",
+    "saved": "ルールを保存しました。有効化するには再デプロイしてください",
+    "saveFailed": "ルールを保存できませんでした",
+    "loadFailed": "ルールを読み込めませんでした"
+  },
   "backup": {
     "live": {
       "title": "ライブバックアップ",

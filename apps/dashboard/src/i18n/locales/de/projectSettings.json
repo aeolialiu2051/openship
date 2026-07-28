@@ -104,6 +104,29 @@
       }
     }
   },
+  "routeRules": {
+    "title": "Routing-Regeln",
+    "description": "Native Traefik-Limits und IP-Zugriffsregeln pro Hostname oder Pfad.",
+    "deploymentNotice": "Docker-Labels sind unveränderlich. Gespeicherte Änderungen werden bei der nächsten Bereitstellung aktiv.",
+    "loading": "Regeln werden geladen…",
+    "empty": "Noch keine Routing-Regeln. Fügen Sie unten eine hinzu.",
+    "allHosts": "Alle Hostnamen",
+    "allPaths": "Alle Pfade",
+    "addTitle": "Regel hinzufügen",
+    "hostLabel": "Hostname",
+    "pathLabel": "Pfadpräfix (optional)",
+    "rps": "Anfragen / Sek.",
+    "burst": "Burst",
+    "allowCidrs": "Erlaubte IPs / CIDRs",
+    "maxInFlight": "Max. gleichzeitige Anfragen",
+    "add": "Regel hinzufügen",
+    "remove": "Entfernen",
+    "enabled": "Aktiviert",
+    "disabled": "Deaktiviert",
+    "saved": "Regel gespeichert — zum Aktivieren erneut bereitstellen",
+    "saveFailed": "Regel konnte nicht gespeichert werden",
+    "loadFailed": "Regeln konnten nicht geladen werden"
+  },
   "backup": {
     "live": {
       "title": "Live-Backup",

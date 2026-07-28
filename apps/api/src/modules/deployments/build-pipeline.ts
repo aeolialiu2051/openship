@@ -1414,6 +1414,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
           runtime,
           organizationId: dep.organizationId,
           serverId: snapshot.serverId,
+          projectId: project.id,
           routes: [],
           onLog: (message) => logger.log(message),
         })

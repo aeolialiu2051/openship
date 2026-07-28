@@ -2059,8 +2059,8 @@ export const DomainSettings = () => {
           feature from the routing config above, but the same kind of edge
           concern, so it sits right here, collapsed by default. Moved out of the
           Advanced tab. */}
-      {/* Route rules are a self-hosted-edge feature (local-only endpoints); a
-          cloud-owned project uses the Oblien edge, so hide them for cloud. */}
+      {/* Traefik middleware rules apply to self-hosted/user-server projects;
+          cloud projects use the Oblien edge and have a different rule surface. */}
       {!isCloudProject && <RouteRules />}
 
       {editingRouteService && editingRoute && routeDraft && (

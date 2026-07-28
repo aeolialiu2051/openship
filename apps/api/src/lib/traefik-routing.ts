@@ -6,6 +6,7 @@ import type {
   TraefikRouteConfig,
 } from "@repo/adapters";
 import { DockerRuntime } from "@repo/adapters";
+import { compileProjectTraefikRules } from "../modules/route-rules/route-rule.service";
 
 const SAFE_ROUTER_PART = /[^a-zA-Z0-9-]+/g;
 
@@ -38,10 +39,14 @@ export async function prepareTraefikConfig(opts: {
   runtime: DockerRuntime;
   organizationId: string;
   serverId?: string;
+  projectId: string;
   routes: TraefikRouteConfig[];
   onLog?: (message: string) => void;
 }): Promise<TraefikEdgeConfig> {
-  const manual = await resolveTraefikManualConfig(opts.organizationId, opts.serverId);
+  const [manual, routeRules] = await Promise.all([
+    resolveTraefikManualConfig(opts.organizationId, opts.serverId),
+    compileProjectTraefikRules(opts.projectId),
+  ]);
   const edge: ResolvedTraefikEdge = await opts.runtime.ensureSharedTraefik(manual);
   opts.onLog?.(
     edge.source === "existing"
@@ -54,5 +59,6 @@ export async function prepareTraefikConfig(opts: {
     tls: edge.tls,
     ...(edge.certResolver ? { certResolver: edge.certResolver } : {}),
     routes: opts.routes,
+    ...(Object.keys(routeRules).length > 0 ? { routeRules } : {}),
   };
 }

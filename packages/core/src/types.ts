@@ -136,13 +136,11 @@ export type ComposeAdvanced = {
 };
 
 /**
- * Per-route edge rules (rate-limit, ban, allow/deny) enforced by the self-hosted
- * OpenResty guard. The DB `route_rule` table is the source of truth; the API
- * serializes this shape and pushes it into OpenResty's `rules` shared dict via
- * the mgmt API, where `rules_guard.lua` enforces it in the access phase — no
- * reload. Lives in @repo/core so @repo/db (storage) and @repo/adapters (runtime)
- * share one definition, like ComposeAdvanced above. Grows per phase (rewrites,
- * upstream/LB weights, …) as a pure shape-widening — no migration (JSONB).
+ * Per-route edge rules. Self-hosted Docker deployments compile the supported
+ * fields into native Traefik routers and middlewares during deployment. The DB
+ * `route_rule` table remains the source of truth; JSONB lets the shape widen
+ * without a schema migration. Legacy OpenResty-only fields remain readable so
+ * existing rows do not break, but new UI writes the Traefik-native fields.
  */
 export type RouteRuleSpec = {
   /**
@@ -151,6 +149,10 @@ export type RouteRuleSpec = {
    * the per-server nginx `limit_req` ceiling.
    */
   rateLimit?: { rps: number; burst: number; key?: "ip"; status?: number };
+  /** Native Traefik IPAllowList middleware. At least one CIDR/IP is required. */
+  ipAllowList?: { sourceRange: string[] };
+  /** Native Traefik InFlightReq middleware (concurrent request ceiling). */
+  inFlightReq?: { amount: number };
   /**
    * Blocklists → block (see `block.status`, default 403). `countries` = ISO
    * 3166-1 alpha-2 (bundled GeoIP). `userAgents` = case-insensitive substrings

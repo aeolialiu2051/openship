@@ -104,6 +104,29 @@
       }
     }
   },
+  "routeRules": {
+    "title": "路由规则",
+    "description": "为指定域名或路径配置 Traefik 原生限流和 IP 访问规则。",
+    "deploymentNotice": "Docker 标签不可动态修改；保存后的规则将在下次部署或重新部署时生效。",
+    "loading": "正在加载规则…",
+    "empty": "尚未配置路由规则，请在下方添加。",
+    "allHosts": "所有域名",
+    "allPaths": "所有路径",
+    "addTitle": "添加规则",
+    "hostLabel": "域名",
+    "pathLabel": "路径前缀（可选）",
+    "rps": "每秒请求数",
+    "burst": "突发容量",
+    "allowCidrs": "允许的 IP / CIDR",
+    "maxInFlight": "最大并发请求数",
+    "add": "添加规则",
+    "remove": "删除",
+    "enabled": "已启用",
+    "disabled": "已停用",
+    "saved": "规则已保存，请重新部署以启用",
+    "saveFailed": "保存规则失败",
+    "loadFailed": "加载规则失败"
+  },
   "backup": {
     "live": {
       "title": "实时备份",
