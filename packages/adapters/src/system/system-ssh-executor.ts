@@ -525,7 +525,7 @@ export class SystemSshExecutor implements CommandExecutor {
     } catch { /* best-effort */ }
   }
 
-  async openShell(opts?: ShellOptions): Promise<ShellSession> {
+  async openShell(opts?: ShellOptions, command?: string): Promise<ShellSession> {
     await this.ensureMaster();
 
     const cols = clampWindow(opts?.cols, 80, 1, 1000);
@@ -541,7 +541,7 @@ export class SystemSshExecutor implements CommandExecutor {
     const remoteInit =
       `tty > ${ptyMarker} 2>/dev/null; ` +
       `stty sane 2>/dev/null; stty cols ${cols} rows ${rows} 2>/dev/null; ` +
-      `exec "\${SHELL:-/bin/sh}" -l`;
+      (command ? `exec ${command}` : `exec "\${SHELL:-/bin/sh}" -l`);
 
     // TERM must be forwarded explicitly: ssh derives the remote terminal type
     // from our $TERM, and a GUI-launched API process often has none. A

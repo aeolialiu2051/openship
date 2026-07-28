@@ -676,16 +676,18 @@ export interface CommandExecutor {
 
   /**
    * Open an interactive PTY shell on the target machine.
+   * When `command` is provided, run that command as the PTY's foreground
+   * process instead of starting the user's login shell.
    *
    * Returns a ShellSession with bidirectional byte streams (stdin/stdout/
    * stderr) plus window-resize and exit hooks. The caller is responsible
    * for piping a terminal frontend (e.g. xterm.js over a WebSocket) and
    * calling close() on shutdown.
    *
-   * Currently only implemented by SshExecutor (LocalExecutor would need
-   * node-pty for parity).
+   * Implemented by both SSH executors (LocalExecutor would need node-pty for
+   * parity).
    */
-  openShell?(opts?: ShellOptions): Promise<ShellSession>;
+  openShell?(opts?: ShellOptions, command?: string): Promise<ShellSession>;
 
   /**
    * Open a REVERSE tunnel: ask the remote to listen on an ephemeral

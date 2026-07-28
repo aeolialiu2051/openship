@@ -3100,21 +3100,50 @@ export class DockerRuntime implements RuntimeAdapter {
    * Open an interactive PTY shell inside a deployed container. Powers
    * the in-dashboard service terminal — see apps/api/src/modules/service-terminal/.
    *
-   * Wire-up: dockerode's `container.exec({Tty: true, AttachStdin: true,
-   * AttachStdout: true, AttachStderr: true})` returns an Exec handle.
-   * Starting it with `{hijack: true, stdin: true}` gives a single bi-
-   * directional Duplex carrying TTY bytes in both directions (when Tty
-   * is true, stderr is merged into stdout — exactly what xterm expects).
+   * Wire-up depends on the Docker transport:
+   *   - local socket / TLS: dockerode `container.exec()` + hijacked Duplex;
+   *   - SSH server target: SSH PTY + native `docker exec -it`, avoiding a
+   *     long-lived hijacked HTTP stream through the Docker SSH relay.
+   * Both carry TTY bytes bidirectionally with stderr merged into stdout.
    *
    * The returned ShellSession matches SshExecutor.openShell so the
    * websocket bridge in service-terminal.controller.ts is identical
    * across Docker + Cloud + SSH callers.
    */
   async openServiceShell(containerId: string, opts?: ShellOptions): Promise<ShellSession> {
-    const container = this.docker.getContainer(containerId);
     const cols = clampShellWindow(opts?.cols, 80, 1, 1000);
     const rows = clampShellWindow(opts?.rows, 24, 1, 500);
     const term = opts?.term || "xterm-256color";
+
+    // A long-lived hijacked Docker Engine stream is reliable over a local Unix
+    // socket, but not over every SSH streamlocal / dial-stdio relay. Production
+    // server targets already use the native Docker CLI for bounded operations
+    // for exactly that reason. Keep the interactive PTY on the same reliable
+    // transport: allocate a real SSH PTY and run `docker exec -it` on the host.
+    if (this.usesRemoteDockerCli()) {
+      const connection = this.connectionOptions;
+      const executor = connection?.executor;
+      if (!connection || !executor?.openShell) {
+        throw new Error("Remote Docker terminal requires an SSH PTY-capable executor");
+      }
+
+      const inspect = await this.inspectRemoteContainer(containerId).catch(() => null);
+      if (!inspect?.State.Running) {
+        throw new Error(
+          `Container ${containerId} is not running (status: ${inspect?.State.Status ?? "unknown"})`,
+        );
+      }
+
+      const socketPath = await resolveRemoteDockerSocketPath(connection);
+      const command =
+        `docker --host ${sq(`unix://${socketPath}`)} exec -it ` +
+        `-e ${sq(`TERM=${term}`)} ${sq(containerId)} ` +
+        `/bin/sh -lc ${sq("exec $(command -v bash || echo /bin/sh)")}`;
+
+      return executor.openShell({ cols, rows, term }, command);
+    }
+
+    const container = this.docker.getContainer(containerId);
 
     // Probe shell availability: prefer bash, fall back to sh. Both
     // are safe to invoke as `cmd -c env-prefix exec target-shell` so

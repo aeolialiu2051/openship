@@ -490,7 +490,7 @@ export class SshExecutor implements CommandExecutor {
   }
 
   /**
-   * Open an interactive PTY shell on the remote host. The returned
+   * Open an interactive PTY shell (or a PTY-backed command) on the remote host. The returned
    * ShellSession wraps an ssh2 ClientChannel: writes go to stdin,
    * stdout/stderr emit on the readable streams, setWindow forwards to
    * channel.setWindow, close ends the channel. Lifetime is bound to the
@@ -498,20 +498,22 @@ export class SshExecutor implements CommandExecutor {
    * callers must wrap with `sshManager.retain(serverId)` / `release()`
    * to avoid the 5-minute idle drop on the parent connection.
    */
-  async openShell(opts?: ShellOptions): Promise<ShellSession> {
+  async openShell(opts?: ShellOptions, command?: string): Promise<ShellSession> {
     const client = await this.connect();
     const cols = clampWindow(opts?.cols, 80, 1, 1000);
     const rows = clampWindow(opts?.rows, 24, 1, 500);
     const term = opts?.term || "xterm-256color";
 
-    const channel = await new Promise<import("ssh2").ClientChannel>(
-      (resolve, reject) => {
-        client.shell(
-          { term, cols, rows, width: 0, height: 0, modes: {} },
-          (err, ch) => (err ? reject(err) : resolve(ch)),
-        );
-      },
-    );
+    const channel = await new Promise<import("ssh2").ClientChannel>((resolve, reject) => {
+      const onChannel = (err: Error | undefined, ch: import("ssh2").ClientChannel) =>
+        err ? reject(err) : resolve(ch);
+      const pty = { term, cols, rows, width: 0, height: 0, modes: {} };
+      if (command) {
+        client.exec(command, { pty }, onChannel);
+      } else {
+        client.shell(pty, onChannel);
+      }
+    });
 
     const closeListeners: Array<(code: number | null, signal?: string) => void> = [];
     let closed = false;

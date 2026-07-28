@@ -1,7 +1,48 @@
 import { describe, expect, it, vi } from "vitest";
+import { PassThrough } from "node:stream";
 import { DockerRuntime } from "../src/runtime/docker";
 
 describe("DockerRuntime container status normalization", () => {
+  it("opens service terminals through an SSH PTY for remote Docker targets", async () => {
+    const runtime = await DockerRuntime.create();
+    const session = {
+      stdin: new PassThrough(),
+      stdout: new PassThrough(),
+      stderr: new PassThrough(),
+      setWindow: vi.fn(),
+      close: vi.fn(),
+      onClose: vi.fn(),
+    };
+    const openShell = vi.fn(async () => session);
+    const exec = vi.fn(async (command: string) => {
+      expect(command).toBe(
+        "docker --host 'unix:///run/user/1000/docker.sock' inspect 'container-1'",
+      );
+      return JSON.stringify([{ State: { Running: true, Status: "running" } }]);
+    });
+
+    (runtime as any).transport = { kind: "ssh" };
+    (runtime as any).connectionOptions = {
+      transport: "ssh",
+      dockerSocketPath: "/run/user/1000/docker.sock",
+      executor: { exec, openShell },
+    };
+
+    await expect(
+      runtime.openServiceShell("container-1", {
+        cols: 120,
+        rows: 40,
+        term: "xterm-256color",
+      }),
+    ).resolves.toBe(session);
+    expect(openShell).toHaveBeenCalledWith(
+      { cols: 120, rows: 40, term: "xterm-256color" },
+      "docker --host 'unix:///run/user/1000/docker.sock' exec -it " +
+        "-e 'TERM=xterm-256color' 'container-1' " +
+        "/bin/sh -lc 'exec $(command -v bash || echo /bin/sh)'",
+    );
+  });
+
   it("correctly identifies running status when State.Running is true regardless of State.Status casing", async () => {
     const runtime = await DockerRuntime.create();
 
