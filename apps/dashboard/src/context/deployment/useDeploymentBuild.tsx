@@ -9,7 +9,7 @@ import { useModal } from "@/context/ModalContext";
 import { useGitHub } from "@/context/GitHubContext";
 import type { BuildLog } from "@/utils/deploymentPhaseDetector";
 import { useBuildStream } from "@/hooks/useSSEConnection";
-import { deployApi, projectsApi } from "@/lib/api";
+import { deployApi, projectsApi, serviceKind, servicesApi } from "@/lib/api";
 import { randomUUID } from "@/lib/random-uuid";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
@@ -19,6 +19,7 @@ import { parseCloudRequiredCode, removeProjectRouteKey } from "@repo/core";
 import type { DeploymentConfig, DeploymentState, DeploymentStatus, ServiceDeployStatus } from "./types";
 import { canonicalizeDeploymentRouteKey, managedDomainForApi } from "./project-route-key";
 import { syncActiveModeSnapshot } from "./mode-config";
+import { diffProjectEnvironment, serializeComposeServices } from "./config-save";
 import {
   BUILD_PHASES,
   DEFAULT_CONFIG,
@@ -672,12 +673,10 @@ export function useDeploymentBuild(
     let ensuredProjectId: string | null = config.projectId ?? null;
 
     try {
-      // ── Save-only (Edit from the Runtime page): the project ALREADY exists,
-      // so persist build + runtime config in ONE atomic call (POST /:id/options)
-      // and STOP. Deliberately does NOT call `ensure` (which would resend git +
-      // publicEndpoints + a re-detected framework and clobber live config/routes)
-      // and does NOT touch env (env has its own per-variable editor — a blind
-      // replace here would wipe/corrupt masked secrets). No deploy. ────────────
+      // ── Save-only (Edit from the Runtime page): persist every section the
+      // wizard exposes, but do not create a deployment. Project env uses a
+      // masked-secret-safe diff; compose rows use the same name-stable sync path
+      // as import/deploy, so ports, volumes, env, and routing survive reloads.
       if (saveConfigOnly) {
         const projectId = config.projectId;
         if (!projectId) {
@@ -685,26 +684,47 @@ export function useDeploymentBuild(
           return null;
         }
         try {
-          await projectsApi.setOptions(projectId, {
-            framework: config.framework,
-            packageManager: config.packageManager,
-            buildImage: config.buildImage,
-            installCommand: config.options.installCommand,
-            buildCommand: config.options.buildCommand,
-            startCommand: config.options.startCommand,
-            outputDirectory: config.options.outputDirectory,
-            productionPaths: config.options.productionPaths,
-            rootDirectory: config.options.rootDirectory,
-            productionPort:
-              config.options.hasServer && config.options.productionPort
-                ? Number(config.options.productionPort)
-                : undefined,
-            hasServer: config.options.hasServer,
-            hasBuild: config.options.hasBuild,
-            ...(config.runtimeMode === "bare" || config.runtimeMode === "docker"
-              ? { runtimeMode: config.runtimeMode }
-              : {}),
-          });
+          const savedEnv = await projectsApi.getEnv(projectId);
+          const envPatch = diffProjectEnvironment(savedEnv.data ?? [], config.envVars ?? []);
+          const writes: Promise<unknown>[] = [
+            projectsApi.setOptions(projectId, {
+              framework: config.framework,
+              packageManager: config.packageManager,
+              buildImage: config.buildImage,
+              installCommand: config.options.installCommand,
+              buildCommand: config.options.buildCommand,
+              startCommand: config.options.startCommand,
+              outputDirectory: config.options.outputDirectory,
+              productionPaths: config.options.productionPaths,
+              rootDirectory: config.options.rootDirectory,
+              productionPort:
+                config.options.hasServer && config.options.productionPort
+                  ? Number(config.options.productionPort)
+                  : undefined,
+              hasServer: config.options.hasServer,
+              hasBuild: config.options.hasBuild,
+              ...(config.runtimeMode === "bare" || config.runtimeMode === "docker"
+                ? { runtimeMode: config.runtimeMode }
+                : {}),
+            }),
+          ];
+
+          if (envPatch.upserts.length > 0 || envPatch.deletes.length > 0) {
+            writes.push(projectsApi.mergeEnv(projectId, envPatch));
+          }
+
+          if (config.projectType === "services") {
+            if (config.services.length > 0) {
+              writes.push(servicesApi.sync(projectId, serializeComposeServices(config.services)));
+            } else {
+              const existing = await servicesApi.list(projectId);
+              writes.push(...existing.services
+                .filter((service) => serviceKind(service) === "compose")
+                .map((service) => servicesApi.delete(projectId, service.id)));
+            }
+          }
+
+          await Promise.all(writes);
           showToast("Configuration saved", "success", "Saved");
           return projectId;
         } catch (err) {
