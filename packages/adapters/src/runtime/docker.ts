@@ -844,6 +844,11 @@ export class DockerRuntime implements RuntimeAdapter {
       });
       const args = [
         "--api.dashboard=false",
+        // JSON access logs go to stdout by default. Keeping them unbuffered is
+        // intentional: Vibrail tails this stream for the server-log panel and
+        // should surface each request immediately.
+        "--accesslog=true",
+        "--accesslog.format=json",
         "--providers.docker=true",
         "--providers.docker.exposedbydefault=false",
         `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
@@ -2937,6 +2942,66 @@ export class DockerRuntime implements RuntimeAdapter {
     onLog: LogCallback,
     opts?: { tail?: number },
   ): Promise<() => void> {
+    // Remote observability should ride the already-authenticated management
+    // SSH connection. The generic dockerode transport opens a dedicated SSH
+    // Docker relay for every HTTP connection, which made opening a log stream
+    // pay a second SSH handshake (often 10-30s on distant VPS hosts).
+    const executor = this.connectionOptions?.executor;
+    if (this.usesRemoteDockerCli() && executor?.rawExec) {
+      const socketPath = await resolveRemoteDockerSocketPath(this.connectionOptions!);
+      let process: Awaited<ReturnType<NonNullable<CommandExecutor["rawExec"]>>> | null = null;
+      try {
+        process = await executor.rawExec(
+          `docker --host ${sq(`unix://${socketPath}`)} logs --timestamps --follow --tail ${sq(String(opts?.tail ?? 100))} ${sq(containerId)}`,
+        );
+      } catch {
+        // A stale ControlMaster/ssh2 channel can fail before the command starts.
+        // Preserve the previous dedicated Docker relay as a compatibility
+        // fallback; the fast path is an optimization, never a new failure mode.
+        process = null;
+      }
+      if (process) {
+        let destroyed = false;
+        const buffers = new Map<NodeJS.ReadableStream, string>();
+
+        const consume = (stream: NodeJS.ReadableStream, defaultLevel: LogEntry["level"]) => {
+          buffers.set(stream, "");
+          stream.on("data", (chunk: Buffer | string) => {
+            if (destroyed) return;
+            const buffered = (buffers.get(stream) ?? "") + chunk.toString();
+            const lines = buffered.split("\n");
+            buffers.set(stream, lines.pop() ?? "");
+            for (const line of lines) {
+              if (!line) continue;
+              const { timestamp, message } = parseTimestampedLine(line);
+              onLog({
+                timestamp,
+                message,
+                level: defaultLevel === "warn" ? "warn" : parseLogLevel(message),
+              });
+            }
+          });
+          stream.on("end", () => {
+            const line = buffers.get(stream);
+            if (!destroyed && line) {
+              const { timestamp, message } = parseTimestampedLine(line);
+              onLog({ timestamp, message, level: defaultLevel });
+            }
+            buffers.delete(stream);
+          });
+        };
+
+        consume(process.stdout, "info");
+        consume(process.stderr, "warn");
+
+        return () => {
+          if (destroyed) return;
+          destroyed = true;
+          process.kill();
+        };
+      }
+    }
+
     const container = this.docker.getContainer(containerId);
     const stream = (await container.logs({
       stdout: true,

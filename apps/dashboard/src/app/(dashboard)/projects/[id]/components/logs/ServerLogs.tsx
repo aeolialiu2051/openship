@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Server, Clock, User, AlertCircle } from "lucide-react";
 import { getCountryFlagUrl } from "@/lib/country";
-import './logs.css';
+import "./logs.css";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
-import { getApiBaseUrl, api } from "@/lib/api";
+import { getApiBaseUrl, getApiErrorMessage, api } from "@/lib/api";
 import { endpoints } from "@/lib/api/endpoints";
 import { DomainSwitcher } from "@/components/routing/DomainSwitcher";
 import { useI18n } from "@/components/i18n-provider";
@@ -35,11 +35,7 @@ const appendQueryParam = (url: string, key: string, value: string) => {
   return `${url}${separator}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
 };
 
-export const ServerLogs: React.FC<ServerLogsProps> = ({
-  projectId,
-  projectName,
-  onLogsChange,
-}) => {
+export const ServerLogs: React.FC<ServerLogsProps> = ({ projectId, projectName, onLogsChange }) => {
   const { serverLogsData, addServerLog, mergeServerLogs, setServerLogs, domain, domainsData } =
     useProjectSettings();
   const { t } = useI18n();
@@ -60,7 +56,7 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
   }, [domain, domains]);
 
   const formatBytes = useCallback((bytes?: number) => {
-    const b = typeof bytes === 'number' ? bytes : 0;
+    const b = typeof bytes === "number" ? bytes : 0;
     if (b < 1024) return `${b} B`;
     const kb = b / 1024;
     if (kb < 1024) return `${kb.toFixed(1)} KB`;
@@ -70,8 +66,8 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
   }, []);
 
   const parseNumber = useCallback((value: unknown) => {
-    if (typeof value === 'number' && Number.isFinite(value)) return value;
-    if (typeof value === 'string') {
+    if (typeof value === "number" && Number.isFinite(value)) return value;
+    if (typeof value === "string") {
       const parsed = Number(value);
       if (Number.isFinite(parsed)) return parsed;
     }
@@ -79,11 +75,11 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
   }, []);
 
   const toIsoTimestamp = useCallback((value: unknown) => {
-    if (typeof value === 'number' && Number.isFinite(value)) {
+    if (typeof value === "number" && Number.isFinite(value)) {
       return new Date(value > 1_000_000_000_000 ? value : value * 1000).toISOString();
     }
 
-    if (typeof value === 'string' && value.trim()) {
+    if (typeof value === "string" && value.trim()) {
       const numeric = Number(value);
       if (Number.isFinite(numeric)) {
         return new Date(numeric > 1_000_000_000_000 ? numeric : numeric * 1000).toISOString();
@@ -98,33 +94,40 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
     return new Date().toISOString();
   }, []);
 
-  const normalizeLogEntry = useCallback((d: any): ServerLog | null => {
-    if (!d || typeof d !== 'object') return null;
+  const normalizeLogEntry = useCallback(
+    (d: any): ServerLog | null => {
+      if (!d || typeof d !== "object") return null;
 
-    const responseTimeMs = d.responseTime !== undefined
-      ? Math.round(parseNumber(d.responseTime) * 1000)
-      : d.req_time !== undefined
-        ? Math.round(parseNumber(d.req_time) * 1000)
-        : d.rt !== undefined
-          ? Math.round(parseNumber(d.rt) * 1000)
-          : 0;
+      const responseTimeMs =
+        d.responseTime !== undefined
+          ? Math.round(parseNumber(d.responseTime) * 1000)
+          : d.req_time !== undefined
+            ? Math.round(parseNumber(d.req_time) * 1000)
+            : d.rt !== undefined
+              ? Math.round(parseNumber(d.rt) * 1000)
+              : 0;
 
-    return {
-      id: d.id || `req-${d.ts || d.timestamp || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: toIsoTimestamp(d.timestamp ?? d.ts ?? d.date),
-      ip: d.ip || '-',
-      country: d.country,
-      method: d.method || 'GET',
-      path: d.path || d.uri || '/',
-      statusCode: d.statusCode !== undefined
-        ? parseInt(String(d.statusCode), 10) || 0
-        : parseInt(String(d.status ?? 0), 10) || 0,
-      userAgent: d.userAgent || d.ua || '',
-      responseTime: responseTimeMs,
-      requestSize: parseNumber(d.requestSize ?? d.req_size ?? d.bw_in),
-      responseSize: parseNumber(d.responseSize ?? d.res_size ?? d.bw_out),
-    };
-  }, [parseNumber, toIsoTimestamp]);
+      return {
+        id:
+          d.id ||
+          `req-${d.ts || d.timestamp || Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        timestamp: toIsoTimestamp(d.timestamp ?? d.ts ?? d.date),
+        ip: d.ip || "-",
+        country: d.country,
+        method: d.method || "GET",
+        path: d.path || d.uri || "/",
+        statusCode:
+          d.statusCode !== undefined
+            ? parseInt(String(d.statusCode), 10) || 0
+            : parseInt(String(d.status ?? 0), 10) || 0,
+        userAgent: d.userAgent || d.ua || "",
+        responseTime: responseTimeMs,
+        requestSize: parseNumber(d.requestSize ?? d.req_size ?? d.bw_in),
+        responseSize: parseNumber(d.responseSize ?? d.res_size ?? d.bw_out),
+      };
+    },
+    [parseNumber, toIsoTimestamp],
+  );
 
   useEffect(() => {
     setServerLogs([]);
@@ -148,7 +151,7 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
     const handleRequestEvent = (e: MessageEvent) => {
       try {
         const d = JSON.parse(e.data);
-        if (!d || typeof d !== 'object') return;
+        if (!d || typeof d !== "object") return;
 
         if (d.error) {
           setError(d.error);
@@ -161,7 +164,9 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
           setIsLoading(false);
           addServerLog(entry);
         }
-      } catch { /* malformed data */ }
+      } catch {
+        /* malformed data */
+      }
     };
 
     const handleErrorEvent = (e: Event) => {
@@ -175,16 +180,36 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
         }
       }
       if (es?.readyState === EventSource.CLOSED) {
-        setError(t.projectDetail.logs.server.connectionLost);
+        setError((current) => current ?? t.projectDetail.logs.server.connectionLost);
+      }
+      setIsLoading(false);
+    };
+
+    const handleStreamErrorEvent = (e: Event) => {
+      const me = e as MessageEvent;
+      try {
+        const data = JSON.parse(me.data);
+        setError(data.error || t.projectDetail.logs.server.streamError);
+      } catch {
+        setError(me.data || t.projectDetail.logs.server.streamError);
       }
       setIsLoading(false);
     };
 
     const initStream = async () => {
       try {
-        const tokenRes = await api.get<{ kind: string; url?: string; token?: string }>(
+        const tokenRes = await api.get<{
+          kind: string;
+          url?: string;
+          token?: string;
+          error?: string;
+        }>(
           selectedDomain
-            ? appendQueryParam(endpoints.projects.serverLogsStreamToken(projectId), "domain", selectedDomain)
+            ? appendQueryParam(
+                endpoints.projects.serverLogsStreamToken(projectId),
+                "domain",
+                selectedDomain,
+              )
             : endpoints.projects.serverLogsStreamToken(projectId),
         );
         if (cancelled) return;
@@ -196,17 +221,22 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
           // Edge deployments may send either default messages or named request events.
           es.onmessage = handleRequestEvent;
           es.addEventListener("request", handleRequestEvent);
+          es.addEventListener("stream-error", handleStreamErrorEvent);
         } else if (tokenRes.kind === "self-hosted") {
           // Self-hosted: connect to API SSE
           let streamUrl = `${getApiBaseUrl()}${endpoints.projects.serverLogsStream(projectId)}`;
           if (selectedDomain) streamUrl = appendQueryParam(streamUrl, "domain", selectedDomain);
           es = new EventSource(streamUrl, { withCredentials: true });
           es.addEventListener("request", handleRequestEvent);
+          es.addEventListener("stream-error", handleStreamErrorEvent);
         } else {
           // Cloud project whose live stream token isn't available right now.
           // Do NOT hit /server-logs/stream — it 400s for cloud. The recent-logs
           // fetch below still shows history; just no live tail, no hard error.
-          if (!cancelled) setIsLoading(false);
+          if (!cancelled) {
+            if (tokenRes.error) setError(tokenRes.error);
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -215,9 +245,9 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
           setError(null);
           setIsLoading(false);
         };
-      } catch {
+      } catch (streamError) {
         if (!cancelled) {
-          setError(t.projectDetail.logs.server.connectFailed);
+          setError(getApiErrorMessage(streamError, t.projectDetail.logs.server.connectFailed));
           setIsLoading(false);
         }
       }
@@ -226,44 +256,61 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
     initStream();
 
     // Fetch recent logs in parallel and merge them behind live data.
-    api.get<{ logs: any[] }>(endpoints.projects.serverLogsRecent(projectId), {
-      params: { limit: 100, ...(selectedDomain ? { domain: selectedDomain } : {}) },
-    }).then((res: any) => {
-      if (cancelled) return;
-      const logs: unknown[] = Array.isArray(res.logs)
-        ? res.logs
-        : Array.isArray(res.logs?.data)
-          ? res.logs.data
-          : Array.isArray(res.logs?.requests)
-            ? res.logs.requests
-            : Array.isArray(res.logs?.items)
-              ? res.logs.items
-              : Array.isArray(res.logs?.rows)
-                ? res.logs.rows
-                : [];
-
-      if (logs.length) {
-        const entries = logs
-          .map(normalizeLogEntry)
-          .filter((e): e is ServerLog => e !== null)
-          .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp));
-        if (entries.length > 0) {
-          mergeServerLogs(entries);
+    api
+      .get<{ logs: any[]; error?: string }>(endpoints.projects.serverLogsRecent(projectId), {
+        params: { limit: 100, ...(selectedDomain ? { domain: selectedDomain } : {}) },
+      })
+      .then((res: any) => {
+        if (cancelled) return;
+        if (res.error) {
+          setError(res.error);
+          setIsLoading(false);
         }
-      }
-    }).catch(() => {
-      // Non-fatal - live stream stays active even if history fetch fails.
-    });
+        const logs: unknown[] = Array.isArray(res.logs)
+          ? res.logs
+          : Array.isArray(res.logs?.data)
+            ? res.logs.data
+            : Array.isArray(res.logs?.requests)
+              ? res.logs.requests
+              : Array.isArray(res.logs?.items)
+                ? res.logs.items
+                : Array.isArray(res.logs?.rows)
+                  ? res.logs.rows
+                  : [];
+
+        if (logs.length) {
+          const entries = logs
+            .map(normalizeLogEntry)
+            .filter((e): e is ServerLog => e !== null)
+            .sort((a, b) => +new Date(b.timestamp) - +new Date(a.timestamp));
+          if (entries.length > 0) {
+            mergeServerLogs(entries);
+          }
+        }
+      })
+      .catch(() => {
+        // Non-fatal - live stream stays active even if history fetch fails.
+      });
 
     return () => {
       cancelled = true;
       es?.close();
     };
-  }, [projectId, selectedDomain, domains, domainsData?.isLoading, setServerLogs, addServerLog, mergeServerLogs, normalizeLogEntry]);
+  }, [
+    projectId,
+    selectedDomain,
+    domains,
+    domainsData?.isLoading,
+    setServerLogs,
+    addServerLog,
+    mergeServerLogs,
+    normalizeLogEntry,
+  ]);
 
   const logsStrings = useMemo(() => {
-    return serverLogsData.logs.map((log: any) =>
-      `${log.timestamp} - ${log.ip} - ${log.method} ${log.path} - ${log.statusCode} - ${log.responseTime}ms`
+    return serverLogsData.logs.map(
+      (log: any) =>
+        `${log.timestamp} - ${log.ip} - ${log.method} ${log.path} - ${log.statusCode} - ${log.responseTime}ms`,
     );
   }, [serverLogsData.logs]);
 
@@ -272,19 +319,24 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
   }, [logsStrings]);
 
   const getStatusColor = useCallback((code: number) => {
-    if (code >= 200 && code < 300) return 'text-success bg-success-bg';
-    if (code >= 300 && code < 400) return 'text-info bg-info-bg';
-    if (code >= 400 && code < 500) return 'text-warning bg-warning-bg';
-    return 'text-danger bg-danger-bg';
+    if (code >= 200 && code < 300) return "text-success bg-success-bg";
+    if (code >= 300 && code < 400) return "text-info bg-info-bg";
+    if (code >= 400 && code < 500) return "text-warning bg-warning-bg";
+    return "text-danger bg-danger-bg";
   }, []);
 
   const getMethodColor = useCallback((method: string) => {
     switch (method) {
-      case 'GET': return 'text-info bg-info-bg';
-      case 'POST': return 'text-success bg-success-bg';
-      case 'PUT': return 'text-warning bg-warning-bg';
-      case 'DELETE': return 'text-danger bg-danger-bg';
-      default: return 'text-muted-foreground bg-muted/60';
+      case "GET":
+        return "text-info bg-info-bg";
+      case "POST":
+        return "text-success bg-success-bg";
+      case "PUT":
+        return "text-warning bg-warning-bg";
+      case "DELETE":
+        return "text-danger bg-danger-bg";
+      default:
+        return "text-muted-foreground bg-muted/60";
     }
   }, []);
 
@@ -310,7 +362,9 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
         <div className="flex flex-col items-center justify-center py-16 gap-3">
           <Server className="w-10 h-10 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">{t.projectDetail.logs.server.noDomain}</p>
-          <p className="text-xs text-muted-foreground/70">{t.projectDetail.logs.server.noDomainHint}</p>
+          <p className="text-xs text-muted-foreground/70">
+            {t.projectDetail.logs.server.noDomainHint}
+          </p>
         </div>
       );
     }
@@ -339,7 +393,9 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
       <div className="flex items-center justify-between px-5 py-4 border-b border-border/50">
         <div className="flex items-center gap-2.5">
           <Server className="w-4 h-4 text-muted-foreground" />
-          <h3 className="text-sm font-medium text-foreground">{t.projectDetail.logs.server.title}</h3>
+          <h3 className="text-sm font-medium text-foreground">
+            {t.projectDetail.logs.server.title}
+          </h3>
         </div>
         <div className="flex items-center gap-3">
           {domains.length > 1 && (
@@ -352,7 +408,9 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
           {!error && (
             <div className="flex items-center gap-1.5">
               <div className="w-1.5 h-1.5 rounded-full bg-success-solid animate-pulse" />
-              <span className="text-xs text-muted-foreground">{t.projectDetail.logs.server.live}</span>
+              <span className="text-xs text-muted-foreground">
+                {t.projectDetail.logs.server.live}
+              </span>
             </div>
           )}
         </div>
@@ -360,18 +418,24 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
 
       {/* Logs */}
       <div className="max-h-[460px] overflow-y-auto server-logs-scroll">
-        {serverLogsData.logs.length === 0 ? renderEmpty() : (
+        {serverLogsData.logs.length === 0 ? (
+          renderEmpty()
+        ) : (
           <div className="divide-y divide-border/30">
             {serverLogsData.logs.map((log: any) => (
               <div key={log.id} className="group px-5 py-2.5 hover:bg-muted/30 transition-colors">
                 <div className="flex items-center gap-2">
-                  <span className={`w-[52px] shrink-0 text-center px-1.5 py-0.5 rounded-md text-[11px] font-bold ${getMethodColor(log.method)}`}>
+                  <span
+                    className={`w-[52px] shrink-0 text-center px-1.5 py-0.5 rounded-md text-[11px] font-bold ${getMethodColor(log.method)}`}
+                  >
                     {log.method}
                   </span>
                   <span className="flex-1 text-[13px] font-medium text-foreground font-mono truncate">
                     {log.path}
                   </span>
-                  <span className={`w-10 shrink-0 text-center px-1.5 py-0.5 rounded-md text-[11px] font-bold tabular-nums ${getStatusColor(log.statusCode)}`}>
+                  <span
+                    className={`w-10 shrink-0 text-center px-1.5 py-0.5 rounded-md text-[11px] font-bold tabular-nums ${getStatusColor(log.statusCode)}`}
+                  >
                     {log.statusCode}
                   </span>
                   <span className="w-16 shrink-0 text-end text-[11px] text-muted-foreground/70 font-mono tabular-nums">
@@ -381,12 +445,19 @@ export const ServerLogs: React.FC<ServerLogsProps> = ({
                 <div className="flex items-center gap-3 mt-1 ps-[60px] text-[11px] text-muted-foreground">
                   <span className="flex items-center gap-1 shrink-0">
                     <Clock className="w-3 h-3" />
-                    <span className="font-mono tabular-nums">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    <span className="font-mono tabular-nums">
+                      {new Date(log.timestamp).toLocaleTimeString()}
+                    </span>
                   </span>
                   <span className="flex items-center gap-1 shrink-0">
                     {log.country && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={getCountryFlagUrl(log.country)} alt={log.country} className="w-3.5 h-3 object-contain rounded-sm" loading="lazy" />
+                      <img
+                        src={getCountryFlagUrl(log.country)}
+                        alt={log.country}
+                        className="w-3.5 h-3 object-contain rounded-sm"
+                        loading="lazy"
+                      />
                     )}
                     <span className="font-mono tabular-nums">{log.ip}</span>
                   </span>

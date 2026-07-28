@@ -55,7 +55,7 @@
     "server": {
       "title": "HTTP リクエストログ",
       "live": "ライブ",
-      "errorHint": "サーバーに分析スクリプトがデプロイされていることを確認してください",
+      "errorHint": "Traefik が JSON アクセスログを stdout に出力していることを確認してください",
       "waiting": "受信リクエストを待機中…",
       "streamError": "ストリームエラー",
       "connectionLost": "ログストリームへの接続が失われました",

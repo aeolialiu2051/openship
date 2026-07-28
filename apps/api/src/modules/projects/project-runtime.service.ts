@@ -5,7 +5,7 @@
 import { repos } from "@repo/db";
 import { NotFoundError, ValidationError } from "@repo/core";
 import type { LogEntry } from "@repo/adapters";
-import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
+import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
 import { managedDomainsUseCloudEdge, resolveManagedHostname } from "../../lib/routing-domains";
@@ -29,8 +29,14 @@ export async function getRuntimeLogs(
     throw new NotFoundError("No running container for project", projectId);
   }
 
-  const { runtime } = await resolveDeploymentRuntime(dep);
-  return runtime.getRuntimeLogs(dep.containerId, tail);
+  const { runtime } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
+    organizationId: dep.organizationId,
+  });
+  try {
+    return await runtime.getRuntimeLogs(dep.containerId, tail);
+  } finally {
+    await runtime.dispose?.();
+  }
 }
 
 export async function streamRuntimeLogs(
@@ -51,9 +57,25 @@ export async function streamRuntimeLogs(
     throw new NotFoundError("No running container for project", projectId);
   }
 
-  const { runtime, serverId } = await resolveDeploymentRuntime(dep);
-  const cleanup = await runtime.streamRuntimeLogs(dep.containerId, onLog, opts);
-  return { cleanup, serverId };
+  const { runtime, serverId } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
+    organizationId: dep.organizationId,
+  });
+  try {
+    const stop = await runtime.streamRuntimeLogs(dep.containerId, onLog, opts);
+    return {
+      serverId,
+      cleanup: () => {
+        try {
+          stop();
+        } finally {
+          void runtime.dispose?.();
+        }
+      },
+    };
+  } catch (error) {
+    await runtime.dispose?.();
+    throw error;
+  }
 }
 
 // ─── Enable / Disable ────────────────────────────────────────────────────────
@@ -71,8 +93,14 @@ export async function enableProject(projectId: string, organizationId: string) {
     throw new ValidationError("No container found for active deployment");
   }
 
-  const { runtime } = await resolveDeploymentRuntime(dep);
-  await runtime.start(dep.containerId);
+  const { runtime } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
+    organizationId: dep.organizationId,
+  });
+  try {
+    await runtime.start(dep.containerId);
+  } finally {
+    await runtime.dispose?.();
+  }
   return { success: true, message: "Project enabled" };
 }
 
@@ -89,8 +117,14 @@ export async function disableProject(projectId: string, organizationId: string) 
     return { success: true, message: "No container to stop" };
   }
 
-  const { runtime } = await resolveDeploymentRuntime(dep);
-  await runtime.stop(dep.containerId);
+  const { runtime } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
+    organizationId: dep.organizationId,
+  });
+  try {
+    await runtime.stop(dep.containerId);
+  } finally {
+    await runtime.dispose?.();
+  }
   return { success: true, message: "Project disabled" };
 }
 

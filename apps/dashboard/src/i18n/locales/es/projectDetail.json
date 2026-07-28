@@ -55,7 +55,7 @@
     "server": {
       "title": "Registros de solicitudes HTTP",
       "live": "En vivo",
-      "errorHint": "Asegúrate de que el servidor tenga desplegados los scripts de analíticas",
+      "errorHint": "Asegúrate de que Traefik emita registros de acceso JSON en stdout",
       "waiting": "Esperando solicitudes entrantes…",
       "streamError": "Error de transmisión",
       "connectionLost": "Se perdió la conexión con el flujo de registros",

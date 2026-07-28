@@ -34,14 +34,14 @@ import type {
 import { stat } from "node:fs/promises";
 import { repos, type Domain, type Project } from "@repo/db";
 import { encrypt } from "../../lib/encryption";
-import { deployLuaScripts } from "@repo/adapters";
-import { getOpenRestyPaths } from "@/lib/openresty-paths";
+import { DockerRuntime, VIBRAIL_EDGE_CONTAINER } from "@repo/adapters";
 import * as domainService from "../domains/domain.service";
 import * as prepareService from "../deployments/prepare.service";
 import { sshManager } from "../../lib/ssh-manager";
 import { env } from "../../config";
 import { domainWebhookUrl } from "../../lib/public-url";
-import { resolveProjectTrafficSource, fetchMgmt, mgmtStream } from "../../lib/project-analytics";
+import { resolveProjectTrafficSource } from "../../lib/project-analytics";
+import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
 import { refreshProjectFaviconIfStale } from "../../lib/favicon-detector";
 import { getAdminOblienClient } from "../../lib/oblien-user-client";
 import { cloudClient } from "../../lib/cloud/client";
@@ -61,9 +61,52 @@ import { ensureSharedWebhook, findSharedWebhookId } from "./project-git-webhook"
 import { listProjectRouteRows, resolveProjectRouteState } from "../domains/project-route.service";
 import { resourceOperationService } from "../operations/resource-operation.service";
 import { toOperationDto } from "../operations/operation.controller";
+import { parseTraefikAccessLog } from "./traefik-access-logs";
 
-// Track which servers have had Lua scripts deployed this session
-const luaDeployedServers = new Set<string>();
+function isTraefikSummary(container: {
+  names: string[];
+  image?: string;
+  labels: Record<string, string>;
+}): boolean {
+  return (
+    container.names.some((name) => name.replace(/^\//, "") === VIBRAIL_EDGE_CONTAINER) ||
+    container.labels["vibrail.edge.managed"] === "true" ||
+    /(^|\/|:)traefik(?::|@|$)/i.test(container.image ?? "")
+  );
+}
+
+async function resolveTraefikLogSource(project: Project) {
+  if (!project.activeDeploymentId) throw new Error("No active deployment for project");
+  const dep = await repos.deployment.findById(project.activeDeploymentId);
+  if (!dep) throw new Error("Active deployment not found");
+
+  // The edge itself is always a Docker container, independently of how the
+  // project's application runs. A bare app can still be routed by the shared
+  // Traefik stack, so never inherit its runtimeMode here.
+  const resolved = await resolveDeploymentRuntimeOnly(
+    { ...((dep.meta ?? {}) as Record<string, unknown>), runtimeMode: "docker" },
+    {
+      organizationId: dep.organizationId,
+    },
+  );
+  if (!(resolved.runtime instanceof DockerRuntime)) {
+    await resolved.runtime.dispose?.();
+    throw new Error("Traefik request logs require a Docker deployment");
+  }
+
+  try {
+    const containers = await resolved.runtime.listAllContainers();
+    const edge =
+      containers.find((container) =>
+        container.names.some((name) => name.replace(/^\//, "") === VIBRAIL_EDGE_CONTAINER),
+      ) ?? containers.find(isTraefikSummary);
+    if (!edge) throw new Error("No running Traefik edge was found on this server");
+    return { runtime: resolved.runtime, serverId: resolved.serverId, containerId: edge.id };
+  } catch (error) {
+    await resolved.runtime.dispose?.();
+    throw error;
+  }
+}
 
 function logEnsureProjectError(
   userId: string,
@@ -132,7 +175,6 @@ export async function ensure(c: Context) {
 
 // ─── Projects CRUD ───────────────────────────────────────────────────────────
 
-
 /**
  * Project ids a scoped token is allowed to SEE, or null when the caller is not
  * a scoped token (no filtering — normal role visibility applies). For an "own
@@ -161,14 +203,17 @@ export async function getHome(c: Context) {
   // visible projects (prevents the common confusion of "I deployed
   // something but it doesn't show up" when the session active org is
   // a freshly-created empty team org).
-  let result: { rows: Awaited<ReturnType<typeof projectService.listProjects>>["rows"]; total: number };
+  let result: {
+    rows: Awaited<ReturnType<typeof projectService.listProjects>>["rows"];
+    total: number;
+  };
   try {
     result = await projectService.listProjects(organizationId, {
       page: 1,
       // Scoped tokens own few projects but they may sit anywhere in the org's
       // set, so widen the fetch before filtering to the owned ids below.
       perPage: scopedIds ? 1000 : 100,
-      });
+    });
   } catch (err) {
     // Migrations not yet applied — PGlite first-boot case. Return an
     // explicit empty payload with no other-org hints (we can't query
@@ -192,7 +237,12 @@ export async function getHome(c: Context) {
     return c.json({
       success: true,
       projects: [],
-      numbers: { total_projects: 0, total_active_projects: 0, total_deployments: 0, total_success_deployments: 0 },
+      numbers: {
+        total_projects: 0,
+        total_active_projects: 0,
+        total_deployments: 0,
+        total_success_deployments: 0,
+      },
       otherOrgs: [],
     });
   }
@@ -211,16 +261,21 @@ export async function getHome(c: Context) {
   // reconnect" client-side from `deployTarget === 'cloud'` +
   // CloudContext.connected — no duplicate server-side flag.
   const projectIds = result.rows.map((p) => p.id);
-  const [enrichedProjectsResolved, latestByProject, primariesByProject, servicesByProject, deployStats] =
-    await Promise.all([
-      projectService.enrichProjectsBatch(result.rows),
-      repos.deployment.findLatestByProjects(projectIds),
-      repos.domain.getPrimariesByProjects(projectIds),
-      repos.service.listByProjects(projectIds),
-      // Real Activity-card counts (was hardcoded 0). Scoped to the visible
-      // project ids, so scoped tokens only see their own deployments.
-      repos.deployment.statsByProjects(projectIds),
-    ]);
+  const [
+    enrichedProjectsResolved,
+    latestByProject,
+    primariesByProject,
+    servicesByProject,
+    deployStats,
+  ] = await Promise.all([
+    projectService.enrichProjectsBatch(result.rows),
+    repos.deployment.findLatestByProjects(projectIds),
+    repos.domain.getPrimariesByProjects(projectIds),
+    repos.service.listByProjects(projectIds),
+    // Real Activity-card counts (was hardcoded 0). Scoped to the visible
+    // project ids, so scoped tokens only see their own deployments.
+    repos.deployment.statsByProjects(projectIds),
+  ]);
 
   const projects = enrichedProjectsResolved.map((enriched, idx) => {
     const original = result.rows[idx];
@@ -258,9 +313,7 @@ export async function getHome(c: Context) {
       // Batch lookup names + project counts. Names come from one
       // findManyById; counts still go through projectService per org
       // (each is a SELECT COUNT — fine at N < 20 memberships).
-      const orgs = await repos.organization
-        .findManyById(otherOrgIds)
-        .catch(() => []);
+      const orgs = await repos.organization.findManyById(otherOrgIds).catch(() => []);
       const orgsById = new Map(orgs.map((o) => [o.id, o]));
       otherOrgs = await Promise.all(
         otherOrgIds.map(async (otherOrgId) => {
@@ -401,7 +454,11 @@ export async function getById(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const project = await projectService.getProject(id, organizationId);
   refreshProjectFaviconIfStale(project);
   return c.json({ data: project });
@@ -413,7 +470,11 @@ export async function listEnvironments(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const data = await projectService.listProjectEnvironments(id, organizationId);
   return c.json({ success: true, data });
 }
@@ -422,7 +483,11 @@ export async function createEnvironment(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const body = await c.req.json<TCreateProjectEnvironmentBody>();
 
   if (!body.environmentName?.trim()) {
@@ -455,7 +520,11 @@ export async function update(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const body = await c.req.json<TUpdateProjectBody>();
   const project = await projectService.updateProject(id, body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -485,7 +554,11 @@ export async function remove(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "admin",
+  });
 
   const force = c.req.query("force") === "true";
   // Orphan-and-drop even when a resource on a REACHABLE server won't destroy
@@ -623,20 +696,27 @@ export async function remove(c: Context) {
     );
   }
 
-  return c.json({
-    ok: true,
-    operationId: queued.operation.id,
-    status: queued.operation.status,
-    currentStep: queued.operation.currentStep,
-    created: queued.created,
-  }, 202);
+  return c.json(
+    {
+      ok: true,
+      operationId: queued.operation.id,
+      status: queued.operation.status,
+      currentStep: queued.operation.currentStep,
+      created: queued.created,
+    },
+    202,
+  );
 }
 
 export async function deletionPreview(c: Context) {
   const ctx = getRequestContext(c);
   const { organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const { repos } = await import("@repo/db");
   const project = await repos.project.findById(id);
   try {
@@ -654,7 +734,11 @@ export async function listEnvVars(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const environment = c.req.query("environment");
   const vars = await projectService.listEnvVars(id, organizationId, environment);
   return c.json({ data: vars });
@@ -664,7 +748,11 @@ export async function mergeEnvVars(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const body = await c.req.json<TMergeEnvVarsBody>();
   const result = await projectService.mergeEnvVars(id, organizationId, body);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -686,7 +774,11 @@ export async function mergeEnvVars(c: Context) {
 
 export async function getResources(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   // org AFTER assert (cross-org rebind safety — see enable/disable).
   const { organizationId } = getRequestContext(c);
   const resources = await projectService.getResources(id, organizationId);
@@ -717,7 +809,11 @@ export async function outputCheck(c: Context) {
 
 export async function updateResources(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   // org AFTER assert (cross-org rebind safety — see enable/disable).
   const { userId, organizationId } = getRequestContext(c);
   const body = await c.req.json<TUpdateResourcesBody>();
@@ -747,7 +843,11 @@ export async function getCloneToken(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const project = await projectService.getProject(id, organizationId);
   return c.json({
     hasToken: !!project.cloneTokenEncrypted,
@@ -771,7 +871,11 @@ export async function updateCloneToken(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "admin",
+  });
   const body = await c.req.json().catch(() => ({}));
   const rawToken = body?.token;
 
@@ -876,7 +980,7 @@ export async function listLocal(c: Context) {
     const result = await projectService.listProjects(organizationId, {
       page: 1,
       perPage: scopedIds ? 1000 : 100,
-      });
+    });
     let localProjects = result.rows.filter((p) => p.gitProvider === "local");
     // Scoped-token isolation: only the projects this token may see.
     if (scopedIds) localProjects = localProjects.filter((p) => scopedIds.has(p.id));
@@ -895,7 +999,11 @@ export async function runtimeLogs(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const tail = c.req.query("tail") ? Number(c.req.query("tail")) : undefined;
 
   try {
@@ -914,7 +1022,11 @@ export async function runtimeLogStream(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const tail = c.req.query("tail") ? Number(c.req.query("tail")) : undefined;
 
   return streamSSE(c, async (sseStream) => {
@@ -972,10 +1084,8 @@ function extractCloudStreamToken(result: unknown): { stream_url: string; token: 
   let node: unknown = result;
   for (let depth = 0; depth < 4 && node && typeof node === "object"; depth++) {
     const obj = node as Record<string, unknown>;
-    const streamUrl =
-      obj.stream_url ?? obj.streamUrl ?? obj.url ?? obj.sse_url ?? obj.endpoint;
-    const token =
-      obj.token ?? obj.stream_token ?? obj.streamToken ?? obj.access_token ?? obj.jwt;
+    const streamUrl = obj.stream_url ?? obj.streamUrl ?? obj.url ?? obj.sse_url ?? obj.endpoint;
+    const token = obj.token ?? obj.stream_token ?? obj.streamToken ?? obj.access_token ?? obj.jwt;
     if (typeof streamUrl === "string" && typeof token === "string") {
       return { stream_url: streamUrl, token };
     }
@@ -1008,72 +1118,91 @@ function extractCloudRequestLogs(result: unknown): unknown[] {
  * For cloud projects the dashboard connects directly to the edge SSE stream.
  */
 export async function serverLogStreamToken(c: Context) {
-  const ctx = getRequestContext(c);
-  const { userId, organizationId } = ctx;
-  const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
-
-  const project = await repos.project.findById(id);
   try {
-    assertResourceInOrg(project, "Project", organizationId, id);
-  } catch {
-    return c.json({ error: "Project not found" }, 404);
-  }
+    const ctx = getRequestContext(c);
+    const { userId, organizationId } = ctx;
+    const id = param(c, "id");
+    await permission.assert(getRequestContext(c), {
+      resourceType: "project",
+      resourceId: id,
+      action: "read",
+    });
 
-  const source = await resolveProjectTrafficSource(id, { domain: c.req.query("domain") });
-  if (!source) {
-    return c.json({ error: "No domain configured for this project" }, 400);
-  }
-
-  if (source.kind === "cloud") {
-    const client = getAdminOblienClient();
-    let tokenResult: unknown = null;
-
+    const project = await repos.project.findById(id);
     try {
-      tokenResult = client
-        ? await client.analytics.streamToken(source.domain)
-        : await cloudClient({ organizationId }).analytics.streamToken(source.domain);
-    } catch (err) {
-      // Token mint failed. This is a CLOUD project — do NOT claim "self-hosted"
-      // (that sends the client to /server-logs/stream, which 400s for cloud).
-      // Report "unavailable" so the client shows recent logs without erroring.
-      console.warn(
-        `[server-logs] cloud stream-token mint failed for ${source.domain}: ${safeErrorMessage(err)}`,
-      );
-      return c.json({ kind: "unavailable" as const });
+      assertResourceInOrg(project, "Project", organizationId, id);
+    } catch {
+      return c.json({ error: "Project not found" }, 404);
     }
 
-    const tokenData = extractCloudStreamToken(tokenResult);
-    if (!tokenData) {
-      // 200 but unparseable shape. Surface the KEYS (never the token value) so a
-      // SaaS response-shape change is diagnosable instead of silently degrading.
-      const rt = (tokenResult ?? {}) as Record<string, unknown>;
-      const inner = (rt.data ?? rt.result ?? rt) as Record<string, unknown> | null;
-      console.warn(
-        `[server-logs] cloud stream-token unparseable for ${source.domain}; ` +
-          `top keys=[${Object.keys(rt).join(",")}] ` +
-          `inner keys=[${inner && typeof inner === "object" ? Object.keys(inner).join(",") : ""}]`,
-      );
-      return c.json({ kind: "unavailable" as const });
+    let source: Awaited<ReturnType<typeof resolveProjectTrafficSource>>;
+    try {
+      source = await resolveProjectTrafficSource(id, { domain: c.req.query("domain") });
+    } catch (error) {
+      return c.json({ kind: "unavailable" as const, error: safeErrorMessage(error) });
     }
-    return c.json({ kind: "cloud" as const, url: tokenData.stream_url, token: tokenData.token });
+    if (!source) {
+      return c.json({ error: "No domain configured for this project" }, 400);
+    }
+
+    if (source.kind === "cloud") {
+      const client = getAdminOblienClient();
+      let tokenResult: unknown = null;
+
+      try {
+        tokenResult = client
+          ? await client.analytics.streamToken(source.domain)
+          : await cloudClient({ organizationId }).analytics.streamToken(source.domain);
+      } catch (err) {
+        // Token mint failed. This is a CLOUD project — do NOT claim "self-hosted"
+        // (that sends the client to /server-logs/stream, which 400s for cloud).
+        // Report "unavailable" so the client shows recent logs without erroring.
+        console.warn(
+          `[server-logs] cloud stream-token mint failed for ${source.domain}: ${safeErrorMessage(err)}`,
+        );
+        return c.json({ kind: "unavailable" as const, error: "Cloud log stream is unavailable" });
+      }
+
+      const tokenData = extractCloudStreamToken(tokenResult);
+      if (!tokenData) {
+        // 200 but unparseable shape. Surface the KEYS (never the token value) so a
+        // SaaS response-shape change is diagnosable instead of silently degrading.
+        const rt = (tokenResult ?? {}) as Record<string, unknown>;
+        const inner = (rt.data ?? rt.result ?? rt) as Record<string, unknown> | null;
+        console.warn(
+          `[server-logs] cloud stream-token unparseable for ${source.domain}; ` +
+            `top keys=[${Object.keys(rt).join(",")}] ` +
+            `inner keys=[${inner && typeof inner === "object" ? Object.keys(inner).join(",") : ""}]`,
+        );
+        return c.json({
+          kind: "unavailable" as const,
+          error: "Cloud returned an invalid log stream token",
+        });
+      }
+      return c.json({ kind: "cloud" as const, url: tokenData.stream_url, token: tokenData.token });
+    }
+
+    return c.json({ kind: "self-hosted" as const });
+  } catch (error) {
+    return c.json({ kind: "unavailable" as const, error: safeErrorMessage(error) });
   }
-
-  return c.json({ kind: "self-hosted" as const });
 }
 
 /**
  * GET /projects/:id/server-logs/stream - SSE stream of HTTP request logs
- * from the OpenResty pipe_stream on the managed server.
+ * from the Traefik edge container on the managed server.
  *
  * Cloud projects use stream-token + direct edge connection instead.
- * Auto-deploys Lua scripts once per API session per server.
  */
 export async function serverLogStream(c: Context) {
   const ctx = getRequestContext(c);
   const { organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
 
   const project = await repos.project.findById(id);
   try {
@@ -1087,48 +1216,46 @@ export async function serverLogStream(c: Context) {
     return c.json({ error: "Use stream-token endpoint for cloud projects" }, 400);
   }
 
-  const { domain, serverId } = source;
+  const { domain } = source;
 
   return streamSSE(c, async (sseStream) => {
-    sshManager.retain(serverId);
+    let cleanup: (() => void) | null = null;
+    let serverId: string | null = null;
+    let runtime: DockerRuntime | null = null;
     try {
-      if (!luaDeployedServers.has(serverId)) {
-        try {
-          const executor = await sshManager.acquire(serverId);
-          const paths = await getOpenRestyPaths(serverId, executor);
-          await deployLuaScripts(executor, paths);
-          luaDeployedServers.add(serverId);
-        } catch {
-          // Non-fatal - scripts may already be up to date
-        }
-      }
+      const sourceRuntime = await resolveTraefikLogSource(project);
+      runtime = sourceRuntime.runtime;
+      serverId = sourceRuntime.serverId;
+      if (serverId) sshManager.retain(serverId);
 
-      const reqPath = `/logs/stream?domain=${encodeURIComponent(domain)}`;
-      const conn = await mgmtStream(serverId, reqPath);
-      if (!conn) {
-        await sseStream
-          .writeSSE({
-            event: "error",
-            data: JSON.stringify({
-              error: "Failed to connect to log service - ensure OpenResty is running",
-            }),
-          })
-          .catch(() => {});
-        return;
-      }
-
-      sseStream.onAbort(() => conn.destroy());
+      cleanup = await runtime.streamRuntimeLogs(
+        sourceRuntime.containerId,
+        (entry) => {
+          const request = parseTraefikAccessLog(entry, domain);
+          if (!request) return;
+          void sseStream.writeSSE({ event: "request", data: JSON.stringify(request) });
+        },
+        { tail: 200 },
+      );
 
       await new Promise<void>((resolve) => {
-        conn.stream.on("data", (chunk: Buffer) => {
-          sseStream.write(chunk.toString()).catch(() => conn.destroy());
+        sseStream.onAbort(() => {
+          cleanup?.();
+          resolve();
         });
-        conn.stream.on("close", () => resolve());
-        conn.stream.on("end", () => resolve());
-        conn.stream.on("error", () => resolve());
+      });
+    } catch (error) {
+      await sseStream.writeSSE({
+        // `error` is reserved by EventSource for transport failures. A custom
+        // name lets the dashboard preserve this actionable backend message
+        // instead of immediately overwriting it with "connection lost".
+        event: "stream-error",
+        data: JSON.stringify({ error: safeErrorMessage(error) }),
       });
     } finally {
-      sshManager.release(serverId);
+      cleanup?.();
+      await runtime?.dispose?.();
+      if (serverId) sshManager.release(serverId);
     }
   });
 }
@@ -1139,7 +1266,11 @@ export async function recentServerLogs(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
 
   const project = await repos.project.findById(id);
   try {
@@ -1172,13 +1303,24 @@ export async function recentServerLogs(c: Context) {
     return c.json({ logs: extractCloudRequestLogs(result) });
   }
 
-  const { domain, serverId } = source;
-
-  const entries = await fetchMgmt<unknown[]>(
-    serverId,
-    `/logs/recent?domain=${encodeURIComponent(domain)}&limit=${limit}`,
-  );
-  return c.json({ logs: entries ?? [] });
+  const { domain } = source;
+  let sourceRuntime: Awaited<ReturnType<typeof resolveTraefikLogSource>> | null = null;
+  try {
+    sourceRuntime = await resolveTraefikLogSource(project);
+    const entries = await sourceRuntime.runtime.getRuntimeLogs(
+      sourceRuntime.containerId,
+      Math.max(limit * 5, 200),
+    );
+    const logs = entries
+      .map((entry) => parseTraefikAccessLog(entry, domain))
+      .filter((entry): entry is NonNullable<typeof entry> => !!entry)
+      .slice(-limit);
+    return c.json({ logs });
+  } catch (error) {
+    return c.json({ logs: [], error: safeErrorMessage(error) });
+  } finally {
+    await sourceRuntime?.runtime.dispose?.();
+  }
 }
 
 // ─── Git info ────────────────────────────────────────────────────────────────
@@ -1188,7 +1330,11 @@ export async function getGitInfo(c: Context) {
   const userId = ctx.userId;
   const organizationId = ctx.organizationId;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const info = await projectService.getGitInfo(id, organizationId);
 
   // No repo linked yet — the normal state for upload/local projects, not a
@@ -1271,7 +1417,11 @@ export async function listBranches(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const info = await projectService.getGitInfo(id, organizationId);
 
   if (!info.gitOwner || !info.gitRepo) {
@@ -1305,7 +1455,12 @@ export async function linkRepo(c: Context) {
     installationId?: number;
   }>();
 
-  const result = await projectService.linkProjectRepo(ctx, id, { owner, repo, branch, installationId });
+  const result = await projectService.linkProjectRepo(ctx, id, {
+    owner,
+    repo,
+    branch,
+    installationId,
+  });
 
   if (!result.ok) {
     if (result.code === "not_found") return c.json({ error: "Project not found" }, 404);
@@ -1371,7 +1526,11 @@ export async function setAutoDeploy(c: Context) {
   const userId = ctx.userId;
   const organizationId = ctx.organizationId;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const { enabled } = await c.req.json<{ enabled: boolean }>();
   const project = await repos.project.findById(id);
   try {
@@ -1410,7 +1569,7 @@ export async function setAutoDeploy(c: Context) {
       // User has a verified domain - direct webhook delivery
       if (enabled) {
         // strategy === "domain" ⟹ webhookDomain is set (resolveWebhookStrategy).
-    const webhookUrl = domainWebhookUrl(project.webhookDomain!);
+        const webhookUrl = domainWebhookUrl(project.webhookDomain!);
         const webhookId = await ensureSharedWebhook(ctx, project, owner, repo, webhookUrl);
         if (!webhookId) {
           return c.json(
@@ -1424,7 +1583,13 @@ export async function setAutoDeploy(c: Context) {
         await repos.project.update(id, { autoDeploy: true });
       } else {
         await repos.project.update(id, { autoDeploy: false });
-        await disableSharedWebhookIfUnused(ctx, project.organizationId, owner, repo, project.webhookId);
+        await disableSharedWebhookIfUnused(
+          ctx,
+          project.organizationId,
+          owner,
+          repo,
+          project.webhookId,
+        );
       }
     } else if (enabled) {
       // "repo" strategy - manage repo-level webhooks
@@ -1442,7 +1607,13 @@ export async function setAutoDeploy(c: Context) {
     } else {
       // Disable this environment. Keep the repo webhook while sibling environments still use it.
       await repos.project.update(id, { autoDeploy: false });
-      await disableSharedWebhookIfUnused(ctx, project.organizationId, owner, repo, project.webhookId);
+      await disableSharedWebhookIfUnused(
+        ctx,
+        project.organizationId,
+        owner,
+        repo,
+        project.webhookId,
+      );
     }
   } catch (err) {
     const msg = safeErrorMessage(err);
@@ -1520,7 +1691,11 @@ export async function setWebhookDomain(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const { domain: hostname } = await c.req.json<{ domain: string | null }>();
 
   const project = await repos.project.findById(id);
@@ -1657,7 +1832,11 @@ export async function setBranch(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const { branch } = await c.req.json<{ branch: string }>();
   if (!branch) return c.json({ error: "branch is required" }, 400);
   const result = await projectService.setBranch(id, branch, organizationId);
@@ -1676,7 +1855,11 @@ export async function setOptions(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const body = await c.req.json<Record<string, unknown>>();
   const result = await projectService.updateOptions(id, body, organizationId);
   audit.recordAsync(auditContextFrom(c, organizationId, userId), {
@@ -1704,7 +1887,11 @@ export async function getCommitStatus(c: Context) {
 
 export async function setSleepMode(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   // Read AFTER assert: permission.assert rebinds ctx.organizationId to the
   // resource's org for cross-org access (admin/grant). Capturing it before
   // would pass the stale session-active org → wrong-org 404 for multi-org
@@ -1726,7 +1913,11 @@ export async function setSleepMode(c: Context) {
 
 export async function enable(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   // Read org AFTER assert — it rebinds ctx to the resource's org for
   // cross-org access; the pre-assert value would be the stale active org.
   const { userId, organizationId } = getRequestContext(c);
@@ -1747,7 +1938,11 @@ export async function enable(c: Context) {
 
 export async function disable(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   // Read org AFTER assert — it rebinds ctx to the resource's org for
   // cross-org access; the pre-assert value would be the stale active org.
   const { userId, organizationId } = getRequestContext(c);
@@ -1771,7 +1966,11 @@ export async function disable(c: Context) {
  *  (200, ok:false) when it still can't sync so the UI re-surfaces guidance. */
 export async function retryRouting(c: Context) {
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
   const { userId, organizationId } = getRequestContext(c);
   try {
     const result = await projectService.retryProjectRouting(id, organizationId);
@@ -1796,7 +1995,11 @@ export async function listDeployments(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const page = Number(c.req.query("page") ?? 1);
   const perPage = Number(c.req.query("perPage") ?? 20);
   const environment = c.req.query("environment") ?? undefined;
@@ -1835,7 +2038,11 @@ export async function deploymentSession(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const result = await projectService.getLatestDeploymentSession(id, organizationId);
   return c.json(result);
 }
@@ -1846,7 +2053,11 @@ export async function getInfo(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "read",
+  });
   const project = await projectService.getProject(id, organizationId);
   const environments = await projectService.listProjectEnvironments(id, organizationId);
   const hasServer = project.hasServer ?? project.productionMode === "host";
@@ -1928,8 +2139,16 @@ export async function connectDomain(c: Context) {
   const ctx = getRequestContext(c);
   const { userId, organizationId } = ctx;
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: id, action: "write" });
-  const body = await c.req.json<{ domain: string; includeWww?: boolean; externalIngress?: boolean }>();
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: id,
+    action: "write",
+  });
+  const body = await c.req.json<{
+    domain: string;
+    includeWww?: boolean;
+    externalIngress?: boolean;
+  }>();
 
   if (!body.domain?.trim()) {
     return c.json({ success: false, error: "Domain is required" }, 400);

@@ -55,7 +55,7 @@
     "server": {
       "title": "HTTP-Anfrageprotokolle",
       "live": "Live",
-      "errorHint": "Stellen Sie sicher, dass auf dem Server Analyse-Skripte bereitgestellt sind",
+      "errorHint": "Stellen Sie sicher, dass Traefik JSON-Zugriffslogs auf stdout ausgibt",
       "waiting": "Warten auf eingehende Anfragen…",
       "streamError": "Stream-Fehler",
       "connectionLost": "Verbindung zum Log-Stream verloren",

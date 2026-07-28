@@ -55,7 +55,7 @@
     "server": {
       "title": "HTTP 请求日志",
       "live": "实时",
-      "errorHint": "请确保服务器已部署分析脚本",
+      "errorHint": "请确认 Traefik 已启用 JSON access log 并输出到容器 stdout",
       "waiting": "正在等待传入请求……",
       "streamError": "流错误",
       "connectionLost": "与日志流的连接已断开",

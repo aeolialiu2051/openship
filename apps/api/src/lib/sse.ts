@@ -23,6 +23,12 @@ export function streamSSE(
   c.header("X-Accel-Buffering", "no");
 
   return _streamSSE(c, async (sseStream) => {
+    // Commit the response immediately. Runtime log streams can legitimately
+    // have no history and no new output; without an initial byte, fetch-based
+    // proxies and some Traefik middleware keep the browser in "connecting"
+    // until the first 25s heartbeat arrives.
+    await sseStream.write(": connected\n\n");
+
     const heartbeat = setInterval(() => {
       void sseStream
         .writeSSE({ event: "ping", data: "{}" })

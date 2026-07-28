@@ -1,5 +1,6 @@
 import {
   createPlatform,
+  createRuntime,
   createHostExecutor,
   DockerRuntime,
   type CommandExecutor,
@@ -102,6 +103,14 @@ export interface ResolvedDeploymentPlatform {
   effectiveTarget: DeployTarget;
   runtimeMode: RuntimeMode;
   usesManagedRouting: boolean;
+  /** The server ID used for SSH targets (null for local/cloud). */
+  serverId: string | null;
+}
+
+export interface ResolvedDeploymentRuntime {
+  runtime: RuntimeAdapter;
+  effectiveTarget: DeployTarget;
+  runtimeMode: RuntimeMode;
   /** The server ID used for SSH targets (null for local/cloud). */
   serverId: string | null;
 }
@@ -287,6 +296,46 @@ export async function resolveDeploymentPlatform(
     usesManagedRouting: usesManagedRouting(basePlatform.target, effectiveTarget),
     serverId: null,
   };
+}
+
+/**
+ * Resolve only the workload runtime for observability and lifecycle calls.
+ * Deploy resolution also builds routing/TLS providers, which made every logs
+ * connection detect and repair OpenResty even on a Traefik-backed server.
+ */
+export async function resolveDeploymentRuntimeOnly(
+  snapshot: DeploymentMeta,
+  opts?: { organizationId?: string; basePlatform?: Platform },
+): Promise<ResolvedDeploymentRuntime> {
+  const basePlatform = opts?.basePlatform ?? platform();
+  const effectiveTarget = resolveEffectiveTarget(basePlatform.target, snapshot);
+  const runtimeMode = snapshot.runtimeMode ?? (basePlatform.runtime.name === "docker" ? "docker" : "bare");
+
+  if (effectiveTarget === "local" || effectiveTarget === "server") {
+    if (effectiveTarget === "server") {
+      const { id, executor, isLocal, ssh } = await resolveServerExecutor(
+        snapshot.serverId,
+        opts?.organizationId,
+      );
+      const runtime = await createRuntime({
+        mode: runtimeMode,
+        ...(runtimeMode === "docker"
+          ? { docker: isLocal ? { transport: "socket" as const } : toDockerSshTransport(ssh!, executor) }
+          : { bare: { executor } }),
+      });
+      return { runtime, effectiveTarget, runtimeMode, serverId: isLocal ? null : id };
+    }
+
+    const runtime = await createRuntime({
+      mode: runtimeMode,
+      ...(runtimeMode === "docker" ? { docker: { transport: "socket" as const } } : {}),
+    });
+    return { runtime, effectiveTarget, runtimeMode, serverId: null };
+  }
+
+  // Cloud resolution has no OpenResty side effects and preserves org-scoped auth.
+  const cloud = await resolveDeploymentPlatform(snapshot, opts);
+  return { runtime: cloud.platform.runtime, effectiveTarget, runtimeMode, serverId: null };
 }
 
 // ─── Target → Platform factory ───────────────────────────────────────────────

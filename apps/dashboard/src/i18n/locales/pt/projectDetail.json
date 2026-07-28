@@ -55,7 +55,7 @@
     "server": {
       "title": "Logs de Requisições HTTP",
       "live": "Ao vivo",
-      "errorHint": "Certifique-se de que o servidor tem os scripts de análise implantados",
+      "errorHint": "Certifique-se de que o Traefik emite logs de acesso JSON no stdout",
       "waiting": "Aguardando requisições recebidas…",
       "streamError": "Erro no stream",
       "connectionLost": "Conexão com o stream de logs perdida",

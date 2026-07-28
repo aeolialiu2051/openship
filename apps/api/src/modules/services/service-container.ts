@@ -1,5 +1,8 @@
 import { repos } from "@repo/db";
-import { resolveDeploymentPlatform } from "../../lib/deployment-runtime";
+import {
+  resolveDeploymentPlatform,
+  resolveDeploymentRuntimeOnly,
+} from "../../lib/deployment-runtime";
 import { resolveLiveServiceState } from "./live-state";
 import type { DeploymentConfigSnapshot } from "../deployments/build.service";
 
@@ -47,6 +50,16 @@ export async function resolveServicePlatform(
 ) {
   const snapshot = { ...(dep.meta as DeploymentConfigSnapshot), runtimeMode: "docker" as const };
   return resolveDeploymentPlatform(snapshot, { organizationId: project.organizationId });
+}
+
+/** Runtime-only counterpart used by logs/status. It avoids constructing the
+ * routing provider, so reading one service never probes or repairs OpenResty. */
+export async function resolveServiceRuntime(
+  project: { organizationId: string },
+  dep: { meta: unknown },
+) {
+  const snapshot = { ...(dep.meta as DeploymentConfigSnapshot), runtimeMode: "docker" as const };
+  return resolveDeploymentRuntimeOnly(snapshot, { organizationId: project.organizationId });
 }
 
 /** The runtime surface live identity resolution needs — anything that can list

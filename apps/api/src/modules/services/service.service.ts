@@ -31,6 +31,7 @@ import {
   containerIdForService,
   liveContainerIdWithRuntime,
   resolveServicePlatform,
+  resolveServiceRuntime,
 } from "./service-container";
 import { resolveLiveServiceState, type LiveMatchKind } from "./live-state";
 import { parseVolumeSpec, type VolumeKind } from "./volume-spec";
@@ -1156,6 +1157,33 @@ async function resolveServiceContainer(ctx: RequestContext, projectId: string, s
   return { runtime, containerId, serverId: resolved.serverId, row, service: svc };
 }
 
+/** Fast path for the logs tab. A deployment row already carries the exact
+ * container id; enumerating every container on the host before `docker logs`
+ * doubled the SSH/Docker round trips on every connect. If the hint is stale,
+ * Docker returns a precise error and the next deployment/status reconciliation
+ * heals it through the existing live-state path. */
+async function resolveServiceLogContainer(
+  ctx: RequestContext,
+  projectId: string,
+  serviceId: string,
+) {
+  const project = await repos.project.findById(projectId);
+  assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
+  if (!project.activeDeploymentId) throw new Error("No active deployment");
+
+  const dep = await repos.deployment.findById(project.activeDeploymentId);
+  if (!dep) throw new Error("Active deployment not found");
+
+  const svc = (await repos.service.listByProject(projectId)).find((s) => s.id === serviceId);
+  if (!svc) throw new Error("Service not found");
+
+  const containerId = await containerIdForService(dep, svc);
+  if (!containerId) throw new Error("Service has no running container");
+
+  const resolved = await resolveServiceRuntime(project, dep);
+  return { runtime: resolved.runtime, containerId, serverId: resolved.serverId };
+}
+
 /** Map a live runtime ContainerStatus onto the UI's service state vocabulary.
  *  Runtime truth (docker inspect / Oblien workload) — not the frozen deploy
  *  status column — so a stopped/crashed/removed service reads correctly. */
@@ -1319,7 +1347,7 @@ export async function getServiceRuntimeLogs(
   serviceId: string,
   tail?: number,
 ) {
-  const { runtime, containerId } = await resolveServiceContainer(ctx, projectId, serviceId);
+  const { runtime, containerId } = await resolveServiceLogContainer(ctx, projectId, serviceId);
   try {
     return await runtime.getRuntimeLogs(containerId, tail);
   } finally {
@@ -1334,7 +1362,7 @@ export async function streamServiceRuntimeLogs(
   onLog: (entry: LogEntry) => void,
   opts?: { tail?: number },
 ) {
-  const { runtime, containerId, serverId } = await resolveServiceContainer(
+  const { runtime, containerId, serverId } = await resolveServiceLogContainer(
     ctx,
     projectId,
     serviceId,

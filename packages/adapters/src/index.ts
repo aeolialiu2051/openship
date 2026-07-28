@@ -78,6 +78,7 @@ export type {
 } from "./runtime/types";
 export { assertCapability, isMultiServiceRuntime } from "./runtime/types";
 export { DockerRuntime, type DockerConnectionOptions } from "./runtime/docker";
+export { isTraefikContainer, VIBRAIL_EDGE_CONTAINER } from "./runtime/traefik-edge";
 export {
   transferImage,
   type ImageTransferOptions,

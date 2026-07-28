@@ -55,7 +55,7 @@
     "server": {
       "title": "HTTP İstek Günlükleri",
       "live": "Canlı",
-      "errorHint": "Sunucuda analitik komut dosyalarının dağıtıldığından emin olun",
+      "errorHint": "Traefik'in JSON erişim günlüklerini stdout'a yazdığından emin olun",
       "waiting": "Gelen istekler bekleniyor…",
       "streamError": "Canlı akış hatası",
       "connectionLost": "Günlük akışı bağlantısı kesildi",

@@ -111,7 +111,7 @@ async function buildTrafficSourcesForDomains(
 
   let { deployTarget, serverId } = await resolveTrafficRuntime(project);
 
-  if (isOblienBackedDeployment(deployTarget)) {
+  if (isOblienBackedDeployment(deployTarget, serverId)) {
     return domains.map((domain) => ({
       kind: "cloud" as const,
       domain,

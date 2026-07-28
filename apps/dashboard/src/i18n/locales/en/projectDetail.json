@@ -55,7 +55,7 @@
     "server": {
       "title": "HTTP Request Logs",
       "live": "Live",
-      "errorHint": "Make sure the server has analytics scripts deployed",
+      "errorHint": "Make sure Traefik emits JSON access logs to container stdout",
       "waiting": "Waiting for incoming requests…",
       "streamError": "Stream error",
       "connectionLost": "Connection to log stream lost",

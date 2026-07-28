@@ -55,7 +55,7 @@
     "server": {
       "title": "Journaux des requêtes HTTP",
       "live": "En direct",
-      "errorHint": "Assurez-vous que les scripts d'analyse sont déployés sur le serveur",
+      "errorHint": "Assurez-vous que Traefik écrit les journaux d'accès JSON sur stdout",
       "waiting": "En attente des requêtes entrantes…",
       "streamError": "Erreur de flux",
       "connectionLost": "Connexion au flux de journaux perdue",
