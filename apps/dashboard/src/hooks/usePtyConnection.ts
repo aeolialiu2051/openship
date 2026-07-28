@@ -41,9 +41,7 @@ import {
  * The hook dispatches to the right ticket endpoint and WS URL based
  * on this kind.
  */
-export type PtyTarget =
-  | { kind: "server"; id: string }
-  | { kind: "service"; id: string };
+export type PtyTarget = { kind: "server"; id: string } | { kind: "service"; id: string };
 
 function pickTransport(target: PtyTarget) {
   if (target.kind === "service") {
@@ -174,7 +172,11 @@ export function usePtyConnection({
     const ws = wsRef.current;
     wsRef.current = null;
     if (ws) {
-      try { ws.close(1000, "client_close"); } catch { /* already closing */ }
+      try {
+        ws.close(1000, "client_close");
+      } catch {
+        /* already closing */
+      }
     }
     setIsConnected(false);
     setIsConnecting(false);
@@ -194,7 +196,7 @@ export function usePtyConnection({
     reconnectTimerRef.current = setTimeout(() => {
       void connect();
     }, delay);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const connect = useCallback(async () => {
@@ -246,7 +248,11 @@ export function usePtyConnection({
       // open event just means TCP/TLS is up.
       heartbeatRef.current = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) {
-          try { ws.send(JSON.stringify({ type: "ping" })); } catch { /* peer gone */ }
+          try {
+            ws.send(JSON.stringify({ type: "ping" }));
+          } catch {
+            /* peer gone */
+          }
         }
       }, HEARTBEAT_INTERVAL_MS);
     };
@@ -259,7 +265,11 @@ export function usePtyConnection({
       }
       if (typeof data === "string") {
         let msg: ServerControlMsg;
-        try { msg = JSON.parse(data); } catch { return; }
+        try {
+          msg = JSON.parse(data);
+        } catch {
+          return;
+        }
         if (msg.type === "ready") {
           setIsConnecting(false);
           setIsConnected(true);
@@ -308,6 +318,18 @@ export function usePtyConnection({
     };
 
     ws.onclose = (evt) => {
+      if (!evt.wasClean && evt.code !== 1000) {
+        console.warn(
+          "Terminal WebSocket closed",
+          JSON.stringify({
+            target: `${target.kind}:${target.id}`,
+            code: evt.code,
+            reason: evt.reason,
+            wasClean: evt.wasClean,
+            url,
+          }),
+        );
+      }
       wsRef.current = null;
       clearTimers();
       setIsConnected(false);
@@ -327,7 +349,7 @@ export function usePtyConnection({
       // we don't double-count attempts. Just record the symptom.
       setLastError("transport");
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [target?.kind, target?.id]);
 
   // ── Effect: lifecycle bound to (target, enabled) ────────────────────────
@@ -347,7 +369,7 @@ export function usePtyConnection({
       manualStopRef.current = true;
       teardownSocket();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enabled, targetKey, connect, teardownSocket]);
 
   const sendInput = useCallback((data: string | Uint8Array) => {
@@ -361,13 +383,19 @@ export function usePtyConnection({
       } else {
         ws.send(data);
       }
-    } catch { /* peer gone */ }
+    } catch {
+      /* peer gone */
+    }
   }, []);
 
   const sendResize = useCallback((cols: number, rows: number) => {
     const ws = wsRef.current;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    try { ws.send(JSON.stringify({ type: "resize", cols, rows })); } catch { /* peer gone */ }
+    try {
+      ws.send(JSON.stringify({ type: "resize", cols, rows }));
+    } catch {
+      /* peer gone */
+    }
   }, []);
 
   const disconnect = useCallback(() => {
@@ -382,7 +410,11 @@ export function usePtyConnection({
     // our onclose handler observes.
     const ws = wsRef.current;
     if (ws?.readyState === WebSocket.OPEN) {
-      try { ws.send(JSON.stringify({ type: "close" })); } catch { /* peer gone */ }
+      try {
+        ws.send(JSON.stringify({ type: "close" }));
+      } catch {
+        /* peer gone */
+      }
     }
     manualStopRef.current = true;
     terminalRef.current = true;

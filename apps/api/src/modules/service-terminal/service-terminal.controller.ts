@@ -30,7 +30,7 @@ import { upgradeWebSocket } from "../../lib/ws";
 import { repos } from "@repo/db";
 import type { ShellSession } from "@repo/adapters";
 import type { TerminalExitReason } from "@repo/db";
-import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
+import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
 import { safeErrorMessage } from "@repo/core";
 import { getRequestContext } from "../../lib/request-context";
 import { resolveActiveOrganizationId } from "../../middleware/active-organization";
@@ -61,8 +61,10 @@ import {
 const SUBPROTOCOL_PREFIX = "openship.terminal.v1+";
 const RESUME_SUBPROTOCOL_PREFIX = "openship.terminal.resume+";
 const HEARTBEAT_INTERVAL_MS = 25_000;
-const COLS_MIN = 1, COLS_MAX = 1000;
-const ROWS_MIN = 1, ROWS_MAX = 500;
+const COLS_MIN = 1,
+  COLS_MAX = 1000;
+const ROWS_MIN = 1,
+  ROWS_MAX = 500;
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -137,10 +139,7 @@ async function resolveServiceForOrg(
   }
 
   const project = await repos.project.findById(service.projectId);
-  if (
-    !project ||
-    (project.organizationId != null && project.organizationId !== organizationId)
-  ) {
+  if (!project || (project.organizationId != null && project.organizationId !== organizationId)) {
     // Same 404-shape as backup endpoints: don't leak existence vs.
     // authorization. NULL-org projects pass through for any caller —
     // same allowance assertResourceInOrg makes.
@@ -168,14 +167,12 @@ async function resolveServiceForOrg(
   // the deployment's org context determines cloud tenancy.
   let runtime: import("@repo/adapters").RuntimeAdapter;
   try {
-    const resolved = await resolveDeploymentRuntime({
+    const resolved = await resolveDeploymentRuntimeOnly(
       // A service is a CONTAINER, never the app's bare host process — pin the
-      // docker runtime so the terminal targets the real service runtime (as
-      // every other service action does via resolveServicePlatform), even when
-      // the project's app itself deploys "bare".
-      meta: { ...(dep.meta as Record<string, unknown> | null), runtimeMode: "docker" },
-      organizationId: dep.organizationId,
-    });
+      // Docker runtime, but do not initialize routing/TLS providers for a shell.
+      { ...(dep.meta as Record<string, unknown> | null), runtimeMode: "docker" },
+      { organizationId: dep.organizationId },
+    );
     runtime = resolved.runtime;
   } catch (err) {
     return {
@@ -186,6 +183,7 @@ async function resolveServiceForOrg(
   }
 
   if (!runtime.supports("serviceShell") || !runtime.openServiceShell) {
+    await runtime.dispose?.().catch(() => {});
     return {
       ok: false,
       code: "not_supported",
@@ -197,13 +195,22 @@ async function resolveServiceForOrg(
   // compose primary — see containerIdForService), then VERIFY it against the
   // host: a recorded id that a redeploy replaced would open a shell request on a
   // dead container and fail with docker's "no such container".
-  const containerId = await liveContainerIdWithRuntime(runtime, {
-    service: { id: service.id, name: service.name },
-    projectId: project.id,
-    slug: project.slug,
-    tracked: await containerIdForService(dep, service),
-  });
+  const trackedContainerId = await containerIdForService(dep, service);
+  let containerId = trackedContainerId;
+  if (trackedContainerId) {
+    const info = await runtime.getContainerInfo(trackedContainerId).catch(() => null);
+    if (!info || info.status === "missing") containerId = null;
+  }
   if (!containerId) {
+    containerId = await liveContainerIdWithRuntime(runtime, {
+      service: { id: service.id, name: service.name },
+      projectId: project.id,
+      slug: project.slug,
+      tracked: trackedContainerId,
+    });
+  }
+  if (!containerId) {
+    await runtime.dispose?.().catch(() => {});
     return {
       ok: false,
       code: "not_deployed",
@@ -219,21 +226,34 @@ async function resolveServiceForOrg(
 export async function issueTicket(c: Context) {
   const ctx = getRequestContext(c);
 
-  const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
-  const serviceId = typeof (body as { serviceId?: unknown }).serviceId === "string"
-    ? ((body as { serviceId: string }).serviceId)
-    : "";
+  const body = await c.req.json().catch(() => ({}) as Record<string, unknown>);
+  const serviceId =
+    typeof (body as { serviceId?: unknown }).serviceId === "string"
+      ? (body as { serviceId: string }).serviceId
+      : "";
   if (!serviceId) return c.json({ error: "serviceId required" }, 400);
 
-  // Surface 404 here so the dashboard can show a clear error without
-  // burning an upgrade attempt. We deliberately do NOT precheck the
-  // runtime / containerId at ticket time — those checks belong to the
-  // WS open path, which can communicate a structured error frame.
-  // Org-scoped + permission-gated — out-of-org / non-admin services 404
-  // indistinguishably from missing.
-  const result = await resolveServiceForOrg(serviceId, ctx.organizationId, ctx.userId);
-  if (!result.ok && (result.code === "server_not_found" || result.code === "not_deployed")) {
-    return c.json({ error: result.message }, 404);
+  // Ticket minting is intentionally DB-only. The WebSocket open path resolves
+  // the runtime and live container exactly once. Previously this called
+  // resolveServiceForOrg here and again during upgrade, causing two complete
+  // SSH/Docker discovery passes before a terminal could become ready.
+  const service = await repos.service.findById(serviceId);
+  if (!service) return c.json({ error: "Service not found" }, 404);
+  const allowed = await checkPermission(ctx.userId, ctx.organizationId, {
+    resourceType: "project",
+    resourceId: service.projectId,
+    action: "admin",
+  });
+  if (!allowed) return c.json({ error: "Service not found" }, 404);
+  const project = await repos.project.findById(service.projectId);
+  if (
+    !project ||
+    (project.organizationId != null && project.organizationId !== ctx.organizationId)
+  ) {
+    return c.json({ error: "Service not found" }, 404);
+  }
+  if (!project.activeDeploymentId) {
+    return c.json({ error: "Project has no active deployment yet" }, 404);
   }
 
   const { token, expiresIn } = issueServiceTerminalTicket(ctx, serviceId);
@@ -258,12 +278,8 @@ export const serviceTerminalWsHandler = upgradeWebSocket(async (c) => {
   const token = tokenProto ? tokenProto.slice(SUBPROTOCOL_PREFIX.length) : "";
   const ticket = token ? consumeServiceTerminalTicket(token) : null;
 
-  const resumeProto = protocols.find((p) =>
-    p.startsWith(RESUME_SUBPROTOCOL_PREFIX),
-  );
-  const resumeToken = resumeProto
-    ? resumeProto.slice(RESUME_SUBPROTOCOL_PREFIX.length)
-    : "";
+  const resumeProto = protocols.find((p) => p.startsWith(RESUME_SUBPROTOCOL_PREFIX));
+  const resumeToken = resumeProto ? resumeProto.slice(RESUME_SUBPROTOCOL_PREFIX.length) : "";
 
   let userId: string | null = null;
   let ticketServiceId: string | null = null;
@@ -297,8 +313,7 @@ export const serviceTerminalWsHandler = upgradeWebSocket(async (c) => {
 
   // 3. Service existence + path binding
   const pathServiceId = c.req.param("serviceId");
-  if (!pathServiceId)
-    return openInitFailure("server_not_found", "serviceId required", 4400);
+  if (!pathServiceId) return openInitFailure("server_not_found", "serviceId required", 4400);
   if (ticketServiceId && ticketServiceId !== pathServiceId) {
     return openInitFailure("ssh_auth", "Ticket / path mismatch", 4401);
   }
@@ -324,10 +339,12 @@ export const serviceTerminalWsHandler = upgradeWebSocket(async (c) => {
   if (!resumeToken) {
     const inMem = countActiveServiceSessionsByUser(userId);
     if (inMem >= maxServiceSessionsPerUser()) {
+      await resolved.runtime.dispose?.().catch(() => {});
       return openInitFailure("max_sessions", "Too many active sessions", 4429);
     }
     const dbCount = await repos.serviceTerminalSession.countActiveByUser(userId);
     if (dbCount >= maxServiceSessionsPerUser()) {
+      await resolved.runtime.dispose?.().catch(() => {});
       return openInitFailure("max_sessions", "Too many active sessions", 4429);
     }
   }
@@ -399,10 +416,7 @@ function buildHandlers(ctx: HandshakeCtx) {
 
       // RESUME path
       if (ctx.resumeToken) {
-        const existing = getServiceSessionByResumeToken(
-          ctx.resumeToken,
-          ctx.userId,
-        );
+        const existing = getServiceSessionByResumeToken(ctx.resumeToken, ctx.userId);
         if (!existing) {
           sendControl(ws, {
             type: "error",
@@ -494,12 +508,8 @@ function buildHandlers(ctx: HandshakeCtx) {
       state.sessionId = sessionId;
 
       attachServiceWs(sessionId, dataPump);
-      shell.stdout.on("data", (chunk: Buffer) =>
-        dispatchServiceStdout(sessionId, chunk),
-      );
-      shell.stderr.on("data", (chunk: Buffer) =>
-        dispatchServiceStdout(sessionId, chunk),
-      );
+      shell.stdout.on("data", (chunk: Buffer) => dispatchServiceStdout(sessionId, chunk));
+      shell.stderr.on("data", (chunk: Buffer) => dispatchServiceStdout(sessionId, chunk));
 
       shell.onClose((code: number | null, signal?: string) => {
         sendControl(ws, { type: "exit", code, signal });
@@ -561,13 +571,7 @@ function buildHandlers(ctx: HandshakeCtx) {
     },
 
     onClose() {
-      void teardown(
-        state,
-        "client_close",
-        null,
-        false,
-        state.userTerminated,
-      );
+      void teardown(state, "client_close", null, false, state.userTerminated);
     },
 
     onError() {
@@ -600,6 +604,8 @@ async function teardown(
     safeShellClose(state.shell);
     state.shell = null;
   }
+
+  await state.ctx.runtime.dispose?.().catch(() => {});
 
   if (!alreadyUnregistered && state.sessionId) {
     unregisterServiceSession(state.sessionId);

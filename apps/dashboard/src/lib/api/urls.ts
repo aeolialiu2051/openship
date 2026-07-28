@@ -27,9 +27,8 @@ function resolveTarget(rawUrl?: string): Target {
   const origin = rawUrl ? originOf(rawUrl) : undefined;
   if (!origin) return DEFAULT_TARGET;
   return (
-    TARGETS.find(
-      (t) => originOf(t.dashboard) === origin || originOf(t.api) === origin,
-    ) ?? DEFAULT_TARGET
+    TARGETS.find((t) => originOf(t.dashboard) === origin || originOf(t.api) === origin) ??
+    DEFAULT_TARGET
   );
 }
 
@@ -84,11 +83,9 @@ function sameOriginProxyOrigin(): string | null {
 // into `window.__OPENSHIP_API_ORIGIN__` for the browser bundle (whose base URL
 // is a module-load constant — a build-time NEXT_PUBLIC var can't carry it).
 
-
 function localApiOverride(): string | null {
   if (typeof window !== "undefined") {
-    const injected = (window as { __OPENSHIP_API_ORIGIN__?: string })
-      .__OPENSHIP_API_ORIGIN__;
+    const injected = (window as { __OPENSHIP_API_ORIGIN__?: string }).__OPENSHIP_API_ORIGIN__;
     if (!injected) return null;
     return alignLoopbackOrigin(injected.replace(/\/+$/, ""), window.location.origin);
   }
@@ -137,10 +134,7 @@ export function getRestApiBaseUrl() {
 }
 
 /** Resolve the production same-origin path used for WebSocket upgrades. */
-export function resolveProxyWebSocketApiBase(
-  pageOrigin: string,
-  directApiOrigin: string,
-): string {
+export function resolveProxyWebSocketApiBase(pageOrigin: string, directApiOrigin: string): string {
   try {
     const page = new URL(pageOrigin);
     // The production dashboard front server owns this stable same-origin
@@ -161,12 +155,14 @@ export function resolveProxyWebSocketApiBase(
  */
 export function getWebSocketApiBaseUrl() {
   if (API_PROXY_ENABLED && typeof window !== "undefined") {
-    return resolveProxyWebSocketApiBase(
-      window.location.origin,
-      currentTarget().api,
-    );
+    return resolveProxyWebSocketApiBase(window.location.origin, currentTarget().api);
   }
-  return getRestApiBaseUrl();
+  // `new URL("services/...", base)` treats a base without a trailing slash as
+  // a file and replaces its final segment. Without this normalization,
+  // `http://localhost:4100/api` became `http://localhost:4100/services/...`,
+  // bypassing every WebSocket route mounted below `/api`.
+  const base = getRestApiBaseUrl();
+  return base.endsWith("/") ? base : `${base}/`;
 }
 
 export function getCloudDashboardUrl(rawUrl?: string) {

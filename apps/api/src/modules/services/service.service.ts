@@ -804,8 +804,8 @@ export async function getActiveServiceContainers(
   // aborted instead of reporting a state.
   const live = await withLiveQueryTimeout(
     (async (): Promise<LiveServiceContainer[] | null> => {
-      const runtime = await resolveServicePlatform(project, dep)
-        .then((r) => r.platform.runtime)
+      const runtime = await resolveServiceRuntime(project, dep)
+        .then((r) => r.runtime)
         .catch(() => null);
       if (!runtime) return null;
 
@@ -814,6 +814,38 @@ export async function getActiveServiceContainers(
         // by identity. One call — the dashboard polls this endpoint, and N
         // per-service `docker inspect` round-trips over SSH took ~17s.
         if (runtime.supports("hostContainerQuery") && runtime.listAllContainers) {
+          // Normal deployments already have authoritative container IDs. Check
+          // those IDs concurrently first; a couple of targeted inspects are far
+          // cheaper than enumerating + inspecting every container on the host.
+          // Fall back to label/name discovery only for missing/stale/adopted IDs.
+          const enabled = services.filter((svc) => svc.enabled !== false);
+          const allTracked =
+            enabled.length === services.length &&
+            enabled.every((svc) => hints.get(svc.id)?.containerId);
+          if (allTracked) {
+            const tracked = await Promise.all(
+              enabled.map(async (svc) => {
+                const hint = hints.get(svc.id)!;
+                const containerId = hint.containerId!;
+                const info = await runtime.getContainerInfo(containerId).catch(() => null);
+                return { svc, hint, containerId, info };
+              }),
+            );
+            if (tracked.every(({ info }) => info && info.status !== "missing")) {
+              return tracked.map(({ svc, hint, containerId, info }) => ({
+                serviceId: svc.id,
+                serviceName: svc.name,
+                containerId,
+                status: containerStatusToServiceState(info!.status),
+                ip: info!.ip ?? hint.ip ?? null,
+                hostPort: info!.hostPort ?? hint.hostPort ?? null,
+                imageRef: hint.imageRef ?? null,
+                matchedBy: "trackedId" as LiveMatchKind,
+                duplicates: [],
+              }));
+            }
+          }
+
           const containers = await runtime.listAllContainers();
           const matches = resolveLiveServiceState({
             services: services.map((s) => ({ id: s.id, name: s.name })),

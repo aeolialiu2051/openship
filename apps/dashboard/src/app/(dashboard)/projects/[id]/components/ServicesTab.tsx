@@ -3,10 +3,22 @@
 import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { usePlatform } from "@/context/PlatformContext";
-import { serviceKind, serviceCanStartWithoutBuild, servicesApi, sortServicesByPublicFirst, type Service, type ServiceContainer, type ServiceInput } from "@/lib/api/services";
+import {
+  serviceKind,
+  serviceCanStartWithoutBuild,
+  servicesApi,
+  sortServicesByPublicFirst,
+  type Service,
+  type ServiceContainer,
+  type ServiceInput,
+} from "@/lib/api/services";
 import { getApiErrorMessage, isAbortError } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
-import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
+import {
+  appendProjectRouteKey,
+  resolveServiceHostnameLabel,
+  internalServiceAddress,
+} from "@repo/core";
 import { useRouter } from "next/navigation";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
@@ -56,7 +68,10 @@ export const ServicesTab = () => {
     () => sortServicesByPublicFirst(servicesData.services),
     [servicesData.services],
   );
-  const loading = servicesData.isLoading || containersLoading;
+  // Service configuration is a fast DB read; live container state is a remote
+  // runtime read and can take longer. Render the service list as soon as its
+  // rows arrive instead of holding the whole tab behind SSH/Docker discovery.
+  const loading = servicesData.isLoading && services.length === 0;
   const projectSlugBase = projectData.slug || projectData.name || "project";
   const selectedId = slug?.[1] ?? null;
   const hasProjectId = Boolean(id && id !== "undefined");
@@ -150,7 +165,11 @@ export const ServicesTab = () => {
     if (!shouldLaunch) {
       // Nothing to launch against yet — keep the row and land on its detail so
       // the user can deploy/start it when ready.
-      showToast(interpolate(t.projects.services.toastSavedDeploy, { name: data.name }), "success", t.projects.services.toastServiceTitle);
+      showToast(
+        interpolate(t.projects.services.toastSavedDeploy, { name: data.name }),
+        "success",
+        t.projects.services.toastServiceTitle,
+      );
       router.push(`/projects/${id}/services/${newServiceId}`);
       return;
     }
@@ -160,7 +179,11 @@ export const ServicesTab = () => {
     // never touches the main app). If provisioning FAILS, roll the service back
     // (delete the row) and show the REAL error — never leave a broken,
     // half-added service behind. Only land on the detail page once it's up.
-    showToast(interpolate(t.projects.services.toastAddedDeploying, { name: data.name }), "success", t.projects.services.toastServiceTitle);
+    showToast(
+      interpolate(t.projects.services.toastAddedDeploying, { name: data.name }),
+      "success",
+      t.projects.services.toastServiceTitle,
+    );
     const rollback = async (message: string) => {
       await servicesApi.delete(id, newServiceId).catch(() => {});
       await fetchData();
@@ -173,7 +196,11 @@ export const ServicesTab = () => {
           await rollback(res?.error || t.projects.services.toastDeployFailed);
           return;
         }
-        showToast(interpolate(t.projects.services.toastStarting, { name: data.name }), "success", t.projects.services.toastServiceTitle);
+        showToast(
+          interpolate(t.projects.services.toastStarting, { name: data.name }),
+          "success",
+          t.projects.services.toastServiceTitle,
+        );
         await fetchData();
         router.push(`/projects/${id}/services/${newServiceId}`);
       })
@@ -201,7 +228,11 @@ export const ServicesTab = () => {
         );
         await fetchData();
       } catch (e) {
-        showToast(e instanceof Error ? e.message : t.projects.services.failedResolveDrift, "error", name);
+        showToast(
+          e instanceof Error ? e.message : t.projects.services.failedResolveDrift,
+          "error",
+          name,
+        );
       } finally {
         setDriftBusy(null);
       }
@@ -231,7 +262,7 @@ export const ServicesTab = () => {
   }
 
   /* ── Error state ───────────────────────────────────────────────── */
-  if (error || servicesData.error) {
+  if ((error && services.length === 0) || servicesData.error) {
     return (
       <div className="bg-card rounded-2xl border border-border/50 p-8 text-center">
         <AlertCircle className="size-8 text-danger mx-auto mb-3" />
@@ -311,17 +342,60 @@ export const ServicesTab = () => {
 
               {/* Service node: Database (left) - stacked cylinders */}
               <g transform="translate(34, 50)">
-                <ellipse cx="26" cy="6" rx="20" ry="5" fill="var(--th-sf-04)" stroke="var(--th-bd-subtle)" strokeWidth="1" />
-                <path d="M6 6 L6 22 Q 6 27 26 27 Q 46 27 46 22 L 46 6" fill="var(--th-sf-03)" stroke="var(--th-bd-subtle)" strokeWidth="1" />
-                <ellipse cx="26" cy="6" rx="20" ry="5" fill="var(--th-card-bg)" stroke="var(--th-bd-default)" strokeWidth="1" />
-                <ellipse cx="26" cy="22" rx="20" ry="5" fill="var(--th-card-bg)" stroke="var(--th-bd-default)" strokeWidth="1" />
+                <ellipse
+                  cx="26"
+                  cy="6"
+                  rx="20"
+                  ry="5"
+                  fill="var(--th-sf-04)"
+                  stroke="var(--th-bd-subtle)"
+                  strokeWidth="1"
+                />
+                <path
+                  d="M6 6 L6 22 Q 6 27 26 27 Q 46 27 46 22 L 46 6"
+                  fill="var(--th-sf-03)"
+                  stroke="var(--th-bd-subtle)"
+                  strokeWidth="1"
+                />
+                <ellipse
+                  cx="26"
+                  cy="6"
+                  rx="20"
+                  ry="5"
+                  fill="var(--th-card-bg)"
+                  stroke="var(--th-bd-default)"
+                  strokeWidth="1"
+                />
+                <ellipse
+                  cx="26"
+                  cy="22"
+                  rx="20"
+                  ry="5"
+                  fill="var(--th-card-bg)"
+                  stroke="var(--th-bd-default)"
+                  strokeWidth="1"
+                />
                 <line x1="6" y1="6" x2="6" y2="22" stroke="var(--th-bd-default)" strokeWidth="1" />
-                <line x1="46" y1="6" x2="46" y2="22" stroke="var(--th-bd-default)" strokeWidth="1" />
+                <line
+                  x1="46"
+                  y1="6"
+                  x2="46"
+                  y2="22"
+                  stroke="var(--th-bd-default)"
+                  strokeWidth="1"
+                />
               </g>
 
               {/* Service node: Cache (bottom) - lightning bolt in chip */}
               <g transform="translate(124, 124)">
-                <rect width="40" height="32" rx="8" fill="var(--th-card-bg)" stroke="var(--th-bd-default)" strokeWidth="1" />
+                <rect
+                  width="40"
+                  height="32"
+                  rx="8"
+                  fill="var(--th-card-bg)"
+                  stroke="var(--th-bd-default)"
+                  strokeWidth="1"
+                />
                 <path
                   d="M22 8 L 14 18 L 19 18 L 17 24 L 25 14 L 20 14 L 22 8 Z"
                   fill="var(--th-on-30)"
@@ -332,9 +406,36 @@ export const ServicesTab = () => {
 
               {/* Service node: Queue/Container (right) - stacked rounded rects */}
               <g transform="translate(202, 50)">
-                <rect x="6" y="14" width="40" height="18" rx="4" fill="var(--th-sf-04)" stroke="var(--th-bd-subtle)" strokeWidth="1" />
-                <rect x="3" y="7" width="40" height="18" rx="4" fill="var(--th-sf-03)" stroke="var(--th-bd-subtle)" strokeWidth="1" />
-                <rect x="0" y="0" width="40" height="18" rx="4" fill="var(--th-card-bg)" stroke="var(--th-bd-default)" strokeWidth="1" />
+                <rect
+                  x="6"
+                  y="14"
+                  width="40"
+                  height="18"
+                  rx="4"
+                  fill="var(--th-sf-04)"
+                  stroke="var(--th-bd-subtle)"
+                  strokeWidth="1"
+                />
+                <rect
+                  x="3"
+                  y="7"
+                  width="40"
+                  height="18"
+                  rx="4"
+                  fill="var(--th-sf-03)"
+                  stroke="var(--th-bd-subtle)"
+                  strokeWidth="1"
+                />
+                <rect
+                  x="0"
+                  y="0"
+                  width="40"
+                  height="18"
+                  rx="4"
+                  fill="var(--th-card-bg)"
+                  stroke="var(--th-bd-default)"
+                  strokeWidth="1"
+                />
                 <circle cx="6" cy="9" r="1.5" fill="var(--th-on-30)" />
                 <rect x="12" y="7.5" width="22" height="3" rx="1.5" fill="var(--th-on-12)" />
                 <rect x="12" y="12.5" width="14" height="2.5" rx="1.25" fill="var(--th-on-08)" />
@@ -433,7 +534,9 @@ export const ServicesTab = () => {
             <div>
               <h3 className="text-sm font-semibold text-foreground">
                 {interpolate(
-                  services.length === 1 ? t.projects.services.countOne : t.projects.services.countOther,
+                  services.length === 1
+                    ? t.projects.services.countOne
+                    : t.projects.services.countOther,
                   { count: String(services.length) },
                 )}
               </h3>
@@ -509,13 +612,9 @@ export const ServicesTab = () => {
                         {ch.field}
                       </span>
                       <span className="min-w-0 flex-1 font-mono">
-                        <span className="text-danger/80 line-through">
-                          {fmtDriftVal(ch.from)}
-                        </span>
+                        <span className="text-danger/80 line-through">{fmtDriftVal(ch.from)}</span>
                         <span className="mx-1.5 text-muted-foreground">→</span>
-                        <span className="text-success">
-                          {fmtDriftVal(ch.to)}
-                        </span>
+                        <span className="text-success">{fmtDriftVal(ch.to)}</span>
                       </span>
                     </div>
                   ))}
@@ -529,7 +628,7 @@ export const ServicesTab = () => {
       <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/30 overflow-hidden">
         {services.map((svc) => {
           const ct = containerFor(svc.id);
-          const status = ct?.status ?? (svc.enabled ? "stopped" : "disabled");
+          const status = ct?.status ?? (error ? "unknown" : svc.enabled ? "stopped" : "disabled");
           const resolvedUrl = resolveServiceUrl(svc);
           const isMonorepo = serviceKind(svc) === "monorepo";
 
@@ -541,10 +640,11 @@ export const ServicesTab = () => {
           const monorepoBits: string[] = [];
           if (svc.rootDirectory) monorepoBits.push(svc.rootDirectory);
           if (svc.framework) monorepoBits.push(svc.framework);
-          if (svc.exposedPort) monorepoBits.push(interpolate(t.projects.services.port, { port: String(svc.exposedPort) }));
-          const subtitle = isMonorepo
-            ? monorepoBits.join(" · ")
-            : svc.image || svc.build || "";
+          if (svc.exposedPort)
+            monorepoBits.push(
+              interpolate(t.projects.services.port, { port: String(svc.exposedPort) }),
+            );
+          const subtitle = isMonorepo ? monorepoBits.join(" · ") : svc.image || svc.build || "";
           const urlHost = resolvedUrl?.replace("https://", "");
 
           // Published host port (first `host:container` mapping) — what the
@@ -624,7 +724,11 @@ export const ServicesTab = () => {
               </div>
 
               <div className="flex items-center gap-3 shrink-0">
-                <StatusBadge status={status} t={t} />
+                {containersLoading && !ct ? (
+                  <span className="h-5 w-16 animate-pulse rounded-full bg-muted/60" />
+                ) : (
+                  <StatusBadge status={status} t={t} />
+                )}
                 <ChevronRight className="size-4 text-muted-foreground/50 rtl:rotate-180" />
               </div>
             </button>

@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  alignLoopbackOrigin,
-  resolveProxyWebSocketApiBase,
-} from "./urls";
+import { alignLoopbackOrigin, getWebSocketApiBaseUrl, resolveProxyWebSocketApiBase } from "./urls";
 
 describe("alignLoopbackOrigin", () => {
   it("rewrites a 127.0.0.1 API origin when the page is served from localhost", () => {
@@ -42,29 +39,30 @@ describe("alignLoopbackOrigin", () => {
 
 describe("resolveProxyWebSocketApiBase", () => {
   it("routes a Compose dashboard socket through the same-origin Upgrade path", () => {
-    expect(
-      resolveProxyWebSocketApiBase(
-        "http://localhost:3001",
-        "http://localhost:4000",
-      ),
-    ).toBe("http://localhost:3001/_openship/ws/api/");
+    expect(resolveProxyWebSocketApiBase("http://localhost:3001", "http://localhost:4000")).toBe(
+      "http://localhost:3001/_openship/ws/api/",
+    );
   });
 
   it("preserves the loopback hostname used to open the dashboard", () => {
-    expect(
-      resolveProxyWebSocketApiBase(
-        "http://127.0.0.1:3001",
-        "http://localhost:4000",
-      ),
-    ).toBe("http://127.0.0.1:3001/_openship/ws/api/");
+    expect(resolveProxyWebSocketApiBase("http://127.0.0.1:3001", "http://localhost:4000")).toBe(
+      "http://127.0.0.1:3001/_openship/ws/api/",
+    );
   });
 
   it("uses the same-origin edge WebSocket prefix on a public dashboard", () => {
-    expect(
-      resolveProxyWebSocketApiBase(
-        "https://app.example.com",
-        "http://localhost:4000",
-      ),
-    ).toBe("https://app.example.com/_openship/ws/api/");
+    expect(resolveProxyWebSocketApiBase("https://app.example.com", "http://localhost:4000")).toBe(
+      "https://app.example.com/_openship/ws/api/",
+    );
+  });
+});
+
+describe("getWebSocketApiBaseUrl", () => {
+  it("keeps the /api path when a terminal route is resolved against it", () => {
+    const base = getWebSocketApiBaseUrl();
+    expect(base.endsWith("/api/")).toBe(true);
+    expect(new URL("services/terminal/ws/svc_1", base).pathname).toBe(
+      "/api/services/terminal/ws/svc_1",
+    );
   });
 });
