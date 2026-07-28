@@ -1,5 +1,6 @@
 import React from "react";
 import { generateIcon } from "@/utils/icons";
+import { getSiteUrl } from "@/utils/siteUrl";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { useI18n } from "@/components/i18n-provider";
 
@@ -14,7 +15,7 @@ export const ProductionUrl: React.FC = () => {
         <h3 className="text-base font-semibold text-foreground">{t.projectDetail.general.productionUrl.title}</h3>
       </div>
       <a
-        href={`https://${domain}`}
+        href={getSiteUrl(domain)}
         target="_blank"
         rel="noopener noreferrer"
         className="text-sm font-medium text-foreground hover:text-primary truncate flex items-center gap-2 transition-colors"

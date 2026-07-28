@@ -19,6 +19,7 @@ import BuildTerminal from "./BuildTerminal";
 import { PortAdvisoryModal } from "./PortAdvisoryModal";
 import { PromptDetails } from "./PromptDetails";
 import { generateIcon } from "@/utils/icons";
+import { getSiteUrl } from "@/utils/siteUrl";
 import { useRouter } from "next/navigation";
 import { encodeRepoSlug } from "@/utils/repoSlug";
 import { useDeployment } from "@/context/DeploymentContext";
@@ -217,7 +218,7 @@ const DeploymentProcessing: React.FC<DeploymentProcessingProps> = ({ onRedeploy 
                   {dp.viewDashboard}
                 </button>
                 <button
-                  onClick={() => window.open(`https://${domain}`, "_blank")}
+                  onClick={() => window.open(getSiteUrl(domain), "_blank")}
                   className="flex items-center gap-2 text-primary-foreground font-medium transition-all duration-300 bg-primary rounded-xl px-4 py-2 text-sm hover:bg-primary/90 shadow-md hover:shadow-lg"
                 >
                   {dp.visitSite}

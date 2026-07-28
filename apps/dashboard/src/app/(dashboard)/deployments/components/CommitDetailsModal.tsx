@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Github, GitCommit, ExternalLink, User, Calendar } from "lucide-react";
 import { formatDate } from "@/utils/date";
+import { getSiteUrl } from "@/utils/siteUrl";
 import FileIcon from "@/components/ui/FileIcon";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Deployment } from "../types";
@@ -211,7 +212,7 @@ export const CommitDetailsModal: React.FC<CommitDetailsModalProps> = ({
                   )}
                   {deployment.domain && deployment.status === 'success' && (
                     <a
-                      href={`https://${deployment.domain}`}
+                      href={getSiteUrl(deployment.domain)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 bg-primary text-primary-foreground rounded-xl font-medium text-sm hover:opacity-90 transition-all"

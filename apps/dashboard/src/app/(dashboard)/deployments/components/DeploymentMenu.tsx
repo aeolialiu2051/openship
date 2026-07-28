@@ -15,6 +15,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { generateIcon } from "@/utils/icons";
+import { getSiteUrl } from "@/utils/siteUrl";
 import { deployApi, getApiErrorMessage } from "@/lib/api";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
@@ -271,7 +272,7 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
             {deployment.domain && (
               <button
                 onClick={() => {
-                  window.open(`https://${deployment.domain}`, "_blank");
+                  window.open(getSiteUrl(deployment.domain), "_blank");
                   setIsOpen(false);
                 }}
                 className="w-full px-4 py-2.5 text-start text-sm text-foreground/70 hover:bg-muted transition-colors flex items-center gap-3"
@@ -308,7 +309,7 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
             {deployment.domain && (
               <button
                 onClick={() => {
-                  navigator.clipboard.writeText(`https://${deployment.domain}`);
+                  navigator.clipboard.writeText(getSiteUrl(deployment.domain));
                   setIsOpen(false);
                 }}
                 className="w-full px-4 py-2.5 text-start text-sm text-foreground/70 hover:bg-muted transition-colors flex items-center gap-3"
