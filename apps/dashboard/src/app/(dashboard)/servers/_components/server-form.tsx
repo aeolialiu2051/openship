@@ -479,16 +479,16 @@ export function ServerForm({
             </div>
             <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
               <div>
-                <p className="text-sm font-medium text-foreground">Existing Traefik (optional)</p>
+                <p className="text-sm font-medium text-foreground">
+                  {t.servers.form.traefikTitle} {t.servers.form.optional}
+                </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Vibrail detects existing Traefik settings automatically. Only fill these fields to
-                  override an ambiguous or non-standard setup; the proxy is never modified or
-                  restarted.
+                  {t.servers.form.traefikDescription}
                 </p>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className={LABEL}>Docker network</label>
+                  <label className={LABEL}>{t.servers.form.traefikDockerNetwork}</label>
                   <input
                     value={traefikNetwork}
                     onChange={(e) => setTraefikNetwork(e.target.value)}
@@ -497,7 +497,7 @@ export function ServerForm({
                   />
                 </div>
                 <div>
-                  <label className={LABEL}>HTTPS entrypoint</label>
+                  <label className={LABEL}>{t.servers.form.traefikHttpsEntrypoint}</label>
                   <input
                     value={traefikEntrypoint}
                     onChange={(e) => setTraefikEntrypoint(e.target.value)}
@@ -508,11 +508,11 @@ export function ServerForm({
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                 <div>
-                  <label className={LABEL}>Certificate resolver</label>
+                  <label className={LABEL}>{t.servers.form.traefikCertificateResolver}</label>
                   <input
                     value={traefikCertResolver}
                     onChange={(e) => setTraefikCertResolver(e.target.value)}
-                    placeholder="letsencrypt (optional)"
+                    placeholder={`letsencrypt ${t.servers.form.optional}`}
                     className={INPUT}
                   />
                 </div>
@@ -523,7 +523,7 @@ export function ServerForm({
                     onChange={(e) => setTraefikTls(e.target.checked)}
                     className="size-4 rounded border-border"
                   />
-                  Enable TLS labels
+                  {t.servers.form.traefikEnableTlsLabels}
                 </label>
               </div>
             </div>
