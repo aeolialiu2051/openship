@@ -7,9 +7,11 @@ const r = secureRouter(new Hono(), {
   basePath: "/api/domain-settings",
 });
 
-r.get("/", { tag: "settings:read" }, ctrl.get);
-r.put("/", { tag: "settings:write" }, ctrl.save);
-r.post("/verify", { tag: "settings:write" }, ctrl.verify);
-r.delete("/", { tag: "settings:admin" }, ctrl.remove);
+r.get("/", { tag: "settings:read" }, ctrl.list);
+r.post("/", { tag: "settings:write" }, ctrl.create);
+r.post("/test", { tag: "settings:write" }, ctrl.test);
+r.put("/:id", { tag: "settings:write" }, ctrl.update);
+r.post("/:id/verify", { tag: "settings:write" }, ctrl.verify);
+r.delete("/:id", { tag: "settings:admin" }, ctrl.remove);
 
 export const domainSettingsRoutes = r.hono;

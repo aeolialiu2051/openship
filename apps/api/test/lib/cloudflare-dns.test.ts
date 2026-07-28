@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
-  getSettings: vi.fn(),
+  listSettings: vi.fn(),
   findDomain: vi.fn(),
   findDomainById: vi.fn(),
   findProject: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock("../../src/lib/encryption", () => ({
 
 vi.mock("@repo/db", () => ({
   repos: {
-    domainSettings: { get: dbMocks.getSettings },
+    domainSettings: { list: dbMocks.listSettings },
     domain: {
       findByHostname: dbMocks.findDomain,
       findById: dbMocks.findDomainById,
@@ -124,12 +124,14 @@ describe("Vibrail Cloudflare DNS", () => {
   });
 
   it("uses the organization's Cloudflare zone for a matching custom domain", async () => {
-    dbMocks.getSettings.mockResolvedValue({
-      domain: "example.com",
-      cloudflareZoneId: "customer-zone",
-      cloudflareApiTokenEncrypted: "encrypted:customer-token",
-      cloudflareProxy: false,
-    });
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: false,
+      },
+    ]);
     dbMocks.findDomain.mockResolvedValue({
       id: "dom-1",
       projectId: "project-1",
@@ -157,12 +159,14 @@ describe("Vibrail Cloudflare DNS", () => {
   });
 
   it("leaves unmatched custom domains for manual DNS", async () => {
-    dbMocks.getSettings.mockResolvedValue({
-      domain: "example.com",
-      cloudflareZoneId: "customer-zone",
-      cloudflareApiTokenEncrypted: "encrypted:customer-token",
-      cloudflareProxy: true,
-    });
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: true,
+      },
+    ]);
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -185,12 +189,14 @@ describe("Vibrail Cloudflare DNS", () => {
     });
     dbMocks.findDomainById.mockResolvedValue({ id: "dom-1", projectId: "project-1" });
     dbMocks.findProject.mockResolvedValue({ id: "project-1", organizationId: "org-1" });
-    dbMocks.getSettings.mockResolvedValue({
-      domain: "example.com",
-      cloudflareZoneId: "customer-zone",
-      cloudflareApiTokenEncrypted: "encrypted:customer-token",
-      cloudflareProxy: true,
-    });
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: true,
+      },
+    ]);
     const fetchMock = vi.fn().mockResolvedValue(response({ id: "custom-record" }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -204,5 +210,36 @@ describe("Vibrail Cloudflare DNS", () => {
       expect.objectContaining({ method: "DELETE" }),
     );
     expect(dbMocks.clearDnsManaged).toHaveBeenCalledWith("dom-1");
+  });
+
+  it("uses the most specific matching zone when zones overlap", async () => {
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "parent-zone",
+        cloudflareApiTokenEncrypted: "encrypted:parent-token",
+        cloudflareProxy: true,
+      },
+      {
+        domain: "team.example.com",
+        cloudflareZoneId: "child-zone",
+        cloudflareApiTokenEncrypted: "encrypted:child-token",
+        cloudflareProxy: false,
+      },
+    ]);
+    dbMocks.findDomain.mockResolvedValue(null);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response({ id: "dns-child" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await upsertDeploymentDnsRecord({
+      hostname: "app.team.example.com",
+      organizationId: "org-1",
+    });
+
+    expect(fetchMock.mock.calls[1]![0]).toContain("/zones/child-zone/dns_records");
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toMatchObject({ proxied: false });
   });
 });

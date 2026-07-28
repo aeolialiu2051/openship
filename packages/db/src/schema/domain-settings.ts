@@ -1,19 +1,22 @@
-import { boolean, index, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, index, pgTable, text, timestamp, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organization";
 
 /**
  * Organization-level DNS automation settings.
  *
- * One workspace owns one Cloudflare zone. Any custom deployment hostname
- * inside `domain` can be created/updated automatically by the Vibrail backend.
+ * A workspace may own multiple Cloudflare zones. Any custom deployment hostname
+ * inside one of those zones can be created/updated automatically by the backend.
  * The API token is encrypted by the API before it reaches this table and is
  * never returned to dashboard clients or deployed workloads.
  */
 export const domainSettings = pgTable(
   "domain_settings",
   {
-    organizationId: text("organization_id")
+    id: text("id")
       .primaryKey()
+      .$defaultFn(() => crypto.randomUUID()),
+    organizationId: text("organization_id")
+      .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
     domain: text("domain").notNull(),
     cloudflareZoneId: text("cloudflare_zone_id").notNull(),
@@ -24,5 +27,8 @@ export const domainSettings = pgTable(
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
-  (t) => [index("idx_domain_settings_domain").on(t.domain)],
+  (t) => [
+    index("idx_domain_settings_domain").on(t.domain),
+    uniqueIndex("uq_domain_settings_organization_domain").on(t.organizationId, t.domain),
+  ],
 );

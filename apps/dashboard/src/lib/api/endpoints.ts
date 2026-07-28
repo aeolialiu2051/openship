@@ -149,8 +149,10 @@ export const endpoints = {
   },
 
   domainSettings: {
-    get: "domain-settings",
-    verify: "domain-settings/verify",
+    list: "domain-settings",
+    test: "domain-settings/test",
+    byId: (id: string) => `domain-settings/${encodeURIComponent(id)}`,
+    verify: (id: string) => `domain-settings/${encodeURIComponent(id)}/verify`,
   },
 
   /* ---------------------------------------------------------------- */

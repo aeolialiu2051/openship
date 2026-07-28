@@ -1,5 +1,5 @@
 import { isValidCustomHostname, ValidationError } from "@repo/core";
-import { repos } from "@repo/db";
+import { repos, type DomainSettings } from "@repo/db";
 import type { RequestContext } from "../../lib/request-context";
 import { decrypt, encrypt } from "../../lib/encryption";
 import { normalizeDnsZoneDomain, verifyCloudflareZone } from "../../lib/cloudflare-dns";
@@ -11,9 +11,10 @@ export interface DomainSettingsInput {
   cloudflareProxy?: boolean;
 }
 
-function publicView(row: Awaited<ReturnType<typeof repos.domainSettings.get>>) {
+function publicView(row: DomainSettings | undefined) {
   if (!row) return null;
   return {
+    id: row.id,
     domain: row.domain,
     cloudflareZoneId: row.cloudflareZoneId,
     cloudflareApiTokenConfigured: true,
@@ -24,12 +25,11 @@ function publicView(row: Awaited<ReturnType<typeof repos.domainSettings.get>>) {
   };
 }
 
-export async function getDomainSettings(ctx: RequestContext) {
-  return publicView(await repos.domainSettings.get(ctx.organizationId));
+export async function listDomainSettings(ctx: RequestContext) {
+  return (await repos.domainSettings.list(ctx.organizationId)).map((row) => publicView(row)!);
 }
 
-export async function saveDomainSettings(ctx: RequestContext, input: DomainSettingsInput) {
-  const existing = await repos.domainSettings.get(ctx.organizationId);
+async function validatedValues(input: DomainSettingsInput, existing?: DomainSettings) {
   const domain = normalizeDnsZoneDomain(input.domain);
   const zoneId = input.cloudflareZoneId?.trim();
   const suppliedToken = input.cloudflareApiToken?.trim();
@@ -49,21 +49,58 @@ export async function saveDomainSettings(ctx: RequestContext, input: DomainSetti
   if (!apiToken) throw new ValidationError("Cloudflare API Token is required");
 
   await verifyCloudflareZone({ domain, zoneId, apiToken });
-  const row = await repos.domainSettings.upsert({
-    organizationId: ctx.organizationId,
+  return {
     domain,
     cloudflareZoneId: zoneId,
     cloudflareApiTokenEncrypted: encrypt(apiToken),
     cloudflareProxy: input.cloudflareProxy ?? true,
     verifiedAt: new Date(),
     lastVerificationError: null,
+  };
+}
+
+export async function createDomainSettings(ctx: RequestContext, input: DomainSettingsInput) {
+  const values = await validatedValues(input);
+  if (await repos.domainSettings.getByDomain(ctx.organizationId, values.domain)) {
+    throw new ValidationError("This Cloudflare domain is already connected");
+  }
+  const row = await repos.domainSettings.create({
+    organizationId: ctx.organizationId,
+    ...values,
   });
   return publicView(row);
 }
 
-export async function verifyDomainSettings(ctx: RequestContext) {
-  const existing = await repos.domainSettings.get(ctx.organizationId);
-  if (!existing) throw new ValidationError("Connect a Cloudflare domain first");
+export async function testDomainSettings(
+  ctx: RequestContext,
+  input: DomainSettingsInput,
+  id?: string,
+) {
+  const existing = id ? await repos.domainSettings.getById(ctx.organizationId, id) : undefined;
+  if (id && !existing) throw new ValidationError("Cloudflare domain not found");
+  await validatedValues(input, existing);
+  return { ok: true as const };
+}
+
+export async function updateDomainSettings(
+  ctx: RequestContext,
+  id: string,
+  input: DomainSettingsInput,
+) {
+  const existing = await repos.domainSettings.getById(ctx.organizationId, id);
+  if (!existing) throw new ValidationError("Cloudflare domain not found");
+  const values = await validatedValues(input, existing);
+  const duplicate = await repos.domainSettings.getByDomain(ctx.organizationId, values.domain);
+  if (duplicate && duplicate.id !== id) {
+    throw new ValidationError("This Cloudflare domain is already connected");
+  }
+  const row = await repos.domainSettings.update(ctx.organizationId, id, values);
+  return publicView(row);
+}
+
+export async function verifyDomainSettings(ctx: RequestContext, id: string) {
+  const existing = await repos.domainSettings.getById(ctx.organizationId, id);
+  if (!existing) throw new ValidationError("Cloudflare domain not found");
   try {
     const apiToken = decrypt(existing.cloudflareApiTokenEncrypted);
     await verifyCloudflareZone({
@@ -72,14 +109,14 @@ export async function verifyDomainSettings(ctx: RequestContext) {
       apiToken,
     });
     const verifiedAt = new Date();
-    await repos.domainSettings.updateVerification(ctx.organizationId, {
+    await repos.domainSettings.updateVerification(ctx.organizationId, id, {
       verifiedAt,
       lastVerificationError: null,
     });
     return { ok: true, verifiedAt };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Cloudflare verification failed";
-    await repos.domainSettings.updateVerification(ctx.organizationId, {
+    await repos.domainSettings.updateVerification(ctx.organizationId, id, {
       verifiedAt: null,
       lastVerificationError: message,
     });
@@ -87,6 +124,6 @@ export async function verifyDomainSettings(ctx: RequestContext) {
   }
 }
 
-export async function removeDomainSettings(ctx: RequestContext) {
-  await repos.domainSettings.remove(ctx.organizationId);
+export async function removeDomainSettings(ctx: RequestContext, id: string) {
+  await repos.domainSettings.remove(ctx.organizationId, id);
 }

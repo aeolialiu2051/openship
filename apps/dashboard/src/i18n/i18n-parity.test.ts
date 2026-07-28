@@ -39,6 +39,7 @@ const MISSING_BASELINE: Record<string, number> = {
   deployments: 119,
   library: 7,
   billing: 6,
+  domainsPage: 413,
 };
 
 /** Stale locale keys that no longer exist in English. */

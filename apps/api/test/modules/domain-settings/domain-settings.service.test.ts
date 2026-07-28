@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  get: vi.fn(),
-  upsert: vi.fn(),
+  list: vi.fn(),
+  getById: vi.fn(),
+  getByDomain: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
   updateVerification: vi.fn(),
   remove: vi.fn(),
   verifyZone: vi.fn(),
@@ -13,8 +16,11 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@repo/db", () => ({
   repos: {
     domainSettings: {
-      get: mocks.get,
-      upsert: mocks.upsert,
+      list: mocks.list,
+      getById: mocks.getById,
+      getByDomain: mocks.getByDomain,
+      create: mocks.create,
+      update: mocks.update,
       updateVerification: mocks.updateVerification,
       remove: mocks.remove,
     },
@@ -32,8 +38,10 @@ vi.mock("../../../src/lib/cloudflare-dns", () => ({
 }));
 
 import {
-  getDomainSettings,
-  saveDomainSettings,
+  createDomainSettings,
+  listDomainSettings,
+  testDomainSettings,
+  updateDomainSettings,
 } from "../../../src/modules/domain-settings/domain-settings.service";
 
 const ctx = { organizationId: "org-1", userId: "user-1" } as any;
@@ -41,8 +49,16 @@ const ctx = { organizationId: "org-1", userId: "user-1" } as any;
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.verifyZone.mockResolvedValue({ domain: "example.com", zoneId: "zone-1" });
-  mocks.upsert.mockImplementation(async (input) => ({
+  mocks.create.mockImplementation(async (input) => ({
     ...input,
+    id: "dns-1",
+    createdAt: new Date("2026-07-28T00:00:00Z"),
+    updatedAt: new Date("2026-07-28T00:00:00Z"),
+  }));
+  mocks.update.mockImplementation(async (_organizationId, id, input) => ({
+    ...input,
+    id,
+    organizationId: "org-1",
     createdAt: new Date("2026-07-28T00:00:00Z"),
     updatedAt: new Date("2026-07-28T00:00:00Z"),
   }));
@@ -50,8 +66,8 @@ beforeEach(() => {
 
 describe("organization domain settings", () => {
   it("encrypts a new token and never returns it", async () => {
-    mocks.get.mockResolvedValue(undefined);
-    const result = await saveDomainSettings(ctx, {
+    mocks.getByDomain.mockResolvedValue(undefined);
+    const result = await createDomainSettings(ctx, {
       domain: "Example.COM",
       cloudflareZoneId: "zone-1",
       cloudflareApiToken: "secret-token",
@@ -64,7 +80,7 @@ describe("organization domain settings", () => {
       apiToken: "secret-token",
     });
     expect(mocks.encrypt).toHaveBeenCalledWith("secret-token");
-    expect(mocks.upsert).toHaveBeenCalledWith(
+    expect(mocks.create).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",
         cloudflareApiTokenEncrypted: "encrypted:secret-token",
@@ -77,8 +93,27 @@ describe("organization domain settings", () => {
     expect(result).not.toHaveProperty("cloudflareApiTokenEncrypted");
   });
 
+  it("tests new credentials without saving domain settings", async () => {
+    const result = await testDomainSettings(ctx, {
+      domain: "Example.COM",
+      cloudflareZoneId: "zone-1",
+      cloudflareApiToken: "secret-token",
+      cloudflareProxy: true,
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(mocks.verifyZone).toHaveBeenCalledWith({
+      domain: "example.com",
+      zoneId: "zone-1",
+      apiToken: "secret-token",
+    });
+    expect(mocks.create).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+
   it("preserves the saved token when an edit leaves the token blank", async () => {
-    mocks.get.mockResolvedValue({
+    mocks.getById.mockResolvedValue({
+      id: "dns-1",
       organizationId: "org-1",
       domain: "example.com",
       cloudflareZoneId: "zone-1",
@@ -86,7 +121,9 @@ describe("organization domain settings", () => {
       cloudflareProxy: true,
     });
 
-    await saveDomainSettings(ctx, {
+    mocks.getByDomain.mockResolvedValue({ id: "dns-1" });
+
+    await updateDomainSettings(ctx, "dns-1", {
       domain: "example.com",
       cloudflareZoneId: "zone-1",
       cloudflareProxy: false,
@@ -99,22 +136,46 @@ describe("organization domain settings", () => {
   });
 
   it("returns only a masked credential state", async () => {
-    mocks.get.mockResolvedValue({
-      organizationId: "org-1",
-      domain: "example.com",
-      cloudflareZoneId: "zone-1",
-      cloudflareApiTokenEncrypted: "encrypted:never-return-this",
-      cloudflareProxy: true,
-      verifiedAt: new Date("2026-07-28T00:00:00Z"),
-      lastVerificationError: null,
-      updatedAt: new Date("2026-07-28T00:00:00Z"),
-    });
+    mocks.list.mockResolvedValue([
+      {
+        id: "dns-1",
+        organizationId: "org-1",
+        domain: "example.com",
+        cloudflareZoneId: "zone-1",
+        cloudflareApiTokenEncrypted: "encrypted:never-return-this",
+        cloudflareProxy: true,
+        verifiedAt: new Date("2026-07-28T00:00:00Z"),
+        lastVerificationError: null,
+        updatedAt: new Date("2026-07-28T00:00:00Z"),
+      },
+    ]);
 
-    const result = await getDomainSettings(ctx);
-    expect(result).toMatchObject({
+    const result = await listDomainSettings(ctx);
+    expect(result[0]).toMatchObject({
       domain: "example.com",
       cloudflareApiTokenConfigured: true,
     });
     expect(JSON.stringify(result)).not.toContain("never-return-this");
+  });
+
+  it("allows an organization to connect more than one domain", async () => {
+    mocks.getByDomain.mockResolvedValue(undefined);
+
+    await createDomainSettings(ctx, {
+      domain: "example.com",
+      cloudflareZoneId: "zone-1",
+      cloudflareApiToken: "token-1",
+    });
+    await createDomainSettings(ctx, {
+      domain: "example.org",
+      cloudflareZoneId: "zone-2",
+      cloudflareApiToken: "token-2",
+    });
+
+    expect(mocks.create).toHaveBeenCalledTimes(2);
+    expect(mocks.create.mock.calls.map(([input]) => input.domain)).toEqual([
+      "example.com",
+      "example.org",
+    ]);
   });
 });

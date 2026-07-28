@@ -34,7 +34,11 @@ export type { AppCatalogEntry, AppCatalogField, InstallAppResult } from "./apps"
 export { deployApi } from "./deploy";
 export { domainsApi } from "./domains";
 export { domainSettingsApi } from "./domain-settings";
-export type { DomainSettingsView, SaveDomainSettingsInput } from "./domain-settings";
+export type {
+  DomainSettingsView,
+  SaveDomainSettingsInput,
+  TestDomainSettingsInput,
+} from "./domain-settings";
 export {
   jobsApi,
   type JobView,

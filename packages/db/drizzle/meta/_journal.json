@@ -526,6 +526,13 @@
       "when": 1785445098651,
       "tag": "0074_domain_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1785445198651,
+      "tag": "0075_multiple_domain_settings",
+      "breakpoints": true
     }
   ]
 }

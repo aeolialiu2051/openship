@@ -133,8 +133,10 @@ async function resolveCredentials(
     };
   }
 
-  const settings = await repos.domainSettings.get(organizationId);
-  if (!settings || !hostnameBelongsToZone(hostname, settings.domain)) return null;
+  const settings = (await repos.domainSettings.list(organizationId))
+    .filter((candidate) => hostnameBelongsToZone(hostname, candidate.domain))
+    .sort((a, b) => b.domain.length - a.domain.length)[0];
+  if (!settings) return null;
   let apiToken: string;
   try {
     apiToken = decrypt(settings.cloudflareApiTokenEncrypted);
