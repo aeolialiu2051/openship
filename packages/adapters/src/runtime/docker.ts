@@ -3962,6 +3962,13 @@ export class DockerRuntime implements RuntimeAdapter {
         "--network-alias",
         sq(config.serviceName),
       ];
+      // Attach every network before the container starts. Traefik observes the
+      // container start event immediately; connecting its edge network after
+      // `docker run -d` can make it permanently cache the project-network IP
+      // and route requests to an unreachable backend until the app restarts.
+      if (config.traefik && config.traefik.network !== group.id) {
+        args.push("--network", sq(config.traefik.network));
+      }
       for (const [key, value] of Object.entries(labels)) {
         args.push("--label", sq(`${key}=${value}`));
       }
@@ -4019,11 +4026,6 @@ export class DockerRuntime implements RuntimeAdapter {
         let containerId: string;
         try {
           containerId = await this.remoteDockerExec(args.join(" "), { timeout: 2 * 60_000 });
-          if (config.traefik && config.traefik.network !== group.id) {
-            await this.remoteDockerExec(
-              `network connect ${sq(config.traefik.network)} ${sq(containerId)}`,
-            );
-          }
         } catch (error) {
           await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
           throw error;
@@ -4084,15 +4086,15 @@ export class DockerRuntime implements RuntimeAdapter {
           [group.id]: {
             Aliases: [config.serviceName],
           },
+          ...(config.traefik && config.traefik.network !== group.id
+            ? { [config.traefik.network]: {} }
+            : {}),
         },
       },
     });
 
     try {
       await container.start();
-      if (config.traefik && config.traefik.network !== group.id) {
-        await this.docker.getNetwork(config.traefik.network).connect({ Container: container.id });
-      }
     } catch (startErr) {
       // Clean up the created container so it doesn't become orphaned
       try {

@@ -230,6 +230,77 @@ describe("DockerRuntime SSH builds", () => {
     );
   });
 
+  it("attaches the Traefik network before starting a remote service", async () => {
+    const remoteDockerExec = vi.fn(async (args: string) => {
+      if (args.includes(".Config.Cmd")) return "null";
+      if (args.startsWith("run ")) return "traefik-container";
+      if (args === "inspect 'traefik-container'") {
+        return JSON.stringify([
+          {
+            Id: "traefik-container",
+            State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
+            Config: { Image: "example/web:latest", Labels: {}, ExposedPorts: {} },
+            NetworkSettings: {
+              Networks: { app: { IPAddress: "172.20.0.3", NetworkID: "network-1" } },
+              Ports: {},
+            },
+          },
+        ]);
+      }
+      if (args.includes(".RepoDigests")) return "[]";
+      return "";
+    });
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperties(runtime, {
+      transport: { value: { kind: "ssh" } },
+      connectionOptions: {
+        value: {
+          executor: {
+            writeFile: vi.fn(async () => {}),
+            exec: vi.fn(async () => ""),
+            rm: vi.fn(async () => {}),
+          },
+        },
+      },
+      remoteDockerExec: { value: remoteDockerExec },
+    });
+
+    await runtime.deployServiceWorkload(
+      { id: "network-1" },
+      {
+        deploymentId: "deployment-traefik",
+        projectId: "project-traefik",
+        slug: "app",
+        serviceName: "web",
+        image: "example/web:latest",
+        ports: [],
+        environment: {},
+        volumes: [],
+        namespaceVolumes: true,
+        restart: "unless-stopped",
+        traefik: {
+          network: "traefik-edge",
+          entrypoint: "websecure",
+          tls: true,
+          routes: [
+            {
+              hostname: "web.example.com",
+              port: 3000,
+              routerName: "web-route",
+            },
+          ],
+        },
+      },
+    );
+
+    const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
+    expect(runCommand).toContain("--network 'network-1'");
+    expect(runCommand).toContain("--network 'traefik-edge'");
+    expect(remoteDockerExec.mock.calls.some(([args]) => args.includes("network connect"))).toBe(
+      false,
+    );
+  });
+
   it("passes a postgres command with options as exec argv instead of sh -c", async () => {
     const remoteDockerExec = vi.fn(async (args: string) => {
       if (args.includes(".Config.Cmd")) return JSON.stringify(["postgres"]);
