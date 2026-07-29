@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/Modal";
 import { appsApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
+import { interpolate, useI18n } from "@/components/i18n-provider";
 
 /**
  * Upload a custom app JSON → validate → add it to this org's catalog as an
@@ -24,6 +25,8 @@ export function AddCustomAppModal({
   onAdded: () => void;
 }) {
   const { showToast } = useToast();
+  const { t } = useI18n();
+  const copy = t.dashboard.pages.apps.customApp;
   const [template, setTemplate] = useState<unknown>(null);
   const [name, setName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -38,16 +41,16 @@ export function AddCustomAppModal({
     try {
       obj = JSON.parse(text);
     } catch {
-      setError("That file isn't valid JSON.");
+      setError(copy.invalidJson);
       return;
     }
     if (!isValidAppTemplate(obj)) {
-      setError("This isn't a valid app definition — check the required fields and references.");
+      setError(copy.invalidDefinition);
       return;
     }
     const t = obj as { kind?: string; name?: string; id?: string };
     if (t.kind !== "template") {
-      setError("Only template apps can be added (flow apps aren't supported).");
+      setError(copy.templatesOnly);
       return;
     }
     setTemplate(obj);
@@ -64,11 +67,11 @@ export function AddCustomAppModal({
     setBusy(true);
     try {
       await appsApi.addCustom(template);
-      showToast(`Added "${name}" to your catalog.`, "success");
+      showToast(interpolate(copy.added, { name: name ?? "" }), "success");
       onAdded();
       onClose();
     } catch (err) {
-      setError(getApiErrorMessage(err, "Couldn't add the app."));
+      setError(getApiErrorMessage(err, copy.addFailed));
     } finally {
       setBusy(false);
     }
@@ -77,10 +80,8 @@ export function AddCustomAppModal({
   return (
     <Modal isOpen={open} onClose={onClose} width="560px" maxWidth="95vw" showCloseButton>
       <div className="p-6">
-        <h3 className="text-base font-semibold text-foreground">Add a custom app</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Upload an app definition (JSON). It&apos;s added to your catalog and marked unverified.
-        </p>
+        <h3 className="text-base font-semibold text-foreground">{copy.title}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{copy.description}</p>
 
         <label
           onDragOver={(e) => e.preventDefault()}
@@ -92,8 +93,8 @@ export function AddCustomAppModal({
         >
           <UploadCloud className="size-6 text-muted-foreground" />
           <span className="text-sm text-foreground">
-            Drop <code className="font-mono text-[12px]">app.json</code> here, or{" "}
-            <span className="text-primary">browse</span>
+            {copy.dropPrefix} <code className="font-mono text-[12px]">app.json</code> {copy.dropSuffix}{" "}
+            <span className="text-primary">{copy.browse}</span>
           </span>
           <input
             type="file"
@@ -114,14 +115,13 @@ export function AddCustomAppModal({
             <div className="flex items-center gap-2 rounded-xl border border-success/40 bg-success/[0.05] px-3 py-2.5 text-sm text-success">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>
-                Valid app definition — <span className="font-medium">{name}</span>
+                {copy.validDefinition} — <span className="font-medium">{name}</span>
               </span>
             </div>
             <div className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/[0.05] px-3 py-2.5 text-xs text-warning">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
-                <span className="font-semibold">Unverified.</span> This deploys images you provided — not
-                an official, reviewed app. Review the definition and only add apps you trust.
+                <span className="font-semibold">{copy.warningTitle}</span> {copy.warningDescription}
               </span>
             </div>
           </div>
@@ -133,7 +133,7 @@ export function AddCustomAppModal({
             onClick={onClose}
             className="rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
           >
-            Cancel
+            {copy.cancel}
           </button>
           <button
             type="button"
@@ -141,7 +141,7 @@ export function AddCustomAppModal({
             disabled={!template || busy}
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
           >
-            {busy && <Loader2 className="size-4 animate-spin" />} Add app
+            {busy && <Loader2 className="size-4 animate-spin" />} {copy.add}
           </button>
         </div>
       </div>

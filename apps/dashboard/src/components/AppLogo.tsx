@@ -13,6 +13,9 @@ export const APP_LOGO: Record<
   { slug?: string; src?: string; fill?: boolean; darkInvert?: boolean }
 > = {
   convex: { src: "https://www.google.com/s2/favicons?domain=convex.dev&sz=128" },
+  "cli-proxy-api": {
+    src: "https://avatars.githubusercontent.com/u/233033915?s=128&v=4",
+  },
   // simpleicons removed the Slack + Microsoft Teams brand marks (both 404 on the
   // CDN now), so resolve their official colored favicons like convex above —
   // otherwise they fall back to a generic monochrome glyph.
@@ -80,7 +83,8 @@ export function AppLogo({
   // vendored src override for brands simpleicons doesn't carry.
   const cfg = APP_LOGO[appId ?? ""] ?? APP_LOGO[slug ?? ""];
   const resolvedSlug = slug ?? cfg?.slug;
-  const url = src ?? cfg?.src ?? (resolvedSlug ? `https://cdn.simpleicons.org/${resolvedSlug}` : undefined);
+  const url =
+    src ?? cfg?.src ?? (resolvedSlug ? `https://cdn.simpleicons.org/${resolvedSlug}` : undefined);
 
   if (!url || failed) return <Icon className={`${className} text-muted-foreground`} />;
   // Full-bleed square marks (own background) fill the tile; transparent brand
@@ -90,7 +94,9 @@ export function AppLogo({
   // parent tile's radius) so they don't render as a hard square.
   // Non-fill marks: object-contain so a non-square brand SVG fits the box without
   // squishing (square favicons/simpleicons are unaffected).
-  const base = cfg?.fill ? "size-full object-cover rounded-[inherit]" : `${className} object-contain`;
+  const base = cfg?.fill
+    ? "size-full object-cover rounded-[inherit]"
+    : `${className} object-contain`;
   return (
     // eslint-disable-next-line @next/next/no-img-element
     <img

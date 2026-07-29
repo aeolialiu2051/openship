@@ -116,6 +116,7 @@
       "configTitle": "{app} を設定",
       "comingSoon": "近日公開",
       "featuredDescriptions": {
+        "cli-proxy-api": "OpenAI 互換 API プロキシ",
         "supabase": "Postgres バックエンド + Studio",
         "convex": "リアクティブなバックエンドとデータベース",
         "mongodb": "ドキュメントデータベース + Mongo Express",

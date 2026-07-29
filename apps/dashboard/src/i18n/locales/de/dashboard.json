@@ -116,6 +116,7 @@
       "configTitle": "{app} konfigurieren",
       "comingSoon": "Demnächst",
       "featuredDescriptions": {
+        "cli-proxy-api": "OpenAI-kompatibler API-Proxy",
         "supabase": "Postgres-Backend + Studio",
         "convex": "Reaktives Backend und Datenbank",
         "mongodb": "Dokumentdatenbank + Mongo Express",

@@ -48,6 +48,8 @@ export function firstPublicHost(
  * "working". All colors are semantic tokens.
  */
 function TerminalLogs({ logs, live, label }: { logs: string; live: boolean; label: string }) {
+  const { t } = useI18n();
+  const w = t.projectSettings.appInstall;
   const boxRef = useRef<HTMLDivElement>(null);
   const lines = useMemo(
     () =>
@@ -75,7 +77,7 @@ function TerminalLogs({ logs, live, label }: { logs: string; live: boolean; labe
         {live && (
           <span className="ms-auto inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-success">
             <span className="size-1.5 animate-pulse rounded-full bg-success-solid" />
-            live
+            {w.live}
           </span>
         )}
       </div>
@@ -84,7 +86,7 @@ function TerminalLogs({ logs, live, label }: { logs: string; live: boolean; labe
         className="max-h-72 overflow-auto p-3.5 font-mono text-[11.5px] leading-relaxed"
       >
         {lines.length === 0 ? (
-          <span className="text-muted-foreground/70">Waiting for output…</span>
+          <span className="text-muted-foreground/70">{w.waitingForOutput}</span>
         ) : (
           lines.map((l, i) => (
             <div key={i} className="flex gap-3">

@@ -115,7 +115,81 @@
       "nameLabel": "名称",
       "configTitle": "配置 {app}",
       "comingSoon": "即将推出",
+      "addCustom": "添加自定义应用",
+      "addGuide": "如何添加应用",
+      "support": "获取支持",
+      "removedCustom": "已移除“{name}”。",
+      "removeCustomFailed": "无法移除应用。",
+      "needsVersion": "需要 v{version}",
+      "needsUpdate": "需要更新",
+      "updateRequiredDescription": "请更新 Openship 后再安装此应用。",
+      "unverified": "未验证",
+      "removeCustomTitle": "移除自定义应用",
+      "verifiedApp": {
+        "title": "已验证应用",
+        "description": "使用该项目官方的开源镜像并锁定版本，通过经过审核的部署流程运行。完整定义公开且可审计。"
+      },
+      "customApp": {
+        "title": "添加自定义应用",
+        "description": "上传应用定义（JSON），它将作为未验证应用添加到你的目录中。",
+        "dropPrefix": "将",
+        "dropSuffix": "拖到此处，或",
+        "browse": "浏览文件",
+        "invalidJson": "该文件不是有效的 JSON。",
+        "invalidDefinition": "这不是有效的应用定义，请检查必填字段和引用。",
+        "templatesOnly": "只能添加模板应用，暂不支持流程应用。",
+        "added": "已将“{name}”添加到应用目录。",
+        "addFailed": "无法添加应用。",
+        "validDefinition": "应用定义有效",
+        "warningTitle": "未验证。",
+        "warningDescription": "此应用会部署你提供的镜像，并非官方审核应用。请先检查定义，只添加你信任的应用。",
+        "cancel": "取消",
+        "add": "添加应用"
+      },
+      "catalogDescriptions": {
+        "mail": "完整的自托管邮件服务器，在你自己的域名上提供 SMTP、IMAP 和网页邮箱。",
+        "cli-proxy-api": "面向 CLI 模型服务商的 OpenAI 兼容 API 代理，支持持久化身份验证和自动生成访问凭据。",
+        "supabase": "完整自托管的 Supabase，通过统一 API 网关提供 Postgres、认证、REST、实时服务、存储和 Studio。",
+        "mongodb": "MongoDB 文档数据库，并附带 Mongo Express 网页管理界面。",
+        "convex": "自托管的 Convex 响应式后端和管理面板，数据卷可持久保存。",
+        "n8n": "通过可视化编辑器连接应用和 API，实现工作流自动化。",
+        "ghost": "面向博客、邮件简报和会员网站的现代内容发布平台。",
+        "directus": "基于现有数据即时提供 REST 和 GraphQL API 的无头 CMS，首次访问时创建管理员。",
+        "nocodb": "基于 SQL 数据库的类 Airtable 表格界面，首个注册用户将成为管理员。",
+        "metabase": "开源商业智能工具，可基于你的数据创建问题分析和仪表盘。",
+        "grafana": "用于指标和日志的仪表盘与可视化平台，首次登录账号和密码均为 admin。",
+        "gitea": "自托管 Git 服务，支持议题、拉取请求和首次运行设置向导。",
+        "code-server": "在服务器上通过浏览器运行 VS Code，使用自动生成的密码登录。",
+        "uptime-kuma": "自托管在线状态监控，支持状态页和告警。",
+        "vaultwarden": "轻量级自托管密码管理器，与 Bitwarden 兼容。",
+        "freshrss": "自托管 RSS 和 Atom 订阅阅读器，附带首次运行设置向导。",
+        "stirling-pdf": "在本地拆分、合并、转换、OCR 和编辑 PDF；请修改默认登录密码。",
+        "it-tools": "实用的开发者和系统管理员工具合集，无需登录或设置。",
+        "excalidraw": "用于草图和图表的虚拟白板，绘图保存在浏览器中。",
+        "buzz": "可自托管的人类与 AI 智能体协作空间，将聊天、代码、审查和工作流汇集到统一审计日志。",
+        "minio": "兼容 S3 的对象存储并附带网页控制台，可供 aws-cli 和各类 SDK 直接连接。",
+        "kafka": "Apache Kafka 事件流代理，附带 Kafbat Kafka UI，用于管理主题、消息和消费者组。",
+        "qdrant": "面向 AI 搜索、RAG 和嵌入的高性能向量数据库，并附带内置网页管理界面。"
+      },
+      "catalogSettings": {
+        "supabase": {
+          "GOTRUE_DISABLE_SIGNUP": { "label": "禁止新用户注册", "help": "阻止新用户创建账号。" },
+          "GOTRUE_MAILER_AUTOCONFIRM": { "label": "自动确认邮箱", "help": "无需点击邮件验证链接即可确认新用户。" }
+        },
+        "convex": {
+          "DISABLE_BEACON": { "label": "关闭遥测", "help": "停止发送匿名使用情况遥测数据。" },
+          "INSTANCE_NAME": { "label": "实例名称", "help": "用于识别此 Convex 安装的名称。" },
+          "INSTANCE_SECRET": { "label": "实例密钥", "help": "用于验证此 Convex 实例身份的密钥。" }
+        },
+        "n8n": {
+          "GENERIC_TIMEZONE": { "label": "时区", "help": "供计划任务和 Cron 节点使用。" },
+          "N8N_DEFAULT_LOCALE": { "label": "语言区域", "help": "n8n 默认使用的语言和区域格式。" },
+          "EXECUTIONS_DATA_PRUNE": { "label": "清理执行数据", "help": "自动删除过期的执行历史。" },
+          "EXECUTIONS_DATA_MAX_AGE": { "label": "执行数据保留时间", "help": "执行历史最多保留的小时数。" }
+        }
+      },
       "featuredDescriptions": {
+        "cli-proxy-api": "OpenAI 兼容 API 代理",
         "supabase": "Postgres 后端与管理面板",
         "convex": "响应式后端与数据库",
         "mongodb": "文档数据库与 Mongo Express",

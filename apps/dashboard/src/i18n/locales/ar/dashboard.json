@@ -116,6 +116,7 @@
       "configTitle": "إعداد {app}",
       "comingSoon": "قريبًا",
       "featuredDescriptions": {
+        "cli-proxy-api": "وكيل API متوافق مع OpenAI",
         "supabase": "خلفية Postgres مع Studio",
         "convex": "واجهة خلفية وقاعدة بيانات تفاعلية",
         "mongodb": "قاعدة بيانات مستندات مع Mongo Express",

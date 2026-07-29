@@ -1,0 +1,96 @@
+{
+  "available": true,
+  "verified": true,
+  "id": "cli-proxy-api",
+  "name": "CLIProxyAPI",
+  "description": "OpenAI-compatible API proxy for CLI model providers, with persistent authentication and generated API access credentials.",
+  "kind": "template",
+  "logo": "cli-proxy-api",
+  "category": "other",
+  "tags": ["api", "proxy", "openai", "ai", "cli"],
+  "framework": "docker-compose",
+  "services": [
+    {
+      "name": "cli-proxy-api",
+      "image": "eceasy/cli-proxy-api:latest",
+      "ports": ["8317:8317"],
+      "exposedPort": 8317,
+      "exposed": true,
+      "secretEnv": ["API_KEY"],
+      "volumes": [
+        "cli_proxy_api_auth:/root/.cli-proxy-api",
+        "cli_proxy_api_logs:/CLIProxyAPI/logs",
+        "cli_proxy_api_plugins:/CLIProxyAPI/plugins"
+      ],
+      "restart": "unless-stopped"
+    }
+  ],
+  "configFields": [
+    {
+      "key": "API_KEY",
+      "service": "cli-proxy-api",
+      "label": "API key",
+      "help": "Auto-generated. Use this key to authenticate requests to the proxy API.",
+      "generate": "secret",
+      "secret": true
+    }
+  ],
+  "files": [
+    {
+      "service": "cli-proxy-api",
+      "path": "/CLIProxyAPI/config.yaml",
+      "content": "host: 0.0.0.0\nport: 8317\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: true\n"
+    }
+  ],
+  "connection": {
+    "title": "Connect to CLIProxyAPI",
+    "description": "Use the OpenAI-compatible base URL and generated API key in your clients. Add and manage provider accounts from the CLIProxyAPI user interface.",
+    "guide": {
+      "intro": {
+        "en": "Your project gets an OpenAI-compatible endpoint backed by CLIProxyAPI. Provider accounts and installed plugins persist across container restarts.",
+        "zh": "你的项目将获得一个由 CLIProxyAPI 提供的 OpenAI 兼容接口；服务商账号和已安装插件会在容器重启后保留。"
+      },
+      "useHint": {
+        "en": "Add provider accounts from the CLIProxyAPI user interface, then read OPENAI_BASE_URL and OPENAI_API_KEY from the environment after redeploying your project.",
+        "zh": "在 CLIProxyAPI 用户页面添加服务商账号，然后重新部署项目并读取 OPENAI_BASE_URL 和 OPENAI_API_KEY。"
+      },
+      "defaultMode": "public"
+    },
+    "outputs": [
+      {
+        "id": "baseUrl",
+        "label": "OpenAI base URL",
+        "source": "template:{{publicUrl:cli-proxy-api}}/v1",
+        "service": "cli-proxy-api",
+        "envKey": "OPENAI_BASE_URL",
+        "recommended": true
+      },
+      {
+        "id": "apiKey",
+        "label": "API key",
+        "source": "env:cli-proxy-api:API_KEY",
+        "secret": true,
+        "envKey": "OPENAI_API_KEY",
+        "recommended": true
+      }
+    ]
+  },
+  "provides": [
+    {
+      "id": "openai-compatible-api",
+      "category": "ai-api",
+      "outputRefs": ["baseUrl", "apiKey"]
+    }
+  ],
+  "endpoints": [
+    {
+      "service": "cli-proxy-api",
+      "port": 8317,
+      "label": "OpenAI-compatible API",
+      "kind": "http",
+      "scope": "public",
+      "defaultMode": "domain",
+      "allowedModes": ["domain", "port"]
+    }
+  ]
+}

@@ -118,6 +118,7 @@
       "configTitle": "{app} yapılandır",
       "comingSoon": "Yakında",
       "featuredDescriptions": {
+        "cli-proxy-api": "OpenAI uyumlu API proxy",
         "supabase": "Postgres backend + Studio",
         "convex": "Reaktif backend ve veritabanı",
         "mongodb": "Belge veritabanı + Mongo Express",

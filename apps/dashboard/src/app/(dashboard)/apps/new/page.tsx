@@ -8,7 +8,7 @@ import { getApiErrorMessage } from "@/lib/api/client";
 import { AppLogo } from "@/components/AppLogo";
 import { VerifiedBadge } from "@/components/apps/VerifiedBadge";
 import { AddCustomAppModal } from "@/components/apps/AddCustomAppModal";
-import { useI18n } from "@/components/i18n-provider";
+import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
 import { PageContainer } from "@/components/ui/PageContainer";
 import DropdownMenu from "@/components/ui/DropdownMenu";
@@ -49,9 +49,9 @@ export default function NewAppPage() {
     try {
       await appsApi.removeCustom(app.id);
       await loadCatalog();
-      showToast(`Removed "${app.name}".`, "success");
+      showToast(interpolate(ap.removedCustom, { name: app.name }), "success");
     } catch (err) {
-      showToast(getApiErrorMessage(err, "Couldn't remove the app."), "error");
+      showToast(getApiErrorMessage(err, ap.removeCustomFailed), "error");
     }
   };
   const [query, setQuery] = useState("");
@@ -139,7 +139,7 @@ export default function NewAppPage() {
             onClick={() => setAddOpen(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border/60 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
           >
-            <Plus className="size-4" /> Add custom
+            <Plus className="size-4" /> {ap.addCustom}
           </button>
           <DropdownMenu
             align="right"
@@ -147,7 +147,7 @@ export default function NewAppPage() {
             actions={[
               {
                 id: "guide",
-                label: "How to add an app",
+                label: ap.addGuide,
                 icon: <BookOpen className="size-4" />,
                 onClick: () =>
                   window.open(
@@ -158,7 +158,7 @@ export default function NewAppPage() {
               },
               {
                 id: "support",
-                label: "Support",
+                label: ap.support,
                 icon: <LifeBuoy className="size-4" />,
                 onClick: () =>
                   window.open("https://github.com/oblien/openship/issues", "_blank", "noopener,noreferrer"),
@@ -243,7 +243,9 @@ export default function NewAppPage() {
                       </span>
                       {needsUpdate ? (
                         <span className="shrink-0 rounded-full border border-warning/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
-                          {app.requiresUpdate?.minVersion ? `Needs v${app.requiresUpdate.minVersion}` : "Needs update"}
+                          {app.requiresUpdate?.minVersion
+                            ? interpolate(ap.needsVersion, { version: app.requiresUpdate.minVersion })
+                            : ap.needsUpdate}
                         </span>
                       ) : app.comingSoon ? (
                         <span className="shrink-0 rounded-full border border-border/60 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
@@ -251,7 +253,7 @@ export default function NewAppPage() {
                         </span>
                       ) : app.custom ? (
                         <span className="shrink-0 rounded-full border border-warning/40 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-warning">
-                          Unverified
+                          {ap.unverified}
                         </span>
                       ) : busy ? (
                         <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
@@ -261,16 +263,16 @@ export default function NewAppPage() {
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
                       {needsUpdate
-                        ? "Update your Openship instance to install this app."
-                        : app.description}
+                        ? ap.updateRequiredDescription
+                        : (ap.catalogDescriptions as Record<string, string>)[app.id] ?? app.description}
                     </p>
                   </div>
                 </button>
                 {app.custom && (
                   <button
                     type="button"
-                    title="Remove custom app"
-                    aria-label="Remove custom app"
+                    title={ap.removeCustomTitle}
+                    aria-label={ap.removeCustomTitle}
                     onClick={() => removeCustomApp(app)}
                     className="absolute end-2 top-2 rounded-md p-1 text-muted-foreground/50 opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus:opacity-100 group-hover:opacity-100"
                   >

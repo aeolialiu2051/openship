@@ -118,7 +118,81 @@
       "nameLabel": "Name",
       "configTitle": "Configure {app}",
       "comingSoon": "Coming soon",
+      "addCustom": "Add custom",
+      "addGuide": "How to add an app",
+      "support": "Support",
+      "removedCustom": "Removed \"{name}\".",
+      "removeCustomFailed": "Couldn't remove the app.",
+      "needsVersion": "Needs v{version}",
+      "needsUpdate": "Needs update",
+      "updateRequiredDescription": "Update your Openship instance to install this app.",
+      "unverified": "Unverified",
+      "removeCustomTitle": "Remove custom app",
+      "verifiedApp": {
+        "title": "Verified app",
+        "description": "Uses the project's official, open-source image pinned to a version, deployed through a reviewed pipeline. The full definition is public and auditable."
+      },
+      "customApp": {
+        "title": "Add a custom app",
+        "description": "Upload an app definition (JSON). It's added to your catalog and marked unverified.",
+        "dropPrefix": "Drop",
+        "dropSuffix": "here, or",
+        "browse": "browse",
+        "invalidJson": "That file isn't valid JSON.",
+        "invalidDefinition": "This isn't a valid app definition — check the required fields and references.",
+        "templatesOnly": "Only template apps can be added (flow apps aren't supported).",
+        "added": "Added \"{name}\" to your catalog.",
+        "addFailed": "Couldn't add the app.",
+        "validDefinition": "Valid app definition",
+        "warningTitle": "Unverified.",
+        "warningDescription": "This deploys images you provided — not an official, reviewed app. Review the definition and only add apps you trust.",
+        "cancel": "Cancel",
+        "add": "Add app"
+      },
+      "catalogDescriptions": {
+        "mail": "A complete self-hosted mail server — SMTP/IMAP + webmail on your own domain.",
+        "cli-proxy-api": "OpenAI-compatible API proxy for CLI model providers, with persistent authentication and generated API access credentials.",
+        "supabase": "Full self-hosted Supabase — Postgres, Auth, REST, Realtime, Storage, and Studio behind one API gateway.",
+        "mongodb": "MongoDB document database with the Mongo Express web admin UI.",
+        "convex": "Self-hosted Convex reactive backend + dashboard, with a persistent data volume.",
+        "n8n": "Workflow automation — connect apps and APIs with a visual editor.",
+        "ghost": "Modern publishing platform for blogs, newsletters, and membership sites.",
+        "directus": "Headless CMS with an instant REST + GraphQL API over your data. Create the admin on first visit.",
+        "nocodb": "Airtable-style spreadsheet UI over an SQL database. The first sign-up becomes the admin.",
+        "metabase": "Open-source business intelligence — dashboards and questions over your data.",
+        "grafana": "Dashboards and visualization for your metrics and logs. First login is admin / admin.",
+        "gitea": "Self-hosted Git with issues, pull requests, and a first-run setup wizard.",
+        "code-server": "Run VS Code in your browser, on your server. Login uses an auto-generated password.",
+        "uptime-kuma": "Self-hosted uptime monitoring with status pages and alerts.",
+        "vaultwarden": "Lightweight self-hosted password manager (Bitwarden-compatible).",
+        "freshrss": "Self-hosted RSS and Atom feed reader with a first-run setup wizard.",
+        "stirling-pdf": "Split, merge, convert, OCR and edit PDFs locally. Default login is admin / stirling — change it.",
+        "it-tools": "A handy collection of developer and sysadmin utilities. No login, no setup.",
+        "excalidraw": "Virtual whiteboard for sketches and diagrams. Stateless — drawings save in your browser.",
+        "buzz": "Self-hostable workspace where humans and AI agents collaborate — chat, code, reviews, and workflows in one audit log.",
+        "minio": "S3-compatible object storage with a web console — point any S3 client (aws-cli, SDKs) at it.",
+        "kafka": "Apache Kafka event-streaming broker with the Kafbat Kafka UI for topics, messages, and consumer groups.",
+        "qdrant": "High-performance vector database for AI search, RAG, and embeddings, with a built-in web UI."
+      },
+      "catalogSettings": {
+        "supabase": {
+          "GOTRUE_DISABLE_SIGNUP": { "label": "Disable new sign-ups", "help": "Prevent new users from creating accounts." },
+          "GOTRUE_MAILER_AUTOCONFIRM": { "label": "Auto-confirm email", "help": "Confirm new users without requiring an email verification link." }
+        },
+        "convex": {
+          "DISABLE_BEACON": { "label": "Disable telemetry", "help": "Stop sending anonymous usage telemetry." },
+          "INSTANCE_NAME": { "label": "Instance name", "help": "A recognizable name for this Convex installation." },
+          "INSTANCE_SECRET": { "label": "Instance secret", "help": "Secret used to authenticate this Convex instance." }
+        },
+        "n8n": {
+          "GENERIC_TIMEZONE": { "label": "Timezone", "help": "Used by Schedule and Cron nodes." },
+          "N8N_DEFAULT_LOCALE": { "label": "Locale", "help": "Default language and regional format used by n8n." },
+          "EXECUTIONS_DATA_PRUNE": { "label": "Prune execution data", "help": "Automatically remove old execution history." },
+          "EXECUTIONS_DATA_MAX_AGE": { "label": "Execution data retention", "help": "Maximum age of execution history in hours." }
+        }
+      },
       "featuredDescriptions": {
+        "cli-proxy-api": "OpenAI-compatible API proxy",
         "supabase": "Postgres backend + Studio",
         "convex": "Reactive backend & database",
         "mongodb": "Document database + Mongo Express",

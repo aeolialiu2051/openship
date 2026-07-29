@@ -114,6 +114,7 @@ export default function AppInstallPage() {
   const router = useRouter();
   const { t, locale } = useI18n();
   const w = t.projectSettings.appInstall;
+  const ap = t.dashboard.pages.apps;
   const { showToast } = useToast();
   const { baseDomain, hostDomain, deployMode } = usePlatform();
   // Desktop mode → the "open on localhost / forward the port" hints are relevant
@@ -148,6 +149,20 @@ export default function AppInstallPage() {
     };
   }, [appId, bundledTemplate]);
   const groups = useMemo(() => (template ? getAppSettings(template) : []), [template]);
+  const localizedGroups = useMemo(() => {
+    const appCopy = (ap.catalogSettings as Record<
+      string,
+      Record<string, { label: string; help?: string }>
+    >)[appId];
+    if (!appCopy) return groups;
+    return groups.map((group) => ({
+      ...group,
+      fields: group.fields.map((field) => {
+        const copy = appCopy[field.key];
+        return copy ? { ...field, label: copy.label, help: copy.help ?? field.help } : field;
+      }),
+    }));
+  }, [ap.catalogSettings, appId, groups]);
   const installFields = useMemo(
     () => flattenSettingFields(groups).filter(isInstallField),
     [groups],
@@ -444,8 +459,8 @@ export default function AppInstallPage() {
     if (formValidity && !formValidity.valid) {
       showToast(
         formValidity.missingRequiredKeys.length > 0
-          ? "Fill in the required fields before installing."
-          : "Fix the highlighted fields before installing.",
+          ? w.validationRequired
+          : w.validationInvalid,
         "error",
       );
       return;
@@ -454,7 +469,9 @@ export default function AppInstallPage() {
     const unmet = requires.filter((r) => !r.optional && !connChoices[r.id]);
     if (unmet.length > 0) {
       showToast(
-        `Choose a source for: ${unmet.map((r) => resolveLocalized(r.label, locale)).join(", ")}`,
+        interpolate(w.chooseSourceFor, {
+          sources: unmet.map((r) => resolveLocalized(r.label, locale)).join(", "),
+        }),
         "error",
       );
       return;
@@ -531,7 +548,7 @@ export default function AppInstallPage() {
             mode: req.mode,
           });
         } catch (err) {
-          showToast(getApiErrorMessage(err, "Couldn't wire a connection"), "error");
+          showToast(getApiErrorMessage(err, w.connectFailed), "error");
         }
       }
 
@@ -597,7 +614,7 @@ export default function AppInstallPage() {
       <CleanDeployProgressCard
         appId={appId}
         title={template.name}
-        description={template.description}
+        description={(ap.catalogDescriptions as Record<string, string>)[appId] ?? template.description}
         phase={phase}
         progress={progress}
         phaseLabel={phaseLabel}
@@ -636,7 +653,9 @@ export default function AppInstallPage() {
               <h1 className="text-xl font-semibold text-foreground">{template.name}</h1>
               {template.verified && <VerifiedBadge iconClassName="size-[18px]" />}
             </div>
-            <p className="text-sm text-muted-foreground">{template.description}</p>
+            <p className="text-sm text-muted-foreground">
+              {(ap.catalogDescriptions as Record<string, string>)[appId] ?? template.description}
+            </p>
           </div>
         </div>
 
@@ -645,8 +664,7 @@ export default function AppInstallPage() {
           <div className="mt-6 flex items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/[0.05] px-4 py-3 text-sm text-warning">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
-              <span className="font-semibold">Custom app — not verified.</span> It deploys images you
-              provided, not an official reviewed app. Review the definition and only install apps you trust.
+              <span className="font-semibold">{w.unverifiedTitle}</span> {w.unverifiedDescription}
             </span>
           </div>
         )}
@@ -679,7 +697,7 @@ export default function AppInstallPage() {
 
             {installFields.length > 0 && (
               <AppSettingsForm
-                groups={groups}
+                groups={localizedGroups}
                 values={values}
                 onChange={setField}
                 secretSetLabel={t.projectSettings.appSettings.secretSet}
@@ -696,10 +714,8 @@ export default function AppInstallPage() {
                 wired in one shot after install. Inert when the app declares none. */}
             {requires.length > 0 && (
               <div className="rounded-2xl border border-border/50 bg-card p-5">
-                <h3 className="text-sm font-semibold text-foreground">Connect services</h3>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  This app connects to other apps you&apos;ve installed. Pick a source for each.
-                </p>
+                <h3 className="text-sm font-semibold text-foreground">{w.connectServicesTitle}</h3>
+                <p className="mt-0.5 text-xs text-muted-foreground">{w.connectServicesDescription}</p>
                 <div className="mt-4 space-y-4">
                   {requires.map((req) => {
                     const opts = candidatesFor(req.category);
@@ -716,7 +732,7 @@ export default function AppInstallPage() {
                             setConnChoices((p) => ({ ...p, [req.id]: e.target.value }))
                           }
                         >
-                          <option value="">{req.optional ? "None" : "Select an app…"}</option>
+                          <option value="">{req.optional ? w.none : w.selectApp}</option>
                           {opts.map((p) => (
                             <option key={p.id} value={p.id}>
                               {p.name}
@@ -725,7 +741,7 @@ export default function AppInstallPage() {
                         </select>
                         {opts.length === 0 && (
                           <p className="mt-1.5 text-xs text-warning">
-                            No matching app installed yet — install one first, then connect.
+                            {w.noMatchingApp}
                           </p>
                         )}
                       </div>

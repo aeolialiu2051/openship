@@ -38,14 +38,15 @@ interface FeaturedApp {
   icon: LucideIcon;
 }
 
-// Enabled apps (mail / n8n / convex) lead; the rest render dimmed "coming soon"
-// (single source: AVAILABLE_APP_IDS in @repo/core).
+// Product-priority order for the /apps showcase. Availability still comes from
+// the single source of truth in @repo/core.
 const FEATURED_APPS: FeaturedApp[] = [
+  { id: "mail", name: "OpenShipMail", icon: Mail },
+  { id: "cli-proxy-api", name: "CLIProxyAPI", icon: Activity },
+  { id: "n8n", name: "n8n", icon: Workflow },
   { id: "supabase", name: "Supabase", icon: Database },
   { id: "convex", name: "Convex", icon: Database },
   { id: "mongodb", name: "MongoDB", icon: Database },
-  { id: "n8n", name: "n8n", icon: Workflow },
-  { id: "mail", name: "Openship Mail", icon: Mail },
   { id: "ghost", name: "Ghost", icon: FileText },
   { id: "uptime-kuma", name: "Uptime Kuma", icon: Activity },
   { id: "vaultwarden", name: "Vaultwarden", icon: KeyRound },
@@ -124,14 +125,8 @@ export default function AppsPage() {
                 {i > 0 && (
                   <span className="mx-1.5 h-0 w-8 border-t-2 border-dashed border-border/60" />
                 )}
-                <div
-                  className={`flex items-center justify-center rounded-2xl border bg-card ${
-                    i === 1
-                      ? "size-16 border-primary/30 ring-4 ring-primary/5"
-                      : "size-14 border-border/60"
-                  }`}
-                >
-                  <AppLogo appId={a.id} icon={a.icon} className={i === 1 ? "size-8" : "size-7"} />
+                <div className="flex size-14 items-center justify-center rounded-2xl border border-border/60 bg-card">
+                  <AppLogo appId={a.id} icon={a.icon} className="size-7" />
                 </div>
               </Fragment>
             ))}

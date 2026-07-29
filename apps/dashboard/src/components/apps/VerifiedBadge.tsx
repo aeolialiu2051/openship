@@ -1,6 +1,7 @@
 "use client";
 
 import { BadgeCheck } from "lucide-react";
+import { useI18n } from "@/components/i18n-provider";
 
 /**
  * Data-driven "Verified" trust mark (from `AppTemplate.verified`). Shown on
@@ -29,19 +30,20 @@ export function VerifiedBadge({
   /** Literal tailwind size class for the icon (must be a full class name). */
   iconClassName?: string;
 }) {
+  const { t } = useI18n();
+  const copy = t.dashboard.pages.apps.verifiedApp;
   return (
     <span className={`group/vb relative inline-flex items-center ${className}`}>
-      <BadgeCheck className={`${iconClassName} text-info`} aria-label="Verified app" />
+      <BadgeCheck className={`${iconClassName} text-info`} aria-label={copy.title} />
       <span
         role="tooltip"
         className="pointer-events-none invisible absolute left-1/2 top-full z-30 mt-2 w-60 -translate-x-1/2 translate-y-1 scale-95 rounded-xl border border-border/60 bg-popover/85 px-3 py-2.5 text-start shadow-xl shadow-black/20 backdrop-blur-xl transition-[transform,visibility] duration-150 group-hover/vb:visible group-hover/vb:translate-y-0 group-hover/vb:scale-100"
       >
         <span className="block text-[11px] normal-case leading-relaxed tracking-normal text-muted-foreground opacity-0 transition-opacity duration-200 group-hover/vb:opacity-100">
           <span className="mb-1 flex items-center gap-1.5 font-semibold text-foreground">
-            <BadgeCheck className="size-3.5 text-info" /> Verified app
+            <BadgeCheck className="size-3.5 text-info" /> {copy.title}
           </span>
-          Uses the project&apos;s official, open-source image pinned to a version, deployed through
-          a reviewed pipeline. The full definition is public and auditable.
+          {copy.description}
         </span>
       </span>
     </span>
