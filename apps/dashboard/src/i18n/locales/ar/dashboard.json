@@ -53,6 +53,7 @@
     "home": "الرئيسية",
     "new-project": "مشروع جديد",
     "projects": "المشاريع",
+    "apps": "التطبيقات",
     "deployments": "عمليات النشر",
     "backups": "النسخ الاحتياطية",
     "domains": "النطاقات",
@@ -82,7 +83,49 @@
   },
   "pages": {
     "apps": {
-      "moreApps": "‏+{count} المزيد"
+      "title": "التطبيقات",
+      "description": "خدمات مُدارة بنقرة واحدة — ثبّت وشغّل Convex وWordPress والبريد والمزيد.",
+      "createButton": "تثبيت تطبيق",
+      "loading": "جارٍ تحميل التطبيقات…",
+      "countOne": "تم تثبيت تطبيق واحد",
+      "countOther": "تم تثبيت {count} تطبيقات",
+      "emptyTitle": "ثبّت تطبيقك الأول",
+      "emptyDescription": "شغّل Convex وn8n وGhost والمزيد بنقرة واحدة واستضافة ذاتية كاملة. اختر تطبيقًا للبدء.",
+      "popular": "التطبيقات الشائعة",
+      "alsoDeploy": "يمكنك أيضًا نشر",
+      "browseAll": "تصفح جميع التطبيقات",
+      "moreApps": "‏+{count} المزيد",
+      "catalogTitle": "تثبيت تطبيق",
+      "catalogDescription": "خدمات مُدارة بنقرة واحدة. اختر تطبيقًا لتثبيته.",
+      "catalogSearchPlaceholder": "البحث في التطبيقات…",
+      "catalogNoResults": "لا توجد تطبيقات تطابق بحثك.",
+      "categories": {
+        "all": "الكل",
+        "backend": "الواجهة الخلفية",
+        "database": "قاعدة بيانات",
+        "cms": "إدارة المحتوى",
+        "analytics": "التحليلات",
+        "automation": "الأتمتة",
+        "mail": "البريد",
+        "other": "الأدوات"
+      },
+      "installing": "جارٍ التثبيت…",
+      "install": "تثبيت",
+      "cancel": "إلغاء",
+      "nameLabel": "الاسم",
+      "configTitle": "إعداد {app}",
+      "comingSoon": "قريبًا",
+      "featuredDescriptions": {
+        "supabase": "خلفية Postgres مع Studio",
+        "convex": "واجهة خلفية وقاعدة بيانات تفاعلية",
+        "mongodb": "قاعدة بيانات مستندات مع Mongo Express",
+        "n8n": "أتمتة سير العمل",
+        "mail": "خادم بريد وواجهة ويب مستضافان ذاتيًا",
+        "ghost": "النشر والنشرات البريدية",
+        "uptime-kuma": "مراقبة وقت التشغيل",
+        "vaultwarden": "مدير كلمات مرور مستضاف ذاتيًا",
+        "metabase": "ذكاء الأعمال ولوحات المعلومات"
+      }
     },
     "projects": {
       "title": "المشاريع",

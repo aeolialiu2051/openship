@@ -53,6 +53,7 @@
     "home": "Startseite",
     "new-project": "Neues Projekt",
     "projects": "Projekte",
+    "apps": "Apps",
     "deployments": "Deployments",
     "backups": "Backups",
     "domains": "Domains",
@@ -82,7 +83,49 @@
   },
   "pages": {
     "apps": {
-      "moreApps": "+{count} weitere"
+      "title": "Apps",
+      "description": "Verwaltete Dienste mit einem Klick – Convex, WordPress, Mail und mehr installieren und ausführen.",
+      "createButton": "App installieren",
+      "loading": "Apps werden geladen…",
+      "countOne": "{count} App installiert",
+      "countOther": "{count} Apps installiert",
+      "emptyTitle": "Installieren Sie Ihre erste App",
+      "emptyDescription": "Starten Sie Convex, n8n, Ghost und mehr mit einem Klick und vollständig selbst gehostet. Wählen Sie eine App aus.",
+      "popular": "Beliebte Apps",
+      "alsoDeploy": "Ebenfalls bereitstellbar",
+      "browseAll": "Alle Apps durchsuchen",
+      "moreApps": "+{count} weitere",
+      "catalogTitle": "App installieren",
+      "catalogDescription": "Verwaltete Dienste mit einem Klick. Wählen Sie eine App zur Installation aus.",
+      "catalogSearchPlaceholder": "Apps suchen…",
+      "catalogNoResults": "Keine Apps entsprechen Ihrer Suche.",
+      "categories": {
+        "all": "Alle",
+        "backend": "Backend",
+        "database": "Datenbank",
+        "cms": "CMS",
+        "analytics": "Analytik",
+        "automation": "Automatisierung",
+        "mail": "Mail",
+        "other": "Werkzeuge"
+      },
+      "installing": "Wird installiert…",
+      "install": "Installieren",
+      "cancel": "Abbrechen",
+      "nameLabel": "Name",
+      "configTitle": "{app} konfigurieren",
+      "comingSoon": "Demnächst",
+      "featuredDescriptions": {
+        "supabase": "Postgres-Backend + Studio",
+        "convex": "Reaktives Backend und Datenbank",
+        "mongodb": "Dokumentdatenbank + Mongo Express",
+        "n8n": "Workflow-Automatisierung",
+        "mail": "Selbst gehosteter Mailserver + Webmail",
+        "ghost": "Veröffentlichungen und Newsletter",
+        "uptime-kuma": "Verfügbarkeitsüberwachung",
+        "vaultwarden": "Selbst gehosteter Passwortmanager",
+        "metabase": "BI und Dashboards"
+      }
     },
     "projects": {
       "title": "Projekte",

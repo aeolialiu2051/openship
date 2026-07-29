@@ -117,7 +117,18 @@
       "cancel": "Cancel",
       "nameLabel": "Name",
       "configTitle": "Configure {app}",
-      "comingSoon": "Coming soon"
+      "comingSoon": "Coming soon",
+      "featuredDescriptions": {
+        "supabase": "Postgres backend + Studio",
+        "convex": "Reactive backend & database",
+        "mongodb": "Document database + Mongo Express",
+        "n8n": "Workflow automation",
+        "mail": "Self-hosted mail server + webmail",
+        "ghost": "Publishing & newsletters",
+        "uptime-kuma": "Uptime monitoring",
+        "vaultwarden": "Self-hosted password manager",
+        "metabase": "BI & dashboards"
+      }
     },
     "projects": {
       "title": "Projects",

@@ -34,7 +34,6 @@ import { useProjectsHome } from "@/hooks/useProjectsHome";
 interface FeaturedApp {
   id: string;
   name: string;
-  desc: string;
   /** Fallback icon if the brand logo can't load. */
   icon: LucideIcon;
 }
@@ -42,15 +41,15 @@ interface FeaturedApp {
 // Enabled apps (mail / n8n / convex) lead; the rest render dimmed "coming soon"
 // (single source: AVAILABLE_APP_IDS in @repo/core).
 const FEATURED_APPS: FeaturedApp[] = [
-  { id: "supabase", name: "Supabase", desc: "Postgres backend + Studio", icon: Database },
-  { id: "convex", name: "Convex", desc: "Reactive backend & database", icon: Database },
-  { id: "mongodb", name: "MongoDB", desc: "Document database + Mongo Express", icon: Database },
-  { id: "n8n", name: "n8n", desc: "Workflow automation", icon: Workflow },
-  { id: "mail", name: "Openship Mail", desc: "Self-hosted mail server + webmail", icon: Mail },
-  { id: "ghost", name: "Ghost", desc: "Publishing & newsletters", icon: FileText },
-  { id: "uptime-kuma", name: "Uptime Kuma", desc: "Uptime monitoring", icon: Activity },
-  { id: "vaultwarden", name: "Vaultwarden", desc: "Self-hosted password manager", icon: KeyRound },
-  { id: "metabase", name: "Metabase", desc: "BI & dashboards", icon: BarChart3 },
+  { id: "supabase", name: "Supabase", icon: Database },
+  { id: "convex", name: "Convex", icon: Database },
+  { id: "mongodb", name: "MongoDB", icon: Database },
+  { id: "n8n", name: "n8n", icon: Workflow },
+  { id: "mail", name: "Openship Mail", icon: Mail },
+  { id: "ghost", name: "Ghost", icon: FileText },
+  { id: "uptime-kuma", name: "Uptime Kuma", icon: Activity },
+  { id: "vaultwarden", name: "Vaultwarden", icon: KeyRound },
+  { id: "metabase", name: "Metabase", icon: BarChart3 },
 ];
 
 /** Installable this version? Drives the dimmed "coming soon" treatment. */
@@ -60,6 +59,7 @@ export default function AppsPage() {
   const { t } = useI18n();
   const router = useRouter();
   const ap = t.dashboard.pages.apps;
+  const featuredDescriptions = ap.featuredDescriptions as Record<string, string>;
   const { projects, isLoading, refresh } = useProjectsHome();
   const [updatesBehind, setUpdatesBehind] = useState<Set<string>>(new Set());
 
@@ -186,7 +186,9 @@ export default function AppsPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-foreground">{a.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{a.desc}</p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {featuredDescriptions[a.id]}
+                      </p>
                     </div>
                     {enabled ? (
                       <ArrowRight className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground" />
@@ -263,7 +265,9 @@ export default function AppsPage() {
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-[13px] font-medium text-foreground">{a.name}</p>
-                          <p className="truncate text-[11px] text-muted-foreground">{a.desc}</p>
+                          <p className="truncate text-[11px] text-muted-foreground">
+                            {featuredDescriptions[a.id]}
+                          </p>
                         </div>
                         <ArrowRight className="size-4 shrink-0 text-muted-foreground/40 transition-colors group-hover:text-foreground rtl:rotate-180" />
                       </Link>

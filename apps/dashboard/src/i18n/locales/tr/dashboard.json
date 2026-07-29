@@ -116,7 +116,18 @@
       "cancel": "İptal",
       "nameLabel": "Ad",
       "configTitle": "{app} yapılandır",
-      "comingSoon": "Yakında"
+      "comingSoon": "Yakında",
+      "featuredDescriptions": {
+        "supabase": "Postgres backend + Studio",
+        "convex": "Reaktif backend ve veritabanı",
+        "mongodb": "Belge veritabanı + Mongo Express",
+        "n8n": "İş akışı otomasyonu",
+        "mail": "Kendi barındırdığınız posta sunucusu + web posta",
+        "ghost": "Yayıncılık ve bültenler",
+        "uptime-kuma": "Çalışma süresi izleme",
+        "vaultwarden": "Kendi barındırdığınız parola yöneticisi",
+        "metabase": "İş zekâsı ve panolar"
+      }
     },
     "projects": {
       "title": "Projeler",

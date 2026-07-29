@@ -53,6 +53,7 @@
     "home": "Inicio",
     "new-project": "Nuevo proyecto",
     "projects": "Proyectos",
+    "apps": "Aplicaciones",
     "deployments": "Despliegues",
     "backups": "Copias de seguridad",
     "domains": "Dominios",
@@ -82,7 +83,49 @@
   },
   "pages": {
     "apps": {
-      "moreApps": "+{count} más"
+      "title": "Aplicaciones",
+      "description": "Servicios gestionados con un clic: instala y ejecuta Convex, WordPress, correo y mucho más.",
+      "createButton": "Instalar aplicación",
+      "loading": "Cargando aplicaciones…",
+      "countOne": "{count} aplicación instalada",
+      "countOther": "{count} aplicaciones instaladas",
+      "emptyTitle": "Instala tu primera aplicación",
+      "emptyDescription": "Inicia Convex, n8n, Ghost y mucho más con un clic y totalmente autoalojado. Elige una para empezar.",
+      "popular": "Aplicaciones populares",
+      "alsoDeploy": "También puedes desplegar",
+      "browseAll": "Ver todas las aplicaciones",
+      "moreApps": "+{count} más",
+      "catalogTitle": "Instalar una aplicación",
+      "catalogDescription": "Servicios gestionados con un clic. Elige una aplicación para instalarla.",
+      "catalogSearchPlaceholder": "Buscar aplicaciones…",
+      "catalogNoResults": "Ninguna aplicación coincide con tu búsqueda.",
+      "categories": {
+        "all": "Todas",
+        "backend": "Backend",
+        "database": "Base de datos",
+        "cms": "CMS",
+        "analytics": "Analítica",
+        "automation": "Automatización",
+        "mail": "Correo",
+        "other": "Herramientas"
+      },
+      "installing": "Instalando…",
+      "install": "Instalar",
+      "cancel": "Cancelar",
+      "nameLabel": "Nombre",
+      "configTitle": "Configurar {app}",
+      "comingSoon": "Próximamente",
+      "featuredDescriptions": {
+        "supabase": "Backend Postgres + Studio",
+        "convex": "Backend reactivo y base de datos",
+        "mongodb": "Base de datos documental + Mongo Express",
+        "n8n": "Automatización de flujos",
+        "mail": "Servidor de correo y webmail autoalojados",
+        "ghost": "Publicación y boletines",
+        "uptime-kuma": "Monitorización de disponibilidad",
+        "vaultwarden": "Gestor de contraseñas autoalojado",
+        "metabase": "BI y paneles"
+      }
     },
     "projects": {
       "title": "Proyectos",

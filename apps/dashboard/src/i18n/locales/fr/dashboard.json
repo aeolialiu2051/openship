@@ -171,7 +171,19 @@
       "install": "Installer",
       "cancel": "Annuler",
       "nameLabel": "Nom",
-      "configTitle": "Configurer {app}"
+      "configTitle": "Configurer {app}",
+      "comingSoon": "Bientôt disponible",
+      "featuredDescriptions": {
+        "supabase": "Backend Postgres + Studio",
+        "convex": "Backend réactif et base de données",
+        "mongodb": "Base de données documentaire + Mongo Express",
+        "n8n": "Automatisation des workflows",
+        "mail": "Serveur de messagerie et webmail auto-hébergés",
+        "ghost": "Publication et newsletters",
+        "uptime-kuma": "Surveillance de disponibilité",
+        "vaultwarden": "Gestionnaire de mots de passe auto-hébergé",
+        "metabase": "BI et tableaux de bord"
+      }
     }
   },
   "quickLinks": {

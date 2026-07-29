@@ -53,6 +53,7 @@
     "home": "ホーム",
     "new-project": "新規プロジェクト",
     "projects": "プロジェクト",
+    "apps": "アプリ",
     "deployments": "デプロイ",
     "backups": "バックアップ",
     "domains": "ドメイン",
@@ -82,7 +83,49 @@
   },
   "pages": {
     "apps": {
-      "moreApps": "他 {count} 件"
+      "title": "アプリ",
+      "description": "Convex、WordPress、メールなどのマネージドサービスをワンクリックでインストールして実行できます。",
+      "createButton": "アプリをインストール",
+      "loading": "アプリを読み込み中…",
+      "countOne": "{count} 件のアプリをインストール済み",
+      "countOther": "{count} 件のアプリをインストール済み",
+      "emptyTitle": "最初のアプリをインストール",
+      "emptyDescription": "Convex、n8n、Ghost などをワンクリックで完全にセルフホストできます。アプリを選んで始めましょう。",
+      "popular": "人気のアプリ",
+      "alsoDeploy": "こちらもデプロイできます",
+      "browseAll": "すべてのアプリを見る",
+      "moreApps": "他 {count} 件",
+      "catalogTitle": "アプリをインストール",
+      "catalogDescription": "ワンクリックのマネージドサービスです。インストールするアプリを選択してください。",
+      "catalogSearchPlaceholder": "アプリを検索…",
+      "catalogNoResults": "検索条件に一致するアプリはありません。",
+      "categories": {
+        "all": "すべて",
+        "backend": "バックエンド",
+        "database": "データベース",
+        "cms": "CMS",
+        "analytics": "分析",
+        "automation": "自動化",
+        "mail": "メール",
+        "other": "ツール"
+      },
+      "installing": "インストール中…",
+      "install": "インストール",
+      "cancel": "キャンセル",
+      "nameLabel": "名前",
+      "configTitle": "{app} を設定",
+      "comingSoon": "近日公開",
+      "featuredDescriptions": {
+        "supabase": "Postgres バックエンド + Studio",
+        "convex": "リアクティブなバックエンドとデータベース",
+        "mongodb": "ドキュメントデータベース + Mongo Express",
+        "n8n": "ワークフロー自動化",
+        "mail": "セルフホスト型メールサーバー + Webメール",
+        "ghost": "出版とニュースレター",
+        "uptime-kuma": "稼働監視",
+        "vaultwarden": "セルフホスト型パスワード管理",
+        "metabase": "BI とダッシュボード"
+      }
     },
     "projects": {
       "title": "プロジェクト",
