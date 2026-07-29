@@ -11,10 +11,36 @@
  * NOT re-implement the folder/mkdir/atomic-write logic — call these helpers.
  */
 
-import type { CommandExecutor } from "@repo/adapters";
+import { detectPrivilege, elevatedExecutor, type CommandExecutor } from "@repo/adapters";
 
 /** The one folder. Nothing else hard-codes this path. */
 export const OPENSHIP_DIR = "/root/.openship";
+
+/**
+ * Resolve an executor that can access Openship's root-owned server store.
+ *
+ * Most cloud images disable root SSH and expose an `ubuntu`/`debian` user with
+ * passwordless sudo. The store used to run against that login executor
+ * directly, so the first mail-state write failed before setup step 1. Cache
+ * the privilege probe per SSH executor because state is persisted at every
+ * setup boundary.
+ */
+const rootExecutors = new WeakMap<CommandExecutor, Promise<CommandExecutor>>();
+
+export function resolveRootExecutor(exec: CommandExecutor): Promise<CommandExecutor> {
+  const cached = rootExecutors.get(exec);
+  if (cached) return cached;
+
+  const resolved = detectPrivilege(exec).then((privilege) => {
+    if (privilege.isRoot) return exec;
+    if (privilege.canSudo) return elevatedExecutor(exec);
+    throw new Error(
+      "Openship server state requires root or passwordless sudo (sudo -n). Update the SSH user permissions and reconnect the server.",
+    );
+  });
+  rootExecutors.set(exec, resolved);
+  return resolved;
+}
 
 /**
  * Single-quote wrap for safe interpolation into a remote LOGIN SHELL. The file
@@ -32,7 +58,8 @@ function sq(v: string): string {
  * place the folder is created — callers never `mkdir` it themselves.
  */
 export async function ensureOpenshipDir(exec: CommandExecutor): Promise<void> {
-  await exec.exec(`mkdir -p ${sq(OPENSHIP_DIR)} && chmod 0700 ${sq(OPENSHIP_DIR)}`);
+  const rootExec = await resolveRootExecutor(exec);
+  await rootExec.exec(`mkdir -p ${sq(OPENSHIP_DIR)} && chmod 0700 ${sq(OPENSHIP_DIR)}`);
 }
 
 /**
@@ -42,7 +69,8 @@ export async function ensureOpenshipDir(exec: CommandExecutor): Promise<void> {
 export async function readOpenshipFile(exec: CommandExecutor, name: string): Promise<string> {
   const path = `${OPENSHIP_DIR}/${name}`;
   try {
-    return (await exec.exec(`cat ${sq(path)} 2>/dev/null || echo ""`)).trim();
+    const rootExec = await resolveRootExecutor(exec);
+    return (await rootExec.exec(`cat ${sq(path)} 2>/dev/null || echo ""`)).trim();
   } catch {
     return "";
   }
@@ -59,22 +87,25 @@ export async function writeOpenshipFile(
 ): Promise<void> {
   const path = `${OPENSHIP_DIR}/${name}`;
   const tmp = `${path}.tmp`;
-  await ensureOpenshipDir(exec);
-  await exec.writeFile(tmp, content);
-  await exec.exec(`mv -f ${sq(tmp)} ${sq(path)} && chmod 0600 ${sq(path)}`);
+  const rootExec = await resolveRootExecutor(exec);
+  await rootExec.exec(`mkdir -p ${sq(OPENSHIP_DIR)} && chmod 0700 ${sq(OPENSHIP_DIR)}`);
+  await rootExec.writeFile(tmp, content);
+  await rootExec.exec(`mv -f ${sq(tmp)} ${sq(path)} && chmod 0600 ${sq(path)}`);
 }
 
 /** Remove a file (and any stale temp) from `.openship`. Idempotent. */
 export async function removeOpenshipFile(exec: CommandExecutor, name: string): Promise<void> {
   const path = `${OPENSHIP_DIR}/${name}`;
-  await exec.exec(`rm -f ${sq(path)} ${sq(`${path}.tmp`)}`);
+  const rootExec = await resolveRootExecutor(exec);
+  await rootExec.exec(`rm -f ${sq(path)} ${sq(`${path}.tmp`)}`);
 }
 
 /** Cheap existence check (no read) — `true` iff `.openship/<name>` is a file. */
 export async function openshipFileExists(exec: CommandExecutor, name: string): Promise<boolean> {
   const path = `${OPENSHIP_DIR}/${name}`;
   try {
-    return (await exec.exec(`test -f ${sq(path)} && echo yes || echo no`)).trim() === "yes";
+    const rootExec = await resolveRootExecutor(exec);
+    return (await rootExec.exec(`test -f ${sq(path)} && echo yes || echo no`)).trim() === "yes";
   } catch {
     return false;
   }

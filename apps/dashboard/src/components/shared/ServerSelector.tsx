@@ -238,7 +238,7 @@ export default function ServerSelector({
               <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                 <Server className="size-4 text-muted-foreground" />
               </div>
-              <span className="text-sm text-muted-foreground">{w.selectServer}</span>
+              <span className="flex-1 text-sm text-muted-foreground">{w.selectServer}</span>
             </>
           )}
           <ChevronDown

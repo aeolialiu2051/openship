@@ -59,13 +59,7 @@ function MailContentSkeleton({ label }: { label: string }) {
   );
 }
 
-function MailServerConnectionNotice({
-  server,
-  label,
-}: {
-  server: ServerOption;
-  label: string;
-}) {
+function MailServerConnectionNotice({ server, label }: { server: ServerOption; label: string }) {
   return (
     <div
       role="status"
@@ -106,7 +100,12 @@ export default function EmailsPage() {
   // Optional outbound relay chosen at install time (SES, all domains). Fired
   // once via the relay API on the `complete` SSE event. A ref keeps the latest
   // value available inside the long-lived install callback without stale closure.
-  const [setupRelay, setSetupRelay] = useState<SetupRelay>({ enabled: false, region: "us-east-1", username: "", password: "" });
+  const [setupRelay, setSetupRelay] = useState<SetupRelay>({
+    enabled: false,
+    region: "us-east-1",
+    username: "",
+    password: "",
+  });
   const setupRelayRef = useRef(setupRelay);
   setupRelayRef.current = setupRelay;
   const [logs, setLogs] = useState<Array<{ stepId: number; level: string; message: string }>>([]);
@@ -145,10 +144,9 @@ export default function EmailsPage() {
   // Reflect the open server in the URL. null clears it (list / add flow).
   const setServerInUrl = useCallback(
     (serverId: string | null) => {
-      router.replace(
-        serverId ? `?serverId=${encodeURIComponent(serverId)}` : pathname,
-        { scroll: false },
-      );
+      router.replace(serverId ? `?serverId=${encodeURIComponent(serverId)}` : pathname, {
+        scroll: false,
+      });
     },
     [router, pathname],
   );
@@ -172,134 +170,116 @@ export default function EmailsPage() {
     }
   }, []);
 
-  const registryServerToOption = useCallback((server: MailServerListItem): ServerOption => ({
-    id: server.id,
-    name: server.name || server.host,
-    host: server.host,
-    user: server.user || "root",
-    port: server.port ?? 22,
-    // The registry endpoint intentionally returns only the fields needed by
-    // the mail surface. Consumers here only read the normalized fields above.
-    raw: {
+  const registryServerToOption = useCallback(
+    (server: MailServerListItem): ServerOption => ({
       id: server.id,
-      name: server.name,
-      sshHost: server.host,
-      sshUser: server.user,
-      sshPort: server.port,
-    } as ServerOption["raw"],
-  }), []);
+      name: server.name || server.host,
+      host: server.host,
+      user: server.user || "root",
+      port: server.port ?? 22,
+      // The registry endpoint intentionally returns only the fields needed by
+      // the mail surface. Consumers here only read the normalized fields above.
+      raw: {
+        id: server.id,
+        name: server.name,
+        sshHost: server.host,
+        sshUser: server.user,
+        sshPort: server.port,
+      } as ServerOption["raw"],
+    }),
+    [],
+  );
 
   // Status now lives on the TARGET server (one JSON file per VPS), so we
   // need to know which server to ask about. The URL hint from the Mail tab
   // gives us that; otherwise we wait for the user to pick from the
   // in-form ServerSelector (which auto-picks if there's exactly one
   // mail-capable server).
-  const fetchStatusForServer = useCallback(
-    async (serverId: string | null) => {
-      const requestId = ++statusRequestIdRef.current;
-      try {
-        setStatusLoading(true);
-        setStatusSyncFailed(false);
-        if (!serverId) {
-          setStatus(null);
-          return;
-        }
-        const s = await mailApi.getStatus(serverId);
-        if (statusRequestIdRef.current !== requestId) return;
-        setStatus(s);
-        if (s.domain) setDomain(s.domain);
-        if (s.dnsRecords) setDnsRecords(s.dnsRecords as unknown as DnsRecords);
-        if (s.active) setRunning(true);
-        if (s.resumeStep) setResumeStep(s.resumeStep);
-        if (s.errorMessage) setError(s.errorMessage);
-
-        // Rehydrate the live-log panel from the persisted buffer. The
-        // backend caps it at MAX_PERSISTED_LOGS; we just render whatever
-        // came back. If a live SSE stream attaches afterward (resume),
-        // its new lines append to this baseline.
-        if (s.logs?.length) {
-          setLogs(
-            s.logs.map((l) => ({
-              stepId: l.stepId,
-              level: l.level,
-              message: l.message,
-            })),
-          );
-        }
-
-        // Rehydrate the DNS hold banner from on-server state. The live
-        // `dns_pending` SSE event only fires once - on refresh we lose
-        // that in-memory flag, so we have to derive "should the banner
-        // show?" from the persisted state alone.
-        //
-        // Show the banner only while the user hasn't acknowledged yet:
-        //   - We have records (step 11 ran successfully)
-        //   - The install isn't currently progressing
-        //   - The install isn't fully completed
-        //   - The user hasn't already clicked "I've set the records"
-        //     (`!dnsAcknowledged`) - `!undefined` is true (older state
-        //     files without the field still default to "not ack'd"),
-        //     `!false` is true, `!true` is false. Exactly what we want.
-        //
-        // Post-install, the records live in the Mail tab as a normal
-        // reference card - they're not gone, just not blocking.
-        const allComplete =
-          (s.steps?.length ?? 0) > 0 &&
-          s.steps.every((step) => step.status === "completed");
-        if (
-          s.dnsRecords &&
-          !s.active &&
-          !allComplete &&
-          !s.dnsAcknowledged
-        ) {
-          setDnsPendingStep(s.resumeStep ?? 12);
-        }
-
-        // Rehydrate the PTR gate from on-server state: shown when DNS is
-        // ack'd, PTR is NOT yet ack'd, the install isn't done, and we have
-        // at least an IPv4 from step 11's IP detection. Same shape as
-        // dns_pending rehydration - derive entirely from the persisted
-        // state so refresh works.
-        if (
-          s.dnsRecords &&
-          !s.active &&
-          !allComplete &&
-          s.dnsAcknowledged &&
-          !s.ptrAcknowledged
-        ) {
-          const dns = s.dnsRecords as Record<
-            string,
-            { type?: unknown; value?: unknown }
-          >;
-          const a = dns.a;
-          const aaaa = dns.aaaa;
-          const ipv4 =
-            a && typeof a.value === "string" && a.type === "A" ? a.value : null;
-          const ipv6 =
-            aaaa && typeof aaaa.value === "string" && aaaa.type === "AAAA"
-              ? aaaa.value
-              : null;
-          if (ipv4 && s.domain) {
-            setPtrPending({
-              ipv4,
-              ipv6,
-              target: `mail.${s.domain}`,
-              resumeStep: s.resumeStep ?? 12,
-            });
-          }
-        }
-      } catch {
-        if (statusRequestIdRef.current !== requestId) return;
+  const fetchStatusForServer = useCallback(async (serverId: string | null) => {
+    const requestId = ++statusRequestIdRef.current;
+    try {
+      setStatusLoading(true);
+      setStatusSyncFailed(false);
+      if (!serverId) {
         setStatus(null);
-        setStatusSyncFailed(true);
-      } finally {
-        if (statusRequestIdRef.current === requestId) {
-          setStatusLoading(false);
+        return;
+      }
+      const s = await mailApi.getStatus(serverId);
+      if (statusRequestIdRef.current !== requestId) return;
+      setStatus(s);
+      if (s.domain) setDomain(s.domain);
+      if (s.dnsRecords) setDnsRecords(s.dnsRecords as unknown as DnsRecords);
+      if (s.active) setRunning(true);
+      if (s.resumeStep) setResumeStep(s.resumeStep);
+      if (s.errorMessage) setError(s.errorMessage);
+
+      // Rehydrate the live-log panel from the persisted buffer. The
+      // backend caps it at MAX_PERSISTED_LOGS; we just render whatever
+      // came back. If a live SSE stream attaches afterward (resume),
+      // its new lines append to this baseline.
+      if (s.logs?.length) {
+        setLogs(
+          s.logs.map((l) => ({
+            stepId: l.stepId,
+            level: l.level,
+            message: l.message,
+          })),
+        );
+      }
+
+      // Rehydrate the DNS hold banner from on-server state. The live
+      // `dns_pending` SSE event only fires once - on refresh we lose
+      // that in-memory flag, so we have to derive "should the banner
+      // show?" from the persisted state alone.
+      //
+      // Show the banner only while the user hasn't acknowledged yet:
+      //   - We have records (step 11 ran successfully)
+      //   - The install isn't currently progressing
+      //   - The install isn't fully completed
+      //   - The user hasn't already clicked "I've set the records"
+      //     (`!dnsAcknowledged`) - `!undefined` is true (older state
+      //     files without the field still default to "not ack'd"),
+      //     `!false` is true, `!true` is false. Exactly what we want.
+      //
+      // Post-install, the records live in the Mail tab as a normal
+      // reference card - they're not gone, just not blocking.
+      const allComplete =
+        (s.steps?.length ?? 0) > 0 && s.steps.every((step) => step.status === "completed");
+      if (s.dnsRecords && !s.active && !allComplete && !s.dnsAcknowledged) {
+        setDnsPendingStep(s.resumeStep ?? 12);
+      }
+
+      // Rehydrate the PTR gate from on-server state: shown when DNS is
+      // ack'd, PTR is NOT yet ack'd, the install isn't done, and we have
+      // at least an IPv4 from step 11's IP detection. Same shape as
+      // dns_pending rehydration - derive entirely from the persisted
+      // state so refresh works.
+      if (s.dnsRecords && !s.active && !allComplete && s.dnsAcknowledged && !s.ptrAcknowledged) {
+        const dns = s.dnsRecords as Record<string, { type?: unknown; value?: unknown }>;
+        const a = dns.a;
+        const aaaa = dns.aaaa;
+        const ipv4 = a && typeof a.value === "string" && a.type === "A" ? a.value : null;
+        const ipv6 =
+          aaaa && typeof aaaa.value === "string" && aaaa.type === "AAAA" ? aaaa.value : null;
+        if (ipv4 && s.domain) {
+          setPtrPending({
+            ipv4,
+            ipv6,
+            target: `mail.${s.domain}`,
+            resumeStep: s.resumeStep ?? 12,
+          });
         }
       }
-    },
-    [],
-  );
+    } catch {
+      if (statusRequestIdRef.current !== requestId) return;
+      setStatus(null);
+      setStatusSyncFailed(true);
+    } finally {
+      if (statusRequestIdRef.current === requestId) {
+        setStatusLoading(false);
+      }
+    }
+  }, []);
 
   // Registry helpers ────────────────────────────────────────────────────────
   const refreshMailServers = useCallback(async (): Promise<MailServerListItem[]> => {
@@ -597,8 +577,20 @@ export default function EmailsPage() {
                         username: r.username.trim(),
                         password: r.password,
                       })
-                      .then(() => showToast(t.emailsAdmin.sending.saved, "success", t.emailsAdmin.sending.title))
-                      .catch(() => showToast(t.emailsAdmin.sending.saveFailed, "error", t.emailsAdmin.sending.title))
+                      .then(() =>
+                        showToast(
+                          t.emailsAdmin.sending.saved,
+                          "success",
+                          t.emailsAdmin.sending.title,
+                        ),
+                      )
+                      .catch(() =>
+                        showToast(
+                          t.emailsAdmin.sending.saveFailed,
+                          "error",
+                          t.emailsAdmin.sending.title,
+                        ),
+                      )
                       .finally(finalize);
                   } else {
                     // The install just registered/marked this server — refresh
@@ -626,7 +618,16 @@ export default function EmailsPage() {
         setRunning(false);
       }
     },
-    [domain, adminPassword, selectedServer, fetchStatusForServer, refreshMailServers, setServerInUrl, showToast, t],
+    [
+      domain,
+      adminPassword,
+      selectedServer,
+      fetchStatusForServer,
+      refreshMailServers,
+      setServerInUrl,
+      showToast,
+      t,
+    ],
   );
 
   const handleCancel = useCallback(async () => {
@@ -732,10 +733,8 @@ export default function EmailsPage() {
 
       const aRec = dnsRecords?.a;
       const aaaaRec = dnsRecords?.aaaa;
-      const ipv4 =
-        aRec && typeof aRec.value === "string" ? aRec.value : null;
-      const ipv6 =
-        aaaaRec && typeof aaaaRec.value === "string" ? aaaaRec.value : null;
+      const ipv4 = aRec && typeof aRec.value === "string" ? aRec.value : null;
+      const ipv6 = aaaaRec && typeof aaaaRec.value === "string" ? aaaaRec.value : null;
 
       if (ipv4) {
         // Show PTR banner instantly - no SSE wait.
@@ -794,10 +793,7 @@ export default function EmailsPage() {
             const remaining = prev.filter((c) => c.port !== conflict.port);
             return remaining;
           });
-          setLogs((prev) => [
-            ...prev,
-            { stepId: 3, level: "info", message: result.message },
-          ]);
+          setLogs((prev) => [...prev, { stepId: 3, level: "info", message: result.message }]);
         } else {
           setError(result.message);
         }
@@ -811,11 +807,8 @@ export default function EmailsPage() {
   );
 
   // A just-finished install (SSE reported every step complete).
-  const isCompleted =
-    status?.steps?.every((s) => s.status === "completed") || !!completionData;
-  const hasStarted = status?.steps?.some(
-    (s) => s.status === "completed" || s.status === "failed",
-  );
+  const isCompleted = status?.steps?.every((s) => s.status === "completed") || !!completionData;
+  const hasStarted = status?.steps?.some((s) => s.status === "completed" || s.status === "failed");
 
   // ── Registry-driven view control ──
   // The `mail_servers` table — not getStatus step-completion — is the
@@ -823,7 +816,7 @@ export default function EmailsPage() {
   // adopted server (whose on-disk step ids may drift) from bouncing back to
   // the setup wizard on refresh.
   const selectedMailRow = selectedServer
-    ? mailServers.find((m) => m.id === selectedServer.id) ?? null
+    ? (mailServers.find((m) => m.id === selectedServer.id) ?? null)
     : null;
   const registryCompleted = !!selectedMailRow?.completed;
   const gatesActive = !!dnsPendingStep || !!ptrPending;
@@ -851,6 +844,7 @@ export default function EmailsPage() {
     (!statusLoading || !selectedMailRow) &&
     !statusUnavailable &&
     !running &&
+    !error &&
     !hasStarted &&
     !gatesActive &&
     !completionData;
@@ -860,7 +854,7 @@ export default function EmailsPage() {
     !showAdmin &&
     !showList &&
     !showSetupForm &&
-    (running || hasStarted || gatesActive || !!completionData);
+    (running || !!error || hasStarted || gatesActive || !!completionData);
 
   // "← Mail servers" is only meaningful when there's a list to return to.
   const canGoBack = mailServers.length > 1 && (!!selectedServer || addingNew);
@@ -880,7 +874,10 @@ export default function EmailsPage() {
     return (
       <PageContainer>
         <div className="mb-6">
-          <h1 className="text-2xl font-medium text-foreground/80" style={{ letterSpacing: "-0.2px" }}>
+          <h1
+            className="text-2xl font-medium text-foreground/80"
+            style={{ letterSpacing: "-0.2px" }}
+          >
             {t.emails.page.title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground/70">{t.emails.page.subtitle}</p>
@@ -892,190 +889,185 @@ export default function EmailsPage() {
 
   return (
     <PageContainer>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            {canGoBack && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="flex size-9 items-center justify-center rounded-xl border border-border/60 bg-card text-muted-foreground transition-colors hover:text-foreground"
-                title={t.emails.page.backToServers}
-              >
-                <ArrowLeft className="size-4 rtl:rotate-180" />
-              </button>
-            )}
-            <div>
-              <h1
-                className="text-2xl font-medium text-foreground/80"
-                style={{ letterSpacing: "-0.2px" }}
-              >
-                {t.emails.page.title}
-              </h1>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                {t.emails.page.subtitle}
-              </p>
-            </div>
-          </div>
-
-          {/* Add-server action while viewing a server (add a 2nd, etc.).
-              The list view has its own Add button; the setup/progress views
-              are already the add flow. */}
-          {showAdmin && (
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          {canGoBack && (
             <button
               type="button"
-              onClick={handleAddNew}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-              title={t.emails.page.addServer}
+              onClick={handleBack}
+              className="flex size-9 items-center justify-center rounded-xl border border-border/60 bg-card text-muted-foreground transition-colors hover:text-foreground"
+              title={t.emails.page.backToServers}
             >
-              <Plus className="size-4" />
-              {t.emails.page.addServer}
+              <ArrowLeft className="size-4 rtl:rotate-180" />
             </button>
           )}
+          <div>
+            <h1
+              className="text-2xl font-medium text-foreground/80"
+              style={{ letterSpacing: "-0.2px" }}
+            >
+              {t.emails.page.title}
+            </h1>
+            <p className="text-sm text-muted-foreground/70 mt-1">{t.emails.page.subtitle}</p>
+          </div>
         </div>
 
-        {/* ── Registry list - several mail servers, pick one or add ── */}
-        {showList && (
-          <MailServerList
-            servers={mailServers}
-            onOpen={openMailServer}
-            onAddNew={handleAddNew}
-            onRemove={handleRemoveFromList}
-          />
+        {/* Add-server action while viewing a server (add a 2nd, etc.).
+              The list view has its own Add button; the setup/progress views
+              are already the add flow. */}
+        {showAdmin && (
+          <button
+            type="button"
+            onClick={handleAddNew}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            title={t.emails.page.addServer}
+          >
+            <Plus className="size-4" />
+            {t.emails.page.addServer}
+          </button>
         )}
+      </div>
 
-        {statusLoading && selectedServer && !status && selectedMailRow && (
-          <MailServerConnectionNotice
-            server={selectedServer}
-            label={t.emails.page.syncingStatus}
-          />
-        )}
+      {/* ── Registry list - several mail servers, pick one or add ── */}
+      {showList && (
+        <MailServerList
+          servers={mailServers}
+          onOpen={openMailServer}
+          onAddNew={handleAddNew}
+          onRemove={handleRemoveFromList}
+        />
+      )}
 
-        {statusUnavailable && selectedServer && (
-          <div className="flex flex-col gap-4 rounded-2xl border border-warning/25 bg-warning-bg p-5 sm:flex-row sm:items-center">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
-              <AlertTriangle className="size-5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h2 className="text-sm font-semibold text-foreground">
-                {t.emails.page.statusUnavailableTitle}
-              </h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                {status?.reachable === false
-                  ? t.emails.page.serverUnreachable
-                  : t.emails.page.statusUnavailableBody}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => void fetchStatusForServer(selectedServer.id)}
-              disabled={statusLoading}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-border/60 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
-            >
-              <RefreshCw className={`size-3.5 ${statusLoading ? "animate-spin" : ""}`} />
-              {t.emails.page.retryStatus}
-            </button>
+      {statusLoading && selectedServer && !status && selectedMailRow && (
+        <MailServerConnectionNotice server={selectedServer} label={t.emails.page.syncingStatus} />
+      )}
+
+      {statusUnavailable && selectedServer && (
+        <div className="flex flex-col gap-4 rounded-2xl border border-warning/25 bg-warning-bg p-5 sm:flex-row sm:items-center">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/10 text-warning">
+            <AlertTriangle className="size-5" />
           </div>
-        )}
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-semibold text-foreground">
+              {t.emails.page.statusUnavailableTitle}
+            </h2>
+            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+              {status?.reachable === false
+                ? t.emails.page.serverUnreachable
+                : t.emails.page.statusUnavailableBody}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => void fetchStatusForServer(selectedServer.id)}
+            disabled={statusLoading}
+            className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-xl border border-border/60 bg-card px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+          >
+            <RefreshCw className={`size-3.5 ${statusLoading ? "animate-spin" : ""}`} />
+            {t.emails.page.retryStatus}
+          </button>
+        </div>
+      )}
 
-        {/* ── Provision / adopt entry - server selector + setup form ── */}
-        {showSetupForm && (
-          <MailSetupForm
-            domain={domain}
-            adminPassword={adminPassword}
-            running={running}
-            serverConnecting={statusLoading}
-            serverConnectingLabel={t.emails.page.syncingStatus}
-            selectedServerId={selectedServer?.id ?? null}
-            relay={setupRelay}
-            onRelayChange={setSetupRelay}
-            onDomainChange={setDomain}
-            onPasswordChange={setAdminPassword}
-            onServerSelect={handleServerSelect}
-            onStart={() => handleStart()}
-            onAdopted={async (serverId) => {
-              // Re-adopted an existing mail server — register it in the
-              // list, then open it (registry `completed` drives the admin).
-              await refreshMailServers();
-              await openMailServer(serverId);
-            }}
-          />
-        )}
+      {/* ── Provision / adopt entry - server selector + setup form ── */}
+      {showSetupForm && (
+        <MailSetupForm
+          domain={domain}
+          adminPassword={adminPassword}
+          running={running}
+          serverConnecting={statusLoading}
+          serverConnectingLabel={t.emails.page.syncingStatus}
+          selectedServerId={selectedServer?.id ?? null}
+          relay={setupRelay}
+          onRelayChange={setSetupRelay}
+          onDomainChange={setDomain}
+          onPasswordChange={setAdminPassword}
+          onServerSelect={handleServerSelect}
+          onStart={() => handleStart()}
+          onAdopted={async (serverId) => {
+            // Re-adopted an existing mail server — register it in the
+            // list, then open it (registry `completed` drives the admin).
+            await refreshMailServers();
+            await openMailServer(serverId);
+          }}
+        />
+      )}
 
-        {/* ── DNS hold gate - dominates the page when active so the user
+      {/* ── DNS hold gate - dominates the page when active so the user
               can't miss it. Records are surfaced inline with copy buttons
               + an auto-configure escape hatch into the provider modal. ── */}
-        {dnsPendingStep && dnsRecords && selectedServer?.id && domain && (
-          <DnsHoldBanner
-            records={dnsRecords}
-            domain={domain}
-            resumeStep={dnsPendingStep}
-            acknowledging={acknowledgingDns}
-            onAcknowledge={handleAcknowledgeDns}
-          />
-        )}
+      {dnsPendingStep && dnsRecords && selectedServer?.id && domain && (
+        <DnsHoldBanner
+          records={dnsRecords}
+          domain={domain}
+          resumeStep={dnsPendingStep}
+          acknowledging={acknowledgingDns}
+          onAcknowledge={handleAcknowledgeDns}
+        />
+      )}
 
-        {/* ── PTR gate - appears AFTER the DNS banner is dismissed.
+      {/* ── PTR gate - appears AFTER the DNS banner is dismissed.
               Different colour (sky vs amber) so the user can see at a
               glance that this is a different step (VPS provider, not DNS
               provider). Mutually exclusive with DnsHoldBanner: dns_pending
               must clear first before ptr_pending can fire. ── */}
-        {!dnsPendingStep && ptrPending && selectedServer?.id && (
-          <PtrHoldBanner
-            ipv4={ptrPending.ipv4}
-            ipv6={ptrPending.ipv6}
-            target={ptrPending.target}
-            resumeStep={ptrPending.resumeStep}
-            acknowledging={acknowledgingPtr}
-            onAcknowledge={handleAcknowledgePtr}
-          />
-        )}
+      {!dnsPendingStep && ptrPending && selectedServer?.id && (
+        <PtrHoldBanner
+          ipv4={ptrPending.ipv4}
+          ipv6={ptrPending.ipv6}
+          target={ptrPending.target}
+          resumeStep={ptrPending.resumeStep}
+          acknowledging={acknowledgingPtr}
+          onAcknowledge={handleAcknowledgePtr}
+        />
+      )}
 
-        {/* ── Fully completed → flip to the admin panel ──
+      {/* ── Fully completed → flip to the admin panel ──
               Once provisioning is green, /emails becomes the mail admin:
               Overview (credentials + health + DNS), Domains, Mailboxes -
               talking to vmail.* on the mail VPS over SSH+psql. The install
               logs / step list are install-time concerns; this is the day-2
               surface. */}
-        {showAdmin && status && selectedServer?.id && (
-          <MailAdminPanel
-            status={status}
-            serverId={selectedServer.id}
-            onRefresh={() => fetchStatusForServer(selectedServer.id)}
-            onForgotten={reconcileAfterForget}
-          />
-        )}
+      {showAdmin && status && selectedServer?.id && (
+        <MailAdminPanel
+          status={status}
+          serverId={selectedServer.id}
+          onRefresh={() => fetchStatusForServer(selectedServer.id)}
+          onForgotten={reconcileAfterForget}
+        />
+      )}
 
-        {/* ── Setup in progress (or partially failed) ── */}
-        {showProgress && (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
-            <MailProgress
-              logs={logs}
-              running={running}
-              error={error}
-              resumeStep={resumeStep}
-              canReset={!!selectedServer?.id}
-              onCancel={handleCancel}
-              onResume={handleStart}
-              onReset={handleReset}
-            />
-            <MailSidebar
-              domain={domain}
-              status={status}
-              steps={status?.steps ?? []}
-              dnsRecords={dnsRecords}
-              completionData={completionData}
-              portConflicts={portConflicts}
-              resolving={resolving}
-              running={running}
-              isCompleted={isCompleted}
-              resumeStep={resumeStep}
-              dnsBannerActive={!!dnsPendingStep}
-              onResolveConflict={handleResolveConflict}
-              onResume={handleStart}
-            />
-          </div>
-        )}
+      {/* ── Setup in progress (or partially failed) ── */}
+      {showProgress && (
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
+          <MailProgress
+            logs={logs}
+            running={running}
+            error={error}
+            resumeStep={resumeStep}
+            canReset={!!selectedServer?.id}
+            onCancel={handleCancel}
+            onResume={handleStart}
+            onReset={handleReset}
+          />
+          <MailSidebar
+            domain={domain}
+            status={status}
+            steps={status?.steps ?? []}
+            dnsRecords={dnsRecords}
+            completionData={completionData}
+            portConflicts={portConflicts}
+            resolving={resolving}
+            running={running}
+            isCompleted={isCompleted}
+            resumeStep={resumeStep}
+            dnsBannerActive={!!dnsPendingStep}
+            onResolveConflict={handleResolveConflict}
+            onResume={handleStart}
+          />
+        </div>
+      )}
     </PageContainer>
   );
 }

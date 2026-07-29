@@ -379,6 +379,10 @@ function AllStepsCard({
         className="divide-y divide-border/30 max-h-[60vh] overflow-y-auto"
       >
         {steps.map((s) => {
+          const stepCopy =
+            t.emails.sidebar.steps.items[
+              s.key as keyof typeof t.emails.sidebar.steps.items
+            ];
           const isActive = s.id === activeId;
           const isFailed = s.status === "failed";
           const isCurrent = s.status === "running";
@@ -421,7 +425,7 @@ function AllStepsCard({
                             : "text-muted-foreground/70"
                     }`}
                   >
-                    {s.label}
+                    {stepCopy?.label ?? s.label}
                   </span>
                   {s.warning && (
                     <AlertTriangle className="size-3 text-warning shrink-0" />
@@ -436,6 +440,11 @@ function AllStepsCard({
                     }`}
                   >
                     {s.message}
+                  </p>
+                )}
+                {!isCurrent && !isFailed && stepCopy?.description && (
+                  <p className="text-xs mt-0.5 truncate text-muted-foreground/60">
+                    {stepCopy.description}
                   </p>
                 )}
               </div>

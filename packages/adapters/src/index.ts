@@ -202,6 +202,7 @@ export type {
   SystemServiceManager,
 } from "./system/environment";
 export { resolveEnvironment, detectPrivilege } from "./system/environment";
+export { elevatedExecutor, elevateCommand } from "./system/elevated-executor";
 export { systemCatalog } from "./system/catalog";
 // Native-module versioning + migration framework (verify → reconcile).
 export {

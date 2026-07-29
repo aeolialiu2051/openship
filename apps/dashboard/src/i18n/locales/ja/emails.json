@@ -97,6 +97,8 @@
     "subtitle": "このサーバーに完全なセルフホスト型メールスタックをデプロイ",
     "domainLabel": "ドメイン",
     "domainPlaceholder": "example.com",
+    "domainSelectPlaceholder": "ドメインを選択…",
+    "domainLoading": "ドメインを読み込み中…",
     "willBeAtBefore": "メールサーバーは次の場所に配置されます: ",
     "adminPasswordLabel": "管理者パスワード",
     "passwordPlaceholder": "強力なパスワード - または「生成」をクリック",
@@ -149,7 +151,22 @@
       "title": "すべてのステップ",
       "interrupted": "インストールはステップ {step} の前に中断されました。再開すると、中断した箇所から続行します。",
       "resume": "再開",
-      "retry": "再試行"
+      "retry": "再試行",
+      "items": {
+        "system_update": { "label": "システム更新", "description": "システムパッケージを更新します" },
+        "ensure_components": { "label": "システムコンポーネント", "description": "不足している rsync と Certbot をインストールします" },
+        "check_port_25": { "label": "SMTP 接続を確認", "description": "送信 SMTP ポート 25 への接続を確認します" },
+        "ensure_reverse_proxy": { "label": "ACME 検証パスを確認", "description": "HTTPS の Traefik を維持し証明書検証経路を確認します" },
+        "set_hostname": { "label": "ホスト名を設定", "description": "メールサブドメイン用のホスト名を設定します" },
+        "update_hosts": { "label": "/etc/hosts を更新", "description": "ローカル hosts ファイルにメールホスト名を追加します" },
+        "transfer_engine": { "label": "メールエンジンを転送", "description": "レビュー済み iRedMail エンジンをサーバーに配置します" },
+        "prepare_engine": { "label": "メールエンジンを準備", "description": "構成と実行権限を確認します" },
+        "run_installer": { "label": "メールサービスをインストール", "description": "iRedMail のメールサービスを構成します" },
+        "first_reboot": { "label": "サーバーを再起動", "description": "再起動後に再接続してメールサービスを有効化します" },
+        "dkim_keys": { "label": "DKIM と DNS レコードを生成", "description": "署名鍵と必要な DNS レコードを取得します" },
+        "request_ssl": { "label": "TLS 証明書を取得", "description": "メールホスト用の Let's Encrypt 証明書を取得します" },
+        "configure_ssl": { "label": "TLS を設定", "description": "証明書をリンクしてメールサービスを再読み込みします" }
+      }
     },
     "details": {
       "title": "セットアップの詳細",

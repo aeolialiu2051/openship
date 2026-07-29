@@ -97,6 +97,8 @@
     "subtitle": "Déployez une pile de messagerie auto-hébergée complète sur ce serveur",
     "domainLabel": "Domaine",
     "domainPlaceholder": "exemple.com",
+    "domainSelectPlaceholder": "Sélectionner un domaine…",
+    "domainLoading": "Chargement des domaines…",
     "willBeAtBefore": "Votre serveur de messagerie sera à l'adresse ",
     "adminPasswordLabel": "Mot de passe administrateur",
     "passwordPlaceholder": "Mot de passe fort - ou cliquez sur Générer",
@@ -149,7 +151,22 @@
       "title": "Toutes les étapes",
       "interrupted": "L'installation a été interrompue avant l'étape {step}. Reprenez pour continuer là où elle s'est arrêtée.",
       "resume": "Reprendre",
-      "retry": "Réessayer"
+      "retry": "Réessayer",
+      "items": {
+        "system_update": { "label": "Mettre à jour le système", "description": "Mettre à jour les paquets système" },
+        "ensure_components": { "label": "Composants système", "description": "Installer rsync et Certbot s'ils manquent" },
+        "check_port_25": { "label": "Vérifier la connexion SMTP", "description": "Vérifier l'accès sortant au port SMTP 25" },
+        "ensure_reverse_proxy": { "label": "Vérifier le chemin ACME", "description": "Conserver Traefik en HTTPS et vérifier la validation du certificat" },
+        "set_hostname": { "label": "Définir le nom d'hôte", "description": "Configurer le nom d'hôte du sous-domaine mail" },
+        "update_hosts": { "label": "Mettre à jour /etc/hosts", "description": "Ajouter le nom d'hôte mail au fichier hosts local" },
+        "transfer_engine": { "label": "Transférer le moteur mail", "description": "Déployer le moteur iRedMail vérifié sur le serveur" },
+        "prepare_engine": { "label": "Préparer le moteur mail", "description": "Vérifier sa structure et ses droits d'exécution" },
+        "run_installer": { "label": "Installer les services mail", "description": "Installer et configurer les services iRedMail" },
+        "first_reboot": { "label": "Redémarrer le serveur", "description": "Redémarrer et reconnecter pour activer les services" },
+        "dkim_keys": { "label": "Générer DKIM et les enregistrements DNS", "description": "Récupérer les clés de signature et les enregistrements DNS requis" },
+        "request_ssl": { "label": "Demander un certificat TLS", "description": "Obtenir un certificat Let's Encrypt pour l'hôte mail" },
+        "configure_ssl": { "label": "Configurer TLS", "description": "Lier le certificat et recharger les services mail" }
+      }
     },
     "details": {
       "title": "Détails de la configuration",

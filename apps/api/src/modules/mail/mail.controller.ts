@@ -30,6 +30,7 @@ import crypto from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { buildMailBackupPayload } from "./admin/backup-plan";
 import { streamSSE } from "../../lib/sse";
+import { resolveRootExecutor } from "../../lib/openship-server-store";
 import { USER_SERVERS_ENABLED } from "../../config";
 import { safeErrorMessage } from "@repo/core";
 import { sshManager } from "../../lib/ssh-manager";
@@ -58,10 +59,7 @@ import { checkMailHealth, MAIL_COMPONENTS } from "./mail-health.service";
 import { updatePostmasterPassword } from "./mail-credentials.service";
 import { reserveMailSetup } from "./mail-setup-lease";
 import { applyRelayToState } from "./admin/outbound-relay.service";
-import {
-  readMailStatusState,
-  type MailStatusReadErrorCode,
-} from "./mail-status.service";
+import { readMailStatusState, type MailStatusReadErrorCode } from "./mail-status.service";
 import {
   readState,
   writeState,
@@ -208,18 +206,11 @@ function buildPtrPayload(
   state: MailServerState,
   resumeStep: number,
 ): { ipv4: string; ipv6: string | null; target: string; resumeStep: number } | null {
-  const records = (state.dnsRecords ?? {}) as Record<
-    string,
-    { type?: unknown; value?: unknown }
-  >;
+  const records = (state.dnsRecords ?? {}) as Record<string, { type?: unknown; value?: unknown }>;
   const a = records["a"];
   const aaaa = records["aaaa"];
-  const ipv4 =
-    a && typeof a.value === "string" && a.type === "A" ? a.value : null;
-  const ipv6 =
-    aaaa && typeof aaaa.value === "string" && aaaa.type === "AAAA"
-      ? aaaa.value
-      : null;
+  const ipv4 = a && typeof a.value === "string" && a.type === "A" ? a.value : null;
+  const ipv6 = aaaa && typeof aaaa.value === "string" && aaaa.type === "AAAA" ? aaaa.value : null;
   if (!ipv4) return null;
   return {
     ipv4,
@@ -280,14 +271,7 @@ export async function getStatus(c: Context) {
 
   const result = await readMailStatusState(serverId);
   if (!result.ok) {
-    return c.json(
-      unavailableStatus(
-        serverId,
-        result.reachable,
-        result.code,
-        result.message,
-      ),
-    );
+    return c.json(unavailableStatus(serverId, result.reachable, result.code, result.message));
   }
 
   try {
@@ -393,19 +377,14 @@ export async function scanMailInstall(c: Context) {
   }
 
   try {
-    const { iredmailInstalled, state } = await sshManager.withExecutor(
-      serverId,
-      async (exec) => ({
-        iredmailInstalled: await detectMailInstall(exec),
-        state: await readState(exec),
-      }),
-    );
+    const { iredmailInstalled, state } = await sshManager.withExecutor(serverId, async (exec) => ({
+      iredmailInstalled: await detectMailInstall(exec),
+      state: await readState(exec),
+    }));
     const installComplete =
       !!state &&
       MAIL_SETUP_STEPS.length > 0 &&
-      MAIL_SETUP_STEPS.every(
-        (step) => state.completedSteps[String(step.id)]?.success === true,
-      );
+      MAIL_SETUP_STEPS.every((step) => state.completedSteps[String(step.id)]?.success === true);
     return c.json({
       serverId,
       iredmailInstalled,
@@ -445,13 +424,10 @@ export async function adoptMailServer(c: Context) {
   }
 
   try {
-    const { iredmailInstalled, state } = await sshManager.withExecutor(
-      serverId,
-      async (exec) => ({
-        iredmailInstalled: await detectMailInstall(exec),
-        state: await readState(exec),
-      }),
-    );
+    const { iredmailInstalled, state } = await sshManager.withExecutor(serverId, async (exec) => ({
+      iredmailInstalled: await detectMailInstall(exec),
+      state: await readState(exec),
+    }));
     const domain = state?.domain;
     if (!domain) {
       return c.json(
@@ -465,9 +441,7 @@ export async function adoptMailServer(c: Context) {
     }
     const installComplete =
       MAIL_SETUP_STEPS.length > 0 &&
-      MAIL_SETUP_STEPS.every(
-        (step) => state.completedSteps[String(step.id)]?.success === true,
-      );
+      MAIL_SETUP_STEPS.every((step) => state.completedSteps[String(step.id)]?.success === true);
     // Mark it installed when the stack is actually LIVE, not only when every
     // current step id is recorded success. An adopted server set up by an
     // older openship (or with step-id drift) has a running iRedMail stack but
@@ -583,9 +557,7 @@ const IPV4_LITERAL = /^\d{1,3}(?:\.\d{1,3}){3}$/;
  * like `srv1144965.hstgr.cloud`; either way, this returns the same
  * address the rest of the world would resolve.
  */
-async function resolveHostIPs(
-  host: string,
-): Promise<{ ipv4: string | null; ipv6: string | null }> {
+async function resolveHostIPs(host: string): Promise<{ ipv4: string | null; ipv6: string | null }> {
   // Already an IP - no resolution needed.
   if (IPV4_LITERAL.test(host)) {
     return { ipv4: host, ipv6: null };
@@ -668,24 +640,15 @@ export async function startSetup(c: Context) {
     if (activeSessions.get(serverId) === session) {
       activeSessions.delete(serverId);
     }
-    console.error(
-      "[mail] failed to reserve mail-server setup:",
-      safeErrorMessage(err),
-    );
-    return c.json(
-      { error: "Could not reserve mail setup. Please try again." },
-      503,
-    );
+    console.error("[mail] failed to reserve mail-server setup:", safeErrorMessage(err));
+    return c.json({ error: "Could not reserve mail setup. Please try again." }, 503);
   }
 
   if (!reservation) {
     if (activeSessions.get(serverId) === session) {
       activeSessions.delete(serverId);
     }
-    return c.json(
-      { error: "Setup already running on another replica" },
-      409,
-    );
+    return c.json({ error: "Setup already running on another replica" }, 409);
   }
 
   const runSetup = async (stream: SSEStreamingApi) => {
@@ -695,9 +658,7 @@ export async function startSetup(c: Context) {
     // start over (we don't support two domains per server).
     let state: MailServerState;
     try {
-      const existing = await sshManager.withExecutor(serverId, (executor) =>
-        readState(executor),
-      );
+      const existing = await sshManager.withExecutor(serverId, (executor) => readState(executor));
       if (existing && existing.domain === domain) {
         state = {
           ...existing,
@@ -744,9 +705,7 @@ export async function startSetup(c: Context) {
      * crash mid-run leaves the JSON pointing at the last completed step.
      */
     const persist = async () => {
-      await sshManager.withExecutor(serverId, (executor) =>
-        writeState(executor, state),
-      );
+      await sshManager.withExecutor(serverId, (executor) => writeState(executor, state));
     };
 
     /** Halt-and-persist: marks run as not-running, optionally with a resume hint. */
@@ -776,12 +735,7 @@ export async function startSetup(c: Context) {
       // the user resumes from an earlier step (e.g., step 7 transfer) -
       // in that case the loop will re-run step 11 and re-issue dns_pending,
       // which is the right order.
-      if (
-        startStep > 11 &&
-        state.dnsRecords &&
-        state.dnsAcknowledged &&
-        !state.ptrAcknowledged
-      ) {
+      if (startStep > 11 && state.dnsRecords && state.dnsAcknowledged && !state.ptrAcknowledged) {
         const ptrPayload = buildPtrPayload(state, startStep);
         if (ptrPayload) {
           await stream.writeSSE({
@@ -828,22 +782,31 @@ export async function startSetup(c: Context) {
               };
               return sshManager
                 .acquire(serverId)
-                .then((executor) =>
-                  (runner as RebootStepFn)(executor, domain, log, reconnectFn),
+                .then(async (executor) =>
+                  (runner as RebootStepFn)(
+                    await resolveRootExecutor(executor),
+                    domain,
+                    log,
+                    reconnectFn,
+                  ),
                 );
             }
             if (stepDef.key === "run_installer") {
               const installerConfig: IRedMailConfig = {
                 ...config,
-                prefillSecrets:
-                  Object.keys(state.secrets).length > 0 ? state.secrets : undefined,
+                prefillSecrets: Object.keys(state.secrets).length > 0 ? state.secrets : undefined,
               };
-              return sshManager.withExecutor(serverId, (executor) =>
-                (runner as InstallerStepFn)(executor, domain, log, installerConfig),
+              return sshManager.withExecutor(serverId, async (executor) =>
+                (runner as InstallerStepFn)(
+                  await resolveRootExecutor(executor),
+                  domain,
+                  log,
+                  installerConfig,
+                ),
               );
             }
-            return sshManager.withExecutor(serverId, (executor) =>
-              (runner as BasicStepFn)(executor, domain, log),
+            return sshManager.withExecutor(serverId, async (executor) =>
+              (runner as BasicStepFn)(await resolveRootExecutor(executor), domain, log),
             );
           };
 
@@ -960,9 +923,7 @@ export async function startSetup(c: Context) {
       // Dynamic import mirrors the pattern domains.service.ts uses to dodge a
       // load-time cycle (mail-state ↔ mail.controller ↔ admin services).
       try {
-        const { ensureOpenshipPlatformMailbox } = await import(
-          "./admin/platform-mailbox.service"
-        );
+        const { ensureOpenshipPlatformMailbox } = await import("./admin/platform-mailbox.service");
         const creds = await ensureOpenshipPlatformMailbox(serverId);
         await stream.writeSSE({
           event: "log",
@@ -972,10 +933,7 @@ export async function startSetup(c: Context) {
           }),
         });
       } catch (err) {
-        console.warn(
-          `[mail.install] ensureOpenshipPlatformMailbox failed for ${serverId}:`,
-          err,
-        );
+        console.warn(`[mail.install] ensureOpenshipPlatformMailbox failed for ${serverId}:`, err);
         await stream.writeSSE({
           event: "log",
           data: JSON.stringify({
@@ -1037,7 +995,8 @@ export async function cancelSetup(c: Context) {
 
   const body = await c.req.json().catch(() => ({}));
   const requestedServerId = body.serverId as string | undefined;
-  const serverId = requestedServerId ??
+  const serverId =
+    requestedServerId ??
     (activeSessions.size === 1 ? activeSessions.keys().next().value : undefined);
   if (!serverId) {
     return c.json({ error: "No active setup" }, 400);
@@ -1092,16 +1051,16 @@ export async function acknowledgeDns(c: Context) {
 
   try {
     await sshManager.withExecutor(serverId, async (executor) => {
-      const result = await mutateState(executor, serverId, (s) => ({ ...s, dnsAcknowledged: true }));
+      const result = await mutateState(executor, serverId, (s) => ({
+        ...s,
+        dnsAcknowledged: true,
+      }));
       if (!result) {
         throw new Error("No setup state on this server");
       }
     });
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "DNS acknowledge failed" },
-      400,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "DNS acknowledge failed" }, 400);
   }
   return c.json({ ok: true });
 }
@@ -1140,16 +1099,16 @@ export async function acknowledgePtr(c: Context) {
 
   try {
     await sshManager.withExecutor(serverId, async (executor) => {
-      const result = await mutateState(executor, serverId, (s) => ({ ...s, ptrAcknowledged: true }));
+      const result = await mutateState(executor, serverId, (s) => ({
+        ...s,
+        ptrAcknowledged: true,
+      }));
       if (!result) {
         throw new Error("No setup state on this server");
       }
     });
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "PTR acknowledge failed" },
-      400,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "PTR acknowledge failed" }, 400);
   }
   return c.json({ ok: true });
 }
@@ -1188,10 +1147,7 @@ export async function resetSetup(c: Context) {
   try {
     await sshManager.withExecutor(serverId, (executor) => clearState(executor));
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "Reset failed" },
-      500,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "Reset failed" }, 500);
   }
   // Drop openship's record of "this server is a mail server" the moment the
   // on-host state file goes. Best-effort - losing the row is recoverable on
@@ -1200,10 +1156,7 @@ export async function resetSetup(c: Context) {
   try {
     await repos.mailServer.remove(serverId);
   } catch (err) {
-    console.warn(
-      "[mail] failed to drop mail-server record after reset:",
-      safeErrorMessage(err),
-    );
+    console.warn("[mail] failed to drop mail-server record after reset:", safeErrorMessage(err));
   }
   return c.json({ ok: true });
 }
@@ -1376,10 +1329,7 @@ export async function setPostmasterPassword(c: Context) {
 
   if (!serverId) return c.json({ error: "serverId is required" }, 400);
   if (typeof password !== "string" || password.length < 12) {
-    return c.json(
-      { error: "Password must be at least 12 characters" },
-      400,
-    );
+    return c.json({ error: "Password must be at least 12 characters" }, 400);
   }
 
   // Primary gate: rotating the postmaster password is destructive (admin).
@@ -1394,10 +1344,7 @@ export async function setPostmasterPassword(c: Context) {
   }
 
   if (activeSessions.has(serverId)) {
-    return c.json(
-      { error: "Setup is currently running - wait for it to finish" },
-      409,
-    );
+    return c.json({ error: "Setup is currently running - wait for it to finish" }, 409);
   }
 
   try {
@@ -1407,10 +1354,7 @@ export async function setPostmasterPassword(c: Context) {
       await updatePostmasterPassword(executor, state.domain, password);
     });
   } catch (err) {
-    return c.json(
-      { error: err instanceof Error ? err.message : "Password change failed" },
-      500,
-    );
+    return c.json({ error: err instanceof Error ? err.message : "Password change failed" }, 500);
   }
   return c.json({ ok: true });
 }

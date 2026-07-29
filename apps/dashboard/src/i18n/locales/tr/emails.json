@@ -97,6 +97,8 @@
     "subtitle": "Bu sunucuda, kendi kendine barındırılan eksiksiz bir e-posta servisi dağıtın",
     "domainLabel": "Alan Adı",
     "domainPlaceholder": "example.com",
+    "domainSelectPlaceholder": "Bir alan adı seçin…",
+    "domainLoading": "Alan adları yükleniyor…",
     "willBeAtBefore": "E-posta sunucunuz şu adreste olacak: ",
     "adminPasswordLabel": "Yönetici Şifresi",
     "passwordPlaceholder": "Güçlü şifre - veya Oluştur'a tıklayın",
@@ -157,7 +159,22 @@
       "title": "Tüm adımlar",
       "interrupted": "Kurulum {step}. adımdan önce kesintiye uğradı. Kaldığı yerden devam etmek için sürdürün.",
       "resume": "Devam Et",
-      "retry": "Tekrar Dene"
+      "retry": "Tekrar Dene",
+      "items": {
+        "system_update": { "label": "Sistemi güncelle", "description": "Sistem paketlerini güncelle ve yükselt" },
+        "ensure_components": { "label": "Sistem bileşenleri", "description": "Eksikse rsync ve Certbot'u kur" },
+        "check_port_25": { "label": "SMTP bağlantısını denetle", "description": "Giden SMTP 25 portuna erişimi doğrula" },
+        "ensure_reverse_proxy": { "label": "ACME doğrulama yolunu denetle", "description": "HTTPS için Traefik'i koru ve sertifika doğrulamasını denetle" },
+        "set_hostname": { "label": "Ana bilgisayar adını ayarla", "description": "Posta alt alan adı için sunucu adını yapılandır" },
+        "update_hosts": { "label": "/etc/hosts dosyasını güncelle", "description": "Posta sunucu adını yerel hosts dosyasına ekle" },
+        "transfer_engine": { "label": "Posta motorunu aktar", "description": "İncelenmiş iRedMail motorunu sunucuya yerleştir" },
+        "prepare_engine": { "label": "Posta motorunu hazırla", "description": "Dizin yapısını ve çalıştırma izinlerini doğrula" },
+        "run_installer": { "label": "Posta hizmetlerini kur", "description": "iRedMail posta hizmetlerini kur ve yapılandır" },
+        "first_reboot": { "label": "Sunucuyu yeniden başlat", "description": "Hizmetleri etkinleştirmek için yeniden başlat ve bağlan" },
+        "dkim_keys": { "label": "DKIM ve DNS kayıtlarını oluştur", "description": "İmzalama anahtarlarını ve gerekli DNS kayıtlarını al" },
+        "request_ssl": { "label": "TLS sertifikası iste", "description": "Posta sunucusu için Let's Encrypt sertifikası al" },
+        "configure_ssl": { "label": "TLS'yi yapılandır", "description": "Sertifikayı bağla ve posta hizmetlerini yeniden yükle" }
+      }
     },
     "details": {
       "title": "Kurulum Detayları",

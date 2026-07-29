@@ -6,7 +6,9 @@ import { readProjectSnapshot } from "./openship-manifest";
 /** Minimal executor stub: `readOpenshipFile` runs `cat …` via exec — return the
  *  canned payload for that, ignore the mkdir/other calls. */
 function execReturning(raw: string): CommandExecutor {
-  return { exec: async () => raw } as unknown as CommandExecutor;
+  return {
+    exec: async (command: string) => (command === "id -u" ? "0" : raw),
+  } as unknown as CommandExecutor;
 }
 
 const validDump: DatabaseDump = {
@@ -33,11 +35,15 @@ describe("readProjectSnapshot", () => {
 
   it("returns null for a non-project-scope dump (won't restore the wrong shape)", async () => {
     const orgDump = { ...validDump, scope: { kind: "organization", organizationId: "org_1" } };
-    expect(await readProjectSnapshot(execReturning(JSON.stringify(orgDump)), "proj_abc")).toBeNull();
+    expect(
+      await readProjectSnapshot(execReturning(JSON.stringify(orgDump)), "proj_abc"),
+    ).toBeNull();
   });
 
   it("returns null when tables are missing", async () => {
     const noTables = { ...validDump, tables: undefined };
-    expect(await readProjectSnapshot(execReturning(JSON.stringify(noTables)), "proj_abc")).toBeNull();
+    expect(
+      await readProjectSnapshot(execReturning(JSON.stringify(noTables)), "proj_abc"),
+    ).toBeNull();
   });
 });

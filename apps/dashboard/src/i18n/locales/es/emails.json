@@ -97,6 +97,8 @@
     "subtitle": "Despliega un stack de correo autoalojado completo en este servidor",
     "domainLabel": "Dominio",
     "domainPlaceholder": "ejemplo.com",
+    "domainSelectPlaceholder": "Selecciona un dominio…",
+    "domainLoading": "Cargando dominios…",
     "willBeAtBefore": "Tu servidor de correo estará en ",
     "adminPasswordLabel": "Contraseña de administrador",
     "passwordPlaceholder": "Contraseña segura, o haz clic en Generar",
@@ -149,7 +151,22 @@
       "title": "Todos los pasos",
       "interrupted": "La instalación se interrumpió antes del paso {step}. Reanuda para retomar donde se quedó.",
       "resume": "Reanudar",
-      "retry": "Reintentar"
+      "retry": "Reintentar",
+      "items": {
+        "system_update": { "label": "Actualizar el sistema", "description": "Actualizar los paquetes del sistema" },
+        "ensure_components": { "label": "Componentes del sistema", "description": "Instalar rsync y Certbot si faltan" },
+        "check_port_25": { "label": "Comprobar SMTP", "description": "Verificar el acceso saliente al puerto SMTP 25" },
+        "ensure_reverse_proxy": { "label": "Comprobar la ruta ACME", "description": "Conservar Traefik en HTTPS y verificar la validación del certificado" },
+        "set_hostname": { "label": "Definir el hostname", "description": "Configurar el hostname para el subdominio de correo" },
+        "update_hosts": { "label": "Actualizar /etc/hosts", "description": "Añadir el hostname de correo al archivo hosts local" },
+        "transfer_engine": { "label": "Transferir el motor de correo", "description": "Preparar el motor iRedMail revisado en el servidor" },
+        "prepare_engine": { "label": "Preparar el motor de correo", "description": "Verificar su estructura y permisos de ejecución" },
+        "run_installer": { "label": "Instalar servicios de correo", "description": "Instalar y configurar los servicios de iRedMail" },
+        "first_reboot": { "label": "Reiniciar el servidor", "description": "Reiniciar y reconectar para activar los servicios" },
+        "dkim_keys": { "label": "Generar DKIM y registros DNS", "description": "Obtener claves de firma y registros DNS necesarios" },
+        "request_ssl": { "label": "Solicitar certificado TLS", "description": "Obtener un certificado Let's Encrypt para el correo" },
+        "configure_ssl": { "label": "Configurar TLS", "description": "Vincular el certificado y recargar los servicios" }
+      }
     },
     "details": {
       "title": "Detalles de la configuración",

@@ -97,6 +97,8 @@
     "subtitle": "انشر حزمة بريد كاملة مُستضافة ذاتيًا على هذا الخادم",
     "domainLabel": "النطاق",
     "domainPlaceholder": "example.com",
+    "domainSelectPlaceholder": "اختر نطاقًا…",
+    "domainLoading": "جارٍ تحميل النطاقات…",
     "willBeAtBefore": "سيكون خادم بريدك على ",
     "adminPasswordLabel": "كلمة مرور المسؤول",
     "passwordPlaceholder": "كلمة مرور قوية - أو انقر توليد",
@@ -149,7 +151,22 @@
       "title": "جميع الخطوات",
       "interrupted": "قوطع التثبيت قبل الخطوة {step}. استأنف لمتابعة ما توقّف عنده.",
       "resume": "استئناف",
-      "retry": "إعادة المحاولة"
+      "retry": "إعادة المحاولة",
+      "items": {
+        "system_update": { "label": "تحديث النظام", "description": "تحديث حزم النظام وترقيتها" },
+        "ensure_components": { "label": "مكونات النظام", "description": "تثبيت rsync وCertbot عند الحاجة" },
+        "check_port_25": { "label": "فحص اتصال SMTP", "description": "التحقق من الوصول الصادر إلى منفذ SMTP 25" },
+        "ensure_reverse_proxy": { "label": "فحص مسار تحقق ACME", "description": "الإبقاء على Traefik لـ HTTPS والتحقق من مسار الشهادة" },
+        "set_hostname": { "label": "تعيين اسم المضيف", "description": "إعداد اسم الخادم لنطاق البريد الفرعي" },
+        "update_hosts": { "label": "تحديث /etc/hosts", "description": "إضافة اسم مضيف البريد إلى ملف hosts المحلي" },
+        "transfer_engine": { "label": "نقل محرك البريد", "description": "وضع محرك iRedMail المراجع على الخادم" },
+        "prepare_engine": { "label": "تجهيز محرك البريد", "description": "التحقق من البنية وأذونات التنفيذ" },
+        "run_installer": { "label": "تثبيت خدمات البريد", "description": "تثبيت خدمات iRedMail وإعدادها" },
+        "first_reboot": { "label": "إعادة تشغيل الخادم", "description": "إعادة التشغيل والاتصال لتفعيل خدمات البريد" },
+        "dkim_keys": { "label": "إنشاء DKIM وسجلات DNS", "description": "استخراج مفاتيح التوقيع وسجلات DNS المطلوبة" },
+        "request_ssl": { "label": "طلب شهادة TLS", "description": "الحصول على شهادة Let's Encrypt لمضيف البريد" },
+        "configure_ssl": { "label": "إعداد TLS", "description": "ربط الشهادة وإعادة تحميل خدمات البريد" }
+      }
     },
     "details": {
       "title": "تفاصيل الإعداد",

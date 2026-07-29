@@ -97,6 +97,8 @@
     "subtitle": "Stelle einen vollständigen, selbst gehosteten Mail-Stack auf diesem Server bereit",
     "domainLabel": "Domain",
     "domainPlaceholder": "example.com",
+    "domainSelectPlaceholder": "Domain auswählen…",
+    "domainLoading": "Domains werden geladen…",
     "willBeAtBefore": "Dein Mailserver wird erreichbar sein unter ",
     "adminPasswordLabel": "Admin-Passwort",
     "passwordPlaceholder": "Starkes Passwort – oder auf Generieren klicken",
@@ -149,7 +151,22 @@
       "title": "Alle Schritte",
       "interrupted": "Die Installation wurde vor Schritt {step} unterbrochen. Setze fort, um dort weiterzumachen, wo sie aufgehört hat.",
       "resume": "Fortsetzen",
-      "retry": "Erneut versuchen"
+      "retry": "Erneut versuchen",
+      "items": {
+        "system_update": { "label": "System aktualisieren", "description": "Systempakete aktualisieren und upgraden" },
+        "ensure_components": { "label": "Systemkomponenten", "description": "Rsync und Certbot bei Bedarf installieren" },
+        "check_port_25": { "label": "SMTP-Verbindung prüfen", "description": "Erreichbarkeit des ausgehenden SMTP-Ports 25 prüfen" },
+        "ensure_reverse_proxy": { "label": "ACME-Prüfpfad testen", "description": "Traefik für HTTPS beibehalten und Zertifikatsvalidierung prüfen" },
+        "set_hostname": { "label": "Hostnamen setzen", "description": "Server-Hostnamen für die Mail-Subdomain konfigurieren" },
+        "update_hosts": { "label": "/etc/hosts aktualisieren", "description": "Mail-Hostnamen zur lokalen Hosts-Datei hinzufügen" },
+        "transfer_engine": { "label": "Mail-Engine übertragen", "description": "Geprüfte iRedMail-Engine auf dem Server bereitstellen" },
+        "prepare_engine": { "label": "Mail-Engine vorbereiten", "description": "Verzeichnisstruktur und Ausführungsrechte prüfen" },
+        "run_installer": { "label": "Mail-Dienste installieren", "description": "iRedMail-Maildienste installieren und konfigurieren" },
+        "first_reboot": { "label": "Server neu starten", "description": "Neu starten und verbinden, um Mail-Dienste zu aktivieren" },
+        "dkim_keys": { "label": "DKIM- und DNS-Einträge erzeugen", "description": "Signaturschlüssel und erforderliche DNS-Einträge abrufen" },
+        "request_ssl": { "label": "TLS-Zertifikat anfordern", "description": "Let's-Encrypt-Zertifikat für den Mail-Hostnamen beziehen" },
+        "configure_ssl": { "label": "TLS konfigurieren", "description": "Zertifikat verknüpfen und Mail-Dienste neu laden" }
+      }
     },
     "details": {
       "title": "Einrichtungsdetails",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Mail,
   Play,
@@ -9,12 +9,17 @@ import {
   Globe,
   Key,
   AlertTriangle,
+  CheckCircle2,
+  ChevronDown,
   Eye,
   EyeOff,
   Sparkles,
   Loader2,
+  Plus,
 } from "lucide-react";
 import ServerSelector, { type ServerOption } from "@/components/shared/ServerSelector";
+import { useAddDomainModal } from "@/components/domains/DomainModal";
+import { domainSettingsApi, type DomainSettingsView } from "@/lib/api";
 import { AdoptMailModal } from "./adopt-mail-modal";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
@@ -56,6 +61,169 @@ interface MailSetupFormProps {
   onStart: () => void;
   /** Called after an existing mail server is re-adopted from a scan. */
   onAdopted: (serverId: string) => void;
+}
+
+function DomainSelector({
+  value,
+  disabled,
+  onSelect,
+}: {
+  value: string;
+  disabled: boolean;
+  onSelect: (domain: string) => void;
+}) {
+  const { t } = useI18n();
+  const [domains, setDomains] = useState<DomainSettingsView[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [open, setOpen] = useState(false);
+  const showAddDomain = useAddDomainModal();
+
+  const fetchDomains = useCallback(async () => {
+    setLoading(true);
+    setLoadFailed(false);
+    try {
+      const items = await domainSettingsApi.list();
+      setDomains(items);
+    } catch {
+      setDomains([]);
+      setLoadFailed(true);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const openAddDomain = () => {
+    setOpen(false);
+    showAddDomain({
+      onCreated: (created) => {
+        setDomains((current) => [created, ...current.filter((item) => item.id !== created.id)]);
+        onSelect(created.domain);
+      },
+    });
+  };
+
+  useEffect(() => {
+    void fetchDomains();
+  }, [fetchDomains]);
+
+  const selected = domains.find((item) => item.domain === value) ?? null;
+  const isConnected = (item: DomainSettingsView) =>
+    !!item.verifiedAt && !item.lastVerificationError;
+
+  if (loading) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-border/50 bg-muted/20 px-3.5 py-3">
+        <Loader2 className="size-4 animate-spin text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">{t.emails.setup.domainLoading}</span>
+      </div>
+    );
+  }
+
+  if (loadFailed || domains.length === 0) {
+    return (
+      <div className="rounded-xl border border-border/50 bg-muted/20 px-3.5 py-3">
+        <p className="text-sm text-muted-foreground">
+          {loadFailed ? t.domainsPage.loadFailed : t.domainsPage.emptyTitle}
+        </p>
+        <button
+          type="button"
+          onClick={openAddDomain}
+          className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+        >
+          <Plus className="size-3.5" />
+          {domains.length === 0 ? t.domainsPage.addFirstDomain : t.domainsPage.addDomain}
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => !disabled && setOpen((current) => !current)}
+        disabled={disabled}
+        className="flex w-full items-center gap-3 rounded-xl border border-border/50 bg-background px-3.5 py-3 text-start transition-colors hover:bg-muted/20 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <div
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+            selected && isConnected(selected) ? "bg-success-bg" : "bg-muted"
+          }`}
+        >
+          <Globe
+            className={`size-4 ${
+              selected && isConnected(selected) ? "text-success" : "text-muted-foreground"
+            }`}
+          />
+        </div>
+        {selected ? (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium text-foreground">{selected.domain}</p>
+            <p className="text-xs text-muted-foreground">
+              {isConnected(selected) ? t.domainsPage.connected : t.domainsPage.needsAttention}
+            </p>
+          </div>
+        ) : (
+          <span className="flex-1 text-sm text-muted-foreground">
+            {t.emails.setup.domainSelectPlaceholder}
+          </span>
+        )}
+        <ChevronDown
+          className={`size-4 shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute inset-x-0 z-50 mt-1.5 max-h-64 overflow-auto rounded-xl border border-border bg-popover shadow-lg">
+          {domains.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => {
+                onSelect(item.domain);
+                setOpen(false);
+              }}
+              className={`flex w-full items-center gap-3 px-3.5 py-3 text-start transition-colors hover:bg-muted/40 ${
+                value === item.domain ? "bg-muted/30" : ""
+              }`}
+            >
+              <div
+                className={`flex size-8 shrink-0 items-center justify-center rounded-lg ${
+                  isConnected(item) ? "bg-success-bg" : "bg-muted"
+                }`}
+              >
+                <Globe
+                  className={`size-4 ${
+                    isConnected(item) ? "text-success" : "text-muted-foreground"
+                  }`}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{item.domain}</p>
+                <p className="text-xs text-muted-foreground">
+                  {isConnected(item) ? t.domainsPage.connected : t.domainsPage.needsAttention}
+                </p>
+              </div>
+              {value === item.domain && <CheckCircle2 className="size-4 shrink-0 text-success" />}
+            </button>
+          ))}
+          <div className="border-t border-border/50">
+            <button
+              type="button"
+              onClick={openAddDomain}
+              className="flex w-full items-center gap-3 px-3.5 py-3 text-start text-sm text-muted-foreground transition-colors hover:bg-muted/40"
+            >
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-muted">
+                <Plus className="size-4" />
+              </div>
+              {t.domainsPage.addDomain}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function MailSetupForm({
@@ -117,12 +285,10 @@ export function MailSetupForm({
             <label className="block text-sm font-medium text-foreground mb-1.5">
               {t.emails.setup.domainLabel}
             </label>
-            <input
-              type="text"
+            <DomainSelector
               value={domain}
-              onChange={(e) => onDomainChange(e.target.value)}
-              placeholder={t.emails.setup.domainPlaceholder}
-              className="w-full px-3 py-2.5 rounded-xl border border-border bg-background text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              disabled={running || serverConnecting}
+              onSelect={onDomainChange}
             />
             <p className="text-xs text-muted-foreground mt-1.5">
               {t.emails.setup.willBeAtBefore}

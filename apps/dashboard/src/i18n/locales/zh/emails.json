@@ -103,6 +103,8 @@
     "subtitle": "在此服务器上部署一套完整的自托管邮件堆栈",
     "domainLabel": "域名",
     "domainPlaceholder": "example.com",
+    "domainSelectPlaceholder": "选择域名……",
+    "domainLoading": "正在加载域名……",
     "willBeAtBefore": "你的邮件服务器将位于 ",
     "adminPasswordLabel": "管理员密码",
     "passwordPlaceholder": "强密码 - 或点击“生成”",
@@ -132,7 +134,7 @@
   "sidebar": {
     "portConflict": {
       "title": "检测到端口冲突",
-      "subtitle": "邮件服务器需要端口 80/443",
+      "subtitle": "Traefik 继续使用 443；仅在 HTTP 证书验证时检查 80 端口",
       "managed": "受管理",
       "known": "已知服务",
       "unknown": "未知",
@@ -155,7 +157,22 @@
       "title": "所有步骤",
       "interrupted": "安装在第 {step} 步之前被中断。恢复即可从中断处继续。",
       "resume": "恢复",
-      "retry": "重试"
+      "retry": "重试",
+      "items": {
+        "system_update": { "label": "更新系统", "description": "更新并升级系统软件包" },
+        "ensure_components": { "label": "安装系统组件", "description": "缺少时安装 rsync 和 Certbot" },
+        "check_port_25": { "label": "检查 SMTP 连通性", "description": "验证出站 SMTP 25 端口是否可访问" },
+        "ensure_reverse_proxy": { "label": "检查 ACME 验证路径", "description": "保留 Traefik 的 HTTPS 服务并检查证书验证入口" },
+        "set_hostname": { "label": "设置主机名", "description": "将服务器主机名配置为邮件子域名" },
+        "update_hosts": { "label": "更新 /etc/hosts", "description": "将邮件主机名加入本地主机文件" },
+        "transfer_engine": { "label": "传输邮件引擎", "description": "将经过审核的 iRedMail 引擎部署到服务器" },
+        "prepare_engine": { "label": "准备邮件引擎", "description": "检查引擎目录结构与执行权限" },
+        "run_installer": { "label": "安装邮件服务", "description": "安装并配置 iRedMail 邮件守护进程" },
+        "first_reboot": { "label": "重启服务器", "description": "重启并重新连接，以启用邮件服务" },
+        "dkim_keys": { "label": "生成 DKIM 与 DNS 记录", "description": "获取签名密钥和必需的 DNS 记录" },
+        "request_ssl": { "label": "申请 TLS 证书", "description": "为邮件主机名申请 Let's Encrypt 证书" },
+        "configure_ssl": { "label": "配置 TLS", "description": "链接证书并重新加载邮件服务" }
+      }
     },
     "details": {
       "title": "设置详情",
