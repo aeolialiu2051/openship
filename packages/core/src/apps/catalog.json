@@ -10,7 +10,12 @@
       "kind": "flow",
       "logo": "mail-webmail",
       "category": "mail",
-      "tags": ["mail", "email", "smtp", "imap"],
+      "tags": [
+        "mail",
+        "email",
+        "smtp",
+        "imap"
+      ],
       "flowHref": "/apps/new/mail",
       "management": {
         "kind": "custom",
@@ -26,16 +31,27 @@
       "kind": "template",
       "logo": "cli-proxy-api",
       "category": "other",
-      "tags": ["api", "proxy", "openai", "ai", "cli"],
+      "tags": [
+        "api",
+        "proxy",
+        "openai",
+        "ai",
+        "cli"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "cli-proxy-api",
           "image": "eceasy/cli-proxy-api:latest",
-          "ports": ["8317:8317"],
+          "ports": [
+            "8317:8317"
+          ],
           "exposedPort": 8317,
           "exposed": true,
-          "secretEnv": ["API_KEY"],
+          "secretEnv": [
+            "API_KEY",
+            "MANAGEMENT_PASSWORD"
+          ],
           "volumes": [
             "cli_proxy_api_auth:/root/.cli-proxy-api",
             "cli_proxy_api_logs:/CLIProxyAPI/logs",
@@ -52,33 +68,39 @@
           "help": "Auto-generated. Use this key to authenticate requests to the proxy API.",
           "generate": "secret",
           "secret": true
+        },
+        {
+          "key": "MANAGEMENT_PASSWORD",
+          "service": "cli-proxy-api",
+          "label": "Management key",
+          "help": "Auto-generated. Use this key to sign in to the CLIProxyAPI management center.",
+          "generate": "secret",
+          "secret": true
         }
       ],
       "files": [
         {
           "service": "cli-proxy-api",
           "path": "/CLIProxyAPI/config.yaml",
-          "content": "host: 0.0.0.0\nport: 8317\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: true\n"
+          "content": "host: 0.0.0.0\nport: 8317\nremote-management:\n  allow-remote: true\n  secret-key: \"\"\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: false\nplugins:\n  enabled: false\n  dir: /CLIProxyAPI/plugins\n"
         }
       ],
       "connection": {
-        "title": "Connect to CLIProxyAPI",
-        "description": "Use the OpenAI-compatible base URL and generated API key in your clients. Add and manage provider accounts from the CLIProxyAPI user interface.",
-        "guide": {
-          "intro": {
-            "en": "Your project gets an OpenAI-compatible endpoint backed by CLIProxyAPI. Provider accounts and installed plugins persist across container restarts.",
-            "zh": "你的项目将获得一个由 CLIProxyAPI 提供的 OpenAI 兼容接口；服务商账号和已安装插件会在容器重启后保留。"
-          },
-          "useHint": {
-            "en": "Add provider accounts from the CLIProxyAPI user interface, then read OPENAI_BASE_URL and OPENAI_API_KEY from the environment after redeploying your project.",
-            "zh": "在 CLIProxyAPI 用户页面添加服务商账号，然后重新部署项目并读取 OPENAI_BASE_URL 和 OPENAI_API_KEY。"
-          },
-          "defaultMode": "public"
+        "title": {
+          "en": "Connect to CLIProxyAPI",
+          "zh": "连接 CLIProxyAPI"
+        },
+        "description": {
+          "en": "Use the OpenAI-compatible endpoint in your clients and manage provider accounts from the protected CLIProxyAPI management center.",
+          "zh": "在客户端中使用 OpenAI 兼容接口，并通过受保护的 CLIProxyAPI 管理中心管理服务商账号。"
         },
         "outputs": [
           {
             "id": "baseUrl",
-            "label": "OpenAI base URL",
+            "label": {
+              "en": "OpenAI base URL",
+              "zh": "OpenAI 基础地址"
+            },
             "source": "template:{{publicUrl:cli-proxy-api}}/v1",
             "service": "cli-proxy-api",
             "envKey": "OPENAI_BASE_URL",
@@ -86,10 +108,34 @@
           },
           {
             "id": "apiKey",
-            "label": "API key",
+            "label": {
+              "en": "API key",
+              "zh": "API 密钥"
+            },
             "source": "env:cli-proxy-api:API_KEY",
             "secret": true,
             "envKey": "OPENAI_API_KEY",
+            "recommended": true
+          },
+          {
+            "id": "managementUrl",
+            "label": {
+              "en": "Management center",
+              "zh": "管理中心"
+            },
+            "source": "template:{{publicUrl:cli-proxy-api}}/management.html",
+            "service": "cli-proxy-api",
+            "recommended": true
+          },
+          {
+            "id": "managementKey",
+            "label": {
+              "en": "Management key",
+              "zh": "管理密钥"
+            },
+            "source": "env:cli-proxy-api:MANAGEMENT_PASSWORD",
+            "secret": true,
+            "envKey": "CLIPROXY_MANAGEMENT_KEY",
             "recommended": true
           }
         ]
@@ -98,7 +144,10 @@
         {
           "id": "openai-compatible-api",
           "category": "ai-api",
-          "outputRefs": ["baseUrl", "apiKey"]
+          "outputRefs": [
+            "baseUrl",
+            "apiKey"
+          ]
         }
       ],
       "endpoints": [
@@ -109,7 +158,10 @@
           "kind": "http",
           "scope": "public",
           "defaultMode": "domain",
-          "allowedModes": ["domain", "port"]
+          "allowedModes": [
+            "domain",
+            "port"
+          ]
         }
       ]
     },
@@ -122,13 +174,22 @@
       "kind": "template",
       "logo": "supabase",
       "category": "backend",
-      "tags": ["backend", "database", "postgres", "auth", "realtime", "storage"],
+      "tags": [
+        "backend",
+        "database",
+        "postgres",
+        "auth",
+        "realtime",
+        "storage"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "db",
           "image": "supabase/postgres:17.6.1.136",
-          "ports": ["5432:5432"],
+          "ports": [
+            "5432:5432"
+          ],
           "environment": {
             "POSTGRES_HOST": "/var/run/postgresql",
             "PGPORT": "5432",
@@ -138,9 +199,18 @@
             "POSTGRES_DB": "postgres",
             "JWT_EXP": "3600"
           },
-          "volumes": ["supabase_db_data:/var/lib/postgresql/data"],
+          "volumes": [
+            "supabase_db_data:/var/lib/postgresql/data"
+          ],
           "healthcheck": {
-            "test": ["CMD", "pg_isready", "-U", "postgres", "-h", "localhost"],
+            "test": [
+              "CMD",
+              "pg_isready",
+              "-U",
+              "postgres",
+              "-h",
+              "localhost"
+            ],
             "interval": "5s",
             "timeout": "5s",
             "retries": 10
@@ -150,7 +220,9 @@
         {
           "name": "kong",
           "image": "kong:3.9.1",
-          "ports": ["8000:8000"],
+          "ports": [
+            "8000:8000"
+          ],
           "exposedPort": 8000,
           "exposed": true,
           "routes": [
@@ -176,7 +248,11 @@
             "KONG_NGINX_PROXY_PROXY_BUFFERS": "64 160k"
           },
           "healthcheck": {
-            "test": ["CMD", "kong", "health"],
+            "test": [
+              "CMD",
+              "kong",
+              "health"
+            ],
             "interval": "10s",
             "timeout": "5s",
             "retries": 5
@@ -186,7 +262,9 @@
         {
           "name": "auth",
           "image": "supabase/gotrue:v2.189.0",
-          "dependsOn": ["db"],
+          "dependsOn": [
+            "db"
+          ],
           "environment": {
             "GOTRUE_API_HOST": "0.0.0.0",
             "GOTRUE_API_PORT": "9999",
@@ -224,7 +302,9 @@
         {
           "name": "rest",
           "image": "postgrest/postgrest:v14.12",
-          "dependsOn": ["db"],
+          "dependsOn": [
+            "db"
+          ],
           "environment": {
             "PGRST_DB_URI": "postgres://authenticator:{{config:POSTGRES_PASSWORD}}@db:5432/postgres",
             "PGRST_DB_SCHEMAS": "public,storage,graphql_public",
@@ -239,7 +319,9 @@
         {
           "name": "realtime-dev.supabase-realtime",
           "image": "supabase/realtime:v2.102.3",
-          "dependsOn": ["db"],
+          "dependsOn": [
+            "db"
+          ],
           "environment": {
             "PORT": "4000",
             "DB_HOST": "db",
@@ -264,7 +346,11 @@
         {
           "name": "storage",
           "image": "supabase/storage-api:v1.60.4",
-          "dependsOn": ["db", "rest", "imgproxy"],
+          "dependsOn": [
+            "db",
+            "rest",
+            "imgproxy"
+          ],
           "environment": {
             "ANON_KEY": "{{config:ANON_KEY}}",
             "SERVICE_KEY": "{{config:SERVICE_ROLE_KEY}}",
@@ -280,7 +366,9 @@
             "ENABLE_IMAGE_TRANSFORMATION": "true",
             "IMGPROXY_URL": "http://imgproxy:5001"
           },
-          "volumes": ["supabase_storage_data:/var/lib/storage"],
+          "volumes": [
+            "supabase_storage_data:/var/lib/storage"
+          ],
           "healthcheck": {
             "test": [
               "CMD",
@@ -305,9 +393,15 @@
             "IMGPROXY_USE_ETAG": "true",
             "IMGPROXY_ENABLE_WEBP_DETECTION": "true"
           },
-          "volumes": ["supabase_storage_data:/var/lib/storage"],
+          "volumes": [
+            "supabase_storage_data:/var/lib/storage"
+          ],
           "healthcheck": {
-            "test": ["CMD", "imgproxy", "health"],
+            "test": [
+              "CMD",
+              "imgproxy",
+              "health"
+            ],
             "interval": "5s",
             "timeout": "5s",
             "retries": 3
@@ -317,7 +411,9 @@
         {
           "name": "meta",
           "image": "supabase/postgres-meta:v0.96.6",
-          "dependsOn": ["db"],
+          "dependsOn": [
+            "db"
+          ],
           "environment": {
             "PG_META_PORT": "8080",
             "PG_META_DB_HOST": "db",
@@ -332,7 +428,9 @@
         {
           "name": "studio",
           "image": "supabase/studio:2026.07.07-sha-a6a04f2",
-          "dependsOn": ["meta"],
+          "dependsOn": [
+            "meta"
+          ],
           "environment": {
             "HOSTNAME": "0.0.0.0",
             "STUDIO_PG_META_URL": "http://meta:8080",
@@ -441,11 +539,6 @@
       "connection": {
         "title": "Connect to Supabase",
         "description": "Point the Supabase client SDKs or Studio at this deployment. The service role key bypasses row-level security — keep it secret.",
-        "guide": {
-          "intro": "Your project gets the Supabase database connection, ready to use.",
-          "useHint": "Read `process.env.DATABASE_URL` in your code — it's set the next time your project deploys. Nothing else to do.",
-          "defaultMode": "internal"
-        },
         "outputs": [
           {
             "id": "url",
@@ -549,19 +642,34 @@
       "kind": "template",
       "logo": "mongodb",
       "category": "backend",
-      "tags": ["database", "mongodb", "nosql", "documents"],
+      "tags": [
+        "database",
+        "mongodb",
+        "nosql",
+        "documents"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "mongo",
           "image": "mongo:7.0",
-          "ports": ["27017:27017"],
+          "ports": [
+            "27017:27017"
+          ],
           "environment": {
             "MONGO_INITDB_ROOT_USERNAME": "root"
           },
-          "volumes": ["mongo_data:/data/db"],
+          "volumes": [
+            "mongo_data:/data/db"
+          ],
           "healthcheck": {
-            "test": ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"],
+            "test": [
+              "CMD",
+              "mongosh",
+              "--quiet",
+              "--eval",
+              "db.adminCommand('ping')"
+            ],
             "interval": "10s",
             "timeout": "5s",
             "retries": 5,
@@ -574,13 +682,17 @@
           "image": "mongo-express:1.0.2",
           "exposedPort": 8081,
           "exposed": true,
-          "ports": ["8081:8081"],
+          "ports": [
+            "8081:8081"
+          ],
           "routes": [
             {
               "port": 8081
             }
           ],
-          "dependsOn": ["mongo"],
+          "dependsOn": [
+            "mongo"
+          ],
           "environment": {
             "ME_CONFIG_MONGODB_URL": "mongodb://root:{{config:MONGO_INITDB_ROOT_PASSWORD}}@mongo:27017/",
             "ME_CONFIG_MONGODB_ENABLE_ADMIN": "true",
@@ -627,11 +739,6 @@
       "connection": {
         "title": "Connect to MongoDB",
         "description": "Open the Mongo Express admin in a browser, or point a driver at the database URL.",
-        "guide": {
-          "intro": "Your project gets the MongoDB connection, ready to use.",
-          "useHint": "Read `process.env.MONGODB_URI` in your code — it's set the next time your project deploys. Nothing else to do.",
-          "defaultMode": "internal"
-        },
         "outputs": [
           {
             "id": "admin",
@@ -698,13 +805,20 @@
       "kind": "template",
       "logo": "convex",
       "category": "backend",
-      "tags": ["backend", "database", "realtime"],
+      "tags": [
+        "backend",
+        "database",
+        "realtime"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "backend",
           "image": "ghcr.io/get-convex/convex-backend:latest",
-          "ports": ["3210:3210", "3211:3211"],
+          "ports": [
+            "3210:3210",
+            "3211:3211"
+          ],
           "exposedPort": 3210,
           "exposed": true,
           "routes": [
@@ -722,10 +836,17 @@
             "CONVEX_CLOUD_ORIGIN": "{{publicUrl:backend:3210}}",
             "CONVEX_SITE_ORIGIN": "{{publicUrl:backend:3211}}"
           },
-          "secretEnv": ["INSTANCE_SECRET"],
-          "volumes": ["convex_data:/convex/data"],
+          "secretEnv": [
+            "INSTANCE_SECRET"
+          ],
+          "volumes": [
+            "convex_data:/convex/data"
+          ],
           "healthcheck": {
-            "test": ["CMD-SHELL", "curl -f http://localhost:3210/version || exit 1"],
+            "test": [
+              "CMD-SHELL",
+              "curl -f http://localhost:3210/version || exit 1"
+            ],
             "interval": "10s",
             "timeout": "5s",
             "retries": 5,
@@ -736,10 +857,14 @@
         {
           "name": "dashboard",
           "image": "ghcr.io/get-convex/convex-dashboard:latest",
-          "ports": ["6791:6791"],
+          "ports": [
+            "6791:6791"
+          ],
           "exposedPort": 6791,
           "exposed": true,
-          "dependsOn": ["backend"],
+          "dependsOn": [
+            "backend"
+          ],
           "environment": {
             "NEXT_PUBLIC_DEPLOYMENT_URL": "{{publicUrl:backend}}"
           },
@@ -842,13 +967,19 @@
       "kind": "template",
       "logo": "n8n",
       "category": "automation",
-      "tags": ["automation", "workflows", "integrations"],
+      "tags": [
+        "automation",
+        "workflows",
+        "integrations"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "n8n",
           "image": "n8nio/n8n:latest",
-          "ports": ["5678:5678"],
+          "ports": [
+            "5678:5678"
+          ],
           "exposedPort": 5678,
           "exposed": true,
           "environment": {
@@ -857,8 +988,12 @@
             "GENERIC_TIMEZONE": "UTC",
             "WEBHOOK_URL": "{{publicUrl:n8n}}"
           },
-          "secretEnv": ["N8N_ENCRYPTION_KEY"],
-          "volumes": ["n8n_data:/home/node/.n8n"],
+          "secretEnv": [
+            "N8N_ENCRYPTION_KEY"
+          ],
+          "volumes": [
+            "n8n_data:/home/node/.n8n"
+          ],
           "restart": "unless-stopped"
         }
       ],
@@ -935,7 +1070,11 @@
       "kind": "template",
       "logo": "ghost",
       "category": "cms",
-      "tags": ["cms", "blog", "newsletter"],
+      "tags": [
+        "cms",
+        "blog",
+        "newsletter"
+      ],
       "framework": "docker-compose",
       "services": [
         {
@@ -944,17 +1083,25 @@
           "environment": {
             "MYSQL_DATABASE": "ghost"
           },
-          "secretEnv": ["MYSQL_ROOT_PASSWORD"],
-          "volumes": ["ghost_db:/var/lib/mysql"],
+          "secretEnv": [
+            "MYSQL_ROOT_PASSWORD"
+          ],
+          "volumes": [
+            "ghost_db:/var/lib/mysql"
+          ],
           "restart": "unless-stopped"
         },
         {
           "name": "ghost",
           "image": "ghost:5-alpine",
-          "ports": ["2368:2368"],
+          "ports": [
+            "2368:2368"
+          ],
           "exposedPort": 2368,
           "exposed": true,
-          "dependsOn": ["ghost-db"],
+          "dependsOn": [
+            "ghost-db"
+          ],
           "environment": {
             "NODE_ENV": "production",
             "url": "{{publicUrl:ghost}}",
@@ -963,8 +1110,12 @@
             "database__connection__user": "root",
             "database__connection__database": "ghost"
           },
-          "secretEnv": ["database__connection__password"],
-          "volumes": ["ghost_content:/var/lib/ghost/content"],
+          "secretEnv": [
+            "database__connection__password"
+          ],
+          "volumes": [
+            "ghost_content:/var/lib/ghost/content"
+          ],
           "restart": "unless-stopped"
         }
       ],
@@ -995,13 +1146,19 @@
       "kind": "template",
       "logo": "directus",
       "category": "cms",
-      "tags": ["cms", "headless", "api"],
+      "tags": [
+        "cms",
+        "headless",
+        "api"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "directus",
           "image": "directus/directus:latest",
-          "ports": ["8055:8055"],
+          "ports": [
+            "8055:8055"
+          ],
           "exposedPort": 8055,
           "exposed": true,
           "environment": {
@@ -1009,8 +1166,13 @@
             "DB_FILENAME": "/directus/database/data.db",
             "PUBLIC_URL": "{{publicUrl:directus}}"
           },
-          "secretEnv": ["SECRET"],
-          "volumes": ["directus_database:/directus/database", "directus_uploads:/directus/uploads"],
+          "secretEnv": [
+            "SECRET"
+          ],
+          "volumes": [
+            "directus_database:/directus/database",
+            "directus_uploads:/directus/uploads"
+          ],
           "restart": "unless-stopped"
         }
       ],
@@ -1033,16 +1195,24 @@
       "kind": "template",
       "logo": "nocodb",
       "category": "database",
-      "tags": ["database", "airtable", "no-code"],
+      "tags": [
+        "database",
+        "airtable",
+        "no-code"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "nocodb",
           "image": "nocodb/nocodb:latest",
-          "ports": ["8080:8080"],
+          "ports": [
+            "8080:8080"
+          ],
           "exposedPort": 8080,
           "exposed": true,
-          "volumes": ["nocodb_data:/usr/app/data"],
+          "volumes": [
+            "nocodb_data:/usr/app/data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1055,19 +1225,27 @@
       "kind": "template",
       "logo": "metabase",
       "category": "analytics",
-      "tags": ["analytics", "bi", "dashboards"],
+      "tags": [
+        "analytics",
+        "bi",
+        "dashboards"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "metabase",
           "image": "metabase/metabase:latest",
-          "ports": ["3000:3000"],
+          "ports": [
+            "3000:3000"
+          ],
           "exposedPort": 3000,
           "exposed": true,
           "environment": {
             "MB_DB_FILE": "/metabase-data/metabase.db"
           },
-          "volumes": ["metabase_data:/metabase-data"],
+          "volumes": [
+            "metabase_data:/metabase-data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1081,19 +1259,27 @@
       "kind": "template",
       "logo": "grafana",
       "category": "analytics",
-      "tags": ["analytics", "dashboards", "monitoring"],
+      "tags": [
+        "analytics",
+        "dashboards",
+        "monitoring"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "grafana",
           "image": "grafana/grafana:latest",
-          "ports": ["3007:3000"],
+          "ports": [
+            "3007:3000"
+          ],
           "exposedPort": 3000,
           "exposed": true,
           "environment": {
             "GF_SERVER_ROOT_URL": "{{publicUrl:grafana}}"
           },
-          "volumes": ["grafana_data:/var/lib/grafana"],
+          "volumes": [
+            "grafana_data:/var/lib/grafana"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1106,19 +1292,27 @@
       "kind": "template",
       "logo": "gitea",
       "category": "other",
-      "tags": ["git", "vcs", "developer"],
+      "tags": [
+        "git",
+        "vcs",
+        "developer"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "gitea",
           "image": "gitea/gitea:1",
-          "ports": ["3000:3000"],
+          "ports": [
+            "3000:3000"
+          ],
           "exposedPort": 3000,
           "exposed": true,
           "environment": {
             "GITEA__server__ROOT_URL": "{{publicUrl:gitea}}"
           },
-          "volumes": ["gitea_data:/data"],
+          "volumes": [
+            "gitea_data:/data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1131,16 +1325,24 @@
       "kind": "template",
       "logo": "code-server",
       "category": "other",
-      "tags": ["developer", "ide", "vscode"],
+      "tags": [
+        "developer",
+        "ide",
+        "vscode"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "code-server",
           "image": "codercom/code-server:latest",
-          "ports": ["8080:8080"],
+          "ports": [
+            "8080:8080"
+          ],
           "exposedPort": 8080,
           "exposed": true,
-          "secretEnv": ["PASSWORD"],
+          "secretEnv": [
+            "PASSWORD"
+          ],
           "volumes": [
             "code_server_config:/home/coder/.config",
             "code_server_local:/home/coder/.local",
@@ -1168,16 +1370,24 @@
       "kind": "template",
       "logo": "uptime-kuma",
       "category": "other",
-      "tags": ["monitoring", "uptime", "status"],
+      "tags": [
+        "monitoring",
+        "uptime",
+        "status"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "uptime-kuma",
           "image": "louislam/uptime-kuma:1",
-          "ports": ["3001:3001"],
+          "ports": [
+            "3001:3001"
+          ],
           "exposedPort": 3001,
           "exposed": true,
-          "volumes": ["uptime_kuma_data:/app/data"],
+          "volumes": [
+            "uptime_kuma_data:/app/data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1190,19 +1400,27 @@
       "kind": "template",
       "logo": "vaultwarden",
       "category": "other",
-      "tags": ["passwords", "security", "bitwarden"],
+      "tags": [
+        "passwords",
+        "security",
+        "bitwarden"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "vaultwarden",
           "image": "vaultwarden/server:latest",
-          "ports": ["80:80"],
+          "ports": [
+            "80:80"
+          ],
           "exposedPort": 80,
           "exposed": true,
           "environment": {
             "DOMAIN": "{{publicUrl:vaultwarden}}"
           },
-          "volumes": ["vaultwarden_data:/data"],
+          "volumes": [
+            "vaultwarden_data:/data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1215,16 +1433,24 @@
       "kind": "template",
       "logo": "freshrss",
       "category": "other",
-      "tags": ["rss", "feeds", "reader"],
+      "tags": [
+        "rss",
+        "feeds",
+        "reader"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "freshrss",
           "image": "freshrss/freshrss:latest",
-          "ports": ["80:80"],
+          "ports": [
+            "80:80"
+          ],
           "exposedPort": 80,
           "exposed": true,
-          "volumes": ["freshrss_data:/var/www/FreshRSS/data"],
+          "volumes": [
+            "freshrss_data:/var/www/FreshRSS/data"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1237,16 +1463,25 @@
       "kind": "template",
       "logo": "stirling-pdf",
       "category": "other",
-      "tags": ["pdf", "documents", "tools"],
+      "tags": [
+        "pdf",
+        "documents",
+        "tools"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "stirling-pdf",
           "image": "stirlingtools/stirling-pdf:latest",
-          "ports": ["8080:8080"],
+          "ports": [
+            "8080:8080"
+          ],
           "exposedPort": 8080,
           "exposed": true,
-          "volumes": ["stirling_config:/configs", "stirling_tessdata:/usr/share/tessdata"],
+          "volumes": [
+            "stirling_config:/configs",
+            "stirling_tessdata:/usr/share/tessdata"
+          ],
           "restart": "unless-stopped"
         }
       ]
@@ -1259,13 +1494,19 @@
       "kind": "template",
       "logo": "it-tools",
       "category": "other",
-      "tags": ["developer", "tools", "utilities"],
+      "tags": [
+        "developer",
+        "tools",
+        "utilities"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "it-tools",
           "image": "corentinth/it-tools:latest",
-          "ports": ["80:80"],
+          "ports": [
+            "80:80"
+          ],
           "exposedPort": 80,
           "exposed": true,
           "restart": "unless-stopped"
@@ -1281,13 +1522,19 @@
       "kind": "template",
       "logo": "excalidraw",
       "category": "other",
-      "tags": ["whiteboard", "diagrams", "drawing"],
+      "tags": [
+        "whiteboard",
+        "diagrams",
+        "drawing"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "excalidraw",
           "image": "excalidraw/excalidraw:latest",
-          "ports": ["8203:80"],
+          "ports": [
+            "8203:80"
+          ],
           "exposedPort": 80,
           "exposed": true,
           "restart": "unless-stopped"
@@ -1302,7 +1549,14 @@
       "kind": "template",
       "logo": "buzz",
       "category": "other",
-      "tags": ["collaboration", "ai", "agents", "chat", "workflows", "nostr"]
+      "tags": [
+        "collaboration",
+        "ai",
+        "agents",
+        "chat",
+        "workflows",
+        "nostr"
+      ]
     },
     {
       "available": true,
@@ -1313,14 +1567,21 @@
       "kind": "template",
       "logo": "minio",
       "category": "database",
-      "tags": ["storage", "s3", "object-storage"],
+      "tags": [
+        "storage",
+        "s3",
+        "object-storage"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "minio",
           "image": "minio/minio:latest",
           "command": "server /data --console-address :9001",
-          "ports": ["9000:9000", "9001:9001"],
+          "ports": [
+            "9000:9000",
+            "9001:9001"
+          ],
           "exposedPort": 9001,
           "routes": [
             {
@@ -1335,8 +1596,12 @@
           "environment": {
             "MINIO_BROWSER_REDIRECT_URL": "{{publicUrl:minio}}"
           },
-          "secretEnv": ["MINIO_ROOT_PASSWORD"],
-          "volumes": ["minio_data:/data"],
+          "secretEnv": [
+            "MINIO_ROOT_PASSWORD"
+          ],
+          "volumes": [
+            "minio_data:/data"
+          ],
           "restart": "unless-stopped"
         }
       ],
@@ -1410,7 +1675,13 @@
       "kind": "template",
       "logo": "apachekafka",
       "category": "backend",
-      "tags": ["kafka", "streaming", "events", "queue", "messaging"],
+      "tags": [
+        "kafka",
+        "streaming",
+        "events",
+        "queue",
+        "messaging"
+      ],
       "framework": "docker-compose",
       "services": [
         {
@@ -1432,7 +1703,9 @@
             "KAFKA_NUM_PARTITIONS": "3",
             "KAFKA_LOG_DIRS": "/var/lib/kafka/data"
           },
-          "volumes": ["kafka_data:/var/lib/kafka/data"],
+          "volumes": [
+            "kafka_data:/var/lib/kafka/data"
+          ],
           "restart": "unless-stopped"
         },
         {
@@ -1440,13 +1713,17 @@
           "image": "ghcr.io/kafbat/kafka-ui:latest",
           "exposedPort": 8080,
           "exposed": true,
-          "ports": ["8080:8080"],
+          "ports": [
+            "8080:8080"
+          ],
           "routes": [
             {
               "port": 8080
             }
           ],
-          "dependsOn": ["kafka"],
+          "dependsOn": [
+            "kafka"
+          ],
           "environment": {
             "KAFKA_CLUSTERS_0_NAME": "local",
             "KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS": "kafka:9092",
@@ -1454,7 +1731,9 @@
             "AUTH_TYPE": "LOGIN_FORM",
             "SPRING_SECURITY_USER_NAME": "admin"
           },
-          "secretEnv": ["SPRING_SECURITY_USER_PASSWORD"],
+          "secretEnv": [
+            "SPRING_SECURITY_USER_PASSWORD"
+          ],
           "restart": "unless-stopped"
         }
       ],
@@ -1518,13 +1797,22 @@
       "kind": "template",
       "logo": "qdrant",
       "category": "backend",
-      "tags": ["database", "vector", "ai", "search", "rag", "embeddings"],
+      "tags": [
+        "database",
+        "vector",
+        "ai",
+        "search",
+        "rag",
+        "embeddings"
+      ],
       "framework": "docker-compose",
       "services": [
         {
           "name": "qdrant",
           "image": "qdrant/qdrant:v1.18.3",
-          "ports": ["6333:6333"],
+          "ports": [
+            "6333:6333"
+          ],
           "exposedPort": 6333,
           "exposed": true,
           "routes": [
@@ -1532,8 +1820,12 @@
               "port": 6333
             }
           ],
-          "secretEnv": ["QDRANT__SERVICE__API_KEY"],
-          "volumes": ["qdrant_storage:/qdrant/storage"],
+          "secretEnv": [
+            "QDRANT__SERVICE__API_KEY"
+          ],
+          "volumes": [
+            "qdrant_storage:/qdrant/storage"
+          ],
           "restart": "unless-stopped"
         }
       ],

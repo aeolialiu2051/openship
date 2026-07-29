@@ -155,8 +155,8 @@ export interface AppOutputVariant {
 /** One value surfaced on the app's Connection card for the user to copy. */
 export interface AppOutput {
   id: string;
-  label: string;
-  help?: string;
+  label: LocalizedString;
+  help?: LocalizedString;
   /** `env:<service>:<KEY>` (a stored env value), `publicUrl:<service>[:<port>]`,
    *  or `template:…`. The canonical/default value — also what the "Use in a
    *  project" handover injects. */
@@ -214,29 +214,11 @@ export function resolveLocalized(
   );
 }
 
-/**
- * Plain-language handover guidance for wiring this app into ANOTHER project —
- * the "how do I connect this to my app" answer. Rendered by the Use-in-a-project
- * modal, natively. Optional; apps without it fall back to generic copy. All copy
- * fields are `LocalizedString` so a template can ship translations inline.
- */
-export interface AppConnectionGuide {
-  /** One-liner framing ("Your app gets the connection ready to use."). */
-  intro?: LocalizedString;
-  /** The copy-ready usage line ("Read `process.env.DATABASE_URL` in your code —
-   *  it's set on the next deploy."). */
-  useHint?: LocalizedString;
-  /** Preselected reachability mode for the handover (default "internal"). */
-  defaultMode?: "internal" | "public";
-}
-
 /** Post-install connection details (URLs, generated keys) shown to the user. */
 export interface AppConnection {
-  title?: string;
-  description?: string;
+  title?: LocalizedString;
+  description?: LocalizedString;
   outputs: readonly AppOutput[];
-  /** Opinionated handover guidance for the "Use in a project" flow. */
-  guide?: AppConnectionGuide;
 }
 
 /**

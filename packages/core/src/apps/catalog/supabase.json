@@ -372,11 +372,6 @@
   "connection": {
     "title": "Connect to Supabase",
     "description": "Point the Supabase client SDKs or Studio at this deployment. The service role key bypasses row-level security — keep it secret.",
-    "guide": {
-      "intro": "Your project gets the Supabase database connection, ready to use.",
-      "useHint": "Read `process.env.DATABASE_URL` in your code — it's set the next time your project deploys. Nothing else to do.",
-      "defaultMode": "internal"
-    },
     "outputs": [
       {
         "id": "url",

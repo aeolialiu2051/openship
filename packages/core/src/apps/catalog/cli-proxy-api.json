@@ -16,7 +16,7 @@
       "ports": ["8317:8317"],
       "exposedPort": 8317,
       "exposed": true,
-      "secretEnv": ["API_KEY"],
+      "secretEnv": ["API_KEY", "MANAGEMENT_PASSWORD"],
       "volumes": [
         "cli_proxy_api_auth:/root/.cli-proxy-api",
         "cli_proxy_api_logs:/CLIProxyAPI/logs",
@@ -33,33 +33,39 @@
       "help": "Auto-generated. Use this key to authenticate requests to the proxy API.",
       "generate": "secret",
       "secret": true
+    },
+    {
+      "key": "MANAGEMENT_PASSWORD",
+      "service": "cli-proxy-api",
+      "label": "Management key",
+      "help": "Auto-generated. Use this key to sign in to the CLIProxyAPI management center.",
+      "generate": "secret",
+      "secret": true
     }
   ],
   "files": [
     {
       "service": "cli-proxy-api",
       "path": "/CLIProxyAPI/config.yaml",
-      "content": "host: 0.0.0.0\nport: 8317\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: true\n"
+      "content": "host: 0.0.0.0\nport: 8317\nremote-management:\n  allow-remote: true\n  secret-key: \"\"\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: false\nplugins:\n  enabled: false\n  dir: /CLIProxyAPI/plugins\n"
     }
   ],
   "connection": {
-    "title": "Connect to CLIProxyAPI",
-    "description": "Use the OpenAI-compatible base URL and generated API key in your clients. Add and manage provider accounts from the CLIProxyAPI user interface.",
-    "guide": {
-      "intro": {
-        "en": "Your project gets an OpenAI-compatible endpoint backed by CLIProxyAPI. Provider accounts and installed plugins persist across container restarts.",
-        "zh": "你的项目将获得一个由 CLIProxyAPI 提供的 OpenAI 兼容接口；服务商账号和已安装插件会在容器重启后保留。"
-      },
-      "useHint": {
-        "en": "Add provider accounts from the CLIProxyAPI user interface, then read OPENAI_BASE_URL and OPENAI_API_KEY from the environment after redeploying your project.",
-        "zh": "在 CLIProxyAPI 用户页面添加服务商账号，然后重新部署项目并读取 OPENAI_BASE_URL 和 OPENAI_API_KEY。"
-      },
-      "defaultMode": "public"
+    "title": {
+      "en": "Connect to CLIProxyAPI",
+      "zh": "连接 CLIProxyAPI"
+    },
+    "description": {
+      "en": "Use the OpenAI-compatible endpoint in your clients and manage provider accounts from the protected CLIProxyAPI management center.",
+      "zh": "在客户端中使用 OpenAI 兼容接口，并通过受保护的 CLIProxyAPI 管理中心管理服务商账号。"
     },
     "outputs": [
       {
         "id": "baseUrl",
-        "label": "OpenAI base URL",
+        "label": {
+          "en": "OpenAI base URL",
+          "zh": "OpenAI 基础地址"
+        },
         "source": "template:{{publicUrl:cli-proxy-api}}/v1",
         "service": "cli-proxy-api",
         "envKey": "OPENAI_BASE_URL",
@@ -67,10 +73,34 @@
       },
       {
         "id": "apiKey",
-        "label": "API key",
+        "label": {
+          "en": "API key",
+          "zh": "API 密钥"
+        },
         "source": "env:cli-proxy-api:API_KEY",
         "secret": true,
         "envKey": "OPENAI_API_KEY",
+        "recommended": true
+      },
+      {
+        "id": "managementUrl",
+        "label": {
+          "en": "Management center",
+          "zh": "管理中心"
+        },
+        "source": "template:{{publicUrl:cli-proxy-api}}/management.html",
+        "service": "cli-proxy-api",
+        "recommended": true
+      },
+      {
+        "id": "managementKey",
+        "label": {
+          "en": "Management key",
+          "zh": "管理密钥"
+        },
+        "source": "env:cli-proxy-api:MANAGEMENT_PASSWORD",
+        "secret": true,
+        "envKey": "CLIPROXY_MANAGEMENT_KEY",
         "recommended": true
       }
     ]

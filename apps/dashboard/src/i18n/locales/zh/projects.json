@@ -213,7 +213,8 @@
   },
   "monitoring": {
     "noDataTitle": "暂无监控数据",
-    "noDataDescription": "部署的应用开始接收流量后，分析数据将显示在此处。"
+    "noDataDescription": "部署的应用开始通过项目域名接收流量后，分析数据将显示在此处。",
+    "loadFailed": "流量分析数据加载失败，请刷新页面重试。"
   },
   "services": {
     "failedLoad": "加载服务失败",
@@ -302,16 +303,19 @@
   "connections": {
     "useInProject": "在项目中使用",
     "title": "在项目中使用",
-    "subtitle": "将此数据库作为现成连接接入另一个项目。",
+    "subtitle": "将此应用或服务作为现成连接接入另一个项目。",
     "targetLabel": "项目",
     "targetPlaceholder": "选择一个项目…",
+    "loadingTargets": "正在加载项目…",
+    "noTargetProjects": "目前没有其他可连接的项目。",
+    "createProject": "创建项目",
     "valueLabel": "要注入的值",
     "valuesLabel": "要注入的值",
     "connectedN": "已将 {count} 个值接入 {project} — 重新部署以生效。",
     "modeInternal": "内部（推荐）",
     "modeInternalDesc": "通过共享网络私有访问 — 无公共端口。同一自托管服务器。",
     "modePublic": "公开",
-    "modePublicDesc": "使用已发布的 host:port。可在任何地方使用；需要开放数据库端口。",
+    "modePublicDesc": "使用已发布的访问地址，可跨服务器或供外部客户端使用。",
     "envKeyLabel": "环境变量",
     "redeployHint": "在目标的下次部署时应用。",
     "cancel": "取消",
@@ -326,7 +330,13 @@
     "guideIntroFallback": "你的项目将获得此连接，开箱即用。",
     "whatYouGet": "你的应用获得什么",
     "advancedValues": "高级",
-    "copy": "复制"
+    "copy": "复制",
+    "connectionTitle": "连接信息",
+    "defaultOption": "默认",
+    "reveal": "显示",
+    "hide": "隐藏",
+    "openLocalhost": "在本机打开（转发端口）",
+    "tunnelOpenFailed": "无法将端口转发到本机。"
   },
   "incomingWebhooks": {
     "title": "传入 Webhook",

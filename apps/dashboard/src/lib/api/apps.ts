@@ -71,19 +71,11 @@ export type LocalizedString = string | { [locale: string]: string };
 /** One resolved connection value (URL or generated key) for the app Overview. */
 export interface AppConnectionOutput {
   id: string;
-  label: string;
-  help?: string;
+  label: LocalizedString;
+  help?: LocalizedString;
   secret: boolean;
   /** Resolved value; "" when not resolvable yet (renders as "—"). */
   value: string;
-  /** Catalog-recommended target env-var name for the "Use in a project" handover. */
-  envKey?: string;
-  /** Source SERVICE (docker alias) this output belongs to — lets the "Use in a
-   *  project" modal group outputs by service and pick which service(s) to inject.
-   *  null when neither the output's `service` nor its `source` carries one. */
-  service: string | null;
-  /** Part of the recommended one-click bundle — pre-checked in the handover. */
-  recommended?: boolean;
   /** Label for the primary value in the switch (default "Default"); with `variants`. */
   sourceLabel?: LocalizedString;
   /** Resolved alternative forms of the value — the card shows a switch over
@@ -93,18 +85,10 @@ export interface AppConnectionOutput {
   width?: "full" | "half";
 }
 
-/** Opinionated handover guidance (localizable copy). */
-export interface AppConnectionGuide {
-  intro?: LocalizedString;
-  useHint?: LocalizedString;
-  defaultMode?: "internal" | "public";
-}
-
 export interface AppConnectionView {
-  title?: string;
-  description?: string;
+  title?: LocalizedString;
+  description?: LocalizedString;
   outputs: AppConnectionOutput[];
-  guide?: AppConnectionGuide;
 }
 
 export const appsApi = {

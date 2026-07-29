@@ -88,14 +88,16 @@ const outputVariant = z.object({
   source: z.string(),
 });
 
+const localizedString = z.union([z.string(), z.record(z.string(), z.string())]);
+
 const connection = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
+  title: localizedString.optional(),
+  description: localizedString.optional(),
   outputs: z.array(
     z.object({
       id: z.string(),
-      label: z.string(),
-      help: z.string().optional(),
+      label: localizedString,
+      help: localizedString.optional(),
       source: z.string(),
       secret: z.boolean().optional(),
       envKey: z.string().optional(),
@@ -109,14 +111,6 @@ const connection = z.object({
       width: z.enum(["full", "half"]).optional(),
     }),
   ),
-  guide: z
-    .object({
-      // string OR an inline { locale: string } map (localized in the catalog)
-      intro: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
-      useHint: z.union([z.string(), z.record(z.string(), z.string())]).optional(),
-      defaultMode: z.enum(["internal", "public"]).optional(),
-    })
-    .optional(),
 });
 
 const endpointMode = z.enum(["domain", "port", "publish", "internal"]);

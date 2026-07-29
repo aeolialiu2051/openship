@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Copy, Eye, EyeOff, Loader2, Link2, MonitorSmartphone, PlugZap } from "lucide-react";
+import { Check, Copy, Eye, EyeOff, Loader2, Link2, MonitorSmartphone } from "lucide-react";
 import { resolveLocalized } from "@repo/core";
 import { appsApi, type AppConnectionOutput, type AppConnectionView } from "@/lib/api/apps";
 import { systemApi } from "@/lib/api";
 import { usePlatform } from "@/context/PlatformContext";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
-import { UseInProjectModal } from "./UseInProjectModal";
 
 /** Port from an `http(s)://host:port` or `scheme://…@host:port/…` value, if any. */
 function portOf(value: string): number | null {
@@ -46,10 +45,10 @@ export function ConnectionCard({
 }) {
   const [view, setView] = useState<AppConnectionView | null>(null);
   const [loading, setLoading] = useState(true);
-  const [linkOpen, setLinkOpen] = useState(false);
   const { deployMode } = usePlatform();
   const { showToast } = useToast();
   const { t, locale } = useI18n();
+  const labels = t.projects.connections;
   // Forwarding to localhost only makes sense from a desktop dashboard managing a
   // REMOTE server (a local app is already localhost; a VPS is already public).
   const canForward = deployMode === "desktop" && deployTarget === "server" && !!serverId;
@@ -81,7 +80,7 @@ export function ConnectionCard({
       if (url && value.startsWith("http")) window.open(url, "_blank", "noopener");
       else if (url) await navigator.clipboard.writeText(url).catch(() => {});
     } catch {
-      showToast("Could not open the tunnel to localhost.", "error");
+      showToast(labels.tunnelOpenFailed, "error");
     }
   };
 
@@ -89,27 +88,20 @@ export function ConnectionCard({
   if (!appTemplateId) return null;
   if (!loading && (!view || view.outputs.length === 0)) return null;
 
-  const injectable = (view?.outputs ?? []).filter((o) => o.value);
-
   return (
     <div className="bg-card rounded-2xl border border-border/50 p-5">
       <div className="mb-1 flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Link2 className="size-4 text-primary" />
-          <h3 className="text-sm font-semibold text-foreground">{view?.title ?? "Connection"}</h3>
+          <h3 className="text-sm font-semibold text-foreground">
+            {resolveLocalized(view?.title, locale) || labels.connectionTitle}
+          </h3>
         </div>
-        {injectable.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setLinkOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border/50 px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <PlugZap className="size-3.5" /> {t.projects.connections.useInProject}
-          </button>
-        )}
       </div>
       {view?.description && (
-        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">{view.description}</p>
+        <p className="mb-4 text-xs leading-relaxed text-muted-foreground">
+          {resolveLocalized(view.description, locale)}
+        </p>
       )}
       {/* Columns: `half`-width outputs pair on one line, `full` spans the row. */}
       <div className="grid grid-cols-2 gap-3">
@@ -119,22 +111,12 @@ export function ConnectionCard({
               output={o}
               loading={loading}
               locale={locale}
+              labels={labels}
               onForward={canForward ? forward : undefined}
             />
           </div>
         ))}
       </div>
-
-      {linkOpen && (
-        <UseInProjectModal
-          open={linkOpen}
-          onClose={() => setLinkOpen(false)}
-          sourceProjectId={projectId}
-          sourceAppTemplateId={appTemplateId}
-          outputs={injectable}
-          guide={view?.guide}
-        />
-      )}
     </div>
   );
 }
@@ -144,19 +126,29 @@ function OutputRow({
   loading,
   onForward,
   locale,
+  labels,
 }: {
   output: AppConnectionOutput;
   loading: boolean;
   onForward?: (value: string) => void | Promise<void>;
   locale?: string;
+  labels: {
+    defaultOption: string;
+    hide: string;
+    reveal: string;
+    openLocalhost: string;
+    copy: string;
+  };
 }) {
+  const label = resolveLocalized(output.label, locale) || output.id;
+  const help = resolveLocalized(output.help, locale);
   // A multi-value output renders a switch over [primary, …variants]; the selected
   // entry drives the shown/masked value + reveal + copy + forward. No variants →
   // a single value (options=null), rendered exactly as before.
   const options =
     output.variants && output.variants.length > 0
       ? [
-          { id: "__primary", label: resolveLocalized(output.sourceLabel, locale) || "Default", value: output.value },
+          { id: "__primary", label: resolveLocalized(output.sourceLabel, locale) || labels.defaultOption, value: output.value },
           ...output.variants.map((v) => ({
             id: v.id,
             label: resolveLocalized(v.label, locale) || v.id,
@@ -194,7 +186,7 @@ function OutputRow({
     <div>
       <div className="flex items-center justify-between gap-2">
         <label className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
-          {output.label}
+          {label}
         </label>
         {options && (
           <div className="inline-flex shrink-0 rounded-lg border border-border/50 p-0.5">
@@ -233,7 +225,7 @@ function OutputRow({
             type="button"
             onClick={() => setRevealed((r) => !r)}
             className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label={revealed ? "Hide" : "Reveal"}
+            aria-label={revealed ? labels.hide : labels.reveal}
           >
             {revealed ? <EyeOff className="size-3.5" /> : <Eye className="size-3.5" />}
           </button>
@@ -244,8 +236,8 @@ function OutputRow({
             onClick={doForward}
             disabled={forwarding}
             className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50"
-            aria-label="Open on localhost"
-            title="Open on localhost (forward the port)"
+            aria-label={labels.openLocalhost}
+            title={labels.openLocalhost}
           >
             {forwarding ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -259,13 +251,13 @@ function OutputRow({
             type="button"
             onClick={copy}
             className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            aria-label="Copy"
+            aria-label={labels.copy}
           >
             {copied ? <Check className="size-3.5 text-success" /> : <Copy className="size-3.5" />}
           </button>
         )}
       </div>
-      {output.help && <p className="mt-1 text-[11px] text-muted-foreground/70">{output.help}</p>}
+      {help && <p className="mt-1 text-[11px] text-muted-foreground/70">{help}</p>}
     </div>
   );
 }

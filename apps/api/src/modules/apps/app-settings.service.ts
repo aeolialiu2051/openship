@@ -19,7 +19,6 @@ import {
   ValidationError,
   type AppManagement,
   type AppSettingGroup,
-  type AppConnectionGuide,
   type LocalizedString,
 } from "@repo/core";
 import { getTemplateForOrg } from "./catalog-source";
@@ -177,23 +176,15 @@ export async function updateAppProjectSettings(
 /** One resolved connection value for the app Overview's Connection card. */
 export interface AppConnectionOutput {
   id: string;
-  label: string;
-  help?: string;
+  label: LocalizedString;
+  help?: LocalizedString;
   /** Render masked with a reveal toggle. The real value is still sent (this is a
    *  deliberate, template-curated credentials surface for an authorized member). */
   secret: boolean;
   /** Resolved PRIMARY value; "" when it can't be resolved yet (renders as "—"). */
   value: string;
-  /** Catalog-recommended target env-var name for the "Use in a project" handover
-   *  (so the client doesn't guess). Undefined → the client falls back. */
-  envKey?: string;
-  /** Source SERVICE (docker alias) this output belongs to — lets the connect UI
-   *  group outputs by service and pick which service(s) to inject. Derived from
-   *  the output's declared `service` or its `source` prefix; null when neither
-   *  carries one (a `template:` value with no service → internal not available). */
+  /** Source service alias retained for the backend connection engine. */
   service: string | null;
-  /** Part of the recommended one-click bundle — pre-checked in the handover. */
-  recommended?: boolean;
   /** Label for the primary value in the switch (default "Default"); with `variants`. */
   sourceLabel?: LocalizedString;
   /** Resolved alternative forms of the value — the card shows a switch over
@@ -204,13 +195,9 @@ export interface AppConnectionOutput {
 }
 
 export interface AppConnectionView {
-  title?: string;
-  description?: string;
+  title?: LocalizedString;
+  description?: LocalizedString;
   outputs: AppConnectionOutput[];
-  /** Opinionated handover guidance (localizable) — see AppConnectionGuide. Copy
-   *  fields are passed through as-authored (string OR locale-map); the dashboard
-   *  resolves them against the active locale via `resolveLocalized`. */
-  guide?: AppConnectionGuide;
 }
 
 /**
@@ -263,6 +250,10 @@ export async function getAppConnectionView(
 
   const services = await repos.service.listByProject(projectId);
   const byName = new Map(services.map((s) => [s.name, s]));
+  // Live domain rows are authoritative for what the dashboard's project card
+  // opens. Service config can still contain the originally generated `.opsh.io`
+  // slug after a custom/base-domain route has become the active address.
+  const domainRows = await repos.domain.listByProject(projectId);
 
   // Fetch each referenced service's env once, decrypting every value (all rows
   // are encrypt()-ed at rest regardless of the secret flag).
@@ -303,6 +294,37 @@ export async function getAppConnectionView(
   // this view (primary + variants) so it's fetched at most once.
   let serverHost: string | null | undefined;
 
+  /** Resolve one service's externally reachable HTTP URL, preferring its
+   * assigned domain and falling back to the published host port. */
+  const resolvePublicUrl = async (serviceName: string, port?: number): Promise<string> => {
+    const svc = byName.get(serviceName);
+    if (!svc) return "";
+    const liveDomain = domainRows
+      .filter((domain) => {
+        if (!domain.hostname?.trim()) return false;
+        if (domain.serviceId && domain.serviceId !== svc.id) return false;
+        if (port !== undefined && domain.targetPort != null && domain.targetPort !== port) return false;
+        return true;
+      })
+      .sort((left, right) => {
+        const leftServiceMatch = left.serviceId === svc.id ? 1 : 0;
+        const rightServiceMatch = right.serviceId === svc.id ? 1 : 0;
+        if (leftServiceMatch !== rightServiceMatch) return rightServiceMatch - leftServiceMatch;
+        if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1;
+        if (left.verified !== right.verified) return left.verified ? -1 : 1;
+        return left.hostname.localeCompare(right.hostname);
+      })[0];
+    if (liveDomain) return `https://${liveDomain.hostname.trim()}`;
+
+    const urls = resolveServiceEndpointUrls(project, svc);
+    const domainUrl = port !== undefined ? urls.find((u) => u.port === port)?.url : urls[0]?.url;
+    if (domainUrl) return domainUrl;
+    if (serverHost === undefined) serverHost = await resolvePortOnlyHost(project);
+    const hostPorts = servicePublishedHostPorts(svc);
+    const chosen = port !== undefined && hostPorts.includes(port) ? port : hostPorts[0];
+    return serverHost && chosen !== undefined ? `http://${serverHost}:${chosen}` : "";
+  };
+
   /** Resolve ONE source string (`env:…` / `template:…` / `publicUrl:…`) → value,
    *  "" when a piece can't resolve. Used for the primary source AND each variant. */
   const resolveSource = async (source: string): Promise<string> => {
@@ -321,6 +343,12 @@ export async function getAppConnectionView(
         if (!v) ok = false;
         return v;
       });
+      const publicUrlRefs = [...tpl.matchAll(/\{\{\s*publicUrl:([^:}]+)(?::(\d+))?\s*\}\}/g)];
+      for (const ref of publicUrlRefs) {
+        const value = await resolvePublicUrl(ref[1], ref[2] ? Number(ref[2]) : undefined);
+        if (!value) ok = false;
+        tpl = tpl.replace(ref[0], value);
+      }
       if (tpl.includes("{{host}}")) {
         if (serverHost === undefined) serverHost = await resolvePortOnlyHost(project);
         if (!serverHost) ok = false;
@@ -328,19 +356,7 @@ export async function getAppConnectionView(
       }
       return ok ? tpl : "";
     }
-    if (pm) {
-      const svc = byName.get(pm[1]);
-      if (svc) {
-        const port = pm[2] ? Number(pm[2]) : undefined;
-        const urls = resolveServiceEndpointUrls(project, svc);
-        const domainUrl = port !== undefined ? urls.find((u) => u.port === port)?.url : urls[0]?.url;
-        if (domainUrl) return domainUrl;
-        if (serverHost === undefined) serverHost = await resolvePortOnlyHost(project);
-        const hostPorts = servicePublishedHostPorts(svc);
-        const chosen = port !== undefined && hostPorts.includes(port) ? port : hostPorts[0];
-        if (serverHost && chosen !== undefined) return `http://${serverHost}:${chosen}`;
-      }
-    }
+    if (pm) return resolvePublicUrl(pm[1], pm[2] ? Number(pm[2]) : undefined);
     return "";
   };
 
@@ -362,9 +378,7 @@ export async function getAppConnectionView(
       help: o.help,
       secret: !!o.secret,
       value,
-      envKey: o.envKey,
       service: getOutputService(o),
-      recommended: o.recommended,
       sourceLabel: o.sourceLabel,
       variants,
       width: o.width,
@@ -375,6 +389,5 @@ export async function getAppConnectionView(
     title: connection.title,
     description: connection.description,
     outputs,
-    guide: connection.guide,
   };
 }

@@ -109,16 +109,19 @@
   "connections": {
     "useInProject": "Use in a project",
     "title": "Use in a project",
-    "subtitle": "Wire this database into another project as a ready connection.",
+    "subtitle": "Wire this app or service into another project as a ready connection.",
     "targetLabel": "Project",
     "targetPlaceholder": "Select a project…",
+    "loadingTargets": "Loading projects…",
+    "noTargetProjects": "There are no other projects to connect yet.",
+    "createProject": "Create project",
     "valueLabel": "Value to inject",
     "valuesLabel": "Values to inject",
     "connectedN": "Wired {count} value(s) into {project} — redeploy to apply.",
     "modeInternal": "Internal (recommended)",
     "modeInternalDesc": "Reach it privately over a shared network — no public port. Same self-hosted server.",
     "modePublic": "Public",
-    "modePublicDesc": "Use the published host:port. Works anywhere; needs the database port open.",
+    "modePublicDesc": "Use the published address. Works across servers and external clients.",
     "envKeyLabel": "Environment variable",
     "redeployHint": "Applied on the target's next deploy.",
     "cancel": "Cancel",
@@ -133,7 +136,13 @@
     "guideIntroFallback": "Your project gets this connection, ready to use.",
     "whatYouGet": "What your app gets",
     "advancedValues": "Advanced",
-    "copy": "Copy"
+    "copy": "Copy",
+    "connectionTitle": "Connection",
+    "defaultOption": "Default",
+    "reveal": "Reveal",
+    "hide": "Hide",
+    "openLocalhost": "Open on localhost (forward the port)",
+    "tunnelOpenFailed": "Could not open the tunnel to localhost."
   },
   "sidebar": {
     "project": "Project",
@@ -258,7 +267,8 @@
   },
   "monitoring": {
     "noDataTitle": "No monitoring data yet",
-    "noDataDescription": "Analytics will appear here after the deployed app starts receiving traffic."
+    "noDataDescription": "Analytics will appear here after the deployed app starts receiving traffic through its domain.",
+    "loadFailed": "Traffic analytics could not be loaded. Refresh the page to try again."
   },
   "services": {
     "failedLoad": "Failed to load services",

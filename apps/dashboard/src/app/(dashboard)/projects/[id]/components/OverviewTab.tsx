@@ -97,6 +97,7 @@ export const OverviewTab = () => {
     loading?: boolean;
   };
   const hasAnalytics = !!analyticsData;
+  const analyticsFailed = !!analytics.error;
   const stats: Stat[] = showStatsSkeleton
     ? [
         {
@@ -127,34 +128,40 @@ export const OverviewTab = () => {
     : [
         {
           label: t.projects.stats.serverRequests,
-          value: formatNumber(analyticsData?.summary?.uniqueRequests ?? 0),
+          value: analyticsFailed ? "—" : formatNumber(analyticsData?.summary?.uniqueRequests ?? 0),
           icon: <Server className="size-4" />,
-          subtext: interpolate(t.projects.stats.requestsSubtext, {
-            total: formatNumber(analyticsData?.summary?.totalRequests ?? 0),
-            avg: String(analyticsData?.summary?.avgRequestsPerHour ?? 0),
-          }),
+          subtext: analyticsFailed
+            ? undefined
+            : interpolate(t.projects.stats.requestsSubtext, {
+                total: formatNumber(analyticsData?.summary?.totalRequests ?? 0),
+                avg: String(analyticsData?.summary?.avgRequestsPerHour ?? 0),
+              }),
         },
         {
           label: t.projects.stats.uniqueIPs,
-          value: formatNumber(analyticsData?.summary?.uniqueIPs ?? 0),
+          value: analyticsFailed ? "—" : formatNumber(analyticsData?.summary?.uniqueIPs ?? 0),
           icon: <Users className="size-4" />,
-          subtext: interpolate(t.projects.stats.uniqueIPsSubtext, {
-            pct: String(analyticsData?.summary?.uniqueIPsPercentage ?? 0),
-          }),
+          subtext: analyticsFailed
+            ? undefined
+            : interpolate(t.projects.stats.uniqueIPsSubtext, {
+                pct: String(analyticsData?.summary?.uniqueIPsPercentage ?? 0),
+              }),
         },
         {
           label: t.projects.stats.avgResponse,
-          value: `${analyticsData?.performance?.avgResponseTimeMs?.toFixed(2) || "N/A "}ms`,
+          value: hasAnalytics ? `${analyticsData.performance.avgResponseTimeMs.toFixed(2)}ms` : "—",
           icon: <Gauge className="size-4" />,
-          subtext: t.projects.stats.responseTime,
+          subtext: hasAnalytics ? t.projects.stats.responseTime : undefined,
         },
         {
           label: t.projects.stats.bandwidthOut,
-          value: analyticsData?.bandwidth?.totalOutFormatted || "N/A",
+          value: hasAnalytics ? analyticsData.bandwidth.totalOutFormatted : "—",
           icon: <ArrowUpDown className="size-4" />,
-          subtext: interpolate(t.projects.stats.bandwidthInSubtext, {
-            value: analyticsData?.bandwidth?.totalInFormatted ?? "0 B",
-          }),
+          subtext: hasAnalytics
+            ? interpolate(t.projects.stats.bandwidthInSubtext, {
+                value: analyticsData.bandwidth.totalInFormatted,
+              })
+            : undefined,
         },
       ];
 
@@ -173,17 +180,6 @@ export const OverviewTab = () => {
 
   return (
     <div className="space-y-5">
-      {/* Catalog-app connection details (URLs + generated keys) — surfaced so the
-          user copies them into the app; nothing renders for apps without one. */}
-      {projectData.isApp && (
-        <ConnectionCard
-          projectId={projectData.id}
-          appTemplateId={projectData.appTemplateId}
-          serverId={projectData.serverId}
-          deployTarget={deployTarget}
-        />
-      )}
-
       {/* Databases/apps wired INTO this project (renders nothing when none). */}
       {projectData.id && <ConnectedServicesCard projectId={projectData.id} />}
 
@@ -347,10 +343,17 @@ export const OverviewTab = () => {
               );
             })}
           </div>
+        ) : analyticsFailed ? (
+          <div className="flex h-[120px] items-center justify-center rounded-xl border border-dashed border-destructive/30 bg-destructive/[0.03] px-4 text-center">
+            <span className="text-[12px] text-muted-foreground">{t.projects.monitoring.loadFailed}</span>
+          </div>
         ) : !hasAnalytics ? (
-          <div className="flex items-center justify-center h-[120px] rounded-xl border border-dashed border-border/50 bg-muted/10">
-            <span className="text-[12px] text-muted-foreground">
+          <div className="flex h-[120px] flex-col items-center justify-center rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 text-center">
+            <span className="text-[12px] font-medium text-foreground">
               {t.projects.overview.noTrafficData}
+            </span>
+            <span className="mt-1 text-[11px] text-muted-foreground">
+              {t.projects.monitoring.noDataDescription}
             </span>
           </div>
         ) : (
@@ -488,6 +491,17 @@ export const OverviewTab = () => {
             ))}
           </div>
         </div>
+      )}
+
+      {/* Connection details are supporting information, so keep them after the
+          project's infrastructure, monitoring, and services overview. */}
+      {projectData.isApp && (
+        <ConnectionCard
+          projectId={projectData.id}
+          appTemplateId={projectData.appTemplateId}
+          serverId={projectData.serverId}
+          deployTarget={deployTarget}
+        />
       )}
     </div>
   );

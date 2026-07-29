@@ -104,11 +104,6 @@
   "connection": {
     "title": "Connect to MongoDB",
     "description": "Open the Mongo Express admin in a browser, or point a driver at the database URL.",
-    "guide": {
-      "intro": "Your project gets the MongoDB connection, ready to use.",
-      "useHint": "Read `process.env.MONGODB_URI` in your code — it's set the next time your project deploys. Nothing else to do.",
-      "defaultMode": "internal"
-    },
     "outputs": [
       {
         "id": "admin",
