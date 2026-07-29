@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, Loader2, Server, Plug } from "lucide-react";
 import { deployApi, mailApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/client";
@@ -36,13 +36,17 @@ type Phase = "choose" | "connect" | "installing" | "done" | "error";
 
 export default function MailWizardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const w = t.projectSettings.appInstall;
   const m = w.mail;
   const { showToast } = useToast();
   const { baseDomain } = usePlatform();
 
-  const [phase, setPhase] = useState<Phase>("choose");
+  const openedFromEmails = searchParams.get("from") === "emails";
+  const [phase, setPhase] = useState<Phase>(() =>
+    searchParams.get("mode") === "connect" ? "connect" : "choose",
+  );
   const [preset, setPreset] = useState<MailProviderId>("custom");
   const [hostname, setHostname] = useState("");
   const [imapHost, setImapHost] = useState("");
@@ -166,7 +170,13 @@ export default function MailWizardPage() {
       <div className={`mx-auto pt-6 ${phase === "connect" ? "max-w-5xl" : "max-w-2xl"}`}>
         <button
           type="button"
-          onClick={() => (phase === "connect" ? setPhase("choose") : router.push("/apps/new"))}
+          onClick={() =>
+            phase === "connect"
+              ? openedFromEmails
+                ? router.push("/emails")
+                : setPhase("choose")
+              : router.push("/apps/new")
+          }
           className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <ArrowLeft className="size-4" /> {w.back}

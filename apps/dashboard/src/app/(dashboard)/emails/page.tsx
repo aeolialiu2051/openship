@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { Loader2, ArrowLeft, Plus, AlertTriangle, RefreshCw } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, AlertTriangle, RefreshCw, Plug } from "lucide-react";
 import dynamic from "next/dynamic";
 import {
   mailApi,
@@ -869,6 +869,9 @@ export default function EmailsPage() {
     setPtrPending(null);
     setError(null);
   };
+  const handleConnectExistingMailbox = () => {
+    router.push("/apps/new/mail?mode=connect&from=emails");
+  };
 
   if (loading) {
     return (
@@ -916,16 +919,29 @@ export default function EmailsPage() {
         {/* Add-server action while viewing a server (add a 2nd, etc.).
               The list view has its own Add button; the setup/progress views
               are already the add flow. */}
-        {showAdmin && (
-          <button
-            type="button"
-            onClick={handleAddNew}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            title={t.emails.page.addServer}
-          >
-            <Plus className="size-4" />
-            {t.emails.page.addServer}
-          </button>
+        {(showAdmin || showSetupForm) && (
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleConnectExistingMailbox}
+              className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25"
+              title={t.emails.page.connectExisting}
+            >
+              <Plug className="size-4" />
+              {t.emails.page.connectExisting}
+            </button>
+            {showAdmin && (
+              <button
+                type="button"
+                onClick={handleAddNew}
+                className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+                title={t.emails.page.addServer}
+              >
+                <Plus className="size-4" />
+                {t.emails.page.addServer}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -935,6 +951,7 @@ export default function EmailsPage() {
           servers={mailServers}
           onOpen={openMailServer}
           onAddNew={handleAddNew}
+          onConnectExisting={handleConnectExistingMailbox}
           onRemove={handleRemoveFromList}
         />
       )}

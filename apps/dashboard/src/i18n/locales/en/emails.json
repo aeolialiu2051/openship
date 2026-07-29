@@ -10,6 +10,7 @@
     "retryStatus": "Check again",
     "backToServers": "Back to mail servers",
     "addServer": "Add mail server",
+    "connectExisting": "Connect existing mailbox",
     "removeModal": {
       "title": "Remove this mail server?",
       "description": "Removes {label} from the mail list only. The mail stack keeps running and nothing is uninstalled — re-add it anytime with \"Adopt\" for an existing install.",
@@ -93,6 +94,7 @@
   "serverList": {
     "title": "Mail servers",
     "addServer": "Add mail server",
+    "connectExisting": "Connect existing mailbox",
     "removeFromList": "Remove from list",
     "removeAria": "Remove {name} from the mail list",
     "installing": "Installing",

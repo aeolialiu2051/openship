@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, Plus, ChevronRight, Globe, Trash2 } from "lucide-react";
+import { Mail, Plus, ChevronRight, Globe, Trash2, Plug } from "lucide-react";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 export interface MailServerListItem {
@@ -25,11 +25,13 @@ export function MailServerList({
   servers,
   onOpen,
   onAddNew,
+  onConnectExisting,
   onRemove,
 }: {
   servers: MailServerListItem[];
   onOpen: (serverId: string) => void;
   onAddNew: () => void;
+  onConnectExisting: () => void;
   onRemove: (server: MailServerListItem) => void;
 }) {
   const { t } = useI18n();
@@ -37,14 +39,24 @@ export function MailServerList({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h2 className="text-base font-semibold text-foreground">{t.emails.serverList.title}</h2>
-        <button
-          type="button"
-          onClick={onAddNew}
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Plus className="size-4" />
-          {t.emails.serverList.addServer}
-        </button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onConnectExisting}
+            className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/20 transition-all hover:-translate-y-0.5 hover:bg-primary/90 hover:shadow-md hover:shadow-primary/25"
+          >
+            <Plug className="size-4" />
+            {t.emails.serverList.connectExisting}
+          </button>
+          <button
+            type="button"
+            onClick={onAddNew}
+            className="inline-flex items-center gap-2 rounded-xl border border-border/60 bg-card px-4 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+          >
+            <Plus className="size-4" />
+            {t.emails.serverList.addServer}
+          </button>
+        </div>
       </div>
 
       <div className="space-y-3">

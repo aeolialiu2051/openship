@@ -10,6 +10,7 @@
     "retryStatus": "重新检查",
     "backToServers": "返回邮件服务器",
     "addServer": "添加邮件服务器",
+    "connectExisting": "连接到现有邮箱",
     "removeModal": {
       "title": "移除此邮件服务器？",
       "description": "仅将 {label} 从邮件列表中移除。邮件堆栈会继续运行，不会卸载任何内容——随时可以通过“采用”重新添加已有安装。",
@@ -93,6 +94,7 @@
   "serverList": {
     "title": "邮件服务器",
     "addServer": "添加邮件服务器",
+    "connectExisting": "连接到现有邮箱",
     "removeFromList": "从列表中移除",
     "removeAria": "将 {name} 从邮件列表中移除",
     "installing": "正在安装",
