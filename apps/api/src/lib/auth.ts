@@ -395,7 +395,20 @@ export const auth = betterAuth({
         // change-email OTP types are not enabled). Send a link-free code email.
         if (type === "email-verification") {
           const tmpl = verifyOtpEmailTemplate(otp, { expiresMinutes: 10 });
-          await sendMail({ to: email, ...tmpl });
+          try {
+            await sendMail({ to: email, ...tmpl });
+          } catch (error) {
+            if (env.NODE_ENV !== "development") throw error;
+
+            // Local SaaS development should remain usable when outbound SMTP is
+            // blocked by a proxy, firewall, or offline environment. The account
+            // and OTP have already been persisted by Better Auth, so expose the
+            // code only in the local API terminal and let the verification flow
+            // continue. Production still fails closed and never logs OTPs.
+            console.warn(
+              `[auth] verification email delivery failed in development; OTP for ${email}: ${otp}`,
+            );
+          }
         }
       },
     }),

@@ -64,6 +64,13 @@ function RegisterPageInner() {
           return;
         }
         toast("error", result.error.message ?? t.auth.errors.createFailed);
+      } else if (!result.data?.token || result.data.user.emailVerified === false) {
+        // SaaS requires email verification, so a successful sign-up deliberately
+        // returns no session token. The user already exists at this point; send
+        // them to the OTP screen instead of navigating to the authenticated home
+        // page (which immediately bounces them back to login and looks like the
+        // account creation failed).
+        router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       } else if (postLoginUrl) {
         window.location.href = postLoginUrl;
       } else {

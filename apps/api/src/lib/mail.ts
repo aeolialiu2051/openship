@@ -68,6 +68,46 @@ const envTransport: Transporter | null = envSmtpConfigured
 
 const envFrom = env.SMTP_FROM;
 
+/**
+ * Resend's SMTP password is the same API key accepted by its HTTPS API. Raw
+ * SMTP ports are commonly blocked or mishandled by desktop proxy fake-IP
+ * modes, while HTTPS/443 remains available. Prefer HTTPS for this provider and
+ * retain SMTP as the fallback; other SMTP providers keep the normal path.
+ */
+const resendHttpConfigured =
+  env.SMTP_HOST?.trim().toLowerCase() === "smtp.resend.com" &&
+  env.SMTP_USER?.trim().toLowerCase() === "resend" &&
+  !!env.SMTP_PASS;
+
+async function sendViaResendHttp(opts: SendMailOptions): Promise<void> {
+  if (!resendHttpConfigured || !env.SMTP_PASS) {
+    throw new Error("Resend HTTPS transport is not configured");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.SMTP_PASS}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: envFrom,
+      to: [opts.to],
+      subject: opts.subject,
+      html: opts.html,
+      ...(opts.text ? { text: opts.text } : {}),
+    }),
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  if (!response.ok) {
+    const detail = (await response.text()).slice(0, 500);
+    throw new Error(
+      `Resend HTTPS API returned ${response.status}${detail ? `: ${detail}` : ""}`,
+    );
+  }
+}
+
 // ─── Platform transport (cached briefly per serverId) ────────────────────────
 
 interface CachedPlatformTransport {
@@ -364,6 +404,21 @@ export async function sendMail(opts: SendMailOptions): Promise<void> {
   let lastErr: unknown = null;
   for (let i = 0; i < chain.length; i++) {
     const active = chain[i];
+
+    // Resend accepts the SMTP password as an HTTPS API key. Use its API first
+    // so local proxy/firewall failures on port 465 do not hold the auth request
+    // open until the TLS socket times out. SMTP remains a provider fallback.
+    if (active.source === "env" && resendHttpConfigured) {
+      try {
+        await sendViaResendHttp(opts);
+        console.info("[mail] sent via Resend HTTPS API");
+        return;
+      } catch (httpErr) {
+        lastErr = httpErr;
+        console.warn("[mail] Resend HTTPS API failed - trying SMTP fallback:", httpErr);
+      }
+    }
+
     try {
       await active.transport.sendMail({
         from: active.from,
