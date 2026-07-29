@@ -82,6 +82,7 @@
     "resetTitle": "清除服务器上的安装状态并重新开始",
     "confirmReset": "再次点击以确认",
     "reset": "重置",
+    "resetting": "正在重置…",
     "waiting": "正在等待输出…",
     "noBuffered": "此次运行没有缓存的输出。",
     "willStream": "安装开始后日志将在此处实时显示。",

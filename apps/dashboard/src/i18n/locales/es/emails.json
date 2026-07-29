@@ -76,6 +76,7 @@
     "resetTitle": "Borrar el estado de instalación en el servidor y empezar de cero",
     "confirmReset": "Haz clic de nuevo para confirmar",
     "reset": "Restablecer",
+    "resetting": "Restableciendo…",
     "waiting": "Esperando salida…",
     "noBuffered": "No hay salida almacenada para esta ejecución.",
     "willStream": "Los registros se transmitirán aquí una vez que comience la configuración.",

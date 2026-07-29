@@ -308,11 +308,11 @@
   },
   "advanced": {
     "resetTitle": "¿Restablecer el estado del servidor?",
-    "resetDesc": "Borra el seguimiento que openship hace de esta instalación: el archivo de estado en el servidor (/root/.openship/mail-state.json) Y la fila del registro del servidor de correo. La pila de correo en ejecución no se toca (cada buzón, mensaje y cola permanece intacto), pero tendrás que volver a ejecutar el asistente de configuración para gestionarlo de nuevo (Eliminar conserva el archivo de estado para que puedas simplemente readoptarlo).",
+    "resetDesc": "Borra el seguimiento de esta instalación y elimina los registros DNS que openship creó para ella. Se limpian el archivo de estado del servidor (/root/.openship/mail-state.json) y la fila del registro. La pila de correo sigue intacta, pero tendrás que volver a ejecutar el asistente para gestionarla (Eliminar conserva el estado y el DNS para poder readoptarla).",
     "resetSubmit": "Restablecer estado",
     "resetSubmitting": "Restableciendo…",
     "resetFailed": "El restablecimiento falló",
-    "resetBox": "Después de esto, la página /emails mostrará de nuevo el asistente de instalación para este servidor. Podrás entonces volver a ejecutarlo desde el paso 1 o retomar desde un paso concreto.",
+    "resetBox": "Después de esto, /emails mostrará de nuevo el asistente. La limpieza DNS solo elimina registros marcados como creados por openship; los registros existentes no se modifican.",
     "forgetTitle": "¿Eliminar este servidor de correo?",
     "forgetDesc": "Elimina este servidor solo de la lista de correo de openship. La pila de correo sigue ejecutándose y no se desinstala nada; no se tocan buzones, mensajes ni DNS. Vuelve a añadirlo cuando quieras con Escanear en busca de una instalación existente.",
     "forgetSubmit": "Eliminar de la lista",

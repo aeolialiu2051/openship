@@ -10,6 +10,10 @@ interface CloudflareRecord {
   name: string;
   type: string;
   content: string;
+  ttl?: number;
+  proxied?: boolean;
+  priority?: number;
+  comment?: string;
 }
 
 interface CloudflareZone {
@@ -159,6 +163,131 @@ async function listRecords(
     credentials,
     `/dns_records?name=${encodeURIComponent(hostname)}&per_page=100`,
   );
+}
+
+export interface ManagedDnsRecordInput {
+  type: string;
+  name: string;
+  content: string;
+  priority?: number;
+}
+
+function normalizedRecordContent(record: Pick<ManagedDnsRecordInput, "type" | "content">): string {
+  const content = record.content.trim();
+  return record.type.toUpperCase() === "MX" ? content.replace(/\.$/, "").toLowerCase() : content;
+}
+
+function sameManagedRecord(existing: CloudflareRecord, desired: ManagedDnsRecordInput): boolean {
+  return (
+    existing.type.toUpperCase() === desired.type.toUpperCase() &&
+    normalizeDnsZoneDomain(existing.name) === normalizeDnsZoneDomain(desired.name) &&
+    normalizedRecordContent(existing) === normalizedRecordContent(desired) &&
+    (desired.type.toUpperCase() !== "MX" ||
+      Number(existing.priority ?? 0) === Number(desired.priority ?? 0))
+  );
+}
+
+function managesSameSlot(existing: CloudflareRecord, desired: ManagedDnsRecordInput): boolean {
+  if (existing.type.toUpperCase() !== desired.type.toUpperCase()) return false;
+  if (normalizeDnsZoneDomain(existing.name) !== normalizeDnsZoneDomain(desired.name)) return false;
+
+  const type = desired.type.toUpperCase();
+  if (["A", "AAAA", "CNAME"].includes(type)) return true;
+  if (type !== "TXT") return false;
+
+  const desiredContent = desired.content.trim().toLowerCase();
+  const existingContent = existing.content.trim().toLowerCase();
+  for (const prefix of ["v=spf1", "v=dmarc1", "v=dkim1"]) {
+    if (desiredContent.startsWith(prefix)) return existingContent.startsWith(prefix);
+  }
+  return false;
+}
+
+/**
+ * Publish DNS records without taking ownership of pre-existing user records.
+ * Exact matches are left untouched; conflicting singleton records fail with a
+ * clear error. Records created here are tagged so cleanup can delete exactly
+ * Openship's writes even when the mail server or its remote state is gone.
+ */
+export async function publishManagedDnsRecords(opts: {
+  records: ManagedDnsRecordInput[];
+  organizationId: string;
+  ownerTag: string;
+}): Promise<"published" | "skipped"> {
+  if (opts.records.length === 0) return "published";
+  const resolved = await Promise.all(
+    opts.records.map((record) => resolveCredentials(record.name, opts.organizationId)),
+  );
+  if (resolved.some((credentials) => !credentials)) return "skipped";
+  const credentialsByRecord = resolved as CloudflareCredentials[];
+  const firstCredentials = credentialsByRecord[0]!;
+  if (credentialsByRecord.some((credentials) => credentials.zoneId !== firstCredentials.zoneId)) {
+    throw new Error("Mail DNS records resolve to more than one connected DNS zone");
+  }
+
+  for (const [index, desired] of opts.records.entries()) {
+    const credentials = credentialsByRecord[index]!;
+
+    const existing = await listRecords(credentials, desired.name);
+    if (existing.some((record) => sameManagedRecord(record, desired))) continue;
+    const conflict = existing.find((record) => managesSameSlot(record, desired));
+    if (conflict) {
+      throw new Error(
+        `${desired.name} already has a conflicting ${desired.type.toUpperCase()} record. Remove or update it before automatic mail DNS provisioning.`,
+      );
+    }
+
+    await cloudflare<CloudflareRecord>(credentials, "/dns_records", {
+      method: "POST",
+      body: JSON.stringify({
+        type: desired.type.toUpperCase(),
+        name: normalizeDnsZoneDomain(desired.name),
+        content: desired.content,
+        ttl: 1,
+        proxied: false,
+        ...(desired.priority !== undefined ? { priority: desired.priority } : {}),
+        comment: opts.ownerTag,
+      }),
+    });
+  }
+  return "published";
+}
+
+/** Delete only records carrying the exact ownership tag written above. */
+export async function deleteManagedDnsRecords(opts: {
+  domain: string;
+  organizationId: string;
+  ownerTag: string;
+}): Promise<void> {
+  const credentials = await resolveCredentials(opts.domain, opts.organizationId);
+  if (!credentials) return;
+
+  // A zone can contain more records than Cloudflare returns in one page.
+  // Walk every page so old tagged records cannot be stranded in large zones.
+  const pageSize = 5_000;
+  const ownedRecordIds: string[] = [];
+  for (let page = 1; ; page += 1) {
+    const records = await cloudflare<CloudflareRecord[]>(
+      credentials,
+      `/dns_records?per_page=${pageSize}&page=${page}`,
+    );
+    ownedRecordIds.push(
+      ...records
+        .filter((candidate) => candidate.comment === opts.ownerTag)
+        .map((record) => record.id),
+    );
+    if (records.length < pageSize) break;
+  }
+
+  for (const recordId of ownedRecordIds) {
+    try {
+      await cloudflare<CloudflareRecord>(credentials, `/dns_records/${recordId}`, {
+        method: "DELETE",
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !error.message.includes("(404)")) throw error;
+    }
+  }
 }
 
 async function domainBelongsToOrganization(

@@ -82,6 +82,7 @@
     "resetTitle": "Wipe install state on the server and start fresh",
     "confirmReset": "Click again to confirm",
     "reset": "Reset",
+    "resetting": "Resetting…",
     "waiting": "Waiting for output…",
     "noBuffered": "No buffered output for this run.",
     "willStream": "Logs will stream here once setup starts.",

@@ -44,7 +44,13 @@ vi.mock("@repo/db", () => ({
   },
 }));
 
-import { deleteDeploymentDnsRecord, upsertDeploymentDnsRecord } from "../../src/lib/cloudflare-dns";
+import {
+  deleteDeploymentDnsRecord,
+  deleteManagedDnsRecords,
+  publishManagedDnsRecords,
+  upsertDeploymentDnsRecord,
+} from "../../src/lib/cloudflare-dns";
+import { collectMailDnsRecords } from "../../src/modules/mail/mail-dns.service";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -241,5 +247,113 @@ describe("Vibrail Cloudflare DNS", () => {
 
     expect(fetchMock.mock.calls[1]![0]).toContain("/zones/child-zone/dns_records");
     expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toMatchObject({ proxied: false });
+  });
+
+  it("publishes mail DNS as tagged DNS-only records", async () => {
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: true,
+      },
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response([]))
+      .mockResolvedValueOnce(response({ id: "mail-a" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      publishManagedDnsRecords({
+        organizationId: "org-1",
+        ownerTag: "openship:mail:server-1",
+        records: [{ type: "A", name: "mail.example.com", content: "203.0.113.20" }],
+      }),
+    ).resolves.toBe("published");
+
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toMatchObject({
+      type: "A",
+      name: "mail.example.com",
+      content: "203.0.113.20",
+      proxied: false,
+      comment: "openship:mail:server-1",
+    });
+  });
+
+  it("refuses to overwrite a conflicting user-owned mail record", async () => {
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: false,
+      },
+    ]);
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          response([
+            { id: "manual-a", name: "mail.example.com", type: "A", content: "198.51.100.8" },
+          ]),
+        ),
+    );
+
+    await expect(
+      publishManagedDnsRecords({
+        organizationId: "org-1",
+        ownerTag: "openship:mail:server-1",
+        records: [{ type: "A", name: "mail.example.com", content: "203.0.113.20" }],
+      }),
+    ).rejects.toThrow("conflicting A record");
+  });
+
+  it("deletes only DNS records tagged for the removed mail server", async () => {
+    dbMocks.listSettings.mockResolvedValue([
+      {
+        domain: "example.com",
+        cloudflareZoneId: "customer-zone",
+        cloudflareApiTokenEncrypted: "encrypted:customer-token",
+        cloudflareProxy: false,
+      },
+    ]);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        response([
+          { id: "owned", comment: "openship:mail:server-1" },
+          { id: "other", comment: "manual" },
+        ]),
+      )
+      .mockResolvedValueOnce(response({ id: "owned" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await deleteManagedDnsRecords({
+      domain: "example.com",
+      organizationId: "org-1",
+      ownerTag: "openship:mail:server-1",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]![0]).toContain("/dns_records/owned");
+  });
+
+  it("flattens primary and relay DNS records without duplicates", () => {
+    expect(
+      collectMailDnsRecords({
+        mx: { type: "MX", name: "example.com", value: "mail.example.com", priority: 10 },
+        spf: { type: "TXT", name: "example.com", value: "v=spf1 mx -all" },
+        extraRecords: [
+          { type: "TXT", name: "example.com", value: "v=spf1 mx -all" },
+          { type: "CNAME", name: "ses.example.com", value: "ses-token.example.net" },
+        ],
+      }),
+    ).toEqual([
+      { type: "MX", name: "example.com", content: "mail.example.com", priority: 10 },
+      { type: "TXT", name: "example.com", content: "v=spf1 mx -all" },
+      { type: "CNAME", name: "ses.example.com", content: "ses-token.example.net" },
+    ]);
   });
 });

@@ -9,7 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { XCircle, RotateCcw, ArrowDown, Trash2 } from "lucide-react";
+import { XCircle, RotateCcw, ArrowDown, Trash2, Loader2 } from "lucide-react";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 interface LogEntry {
@@ -27,7 +27,7 @@ interface MailProgressProps {
   canReset: boolean;
   onCancel: () => void;
   onResume: (fromStep: number) => void;
-  onReset: () => void;
+  onReset: () => Promise<void>;
 }
 
 /**
@@ -59,19 +59,26 @@ export function MailProgress({
   // "Confirm?" affordance; auto-revert after a few seconds if the user
   // doesn't follow through. Better than a modal dialog for this density.
   const [confirmReset, setConfirmReset] = useState(false);
+  const [resetting, setResetting] = useState(false);
   useEffect(() => {
-    if (!confirmReset) return;
+    if (!confirmReset || resetting) return;
     const t = setTimeout(() => setConfirmReset(false), 4000);
     return () => clearTimeout(t);
-  }, [confirmReset]);
+  }, [confirmReset, resetting]);
 
-  const handleResetClick = () => {
+  const handleResetClick = async () => {
+    if (resetting) return;
     if (!confirmReset) {
       setConfirmReset(true);
       return;
     }
     setConfirmReset(false);
-    onReset();
+    setResetting(true);
+    try {
+      await onReset();
+    } finally {
+      setResetting(false);
+    }
   };
 
   const onScroll = () => {
@@ -130,15 +137,25 @@ export function MailProgress({
               canReset && (
                 <button
                   onClick={handleResetClick}
+                  disabled={resetting}
+                  aria-busy={resetting}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
-                    confirmReset
-                      ? "bg-danger-solid text-white hover:bg-danger-solid/90"
+                    confirmReset || resetting
+                      ? "bg-danger-solid text-white hover:bg-danger-solid/90 disabled:cursor-wait disabled:opacity-80"
                       : "border border-danger-border text-danger hover:bg-danger-bg"
                   }`}
                   title={t.emails.progress.resetTitle}
                 >
-                  <Trash2 className="size-3.5" />
-                  {confirmReset ? t.emails.progress.confirmReset : t.emails.progress.reset}
+                  {resetting ? (
+                    <Loader2 className="size-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="size-3.5" />
+                  )}
+                  {resetting
+                    ? t.emails.progress.resetting
+                    : confirmReset
+                      ? t.emails.progress.confirmReset
+                      : t.emails.progress.reset}
                 </button>
               )
             )}

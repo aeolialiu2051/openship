@@ -76,6 +76,7 @@
     "resetTitle": "Apagar o estado da instalação no servidor e começar de novo",
     "confirmReset": "Clique novamente para confirmar",
     "reset": "Repor",
+    "resetting": "A repor…",
     "waiting": "A aguardar saída…",
     "noBuffered": "Não há saída em buffer para esta execução.",
     "willStream": "Os registos serão transmitidos aqui assim que a configuração começar.",

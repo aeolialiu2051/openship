@@ -354,11 +354,11 @@
   },
   "advanced": {
     "resetTitle": "Sunucu üzerindeki durum sıfırlansın mı?",
-    "resetDesc": "Openship'in bu kurulumla ilgili takibini temizler: sunucudaki durum dosyası (/root/.openship/mail-state.json) VE e-posta sunucusu kayıt satırı. Çalışan e-posta servislerine dokunulmaz — tüm posta kutuları, mesajlar ve kuyruklar korunur — ancak yeniden yönetmek için kurulum sihirbazını tekrar çalıştırmanız gerekir (Kaldır işlemi durum dosyasını koruduğundan kurulumu daha sonra yeniden yönetime alabilirsiniz).",
+    "resetDesc": "Openship'in bu kurulumla ilgili takibini ve bu kurulum için oluşturduğu DNS kayıtlarını temizler. Sunucudaki durum dosyası (/root/.openship/mail-state.json) ile e-posta sunucusu kayıt satırı silinir. Çalışan e-posta servisleri korunur; yeniden yönetmek için kurulum sihirbazını tekrar çalıştırmanız gerekir (Kaldır, yeniden benimseme için durumu ve DNS'i korur).",
     "resetSubmit": "Durumu sıfırla",
     "resetSubmitting": "Sıfırlanıyor…",
     "resetFailed": "Sıfırlama başarısız oldu",
-    "resetBox": "Bundan sonra /emails sayfası bu sunucu için kurulum sihirbazını tekrar gösterecektir. Ardından 1. adımdan yeniden başlayabilir veya belirli bir adımdan devam edebilirsiniz.",
+    "resetBox": "Bundan sonra /emails kurulum sihirbazını tekrar gösterir. DNS temizliği yalnızca openship tarafından oluşturulduğu işaretlenen kayıtları siler; mevcut kayıtlara dokunulmaz.",
     "forgetTitle": "Bu e-posta sunucusu kaldırılsın mı?",
     "forgetDesc": "Bu sunucuyu yalnızca Openship'in e-posta listesinden kaldırır. E-posta yığını çalışmaya devam eder; hiçbir bileşen kaldırılmaz ve posta kutuları, mesajlar veya DNS kayıtları etkilenmez. Mevcut kurulumu tarayarak sunucuyu istediğiniz zaman yeniden ekleyebilirsiniz.",
     "forgetSubmit": "Listeden kaldır",

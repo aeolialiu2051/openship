@@ -76,6 +76,7 @@
     "resetTitle": "Sunucudaki kurulum durumunu temizle ve sıfırdan başla",
     "confirmReset": "Onaylamak için tekrar tıklayın",
     "reset": "Sıfırla",
+    "resetting": "Sıfırlanıyor…",
     "waiting": "Çıktı bekleniyor…",
     "noBuffered": "Bu çalışma için arabellekte çıktı yok.",
     "willStream": "Kurulum başladığında günlükler buraya akacaktır.",

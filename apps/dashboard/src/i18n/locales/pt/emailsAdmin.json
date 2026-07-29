@@ -308,11 +308,11 @@
   },
   "advanced": {
     "resetTitle": "Redefinir o estado no servidor?",
-    "resetDesc": "Apaga o rastreamento do openship desta instalação: o arquivo de estado no servidor (/root/.openship/mail-state.json) E a linha de registro do servidor de e-mail. A pilha de e-mail em execução não é afetada - todas as caixas de correio, mensagens e filas permanecem intactas - mas você precisará executar novamente o assistente de configuração para gerenciá-la de novo (Remover mantém o arquivo de estado para que você possa apenas readotá-lo).",
+    "resetDesc": "Apaga o rastreamento desta instalação e remove os registos DNS que o openship criou para ela. O ficheiro de estado no servidor (/root/.openship/mail-state.json) e a linha de registo são limpos. A pilha de e-mail permanece intacta, mas será necessário executar novamente o assistente para a gerir (Remover mantém o estado e o DNS para permitir a readopção).",
     "resetSubmit": "Redefinir estado",
     "resetSubmitting": "Redefinindo…",
     "resetFailed": "Falha na redefinição",
-    "resetBox": "Depois disso, a página /emails mostrará o assistente de instalação novamente para este servidor. Você poderá então executar de novo a partir da etapa 1 ou continuar de uma etapa específica.",
+    "resetBox": "Depois disso, /emails mostrará novamente o assistente. A limpeza de DNS remove apenas registos marcados como criados pelo openship; os registos existentes não são alterados.",
     "forgetTitle": "Remover este servidor de e-mail?",
     "forgetDesc": "Remove este servidor apenas da lista de e-mail do openship. A pilha de e-mail continua em execução e nada é desinstalado - nenhuma caixa de correio, mensagem ou DNS é afetada. Readicione-o a qualquer momento com Escanear para uma instalação existente.",
     "forgetSubmit": "Remover da lista",

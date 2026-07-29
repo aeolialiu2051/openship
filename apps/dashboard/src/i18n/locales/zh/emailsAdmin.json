@@ -308,11 +308,11 @@
   },
   "advanced": {
     "resetTitle": "重置服务器上的状态？",
-    "resetDesc": "清除 openship 对此安装的跟踪：服务器上的状态文件（/root/.openship/mail-state.json）以及邮件服务器注册表记录。正在运行的邮件栈不会被触碰——每一个邮箱、邮件和队列都保持完好——但你需要重新运行设置向导才能再次管理它（“移除”会保留状态文件，以便你直接重新接管）。",
+    "resetDesc": "清除 openship 对此安装的跟踪，并删除 openship 为该安装自动创建的 DNS 记录。服务器上的状态文件（/root/.openship/mail-state.json）和邮件服务器注册记录会被清除。正在运行的邮件栈不会被触碰——邮箱、邮件和队列都保持完好——但你需要重新运行设置向导才能再次管理它（“移除”会保留状态文件和 DNS，以便直接重新接管）。",
     "resetSubmit": "重置状态",
     "resetSubmitting": "重置中…",
     "resetFailed": "重置失败",
-    "resetBox": "此操作后，/emails 页面将为此服务器再次显示安装向导。届时你可以从第 1 步重新运行，或从某个特定步骤继续。",
+    "resetBox": "此操作后，/emails 页面将为此服务器再次显示安装向导。DNS 清理只会删除带有 openship 创建标记的记录，不会触碰原有记录。",
     "forgetTitle": "移除此邮件服务器？",
     "forgetDesc": "仅将此服务器从 openship 的邮件列表中移除。邮件栈将继续运行，不会卸载任何内容——邮箱、邮件或 DNS 都不会被触碰。随时可通过“扫描现有安装”重新添加它。",
     "forgetSubmit": "从列表中移除",

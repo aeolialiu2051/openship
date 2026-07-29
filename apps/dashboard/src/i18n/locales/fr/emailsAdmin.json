@@ -308,11 +308,11 @@
   },
   "advanced": {
     "resetTitle": "Réinitialiser l'état côté serveur ?",
-    "resetDesc": "Efface le suivi de cette installation par openship : le fichier d'état côté serveur (/root/.openship/mail-state.json) ET la ligne du registre du serveur de messagerie. La pile de messagerie en cours d'exécution n'est pas touchée - chaque boîte aux lettres, message et file d'attente reste intact - mais vous devrez relancer l'assistant de configuration pour la gérer à nouveau (Retirer conserve le fichier d'état afin que vous puissiez simplement le réadopter).",
+    "resetDesc": "Efface le suivi de cette installation par openship et supprime les enregistrements DNS créés par openship pour celle-ci. Le fichier d'état côté serveur (/root/.openship/mail-state.json) et la ligne du registre sont supprimés. La pile de messagerie reste intacte, mais vous devrez relancer l'assistant pour la gérer à nouveau (Retirer conserve l'état et le DNS pour une réadoption).",
     "resetSubmit": "Réinitialiser l'état",
     "resetSubmitting": "Réinitialisation…",
     "resetFailed": "Échec de la réinitialisation",
-    "resetBox": "Après cela, la page /emails affichera de nouveau l'assistant d'installation pour ce serveur. Vous pourrez alors soit reprendre depuis l'étape 1, soit reprendre à une étape précise.",
+    "resetBox": "Après cela, la page /emails affichera de nouveau l'assistant. Le nettoyage DNS ne supprime que les enregistrements marqués comme créés par openship; les enregistrements existants restent intacts.",
     "forgetTitle": "Retirer ce serveur de messagerie ?",
     "forgetDesc": "Retire ce serveur uniquement de la liste de messagerie d'openship. La pile de messagerie continue de fonctionner et rien n'est désinstallé - aucune boîte aux lettres, aucun message ni aucun DNS n'est touché. Réajoutez-le à tout moment avec Rechercher une installation existante.",
     "forgetSubmit": "Retirer de la liste",

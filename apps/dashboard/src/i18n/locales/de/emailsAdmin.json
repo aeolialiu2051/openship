@@ -308,11 +308,11 @@
   },
   "advanced": {
     "resetTitle": "Serverseitigen Status zurücksetzen?",
-    "resetDesc": "Löscht das Tracking dieser Installation durch openship: die serverseitige Statusdatei (/root/.openship/mail-state.json) UND die Registry-Zeile des Mailservers. Der laufende Mail-Stack bleibt unberührt – jedes Postfach, jede Nachricht und jede Warteschlange bleibt intakt – aber du musst den Einrichtungsassistenten erneut ausführen, um ihn wieder zu verwalten (Entfernen behält die Statusdatei, sodass du sie einfach wieder übernehmen kannst).",
+    "resetDesc": "Löscht das Tracking dieser Installation durch openship und entfernt die von openship dafür erstellten DNS-Einträge. Die serverseitige Statusdatei (/root/.openship/mail-state.json) und die Registry-Zeile des Mailservers werden gelöscht. Der laufende Mail-Stack bleibt unberührt; zum erneuten Verwalten muss der Einrichtungsassistent erneut ausgeführt werden (Entfernen behält Statusdatei und DNS zur späteren Wiederaufnahme).",
     "resetSubmit": "Status zurücksetzen",
     "resetSubmitting": "Wird zurückgesetzt…",
     "resetFailed": "Zurücksetzen fehlgeschlagen",
-    "resetBox": "Danach zeigt die /emails-Seite für diesen Server wieder den Installationsassistenten an. Du kannst dann entweder ab Schritt 1 neu beginnen oder bei einem bestimmten Schritt fortsetzen.",
+    "resetBox": "Danach zeigt die /emails-Seite wieder den Installationsassistenten. Die DNS-Bereinigung entfernt nur von openship markierte Einträge; vorhandene Einträge bleiben unberührt.",
     "forgetTitle": "Diesen Mailserver entfernen?",
     "forgetDesc": "Entfernt diesen Server nur aus der Mail-Liste von openship. Der Mail-Stack läuft weiter und nichts wird deinstalliert – keine Postfächer, Nachrichten oder DNS werden berührt. Füge ihn jederzeit über „Nach einer bestehenden Installation suchen“ wieder hinzu.",
     "forgetSubmit": "Aus Liste entfernen",

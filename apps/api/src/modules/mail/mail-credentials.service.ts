@@ -30,18 +30,11 @@ function shellQuote(s: string): string {
  * Hash a plaintext password via doveadm. Returns the `{SSHA512}...` string
  * ready to drop into the `password` column.
  */
-async function hashWithDovecot(
-  exec: CommandExecutor,
-  plaintext: string,
-): Promise<string> {
-  const out = await exec.exec(
-    `doveadm pw -s SSHA512 -p ${shellQuote(plaintext)}`,
-  );
+async function hashWithDovecot(exec: CommandExecutor, plaintext: string): Promise<string> {
+  const out = await exec.exec(`doveadm pw -s SSHA512 -p ${shellQuote(plaintext)}`);
   const hash = out.trim();
   if (!hash.startsWith("{SSHA512}")) {
-    throw new Error(
-      `doveadm pw returned unexpected output: ${hash.slice(0, 60)}…`,
-    );
+    throw new Error(`doveadm pw returned unexpected output: ${hash.slice(0, 60)}…`);
   }
   return hash;
 }
@@ -74,8 +67,11 @@ export async function updatePostmasterPassword(
   // iRedMail's pg_hba.conf grants the local `postgres` Unix user passwordless
   // access. Single-quote-wrap the SQL string literals - hash chars are
   // [A-Za-z0-9+/={}], username is similarly tame, so no escape gymnastics.
-  const psqlCmd = `sudo -u postgres psql -d vmail -v ON_ERROR_STOP=1 -c "UPDATE mailbox SET password='${hash}' WHERE username='${username}';"`;
-  await exec.exec(psqlCmd);
+  const psqlCmd = `sudo -u postgres psql -d vmail -tA -v ON_ERROR_STOP=1 -c "UPDATE mailbox SET password='${hash}' WHERE username='${username}' RETURNING username;"`;
+  const updated = (await exec.exec(psqlCmd)).trim();
+  if (!updated.split(/\s+/).includes(username)) {
+    throw new Error(`Postmaster account does not exist: ${username}`);
+  }
 
   // Persist the new plaintext into state.secrets so the test-email flow
   // (and any future SMTP-from-orchestrator use) can authenticate over

@@ -76,6 +76,7 @@
     "resetTitle": "Installationsstatus auf dem Server löschen und neu beginnen",
     "confirmReset": "Zum Bestätigen erneut klicken",
     "reset": "Zurücksetzen",
+    "resetting": "Wird zurückgesetzt…",
     "waiting": "Warte auf Ausgabe…",
     "noBuffered": "Keine gepufferte Ausgabe für diesen Durchlauf.",
     "willStream": "Die Protokolle werden hier gestreamt, sobald die Einrichtung startet.",

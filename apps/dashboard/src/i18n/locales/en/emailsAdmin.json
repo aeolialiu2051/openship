@@ -355,11 +355,11 @@
   },
   "advanced": {
     "resetTitle": "Reset on-server state?",
-    "resetDesc": "Wipes openship's tracking of this install: the on-server state file (/root/.openship/mail-state.json) AND the mail-server registry row. The running mail stack is not touched - every mailbox, message, and queue stays intact - but you'll need to re-run the setup wizard to manage it again (Remove keeps the state file so you can just re-adopt).",
+    "resetDesc": "Wipes openship's tracking of this install and removes DNS records that openship created for it. The on-server state file (/root/.openship/mail-state.json) and mail-server registry row are cleared. The running mail stack is not touched - every mailbox, message, and queue stays intact - but you'll need to re-run the setup wizard to manage it again (Remove keeps the state file and DNS so you can just re-adopt).",
     "resetSubmit": "Reset state",
     "resetSubmitting": "Resetting…",
     "resetFailed": "Reset failed",
-    "resetBox": "After this, the /emails page will show the install wizard again for this server. You can then either re-run from step 1 or pick up from a specific step.",
+    "resetBox": "After this, the /emails page will show the install wizard again for this server. DNS cleanup only removes records tagged as created by openship; pre-existing records are left untouched.",
     "forgetTitle": "Remove this mail server?",
     "forgetDesc": "Removes this server from openship's mail list only. The mail stack keeps running and nothing is uninstalled - no mailboxes, messages, or DNS are touched. Re-add it anytime with Scan for an existing install.",
     "forgetSubmit": "Remove from list",

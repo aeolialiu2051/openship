@@ -3,8 +3,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   buildAptGetCommand,
+  classifyMailInstallHealth,
   chooseAcmeChallengeMode,
   MAIL_ENGINE_REMOTE_DIR,
+  readCurrentFqdn,
 } from "./mail-setup-runtime";
 
 describe("mail setup command safety", () => {
@@ -19,6 +21,53 @@ describe("mail setup command safety", () => {
   it("stages the engine outside /root so a non-root SSH user can upload it", async () => {
     expect(MAIL_ENGINE_REMOTE_DIR).toBe("/tmp/openship-iredmail-engine");
     expect(MAIL_ENGINE_REMOTE_DIR.startsWith("/root/")).toBe(false);
+  });
+
+  it("does not block hostname setup when the current FQDN is not resolvable", async () => {
+    const commands: string[] = [];
+    const current = await readCurrentFqdn(async (command) => {
+      commands.push(command);
+      throw new Error("hostname: Name or service not known");
+    });
+
+    expect(commands).toEqual(["hostname -f"]);
+    expect(current).toBeNull();
+  });
+
+  it("returns the trimmed current FQDN when hostname resolution works", async () => {
+    await expect(readCurrentFqdn(async () => "mail.example.com\n")).resolves.toBe(
+      "mail.example.com",
+    );
+  });
+
+  it("does not mistake active mail daemons for a complete installation", () => {
+    expect(
+      classifyMailInstallHealth({
+        postfixActive: true,
+        dovecotActive: true,
+        vmailSchemaReady: false,
+        postmasterReady: false,
+      }),
+    ).toBe("partial");
+  });
+
+  it("requires the database schema and postmaster account for a complete install", () => {
+    expect(
+      classifyMailInstallHealth({
+        postfixActive: true,
+        dovecotActive: true,
+        vmailSchemaReady: true,
+        postmasterReady: true,
+      }),
+    ).toBe("complete");
+    expect(
+      classifyMailInstallHealth({
+        postfixActive: false,
+        dovecotActive: false,
+        vmailSchemaReady: false,
+        postmasterReady: false,
+      }),
+    ).toBe("absent");
   });
 
   it("preserves an existing HTTPS proxy when port 80 is free", () => {
@@ -53,9 +102,11 @@ describe("mail setup command safety", () => {
     );
 
     expect(serviceSource).toContain('"OPENSHIP_VENDORED_ENGINE=YES"');
-    expect(serviceSource).toContain("The staged mail engine is older than the current Openship build.");
+    expect(serviceSource).toContain(
+      "The staged mail engine is older than the current Openship build.",
+    );
     expect(serviceSource).toContain("await stepTransferEngine(exec, domain");
-    expect(versionGate).toContain('[ X"${OPENSHIP_VENDORED_ENGINE}" == X\'YES\' ]');
+    expect(versionGate).toContain("[ X\"${OPENSHIP_VENDORED_ENGINE}\" == X'YES' ]");
     expect(versionGate).toContain('status_check_new_iredmail="DONE"');
   });
 });

@@ -76,6 +76,7 @@
     "resetTitle": "Effacer l'état de l'installation sur le serveur et repartir de zéro",
     "confirmReset": "Cliquez à nouveau pour confirmer",
     "reset": "Réinitialiser",
+    "resetting": "Réinitialisation…",
     "waiting": "En attente de sortie…",
     "noBuffered": "Aucune sortie mise en mémoire tampon pour cette exécution.",
     "willStream": "Les journaux s'afficheront ici une fois la configuration démarrée.",

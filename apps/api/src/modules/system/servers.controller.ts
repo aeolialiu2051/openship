@@ -7,6 +7,7 @@
 
 import type { Context } from "hono";
 import { repos } from "@repo/db";
+import { safeErrorMessage } from "@repo/core";
 import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
 import { buildSshConfig, sshManager, type SshSettingsInput } from "../../lib/ssh-manager";
 import { runConnectivityCheck } from "../../lib/connectivity";
@@ -21,6 +22,7 @@ import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { assertUserServersEnabled } from "../../lib/controller-helpers";
 import { primeGeo, countryForIp } from "@/lib/geo-ip";
+import { deleteMailDnsRecords } from "../mail/mail-dns.service";
 
 const CONNECTION_FIELDS = new Set([
   "sshHost",
@@ -388,6 +390,25 @@ export async function deleteServer(c: Context) {
   // machine OpenShip runs on, and the boot reconcile would just recreate it.
   if (existing.isLocal) {
     return c.json({ error: "This is the current host and can't be removed." }, 400);
+  }
+
+  // DNS records created by the mail installer are tagged at the provider.
+  // Remove those exact records before the server/mail row cascades away; if
+  // cleanup fails, keep the server entry so the operation can be retried.
+  const mailServer = await repos.mailServer.get(id);
+  if (mailServer) {
+    try {
+      await deleteMailDnsRecords({
+        domain: mailServer.domain,
+        organizationId: ctx.organizationId,
+        serverId: id,
+      });
+    } catch (error) {
+      return c.json(
+        { error: `Could not remove managed mail DNS records: ${safeErrorMessage(error)}` },
+        502,
+      );
+    }
   }
 
   await repos.server.delete(id);

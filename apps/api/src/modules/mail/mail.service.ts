@@ -18,8 +18,11 @@ import type { CommandExecutor, LogEntry, SystemLogCallback, SystemLog } from "@r
 import { updatePostmasterPassword } from "./mail-credentials.service";
 import {
   buildAptGetCommand,
+  classifyMailInstallHealth,
   chooseAcmeChallengeMode,
   MAIL_ENGINE_REMOTE_DIR,
+  type MailInstallHealth,
+  readCurrentFqdn,
 } from "./mail-setup-runtime";
 import { safeErrorMessage } from "@repo/core";
 import { installRsync, installCertbot, foreignProxyOnEdge } from "@repo/adapters";
@@ -69,21 +72,54 @@ function errMsg(err: unknown): string {
   return safeErrorMessage(err);
 }
 
-/**
- * Probe whether a working iRedMail stack is already installed on the server.
- * iRedMail is "present" when both postfix and dovecot are active systemd
- * services. Used by the install pre-flight (to skip the engine + rotate the
- * postmaster password) AND by the "scan & adopt" flow (to re-adopt a server
- * whose orchestrator state was lost). Pure read — no mutation.
- */
-export async function detectMailInstall(exec: CommandExecutor): Promise<boolean> {
+export interface MailInstallInspection {
+  state: MailInstallHealth;
+  postfixActive: boolean;
+  dovecotActive: boolean;
+  vmailSchemaReady: boolean;
+  postmasterReady: boolean;
+}
+
+/** Probe daemon state plus the PostgreSQL objects required by the mail stack. */
+export async function inspectMailInstall(
+  exec: CommandExecutor,
+  domain?: string,
+): Promise<MailInstallInspection> {
   const postfixState = (
     await exec.exec("systemctl is-active postfix 2>/dev/null || echo missing")
   ).trim();
   const dovecotState = (
     await exec.exec("systemctl is-active dovecot 2>/dev/null || echo missing")
   ).trim();
-  return postfixState === "active" && dovecotState === "active";
+  const schemaProbe = (
+    await exec.exec(
+      `sudo -u postgres psql -d vmail -tAc "SELECT CASE WHEN to_regclass('public.mailbox') IS NOT NULL THEN 'ready' ELSE 'missing' END" 2>/dev/null || echo missing`,
+    )
+  ).trim();
+  const vmailSchemaReady = schemaProbe.split(/\s+/).includes("ready");
+  let postmasterReady = vmailSchemaReady;
+  if (domain && vmailSchemaReady) {
+    const username = `postmaster@${domain}`.replace(/'/g, "''");
+    const accountProbe = (
+      await exec.exec(
+        `sudo -u postgres psql -d vmail -tAc "SELECT 1 FROM mailbox WHERE username='${username}' LIMIT 1" 2>/dev/null || true`,
+      )
+    ).trim();
+    postmasterReady = accountProbe === "1";
+  }
+
+  const inspection = {
+    postfixActive: postfixState === "active",
+    dovecotActive: dovecotState === "active",
+    vmailSchemaReady,
+    postmasterReady,
+  };
+  return { ...inspection, state: classifyMailInstallHealth(inspection) };
+}
+
+/** Used by scan/adopt callers that only need a complete/not-complete answer. */
+export async function detectMailInstall(exec: CommandExecutor): Promise<boolean> {
+  return (await inspectMailInstall(exec)).state === "complete";
 }
 
 /**
@@ -414,8 +450,16 @@ export async function stepSetHostname(
   const mailDomain = `mail.${domain}`;
   log(stepId, "info", `Checking current hostname...`);
 
-  const currentHostname = (await exec.exec("hostname -f")).trim();
-  log(stepId, "info", `Current hostname: ${currentHostname}`);
+  const currentHostname = await readCurrentFqdn((command) => exec.exec(command));
+  if (currentHostname) {
+    log(stepId, "info", `Current hostname: ${currentHostname}`);
+  } else {
+    log(
+      stepId,
+      "warn",
+      "Current hostname is not resolvable yet; continuing with hostname configuration.",
+    );
+  }
 
   if (currentHostname === mailDomain) {
     log(stepId, "info", "Hostname already correct");
@@ -704,7 +748,8 @@ export async function stepRunInstaller(
   // (via doveadm + UPDATE) to match the value the dashboard is about
   // to surface. The other daemons stay untouched.
   log(stepId, "info", "Checking whether iRedMail is already installed...");
-  const alreadyInstalled = await detectMailInstall(exec);
+  const installInspection = await inspectMailInstall(exec, domain);
+  const alreadyInstalled = installInspection.state === "complete";
 
   if (alreadyInstalled) {
     log(
@@ -741,6 +786,32 @@ export async function stepRunInstaller(
         "iRedMail already installed - postmaster password rotated to the dashboard value, engine reinstall skipped.",
       data: { secrets: { ...secrets } as Record<string, string> },
     };
+  }
+
+  if (installInspection.state === "partial") {
+    const missing = [
+      !installInspection.postfixActive && "Postfix",
+      !installInspection.dovecotActive && "Dovecot",
+      !installInspection.vmailSchemaReady && "PostgreSQL vmail schema",
+      !installInspection.postmasterReady && "postmaster account",
+    ].filter(Boolean);
+    log(
+      stepId,
+      "warn",
+      `A partial iRedMail installation was detected (missing: ${missing.join(", ")}). Resuming the installer instead of treating it as complete.`,
+    );
+
+    // iRedMail records each completed function in this file. An interrupted
+    // database import can still leave its DONE markers behind because the
+    // upstream shell functions do not fail-fast. Remove only the database
+    // import/wrapper markers so the retry reconstructs vmail without rerunning
+    // package installation or unrelated mail-daemon configuration.
+    if (!installInspection.vmailSchemaReady || !installInspection.postmasterReady) {
+      log(stepId, "info", "Preparing the PostgreSQL mail schema for recovery...");
+      await exec.exec(
+        `sed -i '/^export status_pgsql_import_vmail_users=/d; /^export status_pgsql_setup=/d' ${REMOTE_ENGINE_DIR}/runtime/install.status 2>/dev/null || true`,
+      );
+    }
   }
 
   // A retry can begin directly at step 9 after the local vendored engine has
@@ -829,6 +900,16 @@ export async function stepRunInstaller(
   }
 
   log(stepId, "info", "iRedMail installer completed");
+
+  const completedInspection = await inspectMailInstall(exec, domain);
+  if (!completedInspection.vmailSchemaReady || !completedInspection.postmasterReady) {
+    return {
+      stepId,
+      success: false,
+      message:
+        "iRedMail installer exited successfully, but the vmail database or postmaster account is still missing.",
+    };
+  }
 
   // Post-install verification: confirm fail2ban can actually auth against
   // its Postgres DB. The engine's own setup is supposed to leave this

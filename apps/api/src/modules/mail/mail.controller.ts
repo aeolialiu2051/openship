@@ -59,6 +59,7 @@ import { checkMailHealth, MAIL_COMPONENTS } from "./mail-health.service";
 import { updatePostmasterPassword } from "./mail-credentials.service";
 import { reserveMailSetup } from "./mail-setup-lease";
 import { applyRelayToState } from "./admin/outbound-relay.service";
+import { deleteMailDnsRecords, publishMailDnsRecords } from "./mail-dns.service";
 import { readMailStatusState, type MailStatusReadErrorCode } from "./mail-status.service";
 import {
   readState,
@@ -830,6 +831,41 @@ export async function startSetup(c: Context) {
           log(stepId, "error", message);
         }
 
+        // Step 11 produces provider-neutral DNS records. When this organization
+        // has a connected DNS zone, publish them immediately and skip the old
+        // manual-DNS acknowledgement gate. Missing provider credentials retain
+        // the legacy manual flow; provider errors fail step 11 with a retry.
+        if (stepDef.key === "dkim_keys" && result.success && result.data?.dnsRecords) {
+          state = {
+            ...state,
+            dnsRecords: result.data.dnsRecords as Record<string, unknown>,
+          };
+          if (state.outboundRelay?.enabled) {
+            state = { ...state, ...applyRelayToState(state, state.outboundRelay) };
+          }
+          try {
+            const publication = await publishMailDnsRecords({
+              records: state.dnsRecords!,
+              organizationId: ctx.organizationId,
+              serverId,
+            });
+            if (publication === "published") {
+              state = { ...state, dnsAcknowledged: true };
+              log(stepId, "info", "Mail DNS records published through the connected provider.");
+            } else {
+              log(
+                stepId,
+                "warn",
+                "No connected DNS provider covers this domain; manual DNS confirmation is required.",
+              );
+            }
+          } catch (error) {
+            const message = `Automatic DNS provisioning failed: ${safeErrorMessage(error)}`;
+            log(stepId, "error", message);
+            result = { stepId, success: false, message };
+          }
+        }
+
         state = recordStep(state, {
           stepId: result.stepId,
           success: result.success,
@@ -849,19 +885,9 @@ export async function startSetup(c: Context) {
           data: JSON.stringify(result),
         });
 
-        // DKIM step: broadcast records + hold-and-continue gate
+        // DKIM step: broadcast records, then hold only for work that could not
+        // be automated (manual DNS fallback or provider-specific PTR/rDNS).
         if (stepDef.key === "dkim_keys" && result.success && result.data?.dnsRecords) {
-          state = {
-            ...state,
-            dnsRecords: result.data.dnsRecords as Record<string, unknown>,
-          };
-          // stepDkimKeys rebuilds dnsRecords SELF-HOST-ONLY. If an SES outbound
-          // relay is active, re-lay its send-hop records (SPF include + SES
-          // DKIM/MAIL FROM) back on — otherwise a re-install / resume silently
-          // drops them and SES sending breaks / DMARC misaligns.
-          if (state.outboundRelay?.enabled) {
-            state = { ...state, ...applyRelayToState(state, state.outboundRelay) };
-          }
           await stream.writeSSE({
             event: "dns_records",
             data: JSON.stringify({ records: state.dnsRecords }),
@@ -877,6 +903,18 @@ export async function startSetup(c: Context) {
             });
             await halt({ resumeStep: stepId + 1, errorMessage: null });
             return;
+          }
+
+          if (!state.ptrAcknowledged) {
+            const ptrPayload = buildPtrPayload(state, stepId + 1);
+            if (ptrPayload) {
+              await stream.writeSSE({
+                event: "ptr_pending",
+                data: JSON.stringify(ptrPayload),
+              });
+              await halt({ resumeStep: stepId + 1, errorMessage: null });
+              return;
+            }
           }
         }
 
@@ -1027,9 +1065,9 @@ export async function cancelSetup(c: Context) {
  *
  * Body: { serverId: string }
  *
- * Flips `dnsAcknowledged` in the on-server state file. The dashboard then
- * re-POSTs to /mail/setup with `startStep = resumeStep` to resume past
- * the DKIM hold.
+ * For connected zones this also publishes the records, which upgrades legacy
+ * sessions already paused at the manual gate. Without provider credentials,
+ * the click retains its original meaning: the operator confirms manual DNS.
  */
 export async function acknowledgeDns(c: Context) {
   if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
@@ -1051,6 +1089,15 @@ export async function acknowledgeDns(c: Context) {
 
   try {
     await sshManager.withExecutor(serverId, async (executor) => {
+      const current = await readState(executor);
+      if (!current) throw new Error("No setup state on this server");
+      if (current.dnsRecords) {
+        await publishMailDnsRecords({
+          records: current.dnsRecords,
+          organizationId: ctx.organizationId,
+          serverId,
+        });
+      }
       const result = await mutateState(executor, serverId, (s) => ({
         ...s,
         dnsAcknowledged: true,
@@ -1120,7 +1167,8 @@ export async function acknowledgePtr(c: Context) {
  *
  * Useful after the operator has purged or reimaged the VPS - clears any
  * stale state without manually SSHing to delete the JSON. Does NOT touch
- * iRedMail or any installed daemons; just removes openship's record.
+ * iRedMail or any installed daemons. DNS records created and tagged by the
+ * automatic mail-DNS flow are removed before tracking state is discarded.
  */
 export async function resetSetup(c: Context) {
   if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
@@ -1145,6 +1193,16 @@ export async function resetSetup(c: Context) {
   }
 
   try {
+    const state = await sshManager.withExecutor(serverId, (executor) => readState(executor));
+    const registered = await repos.mailServer.get(serverId);
+    const domain = state?.domain ?? registered?.domain;
+    if (domain) {
+      await deleteMailDnsRecords({
+        domain,
+        organizationId: ctx.organizationId,
+        serverId,
+      });
+    }
     await sshManager.withExecutor(serverId, (executor) => clearState(executor));
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Reset failed" }, 500);
