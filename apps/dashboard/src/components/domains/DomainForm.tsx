@@ -34,30 +34,16 @@ interface DomainFormProps {
  * selectors. Keeping the API calls here prevents the two entry points from
  * drifting apart. */
 export function DomainForm({ domain: value, onCancel, onSaved, onDelete }: DomainFormProps) {
-  const { locale, t } = useI18n();
+  const { t } = useI18n();
   const m = t.domainsPage;
-  const providerCopy =
-    locale === "zh"
-      ? {
-          label: "域名服务商",
-          hint: "选择托管域名 DNS 的服务商。更多服务商正在接入中。",
-          comingSoon: "即将推出",
-          cloudflareDescription: "免费 DNS、全球网络与自动代理。",
-          route53Description: "Amazon Web Services 托管 DNS。",
-          digitalOceanDescription: "DigitalOcean 管理的 DNS 区域。",
-          namecheapDescription: "Namecheap 默认 DNS 服务。",
-          googleDescription: "Google Cloud 管理的 DNS 区域。",
-        }
-      : {
-          label: "Domain provider",
-          hint: "Choose the provider that hosts this domain's DNS. More integrations are on the way.",
-          comingSoon: "Coming soon",
-          cloudflareDescription: "Free DNS, global network and automatic proxying.",
-          route53Description: "Managed DNS from Amazon Web Services.",
-          digitalOceanDescription: "DNS zones managed by DigitalOcean.",
-          namecheapDescription: "Namecheap's default DNS service.",
-          googleDescription: "DNS zones managed by Google Cloud.",
-        };
+  const providerCopy = {
+    comingSoon: m.providerComingSoon,
+    cloudflareDescription: m.providerCloudflareDescription,
+    route53Description: m.providerRoute53Description,
+    digitalOceanDescription: m.providerDigitalOceanDescription,
+    namecheapDescription: m.providerNamecheapDescription,
+    googleDescription: m.providerGoogleDescription,
+  };
   const { showToast } = useToast();
   const [domain, setDomain] = useState("");
   const [zoneId, setZoneId] = useState("");
@@ -135,9 +121,9 @@ export function DomainForm({ domain: value, onCancel, onSaved, onDelete }: Domai
       </div>
       <div className="space-y-5 px-6 py-6">
         <div>
-          <p className="mb-1.5 text-sm font-medium text-foreground">{providerCopy.label}</p>
+          <p className="mb-1.5 text-sm font-medium text-foreground">{m.providerLabel}</p>
           <ProviderSelect copy={providerCopy} />
-          <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{providerCopy.hint}</p>
+          <p className="mt-1.5 text-xs leading-5 text-muted-foreground">{m.providerHint}</p>
         </div>
         <Field label={m.domainLabel} hint={m.domainHint}>
           <Input

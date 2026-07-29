@@ -1,0 +1,10 @@
+{
+  "providerLabel": "ドメインプロバイダー",
+  "providerHint": "このドメインの DNS を管理しているプロバイダーを選択します。",
+  "providerComingSoon": "近日公開",
+  "providerCloudflareDescription": "無料 DNS、グローバルネットワーク、自動プロキシ。",
+  "providerRoute53Description": "Amazon Web Services が管理する DNS。",
+  "providerDigitalOceanDescription": "DigitalOcean が管理する DNS ゾーン。",
+  "providerNamecheapDescription": "Namecheap の標準 DNS サービス。",
+  "providerGoogleDescription": "Google Cloud が管理する DNS ゾーン。"
+}

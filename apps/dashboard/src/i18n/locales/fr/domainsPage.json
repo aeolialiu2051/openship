@@ -1,0 +1,10 @@
+{
+  "providerLabel": "Fournisseur de domaine",
+  "providerHint": "Choisissez le fournisseur qui héberge le DNS de ce domaine.",
+  "providerComingSoon": "Bientôt disponible",
+  "providerCloudflareDescription": "DNS gratuit, réseau mondial et proxy automatique.",
+  "providerRoute53Description": "DNS géré par Amazon Web Services.",
+  "providerDigitalOceanDescription": "Zones DNS gérées par DigitalOcean.",
+  "providerNamecheapDescription": "Service DNS par défaut de Namecheap.",
+  "providerGoogleDescription": "Zones DNS gérées par Google Cloud."
+}

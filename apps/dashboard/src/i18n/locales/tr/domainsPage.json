@@ -1,0 +1,10 @@
+{
+  "providerLabel": "Alan adı sağlayıcısı",
+  "providerHint": "Bu alan adının DNS hizmetini barındıran sağlayıcıyı seçin.",
+  "providerComingSoon": "Yakında",
+  "providerCloudflareDescription": "Ücretsiz DNS, küresel ağ ve otomatik proxy.",
+  "providerRoute53Description": "Amazon Web Services tarafından yönetilen DNS.",
+  "providerDigitalOceanDescription": "DigitalOcean tarafından yönetilen DNS bölgeleri.",
+  "providerNamecheapDescription": "Namecheap'in varsayılan DNS hizmeti.",
+  "providerGoogleDescription": "Google Cloud tarafından yönetilen DNS bölgeleri."
+}

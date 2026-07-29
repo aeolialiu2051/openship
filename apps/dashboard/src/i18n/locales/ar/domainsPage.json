@@ -1,0 +1,10 @@
+{
+  "providerLabel": "موفر النطاق",
+  "providerHint": "اختر الموفر الذي يستضيف DNS لهذا النطاق.",
+  "providerComingSoon": "قريبًا",
+  "providerCloudflareDescription": "DNS مجاني وشبكة عالمية ووكيل تلقائي.",
+  "providerRoute53Description": "DNS مُدار من Amazon Web Services.",
+  "providerDigitalOceanDescription": "مناطق DNS مُدارة بواسطة DigitalOcean.",
+  "providerNamecheapDescription": "خدمة DNS الافتراضية من Namecheap.",
+  "providerGoogleDescription": "مناطق DNS مُدارة بواسطة Google Cloud."
+}
