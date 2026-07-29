@@ -33,7 +33,8 @@ export const mapRowToDeployment = (row: any): Deployment => {
     failureReason: row.errorMessage ?? undefined,
     /* Rollback state — flows from the listing endpoint, which enriches
      * each row with isActive and surfaces the orchestrator-owned
-     * artifactRetainedAt + pinned columns. */
+     * rollback strategy, artifactRetainedAt, and pinned columns. */
+    rollbackStrategy: row.rollbackStrategy === "git" ? "git" : "snapshot",
     artifactRetainedAt: row.artifactRetainedAt ?? null,
     pinned: row.pinned ?? false,
     isActive: row.isActive ?? false,

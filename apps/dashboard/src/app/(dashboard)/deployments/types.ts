@@ -54,9 +54,11 @@ export interface Deployment {
   projectName?: string;
   failureReason?: string;
   /** Rollback state — populated by the orchestrator-aware listing endpoint.
-   *  `artifactRetainedAt` non-null = artifact is archived, rollback-eligible.
+   *  Git rollbacks rebuild from the recorded commit; snapshot rollbacks require
+   *  `artifactRetainedAt` to remain non-null.
    *  `pinned` true = user-tagged to survive retention prune.
    *  `isActive` true = this is the project's active deployment right now. */
+  rollbackStrategy?: "snapshot" | "git";
   artifactRetainedAt?: string | null;
   pinned?: boolean;
   isActive?: boolean;

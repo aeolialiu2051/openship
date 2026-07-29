@@ -20,6 +20,7 @@ import { deployApi, getApiErrorMessage } from "@/lib/api";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
+import { getRollbackAvailability } from "../rollback-availability";
 
 const MENU_OFFSET = 8;
 const MENU_WIDTH = 224;
@@ -48,6 +49,7 @@ interface Deployment {
     fullHash?: string | null;
   };
   /** Rollback state — flows from the orchestrator-aware listing endpoint. */
+  rollbackStrategy?: "snapshot" | "git";
   artifactRetainedAt?: string | null;
   pinned?: boolean;
   isActive?: boolean;
@@ -156,22 +158,8 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     );
   }, [deployment.deletionOperationId, deployment.deletionOperationStatus]);
 
-  // `isInFlight` = status-wise busy (the cancel/delete affordances care
-  // about this). Distinct from `deployment.isActive` which means
-  // "currently the active version" — the chip / rollback gating cares
-  // about that one.
-  const isInFlight = ["pending", "queued", "building", "deploying"].includes(deployment.status);
-  const canRollback =
-    deployment.status === "ready" && !deployment.isActive && !!deployment.artifactRetainedAt;
-  // Surfaced when rollback is unavailable because the artifact was pruned —
-  // the user can still rebuild this exact commit from source. Requires a
-  // commit SHA to be on file (manual deploys without one are excluded).
-  const canRedeployCommit =
-    !canRollback &&
-    !deployment.isActive &&
-    !isInFlight &&
-    !!deployment.commit?.fullHash &&
-    deployment.commit.fullHash !== "N/A";
+  const { canRollback, canRedeployCommit, isInFlight } =
+    getRollbackAvailability(deployment);
 
   const handleCancel = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -343,9 +331,8 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
               </>
             )}
 
-            {/* Rollback path — instant restore from the preserved artifact.
-                Enabled iff status=ready, not currently active, AND artifact
-                is still retained (not pruned). */}
+            {/* Git strategy rebuilds the recorded commit; snapshot strategy
+                restores the retained artifact. Both use the rollback endpoint. */}
             {!isInFlight && deployment.status !== "building" && (
               <>
                 <div className="h-px bg-border/50 my-2" />
@@ -357,7 +344,8 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
                       ? t.deployments.menu.rollbackTitle.enabled
                       : deployment.isActive
                         ? t.deployments.menu.rollbackTitle.active
-                        : !deployment.artifactRetainedAt
+                        : deployment.rollbackStrategy !== "git" &&
+                            !deployment.artifactRetainedAt
                           ? t.deployments.menu.rollbackTitle.pruned
                           : t.deployments.menu.rollbackTitle.notReady
                   }
