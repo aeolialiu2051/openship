@@ -39,7 +39,7 @@ import * as domainService from "../domains/domain.service";
 import * as prepareService from "../deployments/prepare.service";
 import { sshManager } from "../../lib/ssh-manager";
 import { env } from "../../config";
-import { domainWebhookUrl } from "../../lib/public-url";
+import { domainWebhookUrl, sharedWebhookUrl } from "../../lib/public-url";
 import { resolveProjectTrafficSource } from "../../lib/project-analytics";
 import { refreshProjectFaviconIfStale } from "../../lib/favicon-detector";
 import { getAdminOblienClient } from "../../lib/oblien-user-client";
@@ -55,8 +55,16 @@ import {
   resolveDefaultBranch,
   listBranches as listGitHubBranches,
 } from "../github/github.service";
-import { getInstallationIdByOrg, getInstallUrl } from "../github/github.auth";
+import {
+  getGitHubAppWebhookState,
+  getInstallationIdByOrg,
+  getInstallUrl,
+} from "../github/github.auth";
 import { ensureSharedWebhook, findSharedWebhookId } from "./project-git-webhook";
+import {
+  appWebhookTargetsInstance,
+  deriveWebhookActive,
+} from "./project-git-status";
 import { listProjectRouteRows, resolveProjectRouteState } from "../domains/project-route.service";
 import { resourceOperationService } from "../operations/resource-operation.service";
 import { toOperationDto } from "../operations/operation.controller";
@@ -1282,7 +1290,6 @@ export async function recentServerLogs(c: Context) {
 
 export async function getGitInfo(c: Context) {
   const ctx = getRequestContext(c);
-  const userId = ctx.userId;
   const organizationId = ctx.organizationId;
   const id = param(c, "id");
   await permission.assert(getRequestContext(c), {
@@ -1301,29 +1308,41 @@ export async function getGitInfo(c: Context) {
 
   const strategy = await resolveWebhookStrategy(info);
 
-  // Cloud projects (deployTarget=cloud) need the GitHub App installed - regardless
-  // of whether this server is the SaaS or a local instance connected to cloud.
-  const isCloudProject = info.deployTarget === "cloud";
+  // Installation state follows the effective webhook strategy. Server-target
+  // projects managed by a GitHub-App-backed control plane still receive push
+  // events through that App and must not be reported as inactive solely because
+  // their deployment target is not `cloud`.
+  const usesGitHubApp = strategy === "app";
   let installationInstalled = false;
-  if (isCloudProject && info.gitOwner) {
-    const instId = await getInstallationIdByOrg(organizationId, info.gitOwner);
+  let appWebhookConnected = false;
+  if (usesGitHubApp && info.gitOwner) {
+    const [instId, webhookState] = await Promise.all([
+      getInstallationIdByOrg(organizationId, info.gitOwner),
+      getGitHubAppWebhookState(),
+    ]);
     installationInstalled = !!instId;
+    appWebhookConnected = appWebhookTargetsInstance({
+      active: webhookState.active,
+      configuredUrl: webhookState.url,
+      expectedUrl: sharedWebhookUrl(),
+    });
   }
 
-  let sharedWebhookId = info.webhookId ?? null;
-  if (!sharedWebhookId && info.gitOwner && info.gitRepo) {
-    sharedWebhookId = await findSharedWebhookId(organizationId, info.gitOwner, info.gitRepo);
+  let sharedWebhookId: number | null = null;
+  if (strategy === "domain" || strategy === "repo") {
+    sharedWebhookId = info.webhookId ?? null;
+    if (!sharedWebhookId && info.gitOwner && info.gitRepo) {
+      sharedWebhookId = await findSharedWebhookId(organizationId, info.gitOwner, info.gitRepo);
+    }
   }
 
-  // Derive webhook_active from strategy + state
-  const webhookActive =
-    strategy === "app"
-      ? installationInstalled
-      : strategy === "domain"
-        ? !!(info.autoDeploy && sharedWebhookId)
-        : strategy === "repo"
-          ? !!(info.autoDeploy && sharedWebhookId)
-          : false;
+  const webhookActive = deriveWebhookActive({
+    strategy,
+    installationInstalled,
+    appWebhookConnected,
+    autoDeploy: info.autoDeploy ?? false,
+    sharedWebhookId,
+  });
 
   // Get available strategies for the UI
   const strategies = await getAvailableStrategies(ctx, info);
@@ -1363,7 +1382,7 @@ export async function getGitInfo(c: Context) {
     available_strategies: strategies.available,
     verified_domains: verifiedDomains,
     installation_installed: installationInstalled,
-    install_url: isCloudProject && !installationInstalled ? getInstallUrl() : undefined,
+    install_url: usesGitHubApp && !installationInstalled ? getInstallUrl() : undefined,
     default_rollback_strategy: info.defaultRollbackStrategy ?? "git",
   });
 }

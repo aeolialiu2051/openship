@@ -1484,13 +1484,6 @@ export async function getGitInfo(projectId: string, organizationId: string) {
   const p = await repos.project.findById(projectId);
   assertResourceInOrg(p, "Project", organizationId, projectId);
 
-  // Resolve deploy target from active deployment meta
-  let deployTarget: string | null = null;
-  if (p.activeDeploymentId) {
-    const dep = await repos.deployment.findById(p.activeDeploymentId);
-    ({ deployTarget } = readDeployMeta(dep));
-  }
-
   return {
     gitProvider: p.gitProvider,
     gitOwner: p.gitOwner,
@@ -1502,7 +1495,6 @@ export async function getGitInfo(projectId: string, organizationId: string) {
     webhookDomain: p.webhookDomain,
     autoDeploy: p.autoDeploy,
     defaultRollbackStrategy: p.defaultRollbackStrategy,
-    deployTarget,
   };
 }
 

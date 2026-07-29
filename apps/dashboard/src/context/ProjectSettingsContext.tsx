@@ -262,7 +262,7 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
     repository: null,
     branch: "",
     recentCommits: [],
-    isLoading: false,
+    isLoading: !!id,
     error: null,
   });
 
@@ -333,6 +333,13 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
       initialProjectData || { id: "", slug: "", name: "", description: "", framework: "" },
     );
     setEnvironments([]);
+    setGitData({
+      repository: null,
+      branch: "",
+      recentCommits: [],
+      isLoading: !!id,
+      error: null,
+    });
   }, [id, initialProjectData]);
 
   // 404 cold-load: the project was deleted (other tab, force flow, direct
@@ -458,79 +465,80 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
   }, [id]);
 
   // Fetch git
-  const isLoadingGitRef = useRef(false);
-  // True once git info has loaded for the CURRENT project. Re-opening the Source
-  // tab remounts GitSettings and re-calls refreshGit; without this that flashed
-  // the skeleton on every visit even though the context already had the data.
-  // Now a re-open refreshes in the BACKGROUND (data stays visible). Reset on id
-  // change so a different project still shows the skeleton once.
+  const gitRequestRef = useRef<{ projectId: string; promise: Promise<void> } | null>(null);
+  const gitRequestVersionRef = useRef(0);
+  // True once git info has loaded for the CURRENT project. Later manual
+  // refreshes (for example after toggling auto-deploy) update in the background
+  // while the existing data stays visible. Reset on id change so a different
+  // project still shows the skeleton once.
   const gitLoadedRef = useRef(false);
   useEffect(() => {
     gitLoadedRef.current = false;
   }, [id]);
-  const refreshGit = useCallback(async () => {
-    try {
-      if (isLoadingGitRef.current) return;
-      isLoadingGitRef.current = true;
-      // Only the first load shows the skeleton; later refreshes update in place.
-      setGitData((prev) => ({ ...prev, isLoading: !gitLoadedRef.current, error: null }));
+  const refreshGit = useCallback((): Promise<void> => {
+    const requestedProjectId = id;
 
-      if (!id) {
-        setGitData((prev) => ({ ...prev, isLoading: false }));
-        return;
-      }
+    if (!requestedProjectId) {
+      gitRequestVersionRef.current += 1;
+      gitRequestRef.current = null;
+      setGitData((prev) => ({ ...prev, isLoading: false }));
+      return Promise.resolve();
+    }
 
-      const response = await projectsApi.getGit(id);
+    const existing = gitRequestRef.current;
+    if (existing?.projectId === requestedProjectId) return existing.promise;
 
-      if (response.success) {
-        // Map commits from API response
-        const mappedCommits = (response.commits || []).map((commit: any) => ({
-          id: commit.sha,
-          message: commit.message || "No message",
-          author: commit.author || "Unknown",
-          authorAvatar: commit.author_avatar || "",
-          time: commit.date ? new Date(commit.date).toLocaleString() : "",
-          url: commit.url,
-        }));
+    const requestVersion = gitRequestVersionRef.current + 1;
+    gitRequestVersionRef.current = requestVersion;
 
-        setGitData({
-          repository: {
-            name: `${response.owner}/${response.repo}`,
-            // `full_name` is the GitHub-canonical field the Source tab's
-            // auto-deploy switch gates on; without it that control was hidden
-            // for every git project.
-            full_name: `${response.owner}/${response.repo}`,
-            provider: "GitHub",
-            url: `https://github.com/${response.owner}/${response.repo}`,
-          },
-          branch: response.branch || "main",
-          recentCommits: mappedCommits,
-          isLoading: false,
-          error: null,
-          autoDeployEnabled: response.auto_deploy,
-          webhookActive: response.webhook_active,
-          webhookStrategy: response.webhook_strategy,
-          webhookDomain: response.webhook_domain,
-          availableStrategies: response.available_strategies,
-          verifiedDomains: response.verified_domains,
-          installationInstalled: response.installation_installed,
-          installUrl: response.install_url,
-          defaultRollbackStrategy: response.default_rollback_strategy,
-        });
-      } else {
-        // "No repository connected" is the NORMAL state for upload/local
-        // projects, not a failure — let GitSettings render its inline
-        // "connect a repository" empty state (repository: null) instead of
-        // hijacking the whole layout with the full-page repo-not-found
-        // ErrorState. Only a genuine repo-not-found on a git-backed project
-        // (repo deleted / access lost) escalates to the full-page error.
+    const promise = Promise.resolve().then(async () => {
+      try {
+        // Only the first load shows the skeleton; later refreshes update in place.
+        setGitData((prev) => ({ ...prev, isLoading: !gitLoadedRef.current, error: null }));
+
+        const response = await projectsApi.getGit(requestedProjectId);
+        if (gitRequestVersionRef.current !== requestVersion) return;
+
+        if (response.success) {
+          const mappedCommits = (response.commits || []).map((commit: any) => ({
+            id: commit.sha,
+            message: commit.message || "No message",
+            author: commit.author || "Unknown",
+            authorAvatar: commit.author_avatar || "",
+            time: commit.date ? new Date(commit.date).toLocaleString() : "",
+            url: commit.url,
+          }));
+
+          setGitData({
+            repository: {
+              name: `${response.owner}/${response.repo}`,
+              full_name: `${response.owner}/${response.repo}`,
+              provider: "GitHub",
+              url: `https://github.com/${response.owner}/${response.repo}`,
+            },
+            branch: response.branch || "main",
+            recentCommits: mappedCommits,
+            isLoading: false,
+            error: null,
+            autoDeployEnabled: response.auto_deploy,
+            webhookActive: response.webhook_active,
+            webhookStrategy: response.webhook_strategy,
+            webhookDomain: response.webhook_domain,
+            availableStrategies: response.available_strategies,
+            verifiedDomains: response.verified_domains,
+            installationInstalled: response.installation_installed,
+            installUrl: response.install_url,
+            defaultRollbackStrategy: response.default_rollback_strategy,
+          });
+          return;
+        }
+
+        // No linked repository is a normal state for upload/local projects.
+        const errorText = response.error?.toLowerCase() ?? "";
         const noRepoConnected =
-          response.code === "NO_REPOSITORY" ||
-          response.error?.toLowerCase().includes("no repository connected");
+          response.code === "NO_REPOSITORY" || errorText.includes("no repository connected");
         const isRepoError =
-          !noRepoConnected &&
-          (response.error?.toLowerCase().includes("repository") ||
-            response.error?.toLowerCase().includes("repo"));
+          !noRepoConnected && (errorText.includes("repository") || errorText.includes("repo"));
 
         if (isRepoError) {
           setProjectNotFound(true);
@@ -544,23 +552,33 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
           repository: null,
           recentCommits: [],
         }));
+      } catch (error) {
+        if (gitRequestVersionRef.current !== requestVersion) return;
+        console.error("Failed to fetch git data:", error);
+        setGitData((prev) => ({
+          ...prev,
+          isLoading: false,
+          error: "Failed to load git data",
+          repository: null,
+          recentCommits: [],
+        }));
+      } finally {
+        if (gitRequestVersionRef.current !== requestVersion) return;
+        gitRequestRef.current = null;
+        gitLoadedRef.current = true;
       }
-    } catch (error) {
-      console.error("Failed to fetch git data:", error);
-      setGitData((prev) => ({
-        ...prev,
-        isLoading: false,
-        error: "Failed to load git data",
-        repository: null,
-        recentCommits: [],
-      }));
-    } finally {
-      isLoadingGitRef.current = false;
-      // Fetch attempt completed for this project → subsequent refreshGit calls
-      // (tab re-open, post-action refresh) update in the background, no skeleton.
-      gitLoadedRef.current = true;
-    }
+    });
+
+    gitRequestRef.current = { projectId: requestedProjectId, promise };
+    return promise;
   }, [id]);
+
+  // Git status is part of the overview, so load it with the project provider.
+  // Previously only GitSettings called refreshGit on mount, which made the
+  // overview report auto-deploy as disabled until the Source tab was visited.
+  useEffect(() => {
+    void refreshGit();
+  }, [refreshGit]);
 
   // ─── Local-state update helpers ────────────────────────────────────────
   //

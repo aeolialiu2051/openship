@@ -219,6 +219,83 @@ export async function appFetch<T = unknown>(
   return data;
 }
 
+interface GitHubAppMetadata {
+  hook_attributes?: {
+    active?: boolean;
+    url?: string;
+  };
+}
+
+interface GitHubAppWebhookConfig {
+  url?: string;
+}
+
+interface GitHubAppWebhookState {
+  active: boolean | null;
+  url: string | null;
+}
+
+const APP_WEBHOOK_STATUS_TTL_MS = 60 * 1000;
+let appWebhookStatusCache: (GitHubAppWebhookState & { expiresAt: number }) | null = null;
+let appWebhookStatusPromise: Promise<GitHubAppWebhookState> | null = null;
+
+/**
+ * GitHub App-level webhook configuration used to verify that deliveries target
+ * this control-plane instance.
+ *
+ * An installation only proves repository access; it does not prove that the
+ * App's shared webhook is enabled. Cache this App-global value because every
+ * project Git-info request would otherwise call GET /app independently.
+ */
+export async function getGitHubAppWebhookState(): Promise<GitHubAppWebhookState> {
+  const now = Date.now();
+  if (appWebhookStatusCache && appWebhookStatusCache.expiresAt > now) {
+    return {
+      active: appWebhookStatusCache.active,
+      url: appWebhookStatusCache.url,
+    };
+  }
+  if (appWebhookStatusPromise) return appWebhookStatusPromise;
+
+  const request = Promise.allSettled([
+    appFetch<GitHubAppMetadata>("https://api.github.com/app"),
+    appFetch<GitHubAppWebhookConfig>("https://api.github.com/app/hook/config"),
+  ]).then(([appResult, configResult]) => {
+    if (appResult.status === "rejected") {
+      console.warn(
+        "[GitHub] Failed to read GitHub App metadata:",
+        safeErrorMessage(appResult.reason),
+      );
+    }
+    if (configResult.status === "rejected") {
+      console.warn(
+        "[GitHub] Failed to read GitHub App webhook configuration:",
+        safeErrorMessage(configResult.reason),
+      );
+    }
+
+    const metadata = appResult.status === "fulfilled" ? appResult.value : null;
+    const config = configResult.status === "fulfilled" ? configResult.value : null;
+    const rawActive = metadata?.hook_attributes?.active;
+    const state: GitHubAppWebhookState = {
+      active: typeof rawActive === "boolean" ? rawActive : null,
+      url: config?.url?.trim() || metadata?.hook_attributes?.url?.trim() || null,
+    };
+
+    appWebhookStatusCache = {
+      ...state,
+      expiresAt: Date.now() + APP_WEBHOOK_STATUS_TTL_MS,
+    };
+    return state;
+  });
+
+  appWebhookStatusPromise = request;
+  void request.finally(() => {
+    if (appWebhookStatusPromise === request) appWebhookStatusPromise = null;
+  });
+  return request;
+}
+
 // ─── Installation ID lookup ──────────────────────────────────────────────────
 
 /**

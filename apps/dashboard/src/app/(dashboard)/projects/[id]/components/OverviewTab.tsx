@@ -268,13 +268,13 @@ export const OverviewTab = () => {
           <StatusItem
             label={t.projects.overview.autoDeploy}
             active={!!gitData?.autoDeployEnabled}
-            loading={showProjectInfoSkeleton}
+            loading={showProjectInfoSkeleton || gitData.isLoading}
             t={t}
           />
           <StatusItem
             label={t.projects.overview.webhook}
             active={!!gitData?.webhookActive}
-            loading={showProjectInfoSkeleton}
+            loading={showProjectInfoSkeleton || gitData.isLoading}
             t={t}
           />
         </Card>

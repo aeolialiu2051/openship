@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   AlertTriangle,
   Check,
@@ -36,7 +36,6 @@ export const GitSettings = () => {
   const [isLinking, setIsLinking] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
   const [togglingAuto, setTogglingAuto] = useState(false);
-  const hasRefreshed = useRef(false);
 
   // Auto-deploy on push: one toggle → the API registers/removes the GitHub repo
   // webhook at this instance's public URL (repo strategy), or just flips the flag
@@ -115,11 +114,12 @@ export const GitSettings = () => {
     }
   };
 
+  // The provider preloads Git data for the overview, while the Source page also
+  // refreshes on mount as a recovery path for preserved client state (notably
+  // development hot updates) and transient earlier request failures. refreshGit
+  // deduplicates an in-flight request for the same project.
   useEffect(() => {
-    if (!hasRefreshed.current) {
-      hasRefreshed.current = true;
-      refreshGit();
-    }
+    void refreshGit();
   }, [refreshGit]);
 
   const handleRollbackStrategyToggle = async () => {
@@ -338,8 +338,9 @@ export const GitSettings = () => {
 
   return (
     <div className="space-y-5">
-      {/* Install GitHub App banner - cloud-deployed projects that lack the app */}
-      {projectData.deployTarget === "cloud" && !gitData.installationInstalled && (
+      {/* Any project using the App webhook strategy needs an installation,
+          including server-target deployments managed by the cloud control plane. */}
+      {gitData.webhookStrategy === "app" && !gitData.installationInstalled && (
         <div className="flex items-start gap-3 rounded-2xl border border-warning-border bg-warning-bg px-5 py-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-warning-bg">
             <AlertTriangle className="size-4 text-warning" />
@@ -755,4 +756,3 @@ function InfoCard({
     </div>
   );
 }
-
