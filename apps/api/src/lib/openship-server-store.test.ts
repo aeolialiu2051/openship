@@ -51,6 +51,23 @@ describe("openship server store privilege handling", () => {
     expect(streamed[0]).toContain("apt-get update -y");
   });
 
+  it("writes generated app config into a root-owned host path", async () => {
+    const stub = nonRootExecutor({ canSudo: true });
+    const rootExec = await resolveRootExecutor(stub.exec);
+    const target = "/var/lib/openship/app-config/proj_123/cli-proxy-api/CLIProxyAPI/config.yaml";
+
+    await rootExec.writeFile(target, "host: 0.0.0.0\n");
+
+    expect(stub.writes).toHaveLength(1);
+    expect(stub.writes[0]?.path).toMatch(/^\/tmp\/\.openship-elev-/);
+    expect(stub.writes[0]?.content).toBe("host: 0.0.0.0\n");
+    expect(
+      stub.commands.some(
+        (command) => command.startsWith("sudo -n sh -c ") && command.includes(target),
+      ),
+    ).toBe(true);
+  });
+
   it("fails writes with an actionable error when the SSH user cannot elevate", async () => {
     const stub = nonRootExecutor({ canSudo: false });
 

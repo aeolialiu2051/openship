@@ -41,6 +41,7 @@ import {
 } from "@repo/adapters";
 import { decryptEnvMap, encrypt } from "../../../lib/encryption";
 import { resolveServerHost } from "../../../lib/server-target";
+import { resolveRootExecutor } from "../../../lib/openship-server-store";
 import { containerIdForService } from "../../services/service-container";
 import { isConnectionLoss } from "../../../lib/remote-state";
 import {
@@ -66,7 +67,11 @@ import { serviceKind } from "./project-services";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../../lib/upstream-url";
 import { withLoopbackPublish } from "../../../lib/loopback-publish";
 import { prepareTraefikConfig, vibrailRouterName } from "../../../lib/traefik-routing";
-import { upsertDeploymentDnsRecord } from "../../../lib/cloudflare-dns";
+import {
+  isVibrailManagedHostname,
+  upsertDeploymentDnsRecord,
+  waitForDeploymentDnsPropagation,
+} from "../../../lib/cloudflare-dns";
 
 export interface ComposeDeployResult {
   /** `reconciling` when at least one service's outcome is UNKNOWN because the
@@ -389,6 +394,28 @@ async function prepareServiceRoutes(opts: {
         });
       }
       if (isRoutePublishable(route)) {
+        if (routeContext.usesManagedRouting) {
+          const action = await upsertDeploymentDnsRecord({
+            hostname: route.hostname,
+            organizationId: routeContext.organizationId,
+            serverId: routeContext.serverId,
+          });
+          if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
+            throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
+          }
+          if (action !== "skipped") {
+            logger.log(
+              `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
+              "info",
+              { serviceName: service.name },
+            );
+            if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
+              throw new Error(
+                `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
+              );
+            }
+          }
+        }
         ensured.push(route);
       } else {
         logger.log(
@@ -938,12 +965,13 @@ export async function deployComposeServices(
           { serviceName: svc.name },
         );
       } else {
+        const appConfigExecutor = await resolveRootExecutor(opts.executor);
         for (const file of advancedFiles) {
           const content = resolvePublicUrlPlaceholders({ __c: file.content }, (name, port) =>
             publicUrlByService.get(port !== undefined ? `${name}:${port}` : name),
           ).__c;
           const hostPath = appConfigHostPath(project.id, svc.name, file.path);
-          await opts.executor.writeFile(hostPath, content);
+          await appConfigExecutor.writeFile(hostPath, content);
           serviceRuntimeConfig.volumes = [
             ...serviceRuntimeConfig.volumes,
             `${hostPath}:${file.path}:ro`,
