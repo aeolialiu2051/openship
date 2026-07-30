@@ -4,8 +4,8 @@
  *
  * Path: nodemailer over SMTP submission against the mail VPS's public
  * endpoint (`mail.<installDomain>:465`, implicit TLS). The orchestrator
- * authenticates as `openship@<senderDomain>` — either the shared platform
- * mailbox (when no fromDomain override or it matches the install domain)
+ * authenticates as `openship@<senderDomain>` — either the primary-domain test
+ * mailbox (legacy name: platform mailbox) when no override is supplied
  * or a per-domain test mailbox (when fromDomain names an additional
  * domain), provisioned on demand by `ensureOpenshipTestMailbox`. SMTP
  * AUTH user is always the same address as the From header, so Postfix's
@@ -17,7 +17,7 @@
  * (or `state.additionalDomains[fromDomain].postmasterPassword`). That
  * dual-storage shape was the root cause of the most common failure here —
  * the plaintext we sent and the SSHA512 hash in `vmail.mailbox` could
- * drift independently. The platform mailbox primitive owns both ends of
+ * drift independently. The primary test-mailbox primitive owns both ends of
  * its credential in a single ensure* call, so 535 auth failures become
  * REALLY rare: they imply the doveadm hash and the state-file plaintext
  * were rotated out-of-band, which we don't do anywhere.
@@ -28,9 +28,9 @@
  *      means the SMTP daemon is down - all surface as real, distinct
  *      errors the operator can act on. The old sendmail-via-SSH path
  *      could "succeed" with the message stuck in the local queue forever.
- *   2. Reuses the same code path the platform will use for any future
- *      transactional mail (e.g. user-invite emails, alerts), so a working
- *      welcome test proves the whole pipeline, not just the local MTA.
+ *   2. Exercises the same public SMTP submission path customers will use for
+ *      hosted-domain mail, without coupling Vibrail control-plane mail to the
+ *      tenant server.
  *   3. Real `Message-ID` comes back from the server's `250 OK` response,
  *      not a synthetic one we made up.
  *
@@ -83,7 +83,7 @@ export interface SendTestEmailInput {
    * `reject_sender_login_mismatch` check is satisfied (no more 554s).
    *
    * When absent (or equal to the install domain), falls back to the
-   * shared platform mailbox `openship@<installDomain>` via
+   * primary-domain test mailbox `openship@<installDomain>` via
    * `ensureOpenshipPlatformMailbox`.
    *
    * The DKIM signature comes from amavis keyed by the From-domain — so a
@@ -106,7 +106,7 @@ export interface SendTestEmailResult {
  *
  * Identity selection:
  *   - `fromDomain` absent or equal to the install domain → AUTH+From as
- *     the shared platform mailbox `openship@<installDomain>` (sourced
+ *     the primary-domain test mailbox `openship@<installDomain>` (sourced
  *     from `state.platformMailbox`, backfilled via
  *     `ensureOpenshipPlatformMailbox` on first run).
  *   - `fromDomain` set to an additional domain → AUTH+From as

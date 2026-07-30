@@ -101,11 +101,14 @@ export interface MailWebmailState {
 }
 
 /**
- * Platform SMTP mailbox credential cache.
+ * Primary-domain SMTP test mailbox credential cache.
+ *
+ * `PlatformMailboxState` is a legacy compatibility name. This mailbox belongs
+ * to the hosted mail server and must never be used for control-plane mail.
  *
  * Lives at `openship@<state.domain>` (the primary install). The
  * doveadm-hashed password is stored in `vmail.mailbox`; the plaintext
- * here is the canonical copy the API hands to nodemailer. Both ends are
+ * here is the canonical copy the mail-admin test flow hands to nodemailer. Both ends are
  * written in a SINGLE call to `ensureOpenshipPlatformMailbox` so drift is
  * structurally impossible — see
  * apps/api/src/modules/mail/admin/platform-mailbox.service.ts.
@@ -361,10 +364,9 @@ export interface MailServerState {
    */
   additionalDomains?: Record<string, AdditionalDomainDns>;
   /**
-   * Platform SMTP mailbox credentials (`openship@<state.domain>`). Set by
-   * `ensureOpenshipPlatformMailbox` on first run (typically from the
-   * post-install hook). Absent on legacy installs that pre-date the
-   * primitive — call sites must backfill via ensure* before reading.
+   * Primary-domain SMTP test mailbox credentials (`openship@<state.domain>`).
+   * The field name is retained for state-file compatibility. Provisioned on
+   * demand by the admin test flow; never used for control-plane system mail.
    */
   platformMailbox?: PlatformMailboxState;
   /**

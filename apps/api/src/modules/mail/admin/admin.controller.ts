@@ -16,7 +16,6 @@ import { permission } from "../../../lib/permission";
 import {
   param,
   isServerInOrg,
-  assertNotCloud,
   assertUserServersEnabled,
 } from "../../../lib/controller-helpers";
 import {
@@ -282,7 +281,7 @@ export async function pendingDomainDnsHandler(c: Context) {
 
 /** GET the current outbound relay config (masked — never returns the password). */
 export async function getOutboundRelayHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "read" });
@@ -304,7 +303,7 @@ export async function getOutboundRelayHandler(c: Context) {
  * (mirrors the instance-SMTP "leave blank to keep" convention).
  */
 export async function putOutboundRelayHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });
@@ -382,7 +381,7 @@ export async function putOutboundRelayHandler(c: Context) {
 
 /** Disable the outbound relay — revert Postfix to direct-to-MX. */
 export async function deleteOutboundRelayHandler(c: Context) {
-  const guard = assertNotCloud(c);
+  const guard = assertUserServersEnabled(c);
   if (guard) return guard;
   const serverId = param(c, "serverId");
   await permission.assert(getRequestContext(c), { resourceType: "mail_server", resourceId: serverId, action: "admin" });

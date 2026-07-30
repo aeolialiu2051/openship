@@ -27,7 +27,7 @@ export interface InstanceEmailSettings {
   user: string | null;
   from: string | null;
   hasPassword: boolean;
-  /** True when ANY transport (instance SMTP / mail server / env) can deliver. */
+  /** True when a system transport (instance SMTP / env) can deliver. */
   deliverable: boolean;
 }
 

@@ -426,8 +426,6 @@
     "emailPlaceholder": "tu@ejemplo.com",
     "password": "Contraseña",
     "passwordPlaceholder": "Al menos 8 caracteres",
-    "useMailServer": "Usar tu servidor de correo",
-    "useMailServerDesc": "Envía restablecimientos de contraseña, verificaciones e invitaciones de equipo desde tu servidor de correo aprovisionado en lugar del SMTP alternativo basado en el entorno.",
     "createAccount": "Crear cuenta",
     "toast": {
       "passwordTooShort": "La contraseña debe tener al menos 8 caracteres",

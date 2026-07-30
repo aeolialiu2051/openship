@@ -11,22 +11,16 @@
  * "local" in one transaction. On success the response sets a fresh
  * session cookie so the browser stays signed in.
  *
- * The "Use your mail server" toggle is offered only when a provisioned
- * mail server exists; ticking it asks the backend to warm the platform
- * mailbox (ensureOpenshipPlatformMailbox) so outbound mail uses our
- * own SMTP identity by default after the upgrade.
+ * System email is configured independently through Settings → Email or the
+ * deployment's SMTP environment. User-hosted mail servers are tenant
+ * resources and are never selected as authentication transports here.
  */
 
-import { useEffect, useState } from "react";
-import { Eye, EyeOff, Loader2, Lock, Server, X } from "lucide-react";
+import { useState } from "react";
+import { Eye, EyeOff, Loader2, Lock, X } from "lucide-react";
 import { api, getApiErrorMessage } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
-
-interface MailServerSummary {
-  serverId: string;
-  installedAt: string | null;
-}
 
 interface Props {
   open: boolean;
@@ -41,29 +35,7 @@ export function UpgradeAuthModal({ open, onClose, onSuccess }: Props) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [useOwnMailServer, setUseOwnMailServer] = useState(false);
-  const [hasMailServer, setHasMailServer] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    // Probe for an installed mail server so we can show the toggle
-    // conditionally. Best-effort: if the endpoint errors we just hide
-    // the toggle.
-    void (async () => {
-      try {
-        const res = await api.get<{ data: MailServerSummary[] } | MailServerSummary[]>(
-          "mail/servers",
-        );
-        const list = Array.isArray(res) ? res : (res?.data ?? []);
-        const installed = list.some((m) => m.installedAt != null);
-        setHasMailServer(installed);
-        setUseOwnMailServer(installed);
-      } catch {
-        setHasMailServer(false);
-      }
-    })();
-  }, [open]);
 
   if (!open) return null;
 
@@ -80,7 +52,6 @@ export function UpgradeAuthModal({ open, onClose, onSuccess }: Props) {
         name: name.trim(),
         email: email.trim(),
         password,
-        useOwnMailServer: hasMailServer ? useOwnMailServer : false,
       });
       showToast(t.settings.upgradeAuth.toast.accountCreated, "success", t.settings.common.toast.authUpgrade);
       onSuccess();
@@ -176,27 +147,6 @@ export function UpgradeAuthModal({ open, onClose, onSuccess }: Props) {
               </button>
             </div>
           </div>
-
-          {hasMailServer && (
-            <label className="flex items-start gap-3 rounded-xl border border-border/50 bg-muted/[0.04] p-3 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={useOwnMailServer}
-                onChange={(e) => setUseOwnMailServer(e.target.checked)}
-                disabled={submitting}
-                className="mt-0.5"
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground flex items-center gap-2">
-                  <Server className="size-3.5 text-muted-foreground" />
-                  {t.settings.upgradeAuth.useMailServer}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                  {t.settings.upgradeAuth.useMailServerDesc}
-                </p>
-              </div>
-            </label>
-          )}
 
           <div className="flex items-center justify-end gap-2 pt-2">
             <button

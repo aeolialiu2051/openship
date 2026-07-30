@@ -426,8 +426,6 @@
     "emailPlaceholder": "you@example.com",
     "password": "كلمة المرور",
     "passwordPlaceholder": "8 أحرف على الأقل",
-    "useMailServer": "استخدام خادم بريدك",
-    "useMailServerDesc": "أرسِل عمليات إعادة تعيين كلمات المرور والتحقّقات ودعوات الفريق من خادم بريدك المُوفَّر بدلًا من احتياطي SMTP القائم على متغيرات البيئة.",
     "createAccount": "إنشاء حساب",
     "toast": {
       "passwordTooShort": "يجب أن تتكون كلمة المرور من 8 أحرف على الأقل",

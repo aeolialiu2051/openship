@@ -168,9 +168,12 @@ POST /api/system/upgrade-to-auth
     name: { type: 'string', description: 'Account display name (1–100 chars).', required: true },
     email: { type: 'string', description: 'Account email (valid address, ≤254 chars).', required: true },
     password: { type: 'string', description: 'Account password (8–128 chars).', required: true },
-    useOwnMailServer: { type: 'boolean', description: 'Warm the self-hosted mail server so it can send auth emails.', default: 'false' },
   }}
 />
+
+Authentication and other system email uses Settings → Email or the instance's
+`SMTP_*` environment. User-hosted mail servers are never selected as auth-mail
+transports.
 
 ```bash
 openship system upgrade-to-auth --name "Ada" --email ada@example.com

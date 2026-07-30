@@ -205,7 +205,7 @@ const envSchema = z.object({
   GITHUB_PRIVATE_KEY_BASE64: z.string().optional(),
   GITHUB_WEBHOOK_SECRET: z.string().optional(),
 
-  /* ---------- Email (SMTP) ---------- */
+  /* ---------- Control-plane system email (never tenant mail-server SMTP) ---------- */
   SMTP_HOST: z.string().optional(),
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),

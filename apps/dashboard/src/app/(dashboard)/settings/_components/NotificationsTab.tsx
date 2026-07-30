@@ -428,8 +428,8 @@ function NewChannelForm({
   const [url, setUrl] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
   const [busy, setBusy] = useState(false);
-  // Whether the instance can send email at all (instance SMTP / mail server /
-  // env). null = unknown (not yet loaded, or no permission to read). When false
+  // Whether the instance can send system email (instance SMTP / env). Hosted
+  // tenant mail servers are not eligible. null = unknown. When false
   // we nudge the operator to configure SMTP — email channels won't deliver.
   const [emailDeliverable, setEmailDeliverable] = useState<boolean | null>(null);
 

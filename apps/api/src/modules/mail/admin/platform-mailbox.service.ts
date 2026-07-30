@@ -1,11 +1,14 @@
 /**
- * Platform mailbox — the single SMTP identity the openship API authenticates
- * as for transactional mail (welcome emails, alerts, future user-invite
- * sends).
+ * Primary-domain SMTP test mailbox.
+ *
+ * `PlatformMailbox*` is retained as a storage/API compatibility name, but this
+ * credential belongs exclusively to the user-owned hosted mail server. It is
+ * used by the mail admin test flow and is never an eligible transport for
+ * Vibrail control-plane verification, password-reset, billing or alert mail.
  *
  * The mailbox lives at `openship@<state.domain>` (the primary install
- * domain). It is provisioned once by the post-install hook and reused
- * everywhere; per-tenant outbound identities are NOT minted here. iRedMail's
+ * domain). It is provisioned on demand by the test flow and reused for tests
+ * from the primary hosted domain. iRedMail's
  * amavis DKIM config signs outbound mail based on the From-header domain,
  * NOT the SMTP-AUTH user's domain, so the single platform mailbox can still
  * send `From: openship@<any-domain>` and have DKIM align — auth identity
@@ -28,10 +31,8 @@
  *   - On rotate=true, BOTH ends are updated atomically: state-file write
  *     failure rolls the DB row back via hardDelete to keep them in lockstep.
  *
- * Returns the full SMTP credentials suitable for handing directly to
- * `nodemailer.createTransport(...)`. The `rotated` flag lets install/admin
- * code surface "created new platform mailbox" vs "reused existing" in audit
- * logs and the install wizard terminal.
+ * Returns SMTP credentials suitable for the target-server test sender. The
+ * `rotated` flag lets mail-admin code distinguish creation from reuse.
  */
 
 import { randomBytes } from "node:crypto";

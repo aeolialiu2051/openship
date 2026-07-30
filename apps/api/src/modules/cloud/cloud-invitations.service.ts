@@ -49,14 +49,14 @@ export async function sendCloudInvitation(
   }
 
   try {
-    // preferSource is intentionally omitted so the SaaS's own auto-select
-    // (platform mailbox preferred, env-SMTP fallback) decides delivery.
-    // The SaaS IS the cloud — there is nobody to relay to from here.
+    // The SaaS owns this delivery and therefore uses only its operator-managed
+    // environment SMTP. Tenant mail servers are never eligible transports.
     await sendMail({
       to: input.to,
       subject: input.subject,
       html: input.html,
       text: input.text,
+      preferSource: "cloud",
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown mail error";

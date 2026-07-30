@@ -543,8 +543,6 @@
     "emailPlaceholder": "you@example.com",
     "password": "Password",
     "passwordPlaceholder": "At least 8 characters",
-    "useMailServer": "Use your mail server",
-    "useMailServerDesc": "Send password resets, verifications, and team invites from your provisioned mail server instead of the env-based SMTP fallback.",
     "createAccount": "Create account",
     "toast": {
       "passwordTooShort": "Password must be at least 8 characters",

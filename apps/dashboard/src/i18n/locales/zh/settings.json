@@ -457,8 +457,6 @@
     "emailPlaceholder": "you@example.com",
     "password": "密码",
     "passwordPlaceholder": "至少 8 个字符",
-    "useMailServer": "使用你的邮件服务器",
-    "useMailServerDesc": "从你已配置的邮件服务器发送密码重置、验证和团队邀请，而不是使用基于环境变量的 SMTP 后备方案。",
     "createAccount": "创建账户",
     "toast": {
       "passwordTooShort": "密码必须至少为 8 个字符",

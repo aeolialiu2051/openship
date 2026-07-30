@@ -426,8 +426,6 @@
     "emailPlaceholder": "voce@example.com",
     "password": "Senha",
     "passwordPlaceholder": "Pelo menos 8 caracteres",
-    "useMailServer": "Usar seu servidor de e-mail",
-    "useMailServerDesc": "Envie redefinições de senha, verificações e convites de equipe a partir do seu servidor de e-mail provisionado em vez do SMTP de fallback baseado em variáveis de ambiente.",
     "createAccount": "Criar conta",
     "toast": {
       "passwordTooShort": "A senha deve ter pelo menos 8 caracteres",

@@ -147,7 +147,9 @@ Turns a zero-auth (`authMode: none`) instance into a real email/password account
 | `--name <name>` | Account display name. |
 | `--email <email>` | Account email. |
 | `--password <password>` | Account password (prompted if omitted). |
-| `--use-own-mail-server` | Warm the self-hosted mail server for auth emails. |
+
+Configure authentication email independently through Settings → Email or the
+instance's `SMTP_*` environment. Hosted mail servers are not auth transports.
 
 ### `onboarding apply`
 

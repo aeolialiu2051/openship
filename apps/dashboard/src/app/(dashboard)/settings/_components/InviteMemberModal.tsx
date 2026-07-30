@@ -65,8 +65,8 @@ export function InviteMemberModal({
   const [inviting, setInviting] = useState(false);
 
   // Can the selected transport actually deliver the invite email?
-  //   - "platform" (your mail system) → the instance can send (SMTP / mail
-  //     server / env). null = unknown (not yet loaded / no read access).
+  //   - "platform" (legacy value: local system mail) → instance/env SMTP.
+  //     Hosted tenant mail servers are not eligible transports.
   //   - "cloud" → Openship Cloud is connected to relay it (passed in as a prop).
   const [emailDeliverable, setEmailDeliverable] = useState<boolean | null>(null);
   useEffect(() => {

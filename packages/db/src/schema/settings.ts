@@ -54,15 +54,12 @@ export const instanceSettings = pgTable("instance_settings", {
 
   /**
    * Source that drives `sendInvitationEmail` in `lib/auth.ts`:
-   *   "platform" → use the provisioned mail server (preferSource="platform")
-   *   "cloud"    → relay through Openship Cloud (stub today; falls back to
-   *                env-based SMTP via lib/mail.ts until the cloud
-   *                send-invitation endpoint exists)
+   *   "platform" → legacy persisted value meaning the self-hosted instance's
+   *                own system SMTP (Settings → Email / environment SMTP)
+   *   "cloud"    → relay through Openship Cloud's operator-owned SMTP
    *
-   * Default is "platform" — operators with a provisioned mail server
-   * almost always want invites stamped with their own brand. Cloud-only
-   * deployments can flip this to "cloud" to keep delivery routed
-   * through the central relay.
+   * Cloud SaaS ignores this instance-global row and always uses its platform
+   * SMTP. The value never selects a user-owned hosted mail server.
    */
   invitationMailSource: text("invitation_mail_source")
     .notNull()
@@ -130,9 +127,9 @@ export const instanceSettings = pgTable("instance_settings", {
   //
   // Operator-configured SMTP used for ALL instance-sent mail — password reset,
   // email verification, team invites, and notifications. When set, this is the
-  // highest-priority source in `lib/mail.ts` (above the provisioned mail-server
-  // platform mailbox and the static env SMTP). Instance-wide, matching the auth
-  // layer's scope. The password is encrypted at rest (`lib/encryption`) and is
+  // highest-priority self-hosted source in `lib/mail.ts`, ahead of static env
+  // SMTP. Hosted tenant mail servers are intentionally excluded. Instance-wide,
+  // matching the auth layer's scope. The password is encrypted at rest and is
   // NEVER returned to the client (masked on read). All-null = not configured.
   smtpHost: text("smtp_host"),
   smtpPort: integer("smtp_port"),

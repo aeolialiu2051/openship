@@ -5,26 +5,22 @@ import { cloudClient } from "./cloud/client";
 import { decrypt } from "./encryption";
 
 /**
- * Email sender with three transport sources, tried in this order for "auto":
+ * System/transactional email sender.
  *
- *   1. Operator-configured instance SMTP (`instance_settings.smtp*`, set in
- *      Settings → Email). The deliberate, instance-wide transport for ALL
- *      system mail — password reset, verification, invites, notifications.
- *      Password decrypted from `smtpPasswordEncrypted`.
- *   2. The provisioned platform mailbox on this instance's mail server
- *      (`openship@<state.domain>`), via `ensureOpenshipPlatformMailbox`.
- *   3. Static env-configured SMTP (SMTP_HOST/USER/PASS) — deployment fallback.
+ * This module deliberately never reads `mail_servers` or authenticates to a
+ * mailbox on a user-owned target server. Hosted mail servers are tenant
+ * resources; Cloud verification codes, password resets, billing notices and
+ * other control-plane messages belong to the platform trust boundary.
  *
- * Self-hosted instances without any source no-op gracefully — email
- * features (verification, password reset, invitations) are simply
- * disabled.
- *
- * `smtpEnabled` exported for backward compat: true when ANY source
- * COULD deliver a message. Callers gated on this still work; new code
- * should prefer `await canSendMail()` for a fresh runtime check.
+ * Transport policy:
+ *   - CLOUD_MODE: environment SMTP only (`SMTP_*`). Missing configuration is a
+ *     hard delivery error so required verification cannot silently deadlock.
+ *   - self-hosted: Settings → Email instance SMTP first, then environment SMTP.
+ *   - a self-hosted organization may explicitly relay an invitation through
+ *     Openship Cloud with `preferSource: "cloud"`.
  */
 
-export type SendMailSource = "platform" | "cloud" | "auto";
+export type SendMailSource = "local" | "cloud" | "auto";
 
 export type SendMailOptions = {
   to: string;
@@ -32,12 +28,10 @@ export type SendMailOptions = {
   html: string;
   text?: string;
   /**
-   * Preferred transport source. Default "auto" — uses the platform
-   * mailbox when provisioned, otherwise falls back to env-configured
-   * SMTP. "platform" forces platform (returns silently if unavailable).
-   * "cloud" routes via the SaaS invitation-relay endpoint on a local
-   * instance (requires `organizationId`), and uses the SaaS's own
-   * env/platform transport when run on the SaaS itself.
+   * Preferred system-mail source. Default "auto" uses the transports owned by
+   * this Openship process. "local" is an explicit alias for that self-hosted
+   * path. "cloud" routes through the SaaS invitation relay from a self-hosted
+   * instance and resolves to the SaaS environment transport on the SaaS.
    */
   preferSource?: SendMailSource;
   /**
@@ -105,84 +99,6 @@ async function sendViaResendHttp(opts: SendMailOptions): Promise<void> {
     throw new Error(
       `Resend HTTPS API returned ${response.status}${detail ? `: ${detail}` : ""}`,
     );
-  }
-}
-
-// ─── Platform transport (cached briefly per serverId) ────────────────────────
-
-interface CachedPlatformTransport {
-  transport: Transporter;
-  from: string;
-  fetchedAt: number;
-}
-
-const PLATFORM_TRANSPORT_TTL_MS = 60_000;
-const platformTransportCache = new Map<string, CachedPlatformTransport>();
-
-/**
- * Locate the active mail server and (re)build its platform-mailbox
- * transport. Returns null if no mail server is provisioned, or if the
- * ensure*-call throws (we don't want a transient mail-server fault to
- * crash the caller; the env fallback will be tried).
- *
- * Cached for 60s per serverId so we don't hit ensure* on every send.
- */
-async function getPlatformTransport(): Promise<{
-  transport: Transporter;
-  from: string;
-} | null> {
-  // `@repo/db` is universal (every controller / service / repo consumer
-  // already loads it eagerly at boot via `db = await createDb()`), so
-  // a dynamic import buys nothing — kept static for clarity. The ONLY
-  // dynamic import in this file is `platform-mailbox.service` below,
-  // because THAT module pulls in the local-only SSH manager chain that
-  // shouldn't load on CLOUD_MODE.
-  let mailServers: Array<{ serverId: string; installedAt: Date | null }>;
-  try {
-    mailServers = (await repos.mailServer.list()) as Array<{
-      serverId: string;
-      installedAt: Date | null;
-    }>;
-  } catch (err) {
-    console.warn("[mail] mail-server lookup failed:", err);
-    return null;
-  }
-  const installed = mailServers.find((m) => m.installedAt != null) ?? mailServers[0];
-  if (!installed) return null;
-
-  const cacheKey = installed.serverId;
-  const cached = platformTransportCache.get(cacheKey);
-  if (cached && Date.now() - cached.fetchedAt < PLATFORM_TRANSPORT_TTL_MS) {
-    return { transport: cached.transport, from: cached.from };
-  }
-
-  try {
-    const { ensureOpenshipPlatformMailbox } = await import(
-      "../modules/mail/admin/platform-mailbox.service"
-    );
-    const creds = await ensureOpenshipPlatformMailbox(installed.serverId);
-    const transport = nodemailer.createTransport({
-      host: creds.smtpHost,
-      port: creds.smtpPort,
-      secure: creds.secure,
-      auth: {
-        user: creds.email,
-        pass: creds.password,
-      },
-    });
-    const entry: CachedPlatformTransport = {
-      transport,
-      from: creds.from,
-      fetchedAt: Date.now(),
-    };
-    platformTransportCache.set(cacheKey, entry);
-    return { transport, from: creds.from };
-  } catch (err) {
-    console.warn(
-      "[mail] ensureOpenshipPlatformMailbox failed; will fall back to env transport:",
-      err,
-    );
-    return null;
   }
 }
 
@@ -286,88 +202,70 @@ export async function sendInstanceTestEmail(to: string): Promise<void> {
 // ─── Public surface ──────────────────────────────────────────────────────────
 
 /**
- * Best-effort module-load flag — true if env SMTP is configured OR a
- * platform mailbox is potentially available at runtime.
- *
- * Better Auth needs callbacks wired/unwired at module-load time, so we
- * default this to `true` whenever the install is provisioned (i.e. the
- * mail server / platform mailbox may exist by the time invites are
- * sent). Pure-zero-state instances (no env vars AND code knows a mail
- * server can't appear) can be detected via `canSendMail()` at runtime.
+ * Better Auth needs callbacks wired at module-load time. Runtime transport
+ * availability is enforced by sendMail/canSendMail; target mail servers are
+ * intentionally not considered a system-mail capability.
  *
  * `requireEmailVerification` should NOT be derived from this — use
- * `requireEmailVerificationStrict` (env-only) so users aren't locked
- * out when the platform transport drops mid-signup.
+ * `requireEmailVerificationStrict` (env-only) so a self-hosted install without
+ * system SMTP does not require a verification message it cannot deliver.
  */
 export const smtpEnabled = true; // callbacks wired; runtime decides delivery
 
 /**
- * Stricter env-only flag for gating `requireEmailVerification`. Avoids
- * the lockout case where the platform mailbox temporarily fails and a
- * signup can't complete because no verification email got out.
+ * Env-only flag for gating email verification on self-hosted installs. Cloud
+ * always requires verification and sendMail throws if its platform SMTP is
+ * missing.
  */
 export const requireEmailVerificationStrict = envSmtpConfigured;
 
 /** Runtime check — true if any source could currently deliver. */
 export async function canSendMail(): Promise<boolean> {
   if (envSmtpConfigured) return true;
-  if (await getInstanceTransport()) return true;
-  const platform = await getPlatformTransport();
-  return platform !== null;
+  if (env.CLOUD_MODE) return false;
+  return (await getInstanceTransport()) !== null;
 }
 
 interface ActiveTransport {
   transport: Transporter;
   from: string | undefined;
-  source: "instance" | "platform" | "env";
+  source: "instance" | "env";
 }
 
 /**
- * Ordered list of transports to try for this send, best first. sendMail walks
- * the chain and fails over to the next source when a send THROWS — so a
- * mistyped instance-SMTP password can't brick all mail (password resets,
- * verification) when a mail-server mailbox or env transport is also available.
- *
- * The operator-configured instance SMTP always LEADS when set — that's why it
- * powers team invites too, not just resets (invites call preferSource="platform",
- * but the deliberate global transport should still win). Order:
- *
- *   instance (if set) → platform mailbox → env
- *
- * For preferSource="platform" env is dropped (branded invites shouldn't
- * silently fall back to a generic env sender); instance + platform still apply.
- * "cloud" never reaches here on a local instance (sendMail short-circuits to
- * the relay first); on the SaaS it behaves like "auto".
+ * Build the system-mail transport chain without crossing into tenant mail
+ * infrastructure. Cloud is env-only. Self-hosted instances may use their
+ * operator-configured instance SMTP and then their deployment env fallback.
  */
-async function getTransportChain(
-  preferSource: SendMailSource = "auto",
-): Promise<ActiveTransport[]> {
+async function getTransportChain(): Promise<ActiveTransport[]> {
   const chain: ActiveTransport[] = [];
-  const instance = await getInstanceTransport();
-  if (instance) chain.push({ transport: instance.transport, from: instance.from, source: "instance" });
-  const platform = await getPlatformTransport();
-  if (platform) chain.push({ transport: platform.transport, from: platform.from, source: "platform" });
-  if (preferSource !== "platform" && envTransport) {
-    chain.push({ transport: envTransport, from: envFrom, source: "env" });
+  if (env.CLOUD_MODE) {
+    if (envTransport) {
+      chain.push({ transport: envTransport, from: envFrom, source: "env" });
+    }
+    return chain;
   }
+  const instance = await getInstanceTransport();
+  if (instance) {
+    chain.push({ transport: instance.transport, from: instance.from, source: "instance" });
+  }
+  if (envTransport) chain.push({ transport: envTransport, from: envFrom, source: "env" });
   return chain;
 }
 
-/** Send an email. No-ops with a warning when no transport is available; fails
- *  over across the transport chain when a send throws. */
+/**
+ * Send a system email. Missing Cloud SMTP is a hard error; self-hosted installs
+ * without system SMTP retain the historical warn-and-skip behaviour.
+ */
 export async function sendMail(opts: SendMailOptions): Promise<void> {
   const preferSource = opts.preferSource ?? "auto";
 
   // Cloud relay branch — only meaningful on a local self-hosted instance.
   // When CLOUD_MODE=true we ARE the SaaS, so "cloud" falls through to the
-  // normal transport selection (the SaaS has its own infra mailer).
+  // env-only platform transport below.
   if (preferSource === "cloud" && !env.CLOUD_MODE) {
     if (!opts.organizationId) {
-      console.warn(
-        "[mail] preferSource=cloud requires organizationId - skipping email to",
-        opts.to,
-      );
-      return;
+      throw new Error("preferSource=cloud requires organizationId");
     }
     // cloud-client is dual-side (local outbound → SaaS) with no local-
     // only side effects on import, so static import is fine. Cargo-cult
@@ -382,19 +280,20 @@ export async function sendMail(opts: SendMailOptions): Promise<void> {
       text: opts.text ?? stripHtmlForText(opts.html),
     });
     if (!result.ok) {
-      console.warn(
-        `[mail] cloud invitation relay failed for org=${opts.organizationId}: ${result.error}`,
+      throw new Error(
+        `Cloud invitation relay failed for org=${opts.organizationId}: ${result.error}`,
       );
     }
     return;
   }
 
-  const chain = await getTransportChain(preferSource);
+  const chain = await getTransportChain();
   if (chain.length === 0) {
-    console.warn(
-      `[mail] no transport configured (preferSource=${preferSource}) - skipping email to`,
-      opts.to,
-    );
+    const message = env.CLOUD_MODE
+      ? "Cloud platform SMTP is not configured (SMTP_HOST, SMTP_USER and SMTP_PASS are required)"
+      : `No system-mail transport configured (preferSource=${preferSource})`;
+    if (env.CLOUD_MODE) throw new Error(message);
+    console.warn(`[mail] ${message} - skipping email to`, opts.to);
     return;
   }
 
@@ -453,13 +352,4 @@ function stripHtmlForText(html: string): string {
     .replace(/<[^>]+>/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-/**
- * Invalidate the cached platform transport. Call after a mail-server
- * rotate / uninstall so the next sendMail re-runs ensure* and picks up
- * fresh creds (or correctly drops back to env).
- */
-export function invalidatePlatformTransportCache(): void {
-  platformTransportCache.clear();
 }

@@ -38,7 +38,6 @@ import { ensureLocalUser, invalidateLocalUserCache } from "../../lib/local-user"
 import { provisionUser } from "../../lib/provision-user";
 import { COOKIE_PREFIX } from "../../lib/auth";
 import { mintSession } from "../../lib/cloud-auth-proxy";
-import { invalidatePlatformTransportCache } from "../../lib/mail";
 
 const VALID_AUTH_MODES = ["none", "local", "cloud"] as const;
 type AuthMode = (typeof VALID_AUTH_MODES)[number];
@@ -355,8 +354,8 @@ export async function getEmailSettings(c: Context) {
     user: s?.smtpUser ?? null,
     from: s?.smtpFrom ?? null,
     hasPassword: !!s?.smtpPasswordEncrypted,
-    // Whether ANY transport can currently deliver (instance SMTP, mail-server
-    // mailbox, or env). Drives the "no email transport → set up SMTP" hints —
+    // Whether a system-mail transport can currently deliver (instance SMTP or
+    // env). Tenant mail servers are deliberately excluded. Drives the hints —
     // e.g. the notification channel form.
     deliverable: await canSendMail().catch(() => false),
   });
@@ -771,14 +770,11 @@ export async function inviteSignup(c: Context) {
  *   2. UPDATE user.{name,email,emailVerified,autoProvisioned=false}.
  *   3. Insert a credential-provider account row with the hashed
  *      password (Better Auth's own hasher).
- *   4. If `useOwnMailServer === true` and a provisioned mail server
- *      exists, ensureOpenshipPlatformMailbox(serverId) so the platform
- *      transport is ready for the new login emails.
- *   5. Flip instanceSettings.authMode "none" → "local" (audit row).
- *   6. Mint a Better Auth session and stamp the response cookie so the
+ *   4. Flip instanceSettings.authMode "none" → "local" (audit row).
+ *   5. Mint a Better Auth session and stamp the response cookie so the
  *      browser stays signed in across the redirect.
  *
- * Reversible up to step 5: any failure before the authMode flip leaves
+ * Reversible up to step 4: any failure before the authMode flip leaves
  * the instance in zero-auth mode and the operator can retry.
  */
 export async function upgradeToAuth(c: Context) {
@@ -802,12 +798,10 @@ export async function upgradeToAuth(c: Context) {
     name?: unknown;
     email?: unknown;
     password?: unknown;
-    useOwnMailServer?: unknown;
   };
   const name = typeof body.name === "string" ? body.name.trim() : "";
   const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
   const password = typeof body.password === "string" ? body.password : "";
-  const useOwnMailServer = body.useOwnMailServer === true;
 
   if (!name || name.length < 1 || name.length > 100) {
     return c.json({ error: "name is required (1-100 chars)" }, 400);
@@ -865,7 +859,7 @@ export async function upgradeToAuth(c: Context) {
       password: hashed,
     });
 
-    // 5. Flip authMode "none" → "local".
+    // 4. Flip authMode "none" → "local".
     await tx
       .insert(schema.instanceSettings)
       .values({ id: "default", authMode: "local" })
@@ -877,25 +871,6 @@ export async function upgradeToAuth(c: Context) {
 
   invalidateLocalUserCache();
   clearAuthModeCache();
-
-  // 4. Best-effort: warm the platform mailbox if requested. We don't
-  //    fail the upgrade if this errors — sendMail() will fall back to
-  //    env-based transport on subsequent emails.
-  if (useOwnMailServer) {
-    try {
-      const mailServers = await repos.mailServer.list();
-      const installed = mailServers.find((m) => m.installedAt != null);
-      if (installed) {
-        const { ensureOpenshipPlatformMailbox } = await import(
-          "../mail/admin/platform-mailbox.service"
-        );
-        await ensureOpenshipPlatformMailbox(installed.serverId);
-        invalidatePlatformTransportCache();
-      }
-    } catch (err) {
-      console.warn("[upgradeToAuth] platform mailbox warm-up failed:", err);
-    }
-  }
 
   // Audit the mode flip.
   audit.recordAsync(

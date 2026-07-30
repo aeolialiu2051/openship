@@ -501,8 +501,6 @@
     "emailPlaceholder": "kullanici@example.com",
     "password": "Şifre",
     "passwordPlaceholder": "En az 8 karakter",
-    "useMailServer": "E-posta sunucunuzu kullanın",
-    "useMailServerDesc": "Şifre sıfırlamalarını, doğrulamaları ve ekip davetlerini ortam değişkenleriyle yapılandırılan alternatif SMTP yerine kurduğunuz e-posta sunucusundan gönderin.",
     "createAccount": "Hesap oluştur",
     "toast": {
       "passwordTooShort": "Şifre en az 8 karakter olmalıdır",

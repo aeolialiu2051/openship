@@ -426,8 +426,6 @@
     "emailPlaceholder": "you@example.com",
     "password": "パスワード",
     "passwordPlaceholder": "8 文字以上",
-    "useMailServer": "自分のメールサーバーを使用",
-    "useMailServerDesc": "env ベースの SMTP フォールバックの代わりに、プロビジョニングされたメールサーバーからパスワードリセット、確認、チーム招待を送信します。",
     "createAccount": "アカウントを作成",
     "toast": {
       "passwordTooShort": "パスワードは 8 文字以上にする必要があります",

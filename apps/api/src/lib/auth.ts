@@ -497,17 +497,19 @@ export const auth = betterAuth({
               url: inviteUrl,
             });
 
-            // Per-instance source toggle. Default is "platform" — keep
-            // invites on our own SMTP identity. Operators on a
-            // cloud-only deployment can flip to "cloud" so the relay
-            // through /api/cloud/send-invitation on the SaaS owns
-            // delivery (sends from the SaaS's own mail infrastructure).
+            // Self-hosted instances may deliver through their own system SMTP
+            // or explicitly relay through Openship Cloud. The SaaS itself
+            // always uses its operator-owned environment SMTP; it must never
+            // discover or authenticate to a tenant's hosted mail server.
             //
             // The DB read is per-invite — invitations are rare and the
             // round-trip lets operators flip the toggle without
             // bouncing the API.
-            const settings = await repos.instanceSettings.get();
-            const source = settings?.invitationMailSource === "cloud" ? "cloud" : "platform";
+            const settings = env.CLOUD_MODE ? null : await repos.instanceSettings.get();
+            const source =
+              env.CLOUD_MODE || settings?.invitationMailSource === "cloud"
+                ? "cloud"
+                : "local";
 
             await sendMail({
               to: data.email,

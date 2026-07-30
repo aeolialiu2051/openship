@@ -211,7 +211,6 @@ const upgradeToAuthCommand = new Command("upgrade-to-auth")
   .option("--name <name>", "Account display name")
   .option("--email <email>", "Account email")
   .option("--password <password>", "Account password (prompted if omitted)")
-  .option("--use-own-mail-server", "Warm the self-hosted mail server for auth emails")
   .action(async (opts) => {
     await guarded(async () => {
       const name: string | undefined = opts.name;
@@ -234,7 +233,6 @@ const upgradeToAuthCommand = new Command("upgrade-to-auth")
             name,
             email,
             password,
-            useOwnMailServer: opts.useOwnMailServer === true,
           }),
         },
       );
