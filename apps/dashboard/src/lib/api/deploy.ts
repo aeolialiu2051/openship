@@ -3,6 +3,12 @@ import { endpoints } from "./endpoints";
 import type { StackId, ComposeAdvanced, RoutingConfig } from "@repo/core";
 import type { CloudResourceTier, CloudResourceCustom, PublicEndpoint, PortCheckUI, OutputCheckUI } from "@/context/deployment/types";
 
+// Repository preparation can require several GitHub reads (metadata, branches,
+// recursive tree, candidate roots, manifests and Compose files). Large
+// monorepos regularly exceed the API client's generic 15-second timeout even
+// though the backend is still making progress.
+export const REPOSITORY_PREPARE_TIMEOUT_MS = 60_000;
+
 export type PrepareProjectSource =
   | { source?: "github"; owner: string; repo: string; branch?: string; force?: string | boolean }
   | { source: "local"; path: string };
@@ -226,7 +232,9 @@ export const deployApi = {
 
   /** Resolve project info from GitHub repo or local path - detects stack */
   prepare: (body: PrepareProjectSource) =>
-    api.post<PrepareProjectResponse>(endpoints.deploy.prepare, body),
+    api.post<PrepareProjectResponse>(endpoints.deploy.prepare, body, {
+      timeout: REPOSITORY_PREPARE_TIMEOUT_MS,
+    }),
 
   /** Create deployment + build session for an existing project */
   buildAccess: (payload: {

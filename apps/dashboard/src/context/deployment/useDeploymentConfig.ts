@@ -6,7 +6,7 @@ import { deployApi, projectsApi, servicesApi, serviceKind } from "@/lib/api";
 import { folderApi } from "@/lib/api/folder";
 import type { PrepareProjectResponse, PrepareComposeService, PrepareMonorepoApp } from "@/lib/api/deploy";
 import type { Service } from "@/lib/api/services";
-import { ApiError, getApiErrorMessage } from "@/lib/api/client";
+import { ApiError, getApiErrorMessage, isAbortError } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
 import type { BuildMode } from "@/lib/api/settings";
 import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
@@ -848,7 +848,9 @@ export function useDeploymentConfig() {
 
         return { success: true };
       } catch (err) {
-        const errorMessage = getApiErrorMessage(err, "Failed to fetch repository data");
+        const errorMessage = isAbortError(err)
+          ? "Repository analysis timed out. The repository may be unusually large; please try again."
+          : getApiErrorMessage(err, "Failed to fetch repository data");
         return {
           success: false,
           error: errorMessage,
