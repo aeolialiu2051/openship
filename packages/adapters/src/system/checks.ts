@@ -53,7 +53,6 @@ async function tryExec(
     return null;
   }
 }
-
 function healthy(
   name: string,
   version: string,
@@ -185,6 +184,142 @@ export async function checkCertbot(
   return healthy("certbot", parsed);
 }
 
+interface TraefikProbe {
+  installed: boolean;
+  running: boolean;
+  version?: string;
+}
+
+async function probeTraefik(executor: CommandExecutor): Promise<TraefikProbe> {
+  const command =
+    "docker ps -a --format '{{.Names}}|{{.Image}}|{{.State}}' 2>/dev/null | " +
+    "awk -F'|' '$1 == \"vibrail-edge\" || $2 ~ /(^|\\/)traefik([:@]|$)/ { print; exit }'";
+  let commandExecutor = executor;
+  let output = await tryExec(commandExecutor, command);
+  if (output === null) {
+    const profile = await resolveEnvironment(executor);
+    if (!profile.isRoot && profile.canSudo) {
+      commandExecutor = elevatedExecutor(executor);
+      output = await tryExec(commandExecutor, command);
+    }
+  }
+
+  const line = output?.trim();
+  if (!line) return { installed: false, running: false };
+
+  const [containerName = "", image = "", state = ""] = line.split("|");
+  const versionMatch = /(?:^|\/)traefik:v?([^@]+)(?:@.*)?$/i.exec(image.trim());
+  let version = versionMatch?.[1];
+  if (version && ["latest", "stable"].includes(version.toLowerCase())) version = undefined;
+  if (!version && /^[a-zA-Z0-9_.-]+$/.test(containerName)) {
+    const versionOutput = await tryExec(
+      commandExecutor,
+      `docker exec '${containerName}' traefik version 2>/dev/null | ` +
+        `awk -F': *' 'tolower($1) == "version" { print $2; exit }'`,
+    );
+    version = versionOutput?.trim() || undefined;
+  }
+  return {
+    installed: true,
+    running: state.trim().toLowerCase() === "running",
+    ...(version ? { version } : {}),
+  };
+}
+
+export async function checkTraefik(
+  executor: CommandExecutor,
+): Promise<ComponentStatus> {
+  const component = getSystemComponentDefinition("traefik");
+  const probe = await probeTraefik(executor);
+  if (!probe.installed) {
+    return {
+      ...component,
+      installed: false,
+      running: false,
+      healthy: false,
+      message: "Traefik container not found",
+    };
+  }
+  return {
+    ...component,
+    installed: true,
+    ...(probe.version ? { version: probe.version } : {}),
+    running: probe.running,
+    healthy: probe.running,
+    message: probe.running ? "Traefik is running" : "Traefik container is stopped",
+  };
+}
+
+/** Count certificate assets across the supported stores without returning any
+ * certificate or private-key material. The remote shell emits integers only. */
+export async function checkSslCertificates(
+  executor: CommandExecutor,
+): Promise<ComponentStatus> {
+  const component = getSystemComponentDefinition("ssl-certificates");
+  const readCount = async (command: string): Promise<number | null> => {
+    let output = await tryExec(executor, command);
+    if (output === null) {
+      const profile = await resolveEnvironment(executor);
+      if (!profile.isRoot && profile.canSudo) {
+        output = await tryExec(elevatedExecutor(executor), command);
+      }
+    }
+    if (output === null) return null;
+    const parsed = Number.parseInt(output.trim(), 10);
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : null;
+  };
+
+  const certbotCount = await readCount(
+    "if [ ! -d /etc/letsencrypt/live ]; then echo 0; " +
+      "elif [ ! -r /etc/letsencrypt/live ]; then exit 13; " +
+      "else find /etc/letsencrypt/live -mindepth 2 -maxdepth 2 -name fullchain.pem 2>/dev/null | wc -l; fi",
+  );
+
+  let traefikCount: number | null | undefined;
+  const mountpoint = await tryExec(
+    executor,
+    "docker volume inspect vibrail-edge-acme --format '{{.Mountpoint}}' 2>/dev/null",
+  );
+  if (mountpoint?.trim().startsWith("/")) {
+    const acmePath = `${mountpoint.trim().replace(/'/g, `'\\''`)}/acme.json`;
+    traefikCount = await readCount(
+      `if [ ! -f '${acmePath}' ]; then echo 0; elif [ ! -r '${acmePath}' ]; then exit 13; ` +
+        `else grep -o '\"certificate\"' '${acmePath}' | wc -l; fi`,
+    );
+  }
+
+  const knownCounts = [certbotCount, traefikCount].filter(
+    (value): value is number => typeof value === "number",
+  );
+  const count = knownCounts.reduce((total, value) => total + value, 0);
+  const sourceCounts: Partial<Record<"traefik" | "certbot", number>> = {};
+  if ((traefikCount ?? 0) > 0) sourceCounts.traefik = traefikCount!;
+  if ((certbotCount ?? 0) > 0) sourceCounts.certbot = certbotCount!;
+  const unreadable = certbotCount === null || traefikCount === null;
+
+  if (count === 0 && unreadable) {
+    return {
+      ...component,
+      installed: false,
+      healthy: false,
+      message: "Certificate stores could not be read",
+      certificateStatus: { state: "unavailable" },
+    };
+  }
+
+  return {
+    ...component,
+    installed: count > 0,
+    healthy: count > 0,
+    message: count > 0 ? `${count} certificate${count === 1 ? "" : "s"} found` : "No certificates found",
+    certificateStatus: {
+      state: count > 0 ? "present" : "absent",
+      count,
+      ...(Object.keys(sourceCounts).length > 0 ? { sourceCounts } : {}),
+    },
+  };
+}
+
 // ─── Registry ────────────────────────────────────────────────────────────────
 
 type CheckFn = (executor: CommandExecutor) => Promise<ComponentStatus>;
@@ -194,6 +329,8 @@ export const COMPONENT_CHECKS: Record<string, CheckFn> = {
   certbot: checkCertbot,
   git: checkGit,
   rsync: checkRsync,
+  traefik: checkTraefik,
+  "ssl-certificates": checkSslCertificates,
 };
 
 /**

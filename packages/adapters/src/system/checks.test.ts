@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { CommandExecutor } from "../types";
-import { checkDocker } from "./checks";
+import { checkDocker, checkSslCertificates, checkTraefik } from "./checks";
 
 function dockerCheckExecutor({ elevatedWorks }: { elevatedWorks: boolean }) {
   const exec = vi.fn(async (command: string) => {
@@ -49,5 +49,127 @@ describe("checkDocker", () => {
       healthy: false,
       message: "Docker is installed but the daemon is not running",
     });
+  });
+});
+
+describe("checkSslCertificates", () => {
+  it("counts Traefik ACME certificates without returning certificate data", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("/etc/letsencrypt/live")) return "0";
+      if (command.includes("docker volume inspect vibrail-edge-acme")) {
+        return "/var/lib/docker/volumes/vibrail-edge-acme/_data";
+      }
+      if (command.includes("acme.json")) return "3";
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkSslCertificates({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({
+      installed: true,
+      healthy: true,
+      certificateStatus: {
+        state: "present",
+        count: 3,
+        sourceCounts: { traefik: 3 },
+      },
+    });
+    expect(
+      exec.mock.calls.some(([command]) => String(command).includes("cat /letsencrypt/acme.json")),
+    ).toBe(false);
+  });
+
+  it("counts Certbot certificates when Traefik storage is absent", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("/etc/letsencrypt/live")) return "2";
+      if (command.includes("docker volume inspect vibrail-edge-acme")) throw new Error("No such volume");
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkSslCertificates({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({
+      installed: true,
+      healthy: true,
+      certificateStatus: {
+        state: "present",
+        count: 2,
+        sourceCounts: { certbot: 2 },
+      },
+    });
+  });
+
+  it("reports an empty certificate inventory", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("/etc/letsencrypt/live")) return "0";
+      if (command.includes("docker volume inspect vibrail-edge-acme")) throw new Error("No such volume");
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkSslCertificates({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({
+      label: "SSL certificates",
+      installed: false,
+      healthy: false,
+      certificateStatus: { state: "absent", count: 0 },
+    });
+  });
+
+});
+
+describe("checkTraefik", () => {
+  it("reports the managed Traefik image version and running state", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("docker ps -a")) {
+        return "vibrail-edge|traefik:v3.3|running";
+      }
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkTraefik({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({
+      name: "traefik",
+      label: "Traefik",
+      version: "3.3",
+      installed: true,
+      running: true,
+      healthy: true,
+    });
+  });
+
+  it("reports a stopped Traefik container as unhealthy", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("docker ps -a")) {
+        return "vibrail-edge|traefik:v3.3|exited";
+      }
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkTraefik({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({
+      version: "3.3",
+      installed: true,
+      running: false,
+      healthy: false,
+    });
+  });
+
+  it("reads the binary version when the image tag is not a version", async () => {
+    const exec = vi.fn(async (command: string) => {
+      if (command.includes("docker ps -a")) {
+        return "vibrail-edge|traefik:latest|running";
+      }
+      if (command.includes("docker exec 'vibrail-edge' traefik version")) {
+        return "3.6.2";
+      }
+      throw new Error(`Unexpected command: ${command}`);
+    });
+
+    const result = await checkTraefik({ exec } as unknown as CommandExecutor);
+
+    expect(result).toMatchObject({ version: "3.6.2", healthy: true });
   });
 });

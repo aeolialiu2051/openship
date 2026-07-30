@@ -59,6 +59,12 @@ export interface ComponentStatus {
   message: string;
   /** Infrastructure components - shown only when detected on the server */
   optional?: boolean;
+  /** Structured, non-secret certificate inventory by managing software. */
+  certificateStatus?: {
+    state: "present" | "absent" | "unavailable";
+    count?: number;
+    sourceCounts?: Partial<Record<"traefik" | "certbot", number>>;
+  };
 }
 
 // ─── Aggregate check result ──────────────────────────────────────────────────

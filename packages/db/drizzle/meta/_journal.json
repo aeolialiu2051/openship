@@ -540,6 +540,13 @@
       "when": 1785445298651,
       "tag": "0076_user_access_log",
       "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1893456000001,
+      "tag": "0077_server_traefik_rate_limit",
+      "breakpoints": true
     }
   ]
 }

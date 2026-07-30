@@ -16,6 +16,27 @@ export const SYSTEM_COMPONENTS: SystemComponentDefinition[] = [
     category: "core",
   },
   {
+    name: "traefik",
+    label: "Traefik",
+    description: "Reverse proxy and managed TLS edge",
+    installable: false,
+    category: "infrastructure",
+  },
+  {
+    name: "certbot",
+    label: "Certbot",
+    description: "Let's Encrypt certificate management client",
+    installable: true,
+    category: "infrastructure",
+  },
+  {
+    name: "ssl-certificates",
+    label: "SSL certificates",
+    description: "Certificates found in Traefik ACME or Certbot storage",
+    installable: false,
+    category: "infrastructure",
+  },
+  {
     name: "rsync",
     label: "rsync",
     description: "Fast directory sync for remote local-build transfers",

@@ -263,6 +263,7 @@ export const endpoints = {
     servers: "system/servers",
     server: (id: string) => `system/servers/${id}`,
     serverReachability: (id: string) => `system/servers/${id}/reachability`,
+    serverRateLimit: (id: string) => `system/servers/${id}/rate-limit`,
     serverPortsScan: (id: string) => `system/servers/${id}/ports/scan`,
     serverDockerOverview: (id: string) => `system/servers/${id}/docker/overview`,
     // Native-module versioning + migration (Traefik, …)

@@ -19,6 +19,7 @@ import {
   Globe,
   User,
   KeyRound,
+  Shield,
   Network,
   GitBranch,
 } from "lucide-react";
@@ -36,6 +37,8 @@ import { PromptDetails } from "@/components/import-project/PromptDetails";
 import { useServerModal } from "@/components/servers/ServerModal";
 import { OverviewTab } from "./_components/overview-tab";
 import { ComponentsTab } from "./_components/components-tab";
+import { RateLimitSettings } from "./_components/rate-limit-settings";
+import { ExposedPortsCard } from "./_components/exposed-ports-card";
 import { TerminalTab } from "./_components/terminal-tab";
 import {
   ConnectionBanner,
@@ -51,7 +54,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { countryCodeToFlagEmoji } from "@/lib/country-flag";
 import { invalidateServersList } from "@/hooks/useServersList";
 
-type Tab = "overview" | "migrations" | "components" | "github" | "ports" | "terminal";
+type Tab = "overview" | "migrations" | "components" | "github" | "security" | "ports" | "terminal";
 type ManualActionMode = "remove" | null;
 
 interface TabDef {
@@ -68,6 +71,7 @@ const TABS: TabDef[] = [
   { key: "migrations", icon: Boxes },
   { key: "components", icon: Blocks },
   { key: "github",     icon: GitBranch },
+  { key: "security",   icon: Shield },
   // Port forwarding is meaningful only in desktop mode (the orchestrator IS
   // the user's machine); hidden elsewhere.
   { key: "ports",      icon: Network, desktopOnly: true },
@@ -549,8 +553,9 @@ export default function ServerDetailPage({
     );
   }
 
+  const healthComponents = components.filter((c) => c.name !== "ssl-certificates");
   const allHealthy =
-    components.length > 0 && components.every((c) => c.healthy);
+    healthComponents.length > 0 && healthComponents.every((c) => c.healthy);
   const actionBusy = setupStream.isConnected || setupStream.isConnecting || isRemoving;
   const visibleActionComponents = manualActionComponents.length > 0
     ? manualActionComponents
@@ -739,6 +744,13 @@ export default function ServerDetailPage({
 
             {activeTab === "github" && serverId && (
               <ServerGitHubConnect serverId={serverId} variant="card" />
+            )}
+
+            {activeTab === "security" && serverId && (
+              <div className="space-y-6">
+                <ExposedPortsCard serverId={serverId} />
+                <RateLimitSettings serverId={serverId} />
+              </div>
             )}
 
             {activeTab === "ports" && isDesktop && serverId && (

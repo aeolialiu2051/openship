@@ -311,7 +311,9 @@ export async function checkServer(c: Context) {
           ...c,
           optional: !requiredSet.has(c.name),
         }))
-        .filter((c) => !c.optional || c.installed);
+        .filter(
+          (c) => !c.optional || c.installed || c.name === "ssl-certificates",
+        );
     }
 
     // "missing" and "ready" only consider required (non-optional) components

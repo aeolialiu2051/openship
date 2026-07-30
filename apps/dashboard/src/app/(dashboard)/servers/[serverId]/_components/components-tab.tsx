@@ -21,7 +21,8 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 const ROLE_KEY: Record<string, string> = {
   docker: "roleDocker",
   git: "roleGit",
-  certbot: "roleCertbot",
+  traefik: "roleCertificates",
+  certbot: "roleCertificates",
   rsync: "roleRsync",
 };
 
@@ -54,6 +55,7 @@ function HealthRow({
   const roleName =
     (t.servers.components as Record<string, string>)[ROLE_KEY[component.name] ?? ""] ?? techName;
   const showTech = roleName !== techName;
+  const certificateStatus = component.certificateStatus;
 
   return (
     <div className="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/30 transition-colors">
@@ -79,6 +81,13 @@ function HealthRow({
               v{component.version}
             </span>
           )}
+          {certificateStatus?.count !== undefined && (
+            <span className="text-xs font-medium text-muted-foreground bg-muted/50 px-1.5 py-0.5 rounded">
+              {interpolate(t.servers.components.certificateCount, {
+                count: String(certificateStatus.count),
+              })}
+            </span>
+          )}
           {component.updateAvailable && component.availableVersion && (
             <span className="inline-flex items-center gap-1 text-xs font-medium text-warning bg-warning-bg px-1.5 py-0.5 rounded">
               <ArrowUpCircle className="size-3" />
@@ -97,9 +106,11 @@ function HealthRow({
             : "bg-warning-bg text-warning"
         }`}
       >
-        {component.healthy ? "Healthy" : "Unhealthy"}
+        {component.healthy
+          ? t.servers.overview.healthy
+          : t.servers.overview.unhealthy}
       </div>
-      {(canRunAction || (component.removable && component.installed)) && (
+      {(canRunAction || canRemove) && (
         <div className="flex items-center gap-2 shrink-0">
           {canRunAction && (
             <button
@@ -181,10 +192,34 @@ export function ComponentsTab({
   const [logsExpanded, setLogsExpanded] = useState(false);
   const logEndRef = useRef<HTMLDivElement>(null);
 
-  const requiredComponents = components.filter((c) => !c.optional);
-  const infraComponents = components.filter((c) => c.optional);
+  const certificateInventory = components.find(
+    (component) => component.name === "ssl-certificates",
+  )?.certificateStatus;
+  const visibleComponents = components
+    .filter((component) => component.name !== "ssl-certificates")
+    .map((component) => {
+      const source: "traefik" | "certbot" | undefined =
+        component.name === "traefik"
+          ? "traefik"
+          : component.name === "certbot"
+            ? "certbot"
+            : undefined;
+      if (!source || !certificateInventory || certificateInventory.state === "unavailable") {
+        return component;
+      }
+      const count = certificateInventory.sourceCounts?.[source] ?? 0;
+      return {
+        ...component,
+        certificateStatus: {
+          state: count > 0 ? "present" as const : "absent" as const,
+          count,
+        },
+      };
+    });
+  const requiredComponents = visibleComponents.filter((c) => !c.optional);
+  const infraComponents = visibleComponents.filter((c) => c.optional);
 
-  const unhealthyInstallableCount = components.filter(
+  const unhealthyInstallableCount = visibleComponents.filter(
     (c) => !c.healthy && c.installable,
   ).length;
   const completedCount = streamComponents.filter(

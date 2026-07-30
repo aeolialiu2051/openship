@@ -105,8 +105,11 @@ export function OverviewTab({
 }) {
   const { t } = useI18n();
   const [dockerExpanded, setDockerExpanded] = useState(false);
-  const healthyCount = components.filter((c) => c.healthy).length;
-  const totalCount = components.length;
+  const overviewComponents = components.filter(
+    (component) => component.name !== "ssl-certificates",
+  );
+  const healthyCount = overviewComponents.filter((component) => component.healthy).length;
+  const totalCount = overviewComponents.length;
   const allHealthy = totalCount > 0 && healthyCount === totalCount;
   const unhealthyCount = totalCount - healthyCount;
 
@@ -210,7 +213,7 @@ export function OverviewTab({
           </div>
         ) : totalCount > 0 ? (
           <div className="divide-y divide-border/40 -mx-5">
-            {components.map((comp) => {
+            {overviewComponents.map((comp) => {
               const dockerDropdown = comp.name === "docker" && comp.installed;
               return (
                 <Fragment key={comp.name}>
@@ -257,7 +260,9 @@ export function OverviewTab({
                           : "text-danger"
                       }`}
                     >
-                      {comp.healthy ? t.servers.overview.healthy : t.servers.overview.unhealthy}
+                      {comp.healthy
+                        ? t.servers.overview.healthy
+                        : t.servers.overview.unhealthy}
                     </span>
                   </div>
                   {dockerDropdown && dockerExpanded && (

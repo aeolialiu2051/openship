@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { compileServerTraefikRateLimit } from "./traefik-routing";
 import { vibrailRouterName } from "./traefik-router-name";
 
 describe("vibrailRouterName", () => {
@@ -14,5 +15,34 @@ describe("vibrailRouterName", () => {
     expect(first.length).toBeLessThanOrEqual(63);
     expect(second.length).toBeLessThanOrEqual(63);
     expect(first).not.toBe(second);
+  });
+});
+
+describe("compileServerTraefikRateLimit", () => {
+  const routes = [
+    { routerName: "web", hostname: "Example.com", port: 3000 },
+    { routerName: "api", hostname: "example.com", port: 4000 },
+    { routerName: "docs", hostname: "docs.example.com", port: 5000 },
+  ];
+
+  it("adds one host-wide native Traefik middleware per hostname", () => {
+    expect(compileServerTraefikRateLimit("server-1", "project-1", 50.9, 20.8, routes)).toEqual({
+      "example.com": [
+        {
+          name: "vibrail-server-server-1-project-1-rate",
+          rateLimit: { average: 50, burst: 20 },
+        },
+      ],
+      "docs.example.com": [
+        {
+          name: "vibrail-server-server-1-project-1-rate",
+          rateLimit: { average: 50, burst: 20 },
+        },
+      ],
+    });
+  });
+
+  it("omits the middleware when the server policy is disabled", () => {
+    expect(compileServerTraefikRateLimit("server-1", "project-1", 0, 0, routes)).toEqual({});
   });
 });

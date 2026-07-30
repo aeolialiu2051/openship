@@ -9,6 +9,40 @@ import { DockerRuntime } from "@repo/adapters";
 import { compileProjectTraefikRules } from "../modules/route-rules/route-rule.service";
 export { vibrailRouterName } from "./traefik-router-name";
 
+function serverRateLimitRuleName(serverId: string, projectId: string): string {
+  return `vibrail-server-${serverId}-${projectId}-rate`
+    .replace(/[^a-zA-Z0-9-]+/g, "-")
+    .toLowerCase()
+    .slice(0, 63)
+    .replace(/-+$/g, "");
+}
+
+/** Compile the server ceiling into one host-wide middleware per public route. */
+export function compileServerTraefikRateLimit(
+  serverId: string,
+  projectId: string,
+  rps: number,
+  burst: number,
+  routes: TraefikRouteConfig[],
+): Record<string, import("@repo/adapters").TraefikRouteRuleConfig[]> {
+  if (rps <= 0) return {};
+  const result: Record<string, import("@repo/adapters").TraefikRouteRuleConfig[]> = {};
+  for (const route of routes) {
+    const hostname = route.hostname.trim().toLowerCase();
+    if (!hostname || result[hostname]) continue;
+    result[hostname] = [
+      {
+        // Traefik's Docker-provider middleware namespace is server-wide. Keep
+        // the name project-specific so two deployed containers never define
+        // the same middleware object from different Docker providers.
+        name: serverRateLimitRuleName(serverId, projectId),
+        rateLimit: { average: Math.max(1, Math.floor(rps)), burst: Math.max(0, Math.floor(burst)) },
+      },
+    ];
+  }
+  return result;
+}
+
 export async function resolveTraefikManualConfig(
   organizationId: string,
   serverId?: string,
@@ -32,9 +66,12 @@ export async function prepareTraefikConfig(opts: {
   routes: TraefikRouteConfig[];
   onLog?: (message: string) => void;
 }): Promise<TraefikEdgeConfig> {
-  const [manual, routeRules] = await Promise.all([
+  const [manual, projectRouteRules, server] = await Promise.all([
     resolveTraefikManualConfig(opts.organizationId, opts.serverId),
     compileProjectTraefikRules(opts.projectId),
+    opts.serverId
+      ? repos.server.getInOrganization(opts.serverId, opts.organizationId).catch(() => null)
+      : Promise.resolve(null),
   ]);
   const edge: ResolvedTraefikEdge = await opts.runtime.ensureSharedTraefik(manual);
   opts.onLog?.(
@@ -42,6 +79,20 @@ export async function prepareTraefikConfig(opts: {
       ? `Reusing existing Traefik on network "${edge.network}" (entrypoint "${edge.entrypoint}").\n`
       : `Shared Traefik "vibrail-edge" is ready on network "${edge.network}".\n`,
   );
+  const serverRouteRules = server
+    ? compileServerTraefikRateLimit(
+        server.id,
+        opts.projectId,
+        server.traefikRateLimitRps,
+        server.traefikRateLimitBurst,
+        opts.routes,
+      )
+    : {};
+  const routeRules = { ...serverRouteRules };
+  for (const [hostname, rules] of Object.entries(projectRouteRules)) {
+    routeRules[hostname] = [...(routeRules[hostname] ?? []), ...rules];
+  }
+
   return {
     network: edge.network,
     entrypoint: edge.entrypoint,

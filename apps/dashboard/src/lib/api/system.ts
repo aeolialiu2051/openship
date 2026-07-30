@@ -114,6 +114,11 @@ export interface ComponentStatus {
   message: string;
   /** Infrastructure components - shown only when detected on the server */
   optional?: boolean;
+  certificateStatus?: {
+    state: "present" | "absent" | "unavailable";
+    count?: number;
+    sourceCounts?: Partial<Record<"traefik" | "certbot", number>>;
+  };
 }
 
 export interface ServerCheckResult {
@@ -257,7 +262,6 @@ export interface DockerOverviewResponse {
 export interface ServerRateLimitConfig {
   rps: number;
   burst: number;
-  whitelist: string[];
 }
 
 /** One listening socket found by the port-exposure scan. */
@@ -454,6 +458,20 @@ export const systemApi = {
 
   /** Delete a server */
   deleteServerEntry: (id: string) => api.delete<{ ok: boolean }>(endpoints.system.server(id)),
+
+  // ── Server-wide Traefik rate limiting ─────────────────────────────────────
+
+  getRateLimit: (serverId: string) =>
+    api.get<{ config: ServerRateLimitConfig; requiresRedeploy: true }>(
+      endpoints.system.serverRateLimit(serverId),
+    ),
+
+  updateRateLimit: (serverId: string, data: ServerRateLimitConfig) =>
+    api.patch<{
+      success: true;
+      config: ServerRateLimitConfig;
+      requiresRedeploy: true;
+    }>(endpoints.system.serverRateLimit(serverId), data),
 
   // ── Port exposure scan (per-server) ────────────────────────────────────────
 

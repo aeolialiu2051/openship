@@ -20,6 +20,7 @@ import * as setup from "./setup.controller";
 import * as selfApp from "./self-app.controller";
 import * as serverCheck from "./server-check.controller";
 import * as dockerOverview from "./docker-overview.controller";
+import * as serverRateLimit from "./server-rate-limit.controller";
 import * as serversCtrl from "./servers.controller";
 import * as tunnels from "./tunnels.controller";
 import * as serverGithub from "../github/server-github.controller";
@@ -97,6 +98,8 @@ r.get("/servers/:id/reachability", { tag: "server:read" }, serversCtrl.probeReac
 r.post("/servers", { tag: "server:write", collection: true }, serversCtrl.createServer);
 r.patch("/servers/:id", { tag: "server:write" }, serversCtrl.updateServer);
 r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
+r.get("/servers/:id/rate-limit", { tag: "server:read" }, serverRateLimit.getRateLimit);
+r.patch("/servers/:id/rate-limit", { tag: "server:write" }, serverRateLimit.updateRateLimit);
 
 r.post(
   "/servers/:id/ports/scan",

@@ -146,7 +146,7 @@ export type RouteRuleSpec = {
   /**
    * Per-client rate limit (fixed 1s window, keyed by client IP). Omit = unlimited.
    * `status` overrides the 429 response code. Runs alongside (does not replace)
-   * the per-server nginx `limit_req` ceiling.
+   * the server-wide Traefik rate-limit middleware.
    */
   rateLimit?: { rps: number; burst: number; key?: "ip"; status?: number };
   /** Native Traefik IPAllowList middleware. At least one CIDR/IP is required. */

@@ -55,6 +55,10 @@ export const servers = pgTable("servers", {
   traefikTls: boolean("traefik_tls"),
   /** Optional existing Traefik certificate resolver. */
   traefikCertResolver: text("traefik_cert_resolver"),
+  /** Server-wide Traefik rate-limit middleware injected into every app router. */
+  traefikRateLimitRps: integer("traefik_rate_limit_rps").notNull().default(0),
+  /** Extra requests accepted above the steady per-second rate. */
+  traefikRateLimitBurst: integer("traefik_rate_limit_burst").notNull().default(0),
 
   // ── Timestamps ─────────────────────────────────────────────────────────────
 
