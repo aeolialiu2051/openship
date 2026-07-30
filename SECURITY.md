@@ -65,7 +65,7 @@ In scope — all Openship components:
 - GitHub integration & webhooks
 - The build/deploy pipeline and deployment targets
 - Backups & recovery
-- Domains & TLS, and the edge (OpenResty) layer
+- Domains & TLS, and the edge (Traefik) layer
 - Mail functionality
 
 Openship is open source (Apache 2.0), so the fastest and safest way to test most

@@ -52,20 +52,6 @@ export function managedDomainsUseCloudEdge(): boolean {
   );
 }
 
-/**
- * Self-hosted runtimes whose custom-domain routes are fronted by OpenResty
- * and need a certbot-issued cert (the NginxProvider SSL path). Both `bare`
- * and `docker` self-hosted deploys go through the SAME OpenResty + certbot
- * provider (see platform.ts → createInfraProvider, which returns NginxProvider
- * regardless of runtime mode). `cloud` uses managed SSL; `desktop` (bare +
- * noop infra) has no real SSL provider. Historically this was gated to `bare`
- * only, which silently skipped SSL for every Docker deployment — a custom
- * domain on a Docker app would stay on HTTP forever.
- */
-function usesCertbotSsl(runtimeName: string): boolean {
-  return runtimeName === "bare" || runtimeName === "docker";
-}
-
 export function resolveManagedHostname(hostname: string): {
   isManaged: boolean;
   subdomain?: string;
@@ -99,7 +85,7 @@ export function buildProjectRouteDomains(opts: {
   runtimeName: string;
   usesManagedRouting: boolean;
 }): PlannedRouteDomain[] {
-  const { projectDomains, managedSlug, publicEndpoints, runtimeName, usesManagedRouting } = opts;
+  const { projectDomains, managedSlug, publicEndpoints, usesManagedRouting } = opts;
   const baseDomain = getRoutingBaseDomain();
   const seen = new Set<string>();
   const planned: PlannedRouteDomain[] = [];
@@ -109,11 +95,7 @@ export function buildProjectRouteDomains(opts: {
 
   // Push a single planned route. A route MUST target exactly one
   // destination (port or path) — calls without one are silently ignored.
-  // SSL is provisioned only for DNS-verified custom domains on the bare
-  // runtime: free managed (*.opsh.io) routes skip certbot (we own that
-  // DNS), and a pending custom domain gets an HTTP-only route until
-  // /verify issues its cert (see domain.service.ts → verifyDomain). When
-  // isPrimary is omitted, the first route added wins.
+  // Traefik terminates TLS through its configured certificate resolver.
   const add = (
     hostname: string,
     route: {
@@ -133,23 +115,12 @@ export function buildProjectRouteDomains(opts: {
     const domainRow = domainByHostname.get(normalized);
     const isVerified = managed.isManaged ? true : (route.verified ?? domainRow?.verified ?? false);
     // Externally-managed ingress (Cloudflare Tunnel / LB): TLS terminates
-    // upstream and DNS points at the user's edge, so serve a plain-HTTP route
-    // (tls:false) and never run certbot for this host.
+    // upstream and DNS points at the user's edge, so serve a plain-HTTP route.
     const external = !!domainRow?.externalIngress;
-    // Operator-supplied cert (BYO / Cloudflare Full-strict): serve TLS from the
-    // uploaded cert and never run certbot, even behind an external edge.
-    const manualSsl = !!domainRow?.manualSsl;
-
     planned.push({
       hostname: normalized,
-      tls: !external || manualSsl,
-      provisionSsl:
-        usesCertbotSsl(runtimeName) &&
-        !managed.isManaged &&
-        !route.skipSsl &&
-        !external &&
-        !manualSsl &&
-        isVerified,
+      tls: !external,
+      provisionSsl: false,
       isCloud: managed.isManaged,
       ...(route.destination?.targetPort !== undefined
         ? { targetPort: route.destination.targetPort }
@@ -205,9 +176,8 @@ export function buildProjectRouteDomains(opts: {
 
   // No public endpoints: route the project's own domain rows directly. A
   // domain only routes if its row carries a destination (port or path) —
-  // add() ignores the rest. Pending custom domains still get an HTTP-only
-  // route so certbot --webroot can answer the ACME challenge; add() gates
-  // SSL on domain.verified.
+  // add() ignores the rest. Pending custom domains are retained in the plan so
+  // their DB records can be created, but the deploy gate does not publish them.
   for (const domain of projectDomains) {
     if (domain.serviceId) continue;
     if (domain.domainType === "free" && !domain.verified) continue;
@@ -232,15 +202,11 @@ export function buildServiceRouteDomains(opts: {
   service: Service;
   runtimeName: string;
   usesManagedRouting: boolean;
-  /** The project's domain rows keyed by hostname. Drives per-host SSL gating —
-   *  same as the single-app path in add(): an external-ingress row serves plain
-   *  HTTP (tls:false, no certbot), a manual-SSL row serves the uploaded cert,
-   *  and certbot provisioning only fires for a VERIFIED custom domain. Omit on
-   *  the edit/delete reconcile path, which registers routes but provisions no
-   *  SSL — the SSL step runs on the deploy path, which always supplies it. */
+  /** The project's domain rows keyed by hostname. An external-ingress row
+   *  publishes a plain-HTTP origin route; other verified routes use Traefik TLS. */
   domainByHostname?: Map<string, Domain>;
 }): PlannedRouteDomain[] {
-  const { project, service, runtimeName, usesManagedRouting } = opts;
+  const { project, service, usesManagedRouting } = opts;
   if (!service.exposed) return [];
 
   // One route per public endpoint (a multi-port service — e.g. Convex's API
@@ -284,22 +250,11 @@ export function buildServiceRouteDomains(opts: {
     const managed = resolveManagedHostname(hostname);
     const domainRow = opts.domainByHostname?.get(normalized);
     const external = !!domainRow?.externalIngress;
-    const manualSsl = !!domainRow?.manualSsl;
-    // Only certbot a custom domain that has passed DNS verification — mirrors
-    // the single-app add() gate. A managed (free) host needs no challenge; a
-    // still-pending custom host would only burn a Let's Encrypt failed attempt.
-    // When the domain map isn't supplied (edit/delete reconcile, which doesn't
-    // provision SSL), this stays false and no cert work is attempted.
-    const isVerified = managed.isManaged ? true : (domainRow?.verified ?? false);
+    const verified = managed.isManaged || !!domainRow?.verified;
     planned.push({
       hostname,
-      tls: !external || manualSsl,
-      provisionSsl:
-        usesCertbotSsl(runtimeName) &&
-        endpoint.domainType === "custom" &&
-        !external &&
-        !manualSsl &&
-        isVerified,
+      tls: !external,
+      provisionSsl: false,
       isCloud: managed.isManaged,
       targetPort: endpoint.port,
       domainType: endpoint.domainType,
@@ -307,10 +262,17 @@ export function buildServiceRouteDomains(opts: {
       serviceId: service.id,
       isPrimary: false,
       createIfMissing: true,
+      verified,
     });
   }
 
   return planned;
+}
+
+/** Custom hostnames are published only after the TXT ownership challenge has
+ * succeeded. Managed/free hostnames are already owned by the platform. */
+export function isRoutePublishable(route: PlannedRouteDomain): boolean {
+  return route.domainType !== "custom" || route.verified === true;
 }
 
 /**

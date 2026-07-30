@@ -24,7 +24,6 @@ export {
 } from "./incoming-webhook";
 export { systemNotice } from "./system-notice";
 export { updateStatus } from "./update-status";
-export { serverModuleStatus } from "./server-module-status";
 export { cloudWebhookBinding } from "./cloud-webhook-binding";
 export { projectConnection } from "./project-connection";
 export { webhookDelivery } from "./webhook-delivery";

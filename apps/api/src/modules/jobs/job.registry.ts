@@ -16,7 +16,6 @@
 
 import { repos } from "@repo/db";
 import { platform } from "../../lib/controller-helpers";
-import { renewExpiringCerts } from "../../lib/ssl-scheduler";
 import { runOrphanSweep } from "../projects/orphan-gc-schedule";
 import { runRetentionSweep } from "../backups/retention-prune";
 import { pruneAuditEvents } from "../audit/audit-prune";
@@ -24,7 +23,6 @@ import { runReconcileSweep } from "../deployments/reconcile-schedule";
 import { runImageGcSweep } from "../deployments/image-gc";
 import { verifyPendingDomains } from "../domains/domain.service";
 import { scanInstanceUpdates } from "../updates/updates.service";
-import { scanInstanceModules } from "../system/server-modules.service";
 import { runDueOnceJobs } from "./job-command";
 import type { JobSummary } from "../../lib/system-jobs";
 
@@ -42,17 +40,6 @@ const WEBHOOK_EVENT_RETENTION_DAYS = 30;
 const JOB_RUN_RETENTION_DAYS = 30;
 
 export const SYSTEM_JOB_DEFS: SystemJobDef[] = [
-  {
-    key: "ssl:renew",
-    label: "SSL certificate renewal",
-    defaultCron: "17 3 * * *",
-    // Cloud manages TLS at Oblien's edge; desktop has a noop SSL provider.
-    available: () => platform().target === "selfhosted",
-    run: async () => {
-      const r = await renewExpiringCerts();
-      return { renewed: r.renewed, failed: r.failed, total: r.total };
-    },
-  },
   {
     key: "projects:orphan-gc",
     label: "Orphaned resource cleanup",
@@ -137,20 +124,6 @@ export const SYSTEM_JOB_DEFS: SystemJobDef[] = [
     run: async () => {
       const r = await scanInstanceUpdates();
       return { scanned: r.scanned, supported: r.supported, behind: r.behind };
-    },
-  },
-  {
-    key: "modules:scan",
-    label: "Native-module update scan",
-    // Detect drift for server-installed infra (OpenResty, …) against the signed
-    // catalog and cache it in server_module_status so the Components tab renders
-    // "vX → vY, Update" without re-probing. Detection only — never auto-applies
-    // (auto/consent apply is explicit). Off-peak, self-hosted only.
-    defaultCron: "37 */6 * * *",
-    available: () => platform().target === "selfhosted",
-    run: async () => {
-      const r = await scanInstanceModules();
-      return { servers: r.servers, behind: r.behind };
     },
   },
   {

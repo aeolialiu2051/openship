@@ -8,7 +8,7 @@
  *   - Desktop/dev doesn't need routing or SSL at all.
  *
  * Implementations:
- *   - NginxProvider    → Nginx server blocks + certbot (self-hosted)
+ *   - Traefik labels   → self-hosted Docker routing and TLS
  *   - CloudInfra       → Oblien API (cloud)
  *   - NoopInfra        → No-op (desktop/dev)
  */

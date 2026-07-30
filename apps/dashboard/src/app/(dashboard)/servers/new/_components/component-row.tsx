@@ -11,7 +11,6 @@ import { useI18n } from "@/components/i18n-provider";
 const ROLE_KEY: Record<string, string> = {
   docker: "roleDocker",
   git: "roleGit",
-  openresty: "roleOpenresty",
   certbot: "roleCertbot",
   rsync: "roleRsync",
 };

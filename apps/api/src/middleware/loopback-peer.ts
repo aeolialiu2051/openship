@@ -30,7 +30,7 @@
  *   - **Kernel-peer, not header.** A remote attacker cannot make the
  *     socket appear to originate from 127.0.0.1 — that bit comes from
  *     the OS, not the request.
- *   - **SaaS runs behind a reverse proxy (openresty).** Every inbound
+ *   - **SaaS runs behind a reverse proxy (traefik).** Every inbound
  *     connection's peer IS the proxy, never literal loopback. So the
  *     loopback branches in (1) and (2) are unreachable from external
  *     callers in SaaS by construction; only on-host processes (the

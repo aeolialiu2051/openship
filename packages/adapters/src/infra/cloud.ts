@@ -36,12 +36,12 @@ export class CloudInfraProvider implements RoutingProvider, SslProvider {
   }
 
   async renewCert(domain: string): Promise<SslResult> {
-    // TODO: POST /ssl/renew
+    // TODO: delegate to the cloud provider's managed-certificate lifecycle.
     return { domain, expiresAt: "", issuer: "oblien", verified: false };
   }
 
   async verifyCert(domain: string): Promise<SslResult> {
-    // TODO: GET /ssl/status - Oblien is the source of truth for managed certs.
+    // TODO: query the cloud provider, which is the source of truth.
     return { domain, expiresAt: "", issuer: "oblien", verified: false };
   }
 

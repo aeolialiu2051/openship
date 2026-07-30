@@ -32,7 +32,7 @@ import { useCloud } from "@/context/CloudContext";
 import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
-import { useEdgeModal, useVerifyModal } from "@/hooks/useSystemPrepareModal";
+import { openTriggeredBuild } from "@/lib/deploy-nav";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import {
   createPublicEndpoint,
@@ -209,9 +209,7 @@ function resolveDomainSsl(hostname: string, domain: any, baseDomain: string, t: 
 
   switch (domain?.sslStatus) {
     case "active":
-      // Operator-supplied cert (BYO / Origin CA) — flag it so the user knows
-      // it won't auto-renew via certbot.
-      return { label: domain?.manualSsl ? s.manual : s.active, tone: "success" };
+      return { label: s.active, tone: "success" };
     case "external":
       return { label: s.external, tone: "success" };
     case "provisioning":
@@ -244,7 +242,7 @@ export const DomainSettings = () => {
   const { baseDomain, selfHosted } = usePlatform();
   // `selfHosted` is INSTANCE-level (this install runs self-hosted). A cloud-OWNED
   // project (deployTarget "cloud") is canonical on Openship Cloud and uses the
-  // Oblien edge — the self-hosted edge features (edge-status, route-rules) aren't
+  // Cloud routing — self-hosted route controls aren't
   // proxied for it, so their local endpoints 404. Gate those on the PROJECT being
   // non-cloud, not on the instance flag.
   const isCloudProject = projectData.deployTarget === "cloud";
@@ -257,48 +255,6 @@ export const DomainSettings = () => {
   // saved once cloud is available. Single source: the `managed-project-domain`
   // capability (copy from the shared registry).
   const freeNeedsCloud = () => requireCloud("managed-project-domain", { domain: baseDomain });
-  const openEdgeModal = useEdgeModal();
-  const openVerifyModal = useVerifyModal();
-
-  // Live edge health for the server (read-only probe). Drives the button state:
-  // "Edge ready" when OpenResty already owns 80/443, else "Set up edge".
-  const [edge, setEdge] = useState<{
-    loading: boolean;
-    ready: boolean;
-    classification?: "free" | "ours" | "known" | "unknown";
-    reachable?: boolean | null;
-  }>({ loading: false, ready: false });
-  const checkEdge = useCallback(async () => {
-    if (!selfHosted || isCloudProject) return; // cloud projects use the Oblien edge — no local edge-status
-    setEdge((e) => ({ ...e, loading: true }));
-    try {
-      const res = await projectsApi.getEdgeStatus(id);
-      setEdge({
-        loading: false,
-        ready: !!res.ready,
-        classification: res.classification,
-        reachable: res.reachable ?? null,
-      });
-    } catch {
-      setEdge({ loading: false, ready: false });
-    }
-  }, [id, selfHosted, isCloudProject]);
-
-  // Install/own OpenResty + apply routes reload-free (no redeploy), surfacing the
-  // 80/443 takeover consent if a foreign proxy holds them. Reused by the first
-  // route publish + the "Set up edge" action. Re-checks edge health on completion
-  // so the button flips to "Edge ready".
-  const openEdge = useCallback(
-    () =>
-      openEdgeModal(id, {
-        onDone: () => {
-          invalidateProjectCaches(id);
-          router.refresh();
-          void checkEdge();
-        },
-      }),
-    [openEdgeModal, id, router, checkEdge],
-  );
 
   const [newDomain, setNewDomain] = useState("");
   // Unified "add domain" = add a route: pick free/custom + the port it maps to.
@@ -311,21 +267,9 @@ export const DomainSettings = () => {
   const [showCustomDomainSection, setShowCustomDomainSection] = useState(false);
   const [includeWww, setIncludeWww] = useState(false);
   // TLS + ingress handled upstream (Cloudflare Tunnel / LB): verify via TXT
-  // only, skip certbot, serve plain HTTP. The domain need not resolve to us.
+  // and publish a plain-HTTP origin route. The domain need not resolve to us.
   const [externalIngress, setExternalIngress] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Hostname of the row currently running its Renew action. Null when no
-  // renew is in flight. Per-row so multi-domain projects can renew one
-  // cert without blanking the button on every other row.
-  const [renewingHostname, setRenewingHostname] = useState<string | null>(null);
-  // Domain id currently running its read-only "Recheck SSL" action.
-  const [recheckingDomainId, setRecheckingDomainId] = useState<string | null>(null);
-  // Domain targeted by the "Upload certificate" modal (BYO / Origin CA), plus
-  // the PEM inputs and in-flight flag. Null when the modal is closed.
-  const [certUploadDomain, setCertUploadDomain] = useState<{ domainId: string; hostname: string } | null>(null);
-  const [certPem, setCertPem] = useState("");
-  const [keyPem, setKeyPem] = useState("");
-  const [isUploadingCert, setIsUploadingCert] = useState(false);
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
   // Live preview of the DNS records the user will need to apply, derived
   // from the hostname they're typing. For self-hosted projects the
@@ -378,9 +322,7 @@ export const DomainSettings = () => {
   // After a failed verify, remember which record(s) still aren't resolving so
   // the pending card can name them and auto-open its DNS records. Keyed by row.
   const [verifyFailure, setVerifyFailure] = useState<
-    // `message` is the server's actionable reason — for self-hosted that's the
-    // summarized certbot failure (DNS/firewall/proxy), which supersedes the
-    // legacy cname/txt "not resolving" copy (self-hosted no longer digs DNS).
+    // `message` is the server's actionable DNS verification reason.
     { domainId: string; cnameVerified: boolean; txtVerified: boolean; message?: string } | null
   >(null);
   // Live port reachability of the active deployment (advisory) — drives the
@@ -477,74 +419,6 @@ export const DomainSettings = () => {
   const localPort = projectData.port || projectData.options?.productionPort || 3000;
   const localUrl = `localhost:${localPort}`;
   const hasDomain = !!primaryDomainName;
-
-  // An edge (OpenResty owning the server's 80/443) is needed by ANY deployed
-  // self-hosted stack that serves a public route — a compose stack with an
-  // exposed service OR a single/project-level app that has a domain. This used
-  // to require an exposed SERVICE, so the single-project Domains tab never
-  // surfaced the edge status / "Set up edge" control (the edge was only wired
-  // implicitly on first-route publish). Probe once so the shared control can
-  // show "Edge ready" vs "Set up edge" without the user having to click.
-  const edgeRelevant =
-    selfHosted &&
-    !!projectData.activeDeploymentId &&
-    (services.some((s) => s.enabled && s.exposed) || (hasProjectLevelRouting && hasDomain));
-  useEffect(() => {
-    if (edgeRelevant) void checkEdge();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [edgeRelevant]);
-
-  // Shared edge status/control — ONE definition rendered by BOTH the
-  // project-level (single app) and per-service (compose) branches so the
-  // "Set up edge" / "Edge ready" affordance is identical everywhere and never
-  // duplicated. Returns null when the stack needs no server edge (not
-  // self-hosted, not deployed, or no public route yet).
-  const renderEdgeControl = (): React.ReactNode => {
-    // Cloud-owned projects route through the Oblien edge, not this box's OpenResty
-    // — "Set up edge" / "Edge ready" is self-hosted-only, so hide it for cloud.
-    if (!edgeRelevant || isCloudProject) return null;
-    if (edge.loading) {
-      return (
-        <ActionButton
-          label={t.projectSettings.domains.edge.checking}
-          icon={Loader2}
-          spinning
-          disabled
-        />
-      );
-    }
-    if (edge.ready) {
-      return (
-        <span className="inline-flex items-center gap-2">
-          <span className="inline-flex min-h-10 items-center gap-1.5 rounded-xl bg-success-bg px-3 py-2 text-[13px] font-medium text-success">
-            <ShieldCheck className="size-3.5" />
-            {t.projectSettings.domains.edge.ready}
-          </span>
-          <button
-            type="button"
-            onClick={() => void checkEdge()}
-            className="text-[12px] text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {t.projectSettings.domains.edge.recheck}
-          </button>
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center gap-2">
-        <ActionButton
-          label={t.projectSettings.domains.edge.setUp}
-          icon={ShieldCheck}
-          onClick={openEdge}
-        />
-        {(edge.classification === "known" || edge.classification === "unknown") && (
-          <span className="text-[12px] text-warning">
-            {t.projectSettings.domains.edge.foreignProxyHint}
-          </span>
-        )}
-      </span>
-    );
-  };
 
   const currentUrl = hasDomain ? primaryDomainName : localUrl;
   const currentHref = hasDomain ? `https://${primaryDomainName}` : `http://${localUrl}`;
@@ -803,6 +677,7 @@ export const DomainSettings = () => {
           "success",
           t.projectSettings.domains.toast.verifiedTitle,
         );
+        await redeployRoutes();
       } else {
         // 422 path. cnameVerified/txtVerified pinpoint what's still missing —
         // stash it so the pending card names the record + opens its DNS panel.
@@ -830,28 +705,11 @@ export const DomainSettings = () => {
     }
   };
 
-  // Verify entry point. Self-hosted → the LIVE-LOG modal (streams certbot's
-  // standalone HTTP-01 run), so the operator sees exactly what happened. Cloud
-  // stays on the request/response path (Oblien CNAME check, no certbot to stream,
-  // and it needs the cloud proxy).
   const startVerify = (domainId: string, hostname: string) => {
-    if (selfHosted) {
-      openVerifyModal(domainId, {
-        hostname,
-        onDone: () => {
-          setVerifyFailure((f) => (f?.domainId === domainId ? null : f));
-          invalidateProjectCaches(id);
-        },
-      });
-    } else {
-      void handleVerifyDomain(domainId, hostname);
-    }
+    void handleVerifyDomain(domainId, hostname);
   };
 
-  // Inline hint under the pending card after a failed verify. Self-hosted sends
-  // an actionable ACME reason (certbot: DNS/firewall/proxy) — show it verbatim.
-  // Only cloud, which still digs CNAME/TXT, falls back to the "not resolving"
-  // copy naming the specific record.
+  // Inline hint under the pending card after a failed DNS verification.
   const verifyHintFor = (domainId?: string): string | null => {
     if (!domainId || verifyFailure?.domainId !== domainId) return null;
     if (verifyFailure.message) return verifyFailure.message;
@@ -932,91 +790,6 @@ export const DomainSettings = () => {
     return match ? { path: match.path } : null;
   };
 
-  const handleRenewDomainSsl = async (hostname: string) => {
-    // Guard: ignore re-clicks on the same row while a renew is in flight.
-    if (renewingHostname) return;
-    setRenewingHostname(hostname);
-    try {
-      const result = await deployApi.sslRenew(hostname, false);
-
-      if (result.success) {
-        showToast(interpolate(t.projectSettings.domains.toast.sslRenewed, { hostname }), "success");
-        // Pull the canonical sslExpiresAt off the DB row by re-fetching
-        // project info. The status pill flips on the next render.
-        invalidateProjectCaches(id);
-      } else {
-        showToast(
-          result.message || result.error || interpolate(t.projectSettings.domains.toast.sslRenewFailed, { hostname }),
-          "error",
-          result.message,
-        );
-      }
-    } catch (error) {
-      console.error("Failed to renew SSL:", error);
-      // Surface the REAL server-side reason (e.g. "certbot: command not found",
-      // ACME DNS/reachability errors) instead of a generic string — the API
-      // returns it on the ApiError body and getApiErrorMessage walks it out.
-      showToast(
-        getApiErrorMessage(error, interpolate(t.projectSettings.domains.toast.sslRenewFailed, { hostname })),
-        "error",
-        t.projectSettings.domains.toast.sslTitle,
-      );
-    } finally {
-      setRenewingHostname(null);
-    }
-  };
-
-  // Read-only "is the cert actually issued + valid on the server?" check. No
-  // certbot, no rate-limit cost. Recovers a row stuck on "Provisioning" once the
-  // Let's Encrypt cert is in place, and confirms an existing cert after a deploy.
-  const handleRecheckSsl = async (domainId: string, hostname: string) => {
-    if (recheckingDomainId) return;
-    setRecheckingDomainId(domainId);
-    try {
-      const res = await domainsApi.verifySsl(domainId);
-      const status = res?.data?.sslStatus;
-      if (status === "active") {
-        showToast(interpolate(t.projectSettings.domains.toast.sslVerified, { hostname }), "success", t.projectSettings.domains.toast.sslTitle);
-      } else {
-        showToast(
-          interpolate(t.projectSettings.domains.toast.sslNoCert, { hostname }),
-          "error",
-          t.projectSettings.domains.toast.sslTitle,
-        );
-      }
-      invalidateProjectCaches(id);
-    } catch (error) {
-      console.error("Failed to recheck SSL:", error);
-      showToast(getApiErrorMessage(error, interpolate(t.projectSettings.domains.toast.sslRecheckFailed, { hostname })), "error", t.projectSettings.domains.toast.sslTitle);
-    } finally {
-      setRecheckingDomainId(null);
-    }
-  };
-
-  const handleUploadCert = async () => {
-    if (!certUploadDomain || isUploadingCert) return;
-    const { domainId, hostname } = certUploadDomain;
-    if (!certPem.trim() || !keyPem.trim()) return;
-    setIsUploadingCert(true);
-    try {
-      await domainsApi.uploadCertificate(domainId, { certPem: certPem.trim(), keyPem: keyPem.trim() });
-      showToast(interpolate(t.projectSettings.domains.toast.certUploaded, { hostname }), "success", t.projectSettings.domains.toast.sslTitle);
-      setCertUploadDomain(null);
-      setCertPem("");
-      setKeyPem("");
-      invalidateProjectCaches(id);
-    } catch (error) {
-      console.error("Failed to upload certificate:", error);
-      showToast(
-        getApiErrorMessage(error, interpolate(t.projectSettings.domains.toast.certUploadFailed, { hostname })),
-        "error",
-        t.projectSettings.domains.toast.sslTitle,
-      );
-    } finally {
-      setIsUploadingCert(false);
-    }
-  };
-
   const handleStartEditingDomains = () => {
     setPublicEndpoints(draftPublicEndpoints);
     setIsEditingDomains(true);
@@ -1027,26 +800,26 @@ export const DomainSettings = () => {
     setIsEditingDomains(false);
   };
 
-  // A project with a deployment but NO public route yet has no edge (OpenResty)
-  // installed — e.g. a just-migrated image-only services stack, or an
-  // internal-only stack deployed with no domains. OpenResty is only ever
-  // ensured by a DEPLOY (the single routing-ensure pipe, and the only place the
-  // edge-takeover consent modal can show). So adding the FIRST route must kick a
-  // deploy; a normal already-routed project keeps the live best-effort apply
-  // (no redeploy). Self-hosted only — cloud routes via the cloud edge.
-  const isEdgeless = () =>
-    selfHosted &&
-    !!projectData.activeDeploymentId &&
-    domainSummaries.length === 0 &&
-    !services.some((s) => s.enabled && s.exposed);
-
-  // First route on an edge-less project: instead of a full redeploy, open the
-  // edge-consent flow — it installs/owns OpenResty on the project's server and
-  // applies the routes reload-free (surfacing the SAME 80/443 takeover modal if
-  // a foreign proxy holds them). No container rebuild, so a migrated attach-live
-  // stack is never recreated. The route is already saved when this runs.
-  const publishFirstRoute = async () => {
-    openEdge();
+  // Docker labels are immutable for a running container. Every self-hosted
+  // route mutation therefore creates a new deployment so Traefik observes the
+  // authoritative hostname/middleware labels from the replacement workload.
+  const redeployRoutes = async () => {
+    if (!selfHosted || !projectData.activeDeploymentId) return;
+    try {
+      showToast(
+        t.projectSettings.domains.toast.publishing,
+        "success",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
+      const res = await deployApi.trigger({ projectId: id, forceAll: true });
+      openTriggeredBuild(router, res, id);
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, t.projectSettings.domains.toast.publishFailed),
+        "error",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
+    }
   };
 
   // Persist a specific ordering of the project's public endpoints. Endpoint
@@ -1058,7 +831,6 @@ export const DomainSettings = () => {
     endpoints: PublicEndpoint[],
     successMessage = t.projectSettings.domains.toast.routingUpdated,
   ): Promise<boolean> => {
-    const wasEdgeless = isEdgeless();
     const payload = endpoints
       .map((endpoint) => buildPublicEndpointPayload(endpoint, hasProjectServer))
       .filter((endpoint): endpoint is NonNullable<ReturnType<typeof buildPublicEndpointPayload>> => endpoint !== null);
@@ -1126,9 +898,7 @@ export const DomainSettings = () => {
       if (id) invalidateProjectCaches(id);
       showToast(successMessage, "success", t.projectSettings.domains.toast.domainsTitle);
       setIsEditingDomains(false);
-      // First route on an edge-less project → deploy to install OpenResty + show
-      // the takeover modal. Navigates away to the build screen.
-      if (wasEdgeless) await publishFirstRoute();
+      await redeployRoutes();
       return true;
     } catch (error) {
       showToast(getApiErrorMessage(error, t.projectSettings.domains.toast.routingUpdateFailed), "error", t.projectSettings.domains.toast.domainsTitle);
@@ -1188,6 +958,7 @@ export const DomainSettings = () => {
       );
       if (id) invalidateProjectCaches(id);
       showToast(t.projectSettings.domains.toast.primaryUpdated, "success", t.projectSettings.domains.toast.domainsTitle);
+      await redeployRoutes();
     } catch (error) {
       showToast(getApiErrorMessage(error, t.projectSettings.domains.toast.setPrimaryFailed), "error", t.projectSettings.domains.toast.domainsTitle);
     } finally {
@@ -1220,6 +991,7 @@ export const DomainSettings = () => {
         if (id) invalidateProjectCaches(id);
         showToast("Route removed.", "success", t.projectSettings.domains.toast.domainsTitle);
         setRemoveTarget(null);
+        await redeployRoutes();
       } else {
         // PENDING / endpoint-only route (no domain row) — drop it from the
         // project's publicEndpoints and persist. Reuses persistPublicEndpoints
@@ -1290,7 +1062,6 @@ export const DomainSettings = () => {
     serviceId: string,
     patch: Partial<ServiceInput>,
   ): Promise<boolean> => {
-    const wasEdgeless = isEdgeless();
     setRouteSavingServiceId(serviceId);
     try {
       const result = await servicesApi.update(id, serviceId, patch);
@@ -1298,9 +1069,7 @@ export const DomainSettings = () => {
         throw new Error("Failed to update service route");
       }
       await refreshServices();
-      // First exposed route on an edge-less project → deploy to install
-      // OpenResty + show the takeover modal (navigates to the build screen).
-      if (wasEdgeless && patch.exposed) await publishFirstRoute();
+      await redeployRoutes();
       return true;
     } catch (error) {
       console.error("Failed to update service route:", error);
@@ -1413,14 +1182,11 @@ export const DomainSettings = () => {
   // the card's header icon. `onEditRoute` adds the per-service "Edit route" item.
   const buildDomainMenuActions = (opts: {
     domain: DomainSummaryItem;
-    isManagedRow: boolean;
-    isRenewing: boolean;
-    isRechecking: boolean;
     onEditRoute?: () => void;
     onSetPrimary?: () => void;
     isSettingPrimary?: boolean;
   }): MenuAction[] => {
-    const { domain, isManagedRow, isRenewing, isRechecking, onEditRoute, onSetPrimary, isSettingPrimary } = opts;
+    const { domain, onEditRoute, onSetPrimary, isSettingPrimary } = opts;
     const m = t.projectSettings.domains.menu;
     const items: MenuAction[] = [];
     if (onEditRoute) {
@@ -1433,49 +1199,6 @@ export const DomainSettings = () => {
         icon: <Star className={isSettingPrimary ? "size-4 animate-pulse" : "size-4"} />,
         onClick: onSetPrimary,
         disabled: isSettingPrimary,
-      });
-    }
-    // Verify is NOT in this menu — pending cards render a direct inline Verify
-    // button instead (see DomainOverviewCard), so it's never a scavenger hunt.
-    //
-    // Which SSL actions show depends on WHO owns TLS for the row:
-    //   • self-hosted custom domain → certbot on this box: Renew, Recheck, and
-    //     BYO/Origin-CA upload.
-    //   • cloud / managed-edge row (Oblien) → TLS is auto-provisioned + renewed
-    //     by the edge, so only a read-only Recheck is meaningful (proxied to the
-    //     cloud via cloudDomainProxy — the "handover to Oblien"). No certbot
-    //     renew, no BYO upload (the backend refuses uploadCert on cloud anyway).
-    //   • self-hosted FREE .opsh.io → its cert lives on the cloud edge, but the
-    //     request isn't proxied from a self-hosted box, so a local certbot
-    //     recheck would mislead ("provisioning" for a cert that's actually live
-    //     on Oblien) — skip recheck there rather than show a wrong result.
-    const sslActionable = !domain.needsVerify && !!domain.domainId;
-    const certbotOwned = !isCloudProject && !isManagedRow; // self-hosted custom domain
-    const canRecheck = isCloudProject || !isManagedRow; // everything except self-hosted free
-    if (sslActionable && certbotOwned) {
-      items.push({
-        id: "renew",
-        label: isRenewing ? m.renewing : m.renewSsl,
-        icon: <ShieldAlert className={isRenewing ? "size-4 animate-spin" : "size-4"} />,
-        onClick: () => void handleRenewDomainSsl(domain.hostname),
-        disabled: isRenewing,
-      });
-    }
-    if (sslActionable && canRecheck) {
-      items.push({
-        id: "recheck",
-        label: isRechecking ? m.rechecking : m.recheckSsl,
-        icon: <RefreshCw className={isRechecking ? "size-4 animate-spin" : "size-4"} />,
-        onClick: () => void handleRecheckSsl(domain.domainId!, domain.hostname),
-        disabled: isRechecking,
-      });
-    }
-    if (sslActionable && certbotOwned) {
-      items.push({
-        id: "upload-cert",
-        label: m.uploadCert,
-        icon: <ShieldCheck className="size-4" />,
-        onClick: () => setCertUploadDomain({ domainId: domain.domainId!, hostname: domain.hostname }),
       });
     }
     // Remove route — ALWAYS offered for a real route, including a PENDING one
@@ -1496,8 +1219,7 @@ export const DomainSettings = () => {
   // ONE route card, rendered by BOTH the project-level and per-service grids so
   // a single-app domain and a compose service route look identical. The caller
   // supplies only what differs: the edit target (`onEdit`) and whether
-  // set-primary applies (`onSetPrimary`). Everything else — verify, SSL menu,
-  // hints — is shared.
+  // set-primary applies (`onSetPrimary`). Everything else is shared.
   const renderRouteCard = (
     item: DomainSummaryItem,
     opts: { onEdit: () => void; onSetPrimary?: () => void },
@@ -1505,9 +1227,6 @@ export const DomainSettings = () => {
     const canVerify = item.needsVerify && !!item.domainId;
     const menuActions = buildDomainMenuActions({
       domain: item,
-      isManagedRow: item.hostname.toLowerCase().endsWith(`.${baseDomain}`),
-      isRenewing: renewingHostname === item.hostname,
-      isRechecking: recheckingDomainId === item.domainId,
       onEditRoute: opts.onEdit,
       onSetPrimary: opts.onSetPrimary,
       isSettingPrimary: settingPrimaryId === item.id,
@@ -1855,12 +1574,11 @@ export const DomainSettings = () => {
         // projects route per-service and render their own cards below instead —
         // no auto project "primary" domain for them.
         <div className="space-y-3">
-          {/* Unified with the compose/services toolbar: just the edge status +
-              one Add button. Visit lives on each card's header icon and Edit /
+          {/* Unified with the compose/services toolbar: one Add button. Visit
+              lives on each card's header icon and Edit /
               Set-primary / Remove live in each card's ⋯ menu — no separate
               Visit / Edit-domains top buttons. */}
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {renderEdgeControl()}
             <ActionButton
               label={showCustomDomainSection ? t.projectSettings.domains.actions.hideSetup : t.projectSettings.domains.actions.addDomain}
               icon={Plus}
@@ -1950,12 +1668,6 @@ export const DomainSettings = () => {
       {!hasProjectLevelRouting && (servicesLoading || services.length > 0) && (
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {/* Migrated/edgeless stacks: routes may be recorded but the server's
-                edge (OpenResty on 80/443) isn't set up yet. We probe edge health
-                first — show "Edge ready" when OpenResty already owns it, else the
-                "Set up edge" action (installs/owns it + applies routes reload-free,
-                surfacing the takeover consent if a foreign proxy holds 80/443). */}
-            {renderEdgeControl()}
             <ActionButton
               label={showAddRoute ? t.projectSettings.domains.addRoute.cancel : t.projectSettings.domains.addRoute.add}
               icon={Plus}
@@ -2055,7 +1767,7 @@ export const DomainSettings = () => {
         onSaved={(cfg) => setProjectData((prev) => ({ ...prev, routingConfig: cfg }))}
       />
 
-      {/* Edge security rules (rate-limit / ban / geo / hotlink) — a distinct
+      {/* Traefik middleware rules (rate limit / IP allowlist / in-flight cap) — a distinct
           feature from the routing config above, but the same kind of edge
           concern, so it sits right here, collapsed by default. Moved out of the
           Advanced tab. */}
@@ -2133,70 +1845,6 @@ export const DomainSettings = () => {
                 {routeSaving && <Loader2 className="size-3.5 animate-spin" />}
                 {t.projectSettings.domains.editRoute.save}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {certUploadDomain && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm"
-          onClick={() => !isUploadingCert && setCertUploadDomain(null)}
-        >
-          <div
-            className="w-full max-w-2xl overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-center justify-between gap-4 border-b border-border/40 px-5 py-4">
-              <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold text-foreground">{t.projectSettings.domains.certUpload.title}</h3>
-                <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{certUploadDomain.hostname}</p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setCertUploadDomain(null)}
-                disabled={isUploadingCert}
-                className="inline-flex min-h-9 items-center rounded-xl bg-foreground/[0.06] px-3 text-[12px] font-medium text-foreground transition-colors hover:bg-foreground/[0.1] disabled:opacity-50"
-              >
-                {t.projectSettings.domains.certUpload.close}
-              </button>
-            </div>
-
-            <div className="space-y-4 px-5 py-5">
-              <p className="text-[12px] text-muted-foreground">{t.projectSettings.domains.certUpload.desc}</p>
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-foreground">{t.projectSettings.domains.certUpload.certLabel}</label>
-                <textarea
-                  value={certPem}
-                  onChange={(event) => setCertPem(event.target.value)}
-                  placeholder={t.projectSettings.domains.certUpload.certPlaceholder}
-                  spellCheck={false}
-                  rows={6}
-                  className="w-full resize-y rounded-xl border border-border/60 bg-background px-3 py-2 font-mono text-[12px] text-foreground outline-none focus:border-primary"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[12px] font-medium text-foreground">{t.projectSettings.domains.certUpload.keyLabel}</label>
-                <textarea
-                  value={keyPem}
-                  onChange={(event) => setKeyPem(event.target.value)}
-                  placeholder={t.projectSettings.domains.certUpload.keyPlaceholder}
-                  spellCheck={false}
-                  rows={6}
-                  className="w-full resize-y rounded-xl border border-border/60 bg-background px-3 py-2 font-mono text-[12px] text-foreground outline-none focus:border-primary"
-                />
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  onClick={() => void handleUploadCert()}
-                  disabled={isUploadingCert || !certPem.trim() || !keyPem.trim()}
-                  className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-primary px-4 text-[12px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {isUploadingCert && <Loader2 className="size-4 animate-spin" />}
-                  {isUploadingCert ? t.projectSettings.domains.certUpload.submitting : t.projectSettings.domains.certUpload.submit}
-                </button>
-              </div>
             </div>
           </div>
         </div>

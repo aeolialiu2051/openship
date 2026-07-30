@@ -8,34 +8,23 @@
  *   - createProject({ isApp:true, appTemplateId:"openship" })  → the Apps row
  *   - free  domain → Oblien edge proxy (slug.opsh.io → this box), reusing
  *     cloudClient().edgeProxy.sync — needs the owner connected to Openship Cloud
- *   - custom domain → OpenResty + Let's Encrypt via provisionSelfEdge, streamed
- *     live through a setup-session for the wizard's spinner
+ *   - custom domain → external/shared Traefik ingress
  *
  * No new routing/SSL machinery — Openship deploys itself with its own tools.
  */
 
 import type { Context } from "hono";
-import type { ImportedSite, ManualCert } from "@repo/adapters";
 import { repos, db, schema, eq } from "@repo/db";
 import { SYSTEM, safeErrorMessage } from "@repo/core";
 import { env } from "../../config";
-import { assertNotCloud, platform } from "../../lib/controller-helpers";
+import { assertNotCloud } from "../../lib/controller-helpers";
 import { ensureLocalUser } from "../../lib/local-user";
 import { createProject } from "../projects/project-crud.service";
 import { cloudClient } from "../../lib/cloud/client";
 import { getCloudConnectionStatusForOrg } from "../../lib/cloud/session";
-import { ensureAdoptDeployment, provisionSelfAppEdge } from "../../lib/startup/self-deploy";
-import { reapplyProjectLiveRoutes } from "../domains/project-route.service";
+import { ensureAdoptDeployment } from "../../lib/startup/self-deploy";
 import { refreshSelfAppPublicUrl } from "../../lib/public-url";
-import { streamSSE } from "../../lib/sse";
-import {
-  createSetupSession,
-  getSetupSession,
-  updateComponentProgress,
-  appendSetupLog,
-  finishSetupSession,
-  subscribeSetupSession,
-} from "./setup-session";
+import { selfAppManagedOrigin } from "../../lib/self-app-origin";
 
 const APP_SLUG = "openship";
 const APP_TEMPLATE_ID = "openship";
@@ -63,7 +52,6 @@ export async function foundingAdminId(): Promise<string | null> {
     .limit(1);
   return admin?.id ?? null;
 }
-
 async function resolveOrg(): Promise<{ userId: string; organizationId: string }> {
   const linked = await repos.settings.listCloudLinkedOrgIds().catch(() => [] as string[]);
   if (linked.length > 0) {
@@ -103,7 +91,8 @@ async function ensureControlPlaneApp(organizationId: string, port?: number): Pro
  * The wizard checks this before offering / after driving the free-domain path.
  */
 export async function cloudStatus(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
+  const guard = assertNotCloud(c);
+  if (guard) return guard;
   const { organizationId } = await resolveOrg();
   const status = await getCloudConnectionStatusForOrg(organizationId);
   return c.json(status);
@@ -119,16 +108,16 @@ export async function cloudStatus(c: Context) {
  * credential. Internal-token gated (the fresh wizard has no session/PAT).
  */
 export async function cloudConnect(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
+  const guard = assertNotCloud(c);
+  if (guard) return guard;
   const body = await c.req
     .json<{ code?: string; codeVerifier?: string }>()
     .catch(() => ({}) as { code?: string; codeVerifier?: string });
   if (!body.code) return c.json({ error: "code is required" }, 400);
 
   try {
-    const { exchangeCodeWithCloud, mirrorCloudUser, storeCloudSession } = await import(
-      "../../lib/cloud-auth-proxy"
-    );
+    const { exchangeCodeWithCloud, mirrorCloudUser, storeCloudSession } =
+      await import("../../lib/cloud-auth-proxy");
     const { clearAuthModeCache } = await import("../../lib/auth-mode");
     const data = await exchangeCodeWithCloud(body.code, body.codeVerifier);
     if (!data) return c.json({ error: "Could not verify with Openship Cloud" }, 401);
@@ -174,19 +163,22 @@ export async function cloudConnect(c: Context) {
  * stream provisioning progress from.
  */
 export async function selfRegister(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
-  const body = await c.req.json<{
-    domainType?: "free" | "custom" | "byo";
-    hostname?: string;
-    slug?: string;
-    dashPort?: number;
-    acmeEmail?: string;
-    publicHost?: string;
-    /** User accepted taking over ports 80/443 from an existing proxy. */
-    edgeTakeover?: boolean;
-    /** User accepted migrating the existing proxy's sites before taking over. */
-    edgeMigrate?: boolean;
-  }>().catch(() => ({}) as Record<string, never>);
+  const guard = assertNotCloud(c);
+  if (guard) return guard;
+  const body = await c.req
+    .json<{
+      domainType?: "free" | "custom" | "byo";
+      hostname?: string;
+      slug?: string;
+      dashPort?: number;
+      acmeEmail?: string;
+      publicHost?: string;
+      /** User accepted taking over ports 80/443 from an existing proxy. */
+      edgeTakeover?: boolean;
+      /** User accepted migrating the existing proxy's sites before taking over. */
+      edgeMigrate?: boolean;
+    }>()
+    .catch(() => ({}) as Record<string, never>);
 
   const domainType = body.domainType ?? "byo";
   const dashPort = Number(body.dashPort) || env.OPENSHIP_DASHBOARD_PORT || 3001;
@@ -199,7 +191,10 @@ export async function selfRegister(c: Context) {
   await ensureAdoptDeployment(projectId, dashPort);
 
   if (domainType === "free") {
-    const slug = (body.slug ?? "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-|-$/g, "");
+    const slug = (body.slug ?? "")
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, "-")
+      .replace(/^-|-$/g, "");
     if (!slug) return c.json({ error: "slug is required for a free domain" }, 400);
     const hostname = `${slug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}`;
     // Bare host/IP — strip any scheme/path the caller may have included.
@@ -208,21 +203,16 @@ export async function selfRegister(c: Context) {
       .replace(/^https?:\/\//i, "")
       .replace(/\/.*$/, "");
     if (!host) {
-      return c.json({ error: "Could not resolve this server's public address for the edge proxy" }, 400);
+      return c.json(
+        { error: "Could not resolve this server's public address for the edge proxy" },
+        400,
+      );
     }
-    // Bare public host — the SAME shape `managed-edge-proxy` sends for a deployed
-    // app's free subdomain (the shipped, proven path), and what the SaaS handler
-    // documents ("slug + target IP"). It schemes it to `http://<host>` itself, so
-    // Oblien always proxies to :80 = OUR EDGE.
-    //
-    // NOT `:${dashPort}`: pointing Cloud straight at :3001 meant the free domain
-    // only worked with that port open to the internet, put the dashboard on a
-    // public port in plain HTTP (bypassable — anyone hitting <ip>:3001 skipped the
-    // edge, its TLS, rate limits and rules), and left the local edge with no vhost
-    // for the hostname at all, so every request fell to default_server. Now the box
-    // needs nothing but :80/:443, and a free domain routes exactly like a custom
-    // one: through the edge, matched on Host, to the dashboard on loopback.
-    const target = host;
+    // The control plane is an adopted host process rather than a Docker workload,
+    // so it cannot publish Traefik Docker labels. `openship up` binds the dashboard
+    // publicly when this managed URL is configured; Cloud terminates TLS and
+    // forwards plain HTTP to that explicit dashboard origin.
+    const target = selfAppManagedOrigin(host, dashPort);
     try {
       const result = await cloudClient({ organizationId }).edgeProxy.sync({ slug, target });
       if (!result) {
@@ -234,10 +224,7 @@ export async function selfRegister(c: Context) {
     } catch (err) {
       return c.json({ error: safeErrorMessage(err) }, 502);
     }
-    // Oblien's edge terminates TLS for *.opsh.io, so the domain is secured the
-    // moment the proxy syncs — but it forwards to :80 here, which is OUR edge, so
-    // the edge also needs a vhost for this hostname or every request lands on
-    // default_server and 404s.
+    // Oblien's edge terminates TLS for *.opsh.io; the origin remains plain HTTP.
     await repos.domain.findOrCreate({
       projectId,
       hostname,
@@ -248,18 +235,6 @@ export async function selfRegister(c: Context) {
       status: "active",
       sslStatus: "active",
     });
-    // Register the LOCAL route (plain :80 vhost — Cloud already terminated TLS,
-    // so no cert is needed on the box for a free hostname). Best-effort like every
-    // routing step, but logged loudly: without it the domain resolves and then
-    // 404s, which is indistinguishable from a DNS problem to the operator.
-    const freshFree = await repos.project.findById(projectId);
-    if (freshFree) {
-      await reapplyProjectLiveRoutes(freshFree, [], { isSelfApp: true }).catch((err) =>
-        console.warn(
-          `[self-register] free domain ${hostname} registered with Cloud but the local edge route failed: ${safeErrorMessage(err)}`,
-        ),
-      );
-    }
     await refreshSelfAppPublicUrl().catch(() => {});
     return c.json({ ok: true, url: `https://${hostname}`, hostname });
   }
@@ -269,59 +244,19 @@ export async function selfRegister(c: Context) {
     if (!hostname || !hostname.includes(".")) {
       return c.json({ error: "a valid hostname is required for a custom domain" }, 400);
     }
-    // verified:true — we assert control via ACME HTTP-01 (not A-record; SERVER_IP
-    // isn't set under `openship up`), and manageDomainSsl gates cert issuance on
-    // the verified flag. Route registration doesn't depend on status.
     await repos.domain.findOrCreate({
       projectId,
       hostname,
       domainType: "custom",
       isPrimary: true,
+      externalIngress: true,
       verified: true,
       verifiedAt: new Date(),
-      status: "pending",
-      sslStatus: "provisioning",
+      status: "active",
+      sslStatus: "external",
     });
-
-    const session = createSetupSession(
-      [
-        { name: "openresty", label: "Install OpenResty + certbot" },
-        { name: "route", label: "Route domain to Openship" },
-        { name: "ssl", label: "Issue SSL certificate" },
-      ],
-      "self",
-    );
-
-    // Drive edge provisioning in the background; the wizard streams progress.
-    // Routing + cert flow through the normal pipeline (reapplyProjectLiveRoutes +
-    // manageDomainSsl) — this only installs toolchain + takes over 80/443.
-    void provisionSelfAppEdge(
-      projectId,
-      hostname,
-      dashPort,
-      {
-        backoffs: [15_000, 45_000], // shorter than the boot hook so the spinner resolves
-        onLog: (message, level) => appendSetupLog(session.id, "edge", message, level),
-        onStep: (step, status) => updateComponentProgress(session.id, step, status),
-      },
-      { edgeTakeover: body.edgeTakeover === true, edgeMigrate: body.edgeMigrate === true },
-    )
-      .then(async (res) => {
-        await repos.domain
-          .updateSsl(await domainIdFor(projectId, hostname), {
-            sslStatus: res.verified ? "active" : "error",
-            sslExpiresAt: res.expiresAt ? new Date(res.expiresAt) : undefined,
-          })
-          .catch(() => {});
-        await refreshSelfAppPublicUrl().catch(() => {});
-        finishSetupSession(session.id, res.verified ? "completed" : "failed");
-      })
-      .catch((err) => {
-        appendSetupLog(session.id, "edge", safeErrorMessage(err), "error");
-        finishSetupSession(session.id, "failed");
-      });
-
-    return c.json({ ok: true, sessionId: session.id, url: `https://${hostname}`, hostname });
+    await refreshSelfAppPublicUrl().catch(() => {});
+    return c.json({ ok: true, url: `https://${hostname}`, hostname });
   }
 
   // BYO reverse proxy — record the domain, provision nothing.
@@ -340,129 +275,9 @@ export async function selfRegister(c: Context) {
     });
   }
   await refreshSelfAppPublicUrl().catch(() => {});
-  return c.json({ ok: true, url: hostname ? `https://${hostname}` : null, hostname: hostname || null });
-}
-
-/**
- * POST /api/system/self-edge/preflight — detect what owns ports 80/443 on THIS
- * machine before the wizard installs OpenResty (internal-token gated, local
- * executor). Read-only; the CLI uses it to prompt migrate/takeover/cancel.
- */
-export async function selfEdgePreflight(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
-
-  // Managed edge only installs on a Linux host; elsewhere there's nothing to take over.
-  if (process.platform !== "linux") {
-    return c.json({ status: { classification: "free", occupants: [], canProceedClean: true } });
-  }
-
-  try {
-    const { createHostExecutor, detectEdge, importSites } = await import("@repo/adapters");
-    // Host-op executor: LocalExecutor bare, SSH→host.docker.internal when
-    // containerized (OPENSHIP_HOST_SSH_* set). Inspecting the api container's
-    // own netns would return a wrong migrate/takeover prompt in docker mode.
-    const executor = createHostExecutor();
-    const status = await detectEdge(executor);
-    // Scan the foreign proxy's sites (if importable) so the CLI can offer migration.
-    const { sites, warnings } = await importSites(executor, status);
-    return c.json({ status, sites, warnings });
-  } catch (err) {
-    return c.json({ error: safeErrorMessage(err) }, 500);
-  }
-}
-
-/**
- * POST /api/system/edge/import-sites — register sites parsed from a foreign proxy
- * as routes on THIS box's CONTAINER edge (internal-token gated, docker-edge mode).
- *
- * `openship up` (compose) detects + stops the foreign proxy on the HOST and parses
- * its vhosts BEFORE `docker compose up` (the host-net edge container can't bind
- * :80/:443 otherwise, and it can't read the host filesystem). It then hands the
- * parsed sites here — plus any cert PEMs it read host-side (`certPems`, keyed by
- * the source cert path) — so we re-serve them through the container edge.
- *
- * No new routing machinery: we drive the SAME provider the deploy pipeline uses,
- * resolved from the local platform (a `NginxProvider` on the `DockerEdgeExecutor`
- * when `OPENSHIP_EDGE_MODE=docker`), via the shared `registerImportedSites`.
- */
-export async function edgeImportSites(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
-
-  let body: { sites?: unknown; certPems?: unknown };
-  try {
-    body = await c.req.json();
-  } catch {
-    return c.json({ error: "Invalid JSON body" }, 400);
-  }
-  if (!Array.isArray(body.sites)) return c.json({ error: "`sites` must be an array" }, 400);
-  const sites = body.sites as ImportedSite[];
-  if (sites.length === 0) return c.json({ registered: [], warnings: [] });
-
-  const certPems =
-    body.certPems && typeof body.certPems === "object"
-      ? (body.certPems as Record<string, ManualCert>)
-      : undefined;
-
-  try {
-    const { registerImportedSites } = await import("@repo/adapters");
-    const p = platform();
-    if (!p.executor) return c.json({ error: "This instance has no local edge to import into" }, 400);
-    const warnings: string[] = [];
-    const registered = await registerImportedSites(p.routing, p.ssl, p.executor, sites, {
-      certPems,
-      warnings,
-      onLog: (entry) => console.log(`[edge-import] ${entry.message}`),
-    });
-    return c.json({ registered, warnings });
-  } catch (err) {
-    return c.json({ error: safeErrorMessage(err) }, 500);
-  }
-}
-
-/** Resolve a domain row id by (project, hostname) for the SSL status patch. */
-async function domainIdFor(projectId: string, hostname: string): Promise<string> {
-  const row = await repos.domain.findByHostnameForProject(projectId, hostname.toLowerCase());
-  return row?.id ?? "";
-}
-
-/**
- * GET /api/system/self-register/stream?id=<sessionId> — SSE progress for the
- * custom-domain provisioning (mirrors the system-install stream, but
- * internal-token gated rather than server-permission gated).
- */
-export async function selfRegisterStream(c: Context) {
-  const guard = assertNotCloud(c); if (guard) return guard;
-  const sessionId = c.req.query("id");
-  const session = sessionId ? getSetupSession(sessionId) : null;
-  if (!session) return c.json({ error: "No such session" }, 404);
-
-  return streamSSE(c, async (sseStream) => {
-    let closed = false;
-    const writer = (event: string, data: string): boolean => {
-      if (closed) return false;
-      try {
-        void sseStream.writeSSE({ event, data });
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    const { success } = subscribeSetupSession(session.id, writer);
-    if (!success || session.status !== "running") return;
-
-    await new Promise<void>((resolve) => {
-      const iv = setInterval(() => {
-        if (closed) {
-          clearInterval(iv);
-          resolve();
-        }
-      }, 1000);
-      sseStream.onAbort(() => {
-        closed = true;
-        clearInterval(iv);
-        resolve();
-      });
-    });
+  return c.json({
+    ok: true,
+    url: hostname ? `https://${hostname}` : null,
+    hostname: hostname || null,
   });
 }

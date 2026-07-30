@@ -749,8 +749,6 @@
       "verifyNotYet": "{hostname} 尚无法验证。",
       "verifyFailedTitle": "验证失败",
       "verifyFailed": "验证域名失败。",
-      "sslRenewed": "已为 {hostname} 续期 SSL。",
-      "sslRenewFailed": "为 {hostname} 续期 SSL 失败。",
       "sslTitle": "SSL",
       "sslVerified": "已为 {hostname} 验证 SSL。",
       "sslNoCert": "尚未找到 {hostname} 的有效证书。如果你刚刚部署，请稍等 Let's Encrypt 一会儿，然后重新检查。",

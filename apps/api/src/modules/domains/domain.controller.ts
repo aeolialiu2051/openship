@@ -3,16 +3,14 @@
  */
 
 import type { Context } from "hono";
-import { safeErrorMessage } from "@repo/core";
-import { param, assertNotCloud } from "../../lib/controller-helpers";
+import { param } from "../../lib/controller-helpers";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { notification } from "../../lib/notification-dispatcher";
-import { streamSSE } from "../../lib/sse";
 import * as domainService from "./domain.service";
 import { maybeProxyCloudProject } from "../../lib/cloud/project-router";
-import type { TAddDomainBody, TUploadCertBody } from "./domain.schema";
+import type { TAddDomainBody } from "./domain.schema";
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -114,69 +112,6 @@ export async function verify(c: Context) {
   return c.json(result, result.verified ? 200 : 422);
 }
 
-/**
- * POST /domains/:id/verify/stream (SSE) — self-hosted live-log verify. Streams
- * certbot's output line-by-line (`log`) as the standalone HTTP-01 challenge runs,
- * then a terminal `complete`. Same generic event contract the edge-setup modal
- * uses (`useSystemPrepareModal`), minus the consent prompt (verify never prompts).
- * The plain `verify` above stays for programmatic callers + the cron.
- */
-export async function verifyStream(c: Context) {
-  const ctx = getRequestContext(c);
-  const id = param(c, "id");
-  await permission.assert(ctx, { resourceType: "domain", resourceId: id, action: "write" });
-
-  return streamSSE(c, async (sse) => {
-    let closed = false;
-    // AWAIT each write. The terminal `complete` is the last thing sent before
-    // this callback returns and Hono closes the SSE — a fire-and-forget
-    // (`void writeSSE`) races that close and gets dropped, leaving the modal
-    // spinning forever even though the backend already succeeded (the exact
-    // "stuck after 'Certificate issued'" bug). Awaiting flushes it first.
-    const emit = async (event: string, data: string) => {
-      if (closed) return;
-      try {
-        await sse.writeSSE({ event, data });
-      } catch {
-        /* client disconnected */
-      }
-    };
-    // The generic prepare modal expects a `session` event to start; verify has no
-    // prompt to answer, so it's just the stream opener.
-    await emit("session", JSON.stringify({ type: "session" }));
-    const force = c.req.query("force") === "1" || c.req.query("force") === "true";
-    try {
-      const result = await domainService.verifyDomain(ctx, id, {
-        force,
-        // Intermediate logs are fire-and-forget — they flush during the run.
-        onLog: (line) => {
-          void emit("log", JSON.stringify({ type: "log", message: line, level: "info" }));
-        },
-      });
-      await emit(
-        "log",
-        JSON.stringify({
-          type: "log",
-          message: result.message ?? (result.verified ? "Verified." : "Not verified."),
-          level: result.verified ? "info" : "error",
-        }),
-      );
-      audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
-        eventType: result.verified ? "domain.verified" : "domain.verify_failed",
-        resourceType: "domain",
-        resourceId: id,
-        after: { verified: result.verified },
-      });
-      await emit("complete", JSON.stringify({ type: "complete", status: result.verified ? "completed" : "failed" }));
-    } catch (err) {
-      await emit("log", JSON.stringify({ type: "log", message: safeErrorMessage(err), level: "error" }));
-      await emit("complete", JSON.stringify({ type: "complete", status: "failed" }));
-    } finally {
-      closed = true;
-    }
-  });
-}
-
 export async function records(c: Context) {
   const ctx = getRequestContext(c);
   const id = param(c, "id");
@@ -207,54 +142,6 @@ export async function preview(c: Context) {
     return c.json({ error: "hostname is required" }, 400);
   }
   const result = await domainService.previewRecords(body.hostname.trim().toLowerCase());
-  return c.json({ data: result });
-}
-
-/** POST /domains/:id/renew - renew SSL for a single domain */
-export async function renewSsl(c: Context) {
-  const ctx = getRequestContext(c);
-  const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
-  const result = await domainService.renewDomainSsl(ctx, id);
-  return c.json({ data: result });
-}
-
-/** POST /domains/:id/verify-ssl - read-only recheck that the cert is issued/valid */
-export async function verifySsl(c: Context) {
-  const ctx = getRequestContext(c);
-  const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
-  const result = await domainService.verifyDomainSsl(ctx, id);
-  return c.json({ data: result });
-}
-
-/** POST /domains/:id/certificate - install an operator-supplied cert (BYO / Origin CA) */
-export async function uploadCert(c: Context) {
-  // Self-hosted only: installing an operator-supplied cert writes to the box's
-  // OpenResty. On Openship Cloud, TLS is owned by the managed edge — there's
-  // nothing to install, so refuse rather than run a no-op/misleading path.
-  const guard = assertNotCloud(c);
-  if (guard) return guard;
-
-  const ctx = getRequestContext(c);
-  const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
-  const body = await c.req.json<TUploadCertBody>();
-  const result = await domainService.uploadDomainCert(ctx, id, body);
-  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
-    eventType: "domain.cert_uploaded",
-    resourceType: "domain",
-    resourceId: id,
-    // Never log the cert/key material — just the outcome.
-    after: { domain: result.domain, issuer: result.issuer, expiresAt: result.expiresAt },
-  });
-  return c.json({ data: result });
-}
-
-/** POST /domains/renew-all - batch SSL renewal for the requesting org's domains */
-export async function renewAllSsl(c: Context) {
-  const ctx = getRequestContext(c);
-  const result = await domainService.renewOrgCerts(ctx);
   return c.json({ data: result });
 }
 

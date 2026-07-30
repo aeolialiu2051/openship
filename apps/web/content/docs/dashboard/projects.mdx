@@ -138,10 +138,7 @@ can pick which service's logs to watch. See [Logs & monitoring](/docs/guides/log
 then a **Project Info** summary and a **Project Status** card whose **Disable** / **Enable** button
 pauses or resumes the project.
 
-**Route rules** apply edge policies to a domain or path prefix, enforced at the OpenResty edge (self-hosted):
-per-client **rate limiting** (requests/sec + burst), **bans** (IPs, CIDRs, countries, user-agents, empty
-user-agent), **access** allow/deny lists and HTTP-method allow-lists, and **hotlink** protection (allowed
-referers). Changes push to the edge live — no reload or redeploy.
+**Route rules** apply native Traefik middleware policies to a domain or path prefix on self-hosted Docker deployments: request rate limits, IP allowlists, and in-flight request limits. Changes take effect on the next redeploy because Docker labels are part of the workload container configuration.
 
 The red **Danger Zone** at the bottom holds **Delete Project**. The full delete permanently removes the
 project's deployments, domains, environment variables, and analytics. On **self-hosted** instances you also

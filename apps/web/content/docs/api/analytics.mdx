@@ -133,7 +133,7 @@ curl https://your-host/api/analytics/dashboard \
 ## Server analytics
 
 These read request analytics for a specific **server** (identified by the `:serverId` path parameter),
-gathered from the edge proxy (OpenResty) rather than per-project. Viewing them triggers an on-demand,
+gathered from the edge proxy (Traefik) rather than per-project. Viewing them triggers an on-demand,
 self-throttled scrape — the response returns the rows currently in the database, and fresh buckets land for
 the next read. All three require a `domain` query parameter and use the `server:read` permission.
 

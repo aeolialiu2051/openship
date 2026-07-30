@@ -139,7 +139,7 @@ export type ComposeAdvanced = {
  * Per-route edge rules. Self-hosted Docker deployments compile the supported
  * fields into native Traefik routers and middlewares during deployment. The DB
  * `route_rule` table remains the source of truth; JSONB lets the shape widen
- * without a schema migration. Legacy OpenResty-only fields remain readable so
+ * without a schema migration. Legacy Traefik-only fields remain readable so
  * existing rows do not break, but new UI writes the Traefik-native fields.
  */
 export type RouteRuleSpec = {

@@ -46,10 +46,10 @@ export interface MigrationPreviewService {
   blocked: boolean;
   reason?: string;
   /** This service IS the edge proxy (80/443) → dropped from import; Openship's
-   *  OpenResty replaces it and reclaims the port. */
+   *  Traefik replaces it and reclaims the port. */
   edgeProxy?: boolean;
   /** Non-proxy service that published 80/443 → those host bindings are stripped
-   *  (reserved for Openship's edge); the app is routed through OpenResty. */
+   *  (reserved for Openship's edge); the app is routed through Traefik. */
   edgePortsReserved?: number[];
   /** Named volumes that will be copied (cross-server) / reused (same-server). */
   volumes: Array<{ name: string; target: string }>;

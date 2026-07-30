@@ -143,7 +143,7 @@ export interface TunnelStreamHandle {
  * Designed for SSE (`text/event-stream`) and chunked transfer:
  *
  * ```ts
- * const h = await tunnelStream(serverId, 9145, "/logs/stream?domain=x");
+ * const h = await tunnelStream(serverId, 8080, "/logs/stream?domain=x");
  * h.stream.on("data", chunk => console.log(chunk.toString()));
  * // later: h.destroy();
  * ```

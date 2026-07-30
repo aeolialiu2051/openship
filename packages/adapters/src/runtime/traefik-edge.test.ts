@@ -4,6 +4,7 @@ import {
   VIBRAIL_EDGE_CERT_RESOLVER_LABEL,
   VIBRAIL_EDGE_COMPATIBLE_LABEL,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
+  VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_NETWORK_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
   buildTraefikLabels,
@@ -103,6 +104,8 @@ describe("Traefik static config detection", () => {
       parseTraefikStaticConfig(`
 [entryPoints.https]
   address = ":443"
+[entryPoints.web]
+  address = ":80"
 [entryPoints.https.http.tls]
   certResolver = "le"
 [providers.docker]
@@ -114,6 +117,7 @@ describe("Traefik static config detection", () => {
       dockerProvider: true,
       network: "proxy",
       entrypoint: "https",
+      httpEntrypoint: "web",
       tls: true,
       certResolver: "le",
     });
@@ -145,6 +149,7 @@ describe("Traefik static config detection", () => {
             [VIBRAIL_EDGE_COMPATIBLE_LABEL]: "true",
             [VIBRAIL_EDGE_NETWORK_LABEL]: "proxy",
             [VIBRAIL_EDGE_ENTRYPOINT_LABEL]: "websecure",
+            [VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL]: "web",
             [VIBRAIL_EDGE_TLS_LABEL]: "true",
             [VIBRAIL_EDGE_CERT_RESOLVER_LABEL]: "letsencrypt",
           },
@@ -154,6 +159,7 @@ describe("Traefik static config detection", () => {
       dockerProvider: true,
       network: "proxy",
       entrypoint: "websecure",
+      httpEntrypoint: "web",
       tls: true,
       certResolver: "letsencrypt",
     });
@@ -176,6 +182,50 @@ describe("buildTraefikLabels", () => {
       "traefik.http.routers.vibrail-oo198w.entrypoints": "websecure",
       "traefik.http.routers.vibrail-oo198w.tls": "true",
       "traefik.http.services.vibrail-oo198w.loadbalancer.server.port": "8000",
+    });
+  });
+
+  it("keeps TLS and externally terminated HTTP routes separate", () => {
+    const labels = buildTraefikLabels({
+      network: "proxy",
+      entrypoint: "websecure",
+      httpEntrypoint: "web",
+      tls: true,
+      certResolver: "letsencrypt",
+      routes: [
+        { routerName: "secure", hostname: "secure.example.com", port: 3000 },
+        { routerName: "external", hostname: "external.example.com", port: 3000, tls: false },
+      ],
+    });
+
+    expect(labels).toMatchObject({
+      "traefik.http.routers.secure.entrypoints": "websecure",
+      "traefik.http.routers.secure.tls": "true",
+      "traefik.http.routers.secure.tls.certresolver": "letsencrypt",
+      "traefik.http.routers.secure-redirect.entrypoints": "web",
+      "traefik.http.routers.external.entrypoints": "web",
+      "traefik.http.routers.external.tls": "false",
+    });
+    expect(labels["traefik.http.routers.external.tls.certresolver"]).toBeUndefined();
+  });
+
+  it("prefixes static requests with the selected document-root path", () => {
+    const labels = buildTraefikLabels({
+      network: "proxy",
+      entrypoint: "websecure",
+      tls: true,
+      routes: [
+        {
+          routerName: "docs",
+          hostname: "docs.example.com",
+          port: 3000,
+          targetPath: "/docs",
+        },
+      ],
+    });
+    expect(labels).toMatchObject({
+      "traefik.http.middlewares.docs-root.addprefix.prefix": "/docs",
+      "traefik.http.routers.docs.middlewares": "docs-root@docker",
     });
   });
 

@@ -12,7 +12,7 @@
  *                          or a remote server/sandbox over SSH) resolved via
  *                          resolveDeploymentRuntime — never the global
  *                          platform() singleton, which only ever targets the
- *                          orchestrator's local openresty.
+ *                          orchestrator's local traefik.
  *
  * Callers compute the targets (the upstream differs: a service uses its
  * container-row IP, a single-app uses the deployment container IP, the webhook

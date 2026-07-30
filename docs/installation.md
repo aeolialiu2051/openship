@@ -49,7 +49,7 @@ openship up --public-url https://ops.example.com
 
 - `openship up` installs the same background service the wizard does (starts on boot, auto-restarts), driven entirely by flags.
 - `--public-url <url>` makes the dashboard reachable at your domain. Login is required; everyone else joins by invite only.
-- `--managed-edge` also installs OpenResty + a free Let's Encrypt cert on the box and routes your domain to the dashboard — no separate reverse proxy needed. Omit it if you run your own proxy in front.
+- `--public-url` assumes you provide the public ingress for the control-plane dashboard. Bind with `--host` as needed and point your proxy at the dashboard port.
 - One-off attached run instead of a service: `openship up --foreground`.
 
 Once it's up, **Openship registers itself as an app** (dashboard → Apps → *Openship*): manage its domain, tail its logs, and see it *Live* like any other app.
@@ -58,7 +58,7 @@ Once it's up, **Openship registers itself as an app** (dashboard → Apps → *O
 
 ## Docker
 
-Self-host the pull-based stack — Postgres, Redis, API, dashboard, and the OpenResty edge on :80/:443. It lives in `docker/docker-compose.yml` and pulls published images (no build). Run it from the repo root:
+Self-host the pull-based stack — Postgres, Redis, API, dashboard, and the Traefik edge on :80/:443. It lives in `docker/docker-compose.yml` and pulls published images (no build). Run it from the repo root:
 
 ```bash
 git clone https://github.com/oblien/openship.git && cd openship
@@ -86,7 +86,7 @@ Linux only (the edge needs host networking); pin `OPENSHIP_VERSION` in `.env` fo
 | Command | Does |
 |---|---|
 | `openship up [--foreground]` | Start Openship as a service (boot + auto-restart); `--foreground` runs it attached |
-| `openship up --public-url <url> [--managed-edge]` | Serve the dashboard at a public domain (+ install OpenResty/TLS with `--managed-edge`) |
+| `openship up --public-url <url> [--host <address>]` | Serve the dashboard behind your public ingress |
 | `openship stop` | Stop the service |
 | `openship status [--json]` | Is it running? Resolved ports + API health |
 | `openship open` | Open the dashboard in your browser |
@@ -131,5 +131,5 @@ Add `--json` to most read commands for scripting.
 ## Quick decision
 
 - **Just you, private** → Desktop app.
-- **Team / always-on / public / CI** → `openship up --public-url https://… --managed-edge` on a server.
+- **Team / always-on / public / CI** → `openship up --public-url https://… --host 0.0.0.0` behind your ingress.
 - **No ops at all** → Openship Cloud.

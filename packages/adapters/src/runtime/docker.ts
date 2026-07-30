@@ -7,8 +7,8 @@
  *   - Remote via SSH + Docker CLI (same selected daemon socket as builds)
  *   - Remote via TCP + mutual TLS
  *
- * This is ONLY the runtime. Routing (Nginx) and SSL (certbot) are separate
- * infrastructure providers - see `infra/`.
+ * This is ONLY the runtime. Public Docker routes are advertised declaratively
+ * through Traefik labels supplied in DeployConfig.
  *
  * Build strategy:
  *   Builds from a staged source context sent to the Docker daemon. If the
@@ -111,9 +111,13 @@ import {
   VIBRAIL_EDGE_CERT_RESOLVER,
   VIBRAIL_EDGE_CERT_RESOLVER_LABEL,
   VIBRAIL_EDGE_COMPATIBLE_LABEL,
+  VIBRAIL_EDGE_CONFIG_VERSION,
+  VIBRAIL_EDGE_CONFIG_VERSION_LABEL,
   VIBRAIL_EDGE_CONTAINER,
   VIBRAIL_EDGE_ENTRYPOINT,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
+  VIBRAIL_EDGE_HTTP_ENTRYPOINT,
+  VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_IMAGE,
   VIBRAIL_EDGE_MANAGED_LABEL,
   VIBRAIL_EDGE_NETWORK,
@@ -780,18 +784,33 @@ export class DockerRuntime implements RuntimeAdapter {
     if (this.traefikEdgePromise) return this.traefikEdgePromise;
     const run = async (): Promise<ResolvedTraefikEdge> => {
       const summaries = await this.listAllContainers();
-      const details = (
+      let details = (
         await Promise.all(
           summaries.map((container) => this.inspectContainer(container.id).catch(() => null)),
         )
       ).filter((container): container is NonNullable<typeof container> => !!container);
 
-      const owned = details.find((container) => container.name === VIBRAIL_EDGE_CONTAINER);
+      let owned = details.find((container) => container.name === VIBRAIL_EDGE_CONTAINER);
       if (owned && !isTraefikContainer(owned)) {
         throw new Error(
           `A non-Traefik container already uses the reserved name "${VIBRAIL_EDGE_CONTAINER}". ` +
             "Vibrail did not replace or remove it.",
         );
+      }
+      if (owned) {
+        const vibrailManaged = owned.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true";
+        if (
+          vibrailManaged &&
+          owned.labels[VIBRAIL_EDGE_CONFIG_VERSION_LABEL] !== VIBRAIL_EDGE_CONFIG_VERSION
+        ) {
+          // Managed v1 configured an entrypoint-wide HTTP→HTTPS redirect, which
+          // makes externally terminated TLS routes impossible. Recreate only the
+          // edge container (the named ACME volume survives) so the v2 per-router
+          // redirects and plain-HTTP routes become active after upgrade.
+          await this.destroy(owned.id);
+          details = details.filter((container) => container.id !== owned!.id);
+          owned = undefined;
+        }
       }
       if (owned) {
         const vibrailManaged = owned.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true";
@@ -853,8 +872,6 @@ export class DockerRuntime implements RuntimeAdapter {
         "--providers.docker.exposedbydefault=false",
         `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
         "--entrypoints.web.address=:80",
-        `--entrypoints.web.http.redirections.entrypoint.to=${VIBRAIL_EDGE_ENTRYPOINT}`,
-        "--entrypoints.web.http.redirections.entrypoint.scheme=https",
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.http.tls.certresolver=${VIBRAIL_EDGE_CERT_RESOLVER}`,
         `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.storage=/letsencrypt/acme.json`,
@@ -862,9 +879,11 @@ export class DockerRuntime implements RuntimeAdapter {
       ];
       const edgeLabels = {
         [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
+        [VIBRAIL_EDGE_CONFIG_VERSION_LABEL]: VIBRAIL_EDGE_CONFIG_VERSION,
         [VIBRAIL_EDGE_COMPATIBLE_LABEL]: "true",
         [VIBRAIL_EDGE_NETWORK_LABEL]: VIBRAIL_EDGE_NETWORK,
         [VIBRAIL_EDGE_ENTRYPOINT_LABEL]: VIBRAIL_EDGE_ENTRYPOINT,
+        [VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL]: VIBRAIL_EDGE_HTTP_ENTRYPOINT,
         [VIBRAIL_EDGE_TLS_LABEL]: "true",
         [VIBRAIL_EDGE_CERT_RESOLVER_LABEL]: VIBRAIL_EDGE_CERT_RESOLVER,
       };
@@ -931,6 +950,7 @@ export class DockerRuntime implements RuntimeAdapter {
       return {
         network: VIBRAIL_EDGE_NETWORK,
         entrypoint: VIBRAIL_EDGE_ENTRYPOINT,
+        httpEntrypoint: VIBRAIL_EDGE_HTTP_ENTRYPOINT,
         tls: true,
         certResolver: VIBRAIL_EDGE_CERT_RESOLVER,
         source: "vibrail",
@@ -2116,7 +2136,7 @@ export class DockerRuntime implements RuntimeAdapter {
         Memory: config.resources.memoryMb * 1024 * 1024,
         CpuShares: Math.round(config.resources.cpuCores * 1024),
         // Publish on the LOOPBACK interface only — the edge (host process, or a
-        // host-net OpenResty container) reaches it at 127.0.0.1:<hostPort>, and
+        // host-net Traefik container) reaches it at 127.0.0.1:<hostPort>, and
         // it never faces the network. Binding 0.0.0.0 here would expose every
         // app directly, bypassing the edge's SSL/rate-limit/rules (and Docker's
         // iptables bypass ufw). A pinned `config.hostPort` (loopback-port route

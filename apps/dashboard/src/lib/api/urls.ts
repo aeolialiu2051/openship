@@ -139,7 +139,7 @@ export function resolveProxyWebSocketApiBase(pageOrigin: string, directApiOrigin
     const page = new URL(pageOrigin);
     // The production dashboard front server owns this stable same-origin
     // prefix and forwards it to the private API with Upgrade/Connection intact.
-    // Managed OpenResty may intercept the same prefix one hop earlier.
+    // Managed Traefik may intercept the same prefix one hop earlier.
     return `${page.origin}/_openship/ws/api/`;
   } catch {
     return directApiOrigin.replace(/\/+$/, "") + "/api/";

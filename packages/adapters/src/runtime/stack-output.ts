@@ -53,7 +53,7 @@ export function resolveProjectDir(buildDir: string, rootDirectory?: string): str
  * Resolve a static deploy's output directory to a concrete path under `base`.
  *
  * Shared by both static-deploy paths so their "." / traversal / absolute rules
- * never drift: self-hosted (the result becomes OpenResty's `root <dir>;`) and
+ * never drift: self-hosted (the result becomes Traefik's `root <dir>;`) and
  * cloud Pages (the result becomes the export `path` inside the build VM).
  *
  * Unlike {@link resolveProjectDir}, this CONFINES the result — the value is

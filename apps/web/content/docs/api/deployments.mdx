@@ -32,8 +32,6 @@ in place. You use the same paths either way.
 | `POST /api/deployments` | `deployment:write` | Git-based deploy — redeploy an already-linked project from its git source. |
 | `POST /api/deployments/prepare` | `deployment:write` | Detect stack / build config for a git repo or local path before deploying. |
 | `POST /api/deployments/build/access` | `deployment:write` | The wizard **Deploy** action — starts the build + deployment (git or folder upload). |
-| `POST /api/deployments/ssl/status` | `deployment:read` | Check a domain's SSL certificate status (side-effect-free). |
-| `POST /api/deployments/ssl/renew` | `deployment:write` | Renew a domain's SSL certificate. |
 | `GET /api/deployments/:id` | `deployment:read` | Get a deployment by id — status, URLs, timing, error summary. |
 | `GET /api/deployments/:id/logs` | `deployment:read` | Fetch a deployment's build / runtime logs. |
 | `GET /api/deployments/:id/stream` | `deployment:read` | Stream build / deploy logs and events live (SSE). |
@@ -228,35 +226,6 @@ POST /api/deployments/:id/reject
 ```bash
 openship deployment keep <deploymentId>
 openship deployment reject <deploymentId>
-```
-
-## SSL status and renew
-
-Both take the domain in the JSON body. `/ssl/status` is a side-effect-free probe (`POST` only so the
-hostname travels in the body); `/ssl/renew` re-issues the certificate.
-
-```
-POST /api/deployments/ssl/status
-POST /api/deployments/ssl/renew
-```
-
-<TypeTable
-  type={{
-    domain: { type: 'string', description: 'The hostname to check or renew.', required: true },
-    includeWww: { type: 'boolean', description: 'Renew only — also cover the www subdomain.' },
-  }}
-/>
-
-```bash
-curl -X POST https://your-host/api/deployments/ssl/status \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{"domain":"app.example.com"}'
-```
-
-```bash
-openship deployment ssl status app.example.com
-openship deployment ssl renew app.example.com
 ```
 
 ## Errors you might see

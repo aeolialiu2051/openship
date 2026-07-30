@@ -6,7 +6,7 @@ description: Self-hosted instance administration — onboarding, SSH servers, co
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
 The System API runs the machinery behind a self-hosted Openship box: first-run onboarding, the SSH
-**servers** you deploy onto, installing the components those servers need (Docker, OpenResty, certbot…),
+**servers** you deploy onto, installing the components those servers need (Docker and Git),
 port-forward tunnels, browsing the host filesystem, migrating a single-user instance into team mode, and
 exporting or importing the entire instance. In the dashboard this is spread across the onboarding wizard and
 the **Settings → Servers** area; from the terminal it's [`openship server`](/docs/cli/self-host) and
@@ -46,8 +46,6 @@ user or session exists), and the two `/setup` routes are public to the user sess
 | `POST /api/system/servers` | `server:write` | Add an SSH server. |
 | `PATCH /api/system/servers/:id` | `server:write` | Update an SSH server. |
 | `DELETE /api/system/servers/:id` | `server:admin` | Delete an SSH server. |
-| `GET /api/system/servers/:id/rate-limit` | `server:read` | Read the server's OpenResty rate-limit config. |
-| `PATCH /api/system/servers/:id/rate-limit` | `server:write` | Update the OpenResty rate-limit config (handler requires admin). |
 | `GET /api/system/servers/:id/tunnels` | `server:read` | List port-forward tunnels and live status (desktop only). |
 | `POST /api/system/servers/:id/tunnels` | `server:write` | Save a port-forward config (desktop only). |
 | `POST /api/system/servers/:id/tunnels/:tunnelId/start` | `server:write` | Open a tunnel. |
@@ -247,7 +245,7 @@ POST /api/system/install
 <TypeTable
   type={{
     serverId: { type: 'string', description: 'The saved server to install onto.', required: true },
-    component: { type: 'string', description: 'A single installable component name (e.g. docker, openresty, certbot). Validated against an allowlist.', required: true },
+    component: { type: 'string', description: 'A single installable component name (docker, git, certbot, or rsync). Validated against an allowlist.', required: true },
     config: { type: 'object', description: 'Optional installer-specific configuration.', default: '{}' },
   }}
 />
@@ -262,7 +260,7 @@ running.
 openship server install <serverId> --component docker
 
 # Stream logs live (attaches to POST /api/system/install/stream):
-openship server install <serverId> --component docker --component openresty --follow
+openship server install <serverId> --component docker --component git --follow
 ```
 
 <Callout title="SSE, not JSON" type="info">
@@ -273,27 +271,6 @@ reload.
 
 `GET /api/system/monitor/stream?serverId=<id>` emits a `stats` event every few seconds with CPU %, memory,
 disk, uptime, and load average gathered over SSH — `openship server monitor <serverId>`.
-
-## Per-server rate limiting
-
-Read or update the OpenResty request rate limit for a server. OpenResty on the target server is the source of
-truth; the API parses and rewrites its `ratelimit.conf`.
-
-```
-PATCH /api/system/servers/:id/rate-limit
-```
-
-<TypeTable
-  type={{
-    rps: { type: 'number', description: 'Requests per second (0 removes the limit). Floored to an integer.' },
-    burst: { type: 'number', description: 'Burst allowance above rps.' },
-    whitelist: { type: 'string[]', description: 'CIDR ranges exempt from the limit; invalid entries are dropped.' },
-  }}
-/>
-
-```bash
-openship server rate-limit <serverId> --rps 50 --burst 100
-```
 
 ## Port-forward tunnels
 

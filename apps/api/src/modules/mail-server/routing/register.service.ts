@@ -1,6 +1,6 @@
 /**
  * Mail-server route registration - wires the route plan (built in @repo/core)
- * into openship's existing routing provider (NginxProvider / OpenResty /
+ * into Openship's existing routing provider (Traefik or
  * Cloud, whichever is active on the deploy target).
  *
  * This is the I/O half of the routing module - the pure half lives in

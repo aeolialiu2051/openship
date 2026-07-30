@@ -112,7 +112,7 @@ const DeploymentProcessing: React.FC<DeploymentProcessingProps> = ({ onRedeploy 
   // and navigates to the new deployment (or re-enables on failure).
   const [isRedeploying, setIsRedeploying] = useState(false);
 
-  // ── Pipeline prompt modal (port conflict / edge takeover) ──────────────
+  // ── Pipeline prompt modal (for example, a port conflict) ───────────────
   useEffect(() => {
     if (!state.pendingPrompt) return;
     const { promptId, title, message, actions, details } = state.pendingPrompt;

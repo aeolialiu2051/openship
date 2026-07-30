@@ -48,7 +48,7 @@ export interface ComposePipelineOpts {
   routing: RoutingProvider;
   ssl: SslProvider;
   /** SystemManager for the target (self-hosted); null for cloud/desktop. Used to
-   *  ensure openresty/certbot/docker once before the service fan-out, matching
+   *  ensure traefik/certbot/docker once before the service fan-out, matching
    *  the single-app deploy preflight. */
   system: SystemManager | null;
   /** Target host executor (SSH/local) — writes app template config files onto

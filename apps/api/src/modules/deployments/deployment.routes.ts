@@ -73,8 +73,6 @@ r.post(
 // Side-effect-free SSL status probe — uses POST only to carry hostname
 // in body. Permission required is "read"; readOnly tells the scanner
 // the POST + read combination is intentional.
-r.post("/ssl/status", { tag: "deployment:read", readOnly: true, collection: true }, ctrl.sslStatus);
-r.post("/ssl/renew", { tag: "deployment:write", collection: true }, ctrl.sslRenew);
 
 /* ── Deployment by ID ──────────────────────────────────────────────── */
 // cloudDeploymentProxy (after the permission middleware) forwards the request

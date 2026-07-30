@@ -21,10 +21,8 @@ import * as selfApp from "./self-app.controller";
 import * as serverCheck from "./server-check.controller";
 import * as dockerOverview from "./docker-overview.controller";
 import * as serversCtrl from "./servers.controller";
-import * as rateLimit from "./rate-limit.controller";
 import * as tunnels from "./tunnels.controller";
 import * as serverGithub from "../github/server-github.controller";
-import * as serverModules from "./server-modules.controller";
 import * as migration from "./migration/migration.controller";
 import * as dataTransfer from "./data-transfer/data-transfer.controller";
 import * as systemHealth from "./system-health.controller";
@@ -51,14 +49,10 @@ r.public("post", "/invite-signup", { reason: "Self-host invited signup — autho
 
 /* ── Control-plane self-registration (CLI setup wizard) ─────────────
  * After bootstrap-admin, the wizard registers Openship itself as an app
- * (shows under Apps) + attaches its domain — free (Oblien edge) or custom
- * (OpenResty + Let's Encrypt, streamed). All internal-token gated. */
+ * (shows under Apps) + attaches its domain. All internal-token gated. */
 r.public("get", "/cloud-status", { reason: "CLI setup — read Openship Cloud connection state; internal-token gated" }, internalAuth, selfApp.cloudStatus);
 r.public("post", "/cloud-connect", { reason: "CLI setup — finalize Openship Cloud PKCE handshake for a free domain; internal-token gated" }, internalAuth, selfApp.cloudConnect);
 r.public("post", "/self-register", { reason: "CLI setup — register the control plane as an app + attach its domain; internal-token gated" }, internalAuth, selfApp.selfRegister);
-r.public("get", "/self-register/stream", { reason: "CLI setup — SSE progress for custom-domain edge provisioning; internal-token gated" }, internalAuth, selfApp.selfRegisterStream);
-r.public("post", "/self-edge/preflight", { reason: "CLI setup — detect what owns ports 80/443 before installing OpenResty; internal-token gated" }, internalAuth, selfApp.selfEdgePreflight);
-r.public("post", "/edge/import-sites", { reason: "CLI `openship up` (compose) — register sites migrated from a foreign proxy into the container edge (host stops the proxy pre-up; api re-serves via DockerEdgeExecutor); internal-token gated" }, internalAuth, selfApp.edgeImportSites);
 
 /* ── Authenticated routes (dashboard settings page) ─────────────── */
 r.get("/settings", { tag: "settings:read" }, setup.getSetup);
@@ -104,9 +98,6 @@ r.post("/servers", { tag: "server:write", collection: true }, serversCtrl.create
 r.patch("/servers/:id", { tag: "server:write" }, serversCtrl.updateServer);
 r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
 
-/* ── Per-server rate limiting (OpenResty level) ─────────────────── */
-r.get("/servers/:id/rate-limit", { tag: "server:read" }, rateLimit.getRateLimit);
-r.patch("/servers/:id/rate-limit", { tag: "server:write" }, rateLimit.updateRateLimit);
 r.post(
   "/servers/:id/ports/scan",
   { tag: "server:read", readOnly: true, rateLimit: "server-probe" },
@@ -124,12 +115,6 @@ r.get(
   },
   dockerOverview.getDockerOverview,
 );
-
-// ── Native-module versioning + migration (OpenResty, …). The `:id` server is
-//    the permission resource; handlers hard-guard cloud + org-scope. ──
-r.get("/servers/:id/modules", { tag: "server:read" }, serverModules.listServerModules);
-r.post("/servers/:id/modules/scan", { tag: "server:write" }, serverModules.scanServerModules);
-r.post("/servers/:id/modules/:module/apply", { tag: "server:write" }, serverModules.applyServerModuleUpdate);
 
 // ── Per-server GitHub auth (self-hosted): device-login token / PAT / SSH
 //    server-key / per-repo deploy-key. The `:id` server is the permission

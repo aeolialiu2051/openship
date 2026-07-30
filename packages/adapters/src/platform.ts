@@ -9,9 +9,9 @@
  *   │              │              │  docker      │  bare        │                │
  *   ├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
  *   │  Runtime     │  CloudAPI    │  Docker      │  Bare        │  Bare          │
- *   │  Routing     │  CloudAPI    │  Nginx       │  Nginx       │  No-op         │
- *   │  SSL         │  CloudAPI    │  certbot     │  certbot     │  No-op         │
- *   │  System      │  -           │  docker, git │  git, nginx  │  -             │
+ *   │  Routing     │  CloudAPI    │  Traefik     │  No-op       │  No-op         │
+ *   │  SSL         │  CloudAPI    │  Traefik     │  No-op       │  No-op         │
+ *   │  System      │  -           │  docker, git │  git         │  -             │
  *   │  Toolchain   │  -           │  -           │  per-stack   │  -             │
  *   └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘
  *
@@ -40,7 +40,6 @@ import type { InstallerConfig } from "./system/types";
 import type { SystemManager } from "./system/setup";
 import type { DockerConnectionOptions } from "./runtime/docker";
 import type { BareRuntimeOptions } from "./runtime/bare";
-import type { NginxProviderOptions } from "./infra/nginx";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,7 +47,7 @@ import type { NginxProviderOptions } from "./infra/nginx";
  * Deployment target - determines which providers are used.
  *
  *   "cloud"      → Everything managed by Oblien API. No local setup.
- *   "selfhosted" → Docker or Bare runtime + Nginx routing/SSL. System checks.
+ *   "selfhosted" → Docker (Traefik labels) or Bare runtime. System checks.
  *   "desktop"    → Bare runtime, no routing/SSL, no system setup.
  */
 export type PlatformTarget = "cloud" | "selfhosted" | "desktop";
@@ -60,16 +59,14 @@ export interface PlatformConfig {
    * Runtime mode for self-hosted (ignored for cloud/desktop).
    *
    * This is the ONLY choice for self-hosted - everything else follows:
-  *   - "docker" → Docker containers + Nginx + certbot (default)
-  *   - "bare"   → Node.js processes + Nginx + certbot
+  *   - "docker" → Docker containers + Traefik (default)
+  *   - "bare"   → Node.js processes without managed public routing
    */
   runtime?: "docker" | "bare";
   /** Docker connection options (only for docker runtime) */
   docker?: DockerConnectionOptions;
   /** Bare runtime options (only for bare runtime) */
   bare?: BareRuntimeOptions;
-  /** Nginx provider options for self-hosted routing + SSL */
-  nginx?: Omit<NginxProviderOptions, "executor" | "paths">;
   /** Oblien client ID (cloud target - master creds) */
   cloudClientId?: string;
   /** Oblien client secret (cloud target - master creds) */
@@ -90,7 +87,7 @@ export interface PlatformConfig {
   /**
    * SSH config for remote server management (self-hosted only).
    *
-  * When provided, all system checks, installations, and Nginx file
+   * When provided, all system checks and installations
    * operations run on the remote server via SSH instead of locally.
    * When omitted, everything runs on the current machine.
    */
@@ -114,8 +111,8 @@ export interface PlatformConfig {
   /**
    * Serializes server-scoped provisioning across concurrent deploys (self-hosted
    * only). The API injects an in-process mutex + Postgres advisory lock keyed by
-   * the target server, so two deploys never race apt/dpkg, the openresty unit +
-   * config, docker networks, or the setup-state file. Omitted → no serialization.
+   * the target server, so two deploys never race apt/dpkg, Docker networks, or
+   * the setup-state file. Omitted → no serialization.
    */
   provisionLock?: ProvisionLock;
 }
@@ -212,82 +209,8 @@ async function createDesktopPlatform(config: PlatformConfig): Promise<Platform> 
   };
 }
 
-/**
- * Create the routing + SSL provider for self-hosted deployments.
- *
- * Detects OpenResty paths from the target server, then creates
- * the provider with the actual paths - no hardcoded fallbacks.
- */
-async function createInfraProvider(
-  _mode: "docker" | "bare",
-  config: PlatformConfig,
-  executor: CommandExecutor,
-  edgeContainer?: string,
-): Promise<{ routing: RoutingProvider; ssl: SslProvider }> {
-  // Containerized edge (compose): route through the `openship-edge` container —
-  // the api writes vhosts to the shared sites-enabled volume and reloads /
-  // runs certbot via `docker exec` (DockerEdgeExecutor). nginx.conf + the Lua
-  // are BAKED into the image, so there's nothing to detect/install/patch here.
-  if (edgeContainer) {
-    const { OPENRESTY_DEFAULT_PATHS } = await import("./infra/openresty-lua");
-    const { DockerEdgeExecutor } = await import("./system/docker-edge-executor");
-    const { NginxProvider } = await import("./infra/nginx");
-    const edgeExec = new DockerEdgeExecutor({ containerName: edgeContainer });
-    const nginx = new NginxProvider({
-      paths: OPENRESTY_DEFAULT_PATHS,
-      ...config.nginx,
-      executor: edgeExec,
-    });
-    return { routing: nginx, ssl: nginx };
-  }
-
-  const { detectOpenRestyPaths, ensureOpenRestyConfig, ensureLuaScripts } = await import(
-    "./infra/openresty-lua"
-  );
-  const paths = await detectOpenRestyPaths(executor);
-
-  // Application builds run as the SSH login user, but edge management writes
-  // to system-owned paths (/etc, /var/www, OpenResty's prefix) and reloads
-  // services. Oracle/Ubuntu-style VPS images intentionally disable root login
-  // and grant the default user passwordless sudo instead, so use a narrowly
-  // scoped elevated executor for infrastructure operations only.
-  const { detectPrivilege } = await import("./system/environment");
-  const { elevatedExecutor } = await import("./system/elevated-executor");
-  const privilege = await detectPrivilege(executor);
-  if (!privilege.isRoot && !privilege.canSudo) {
-    throw new Error(
-      "Server management requires root or passwordless sudo (sudo -n). Update the SSH user permissions and reconnect the server.",
-    );
-  }
-  const infraExecutor = privilege.isRoot ? executor : elevatedExecutor(executor);
-
-  // Idempotent, but writes the SHARED nginx.conf (grep||sed). Concurrent deploys
-  // would race the non-atomic edit and lose/duplicate the include — serialize it.
-  const ensureConfig = async () => {
-    await ensureOpenRestyConfig(infraExecutor, paths);
-    // Self-heal the edge Lua on EVERY deploy — a box that lost rules_guard.lua
-    // (reinstall, manual rm, a pre-embed release) would otherwise 500 every
-    // request. Cheap: one listing, writes only what's missing, reloads only if
-    // it repaired something. deployLuaScripts (with geo deps) stays install-only.
-    await ensureLuaScripts(infraExecutor, paths);
-  };
-  await (config.provisionLock ? config.provisionLock.run(ensureConfig) : ensureConfig());
-
-  const { NginxProvider } = await import("./infra/nginx");
-  const nginx = new NginxProvider({ paths, ...config.nginx, executor: infraExecutor });
-  return { routing: nginx, ssl: nginx };
-}
-
 async function createSelfHostedPlatform(config: PlatformConfig): Promise<Platform> {
   const runtimeMode = config.runtime ?? "docker";
-
-  // Containerized-edge (compose) mode applies ONLY to the local target — never a
-  // remote server (those carry an injected pooled executor / ssh config and
-  // manage their own host's bare OpenResty). Gated on the local case so remote
-  // routing is untouched.
-  const useDockerEdge =
-    !config.executor && !config.ssh && process.env.OPENSHIP_EDGE_MODE === "docker";
-  const edgeContainer = process.env.OPENSHIP_EDGE_CONTAINER?.trim() || "openship-edge";
 
   // Executor - use injected (managed/pooled) executor, or create a fresh one
   let executor: CommandExecutor;
@@ -298,16 +221,13 @@ async function createSelfHostedPlatform(config: PlatformConfig): Promise<Platfor
     executor = createExecutor(config.ssh);
   }
 
-  // System - runtime mode determines all required components. In docker-edge
-  // mode the stack provides docker (socket) + OpenResty/certbot (edge image), so
-  // the api installs nothing on its container/host.
+  // System - runtime mode determines the runtime/toolchain requirements.
   const { SystemManager } = await import("./system/setup");
   const system = new SystemManager(runtimeMode, {
     executor,
     stateStore: config.stateStore,
     installerConfig: config.installerConfig,
     provisionLock: config.provisionLock,
-    assumeInstalled: useDockerEdge,
   });
 
   // Runtime
@@ -320,19 +240,16 @@ async function createSelfHostedPlatform(config: PlatformConfig): Promise<Platfor
     runtime = await DockerRuntime.create(config.docker, system, config.provisionLock);
   }
 
-  // Infrastructure - runtime implies the reverse proxy
-  const { routing, ssl } = await createInfraProvider(
-    runtimeMode,
-    config,
-    executor,
-    useDockerEdge ? edgeContainer : undefined,
-  );
+  // Docker deployments advertise routes and TLS directly through Traefik
+  // labels. The provider abstraction remains only for cloud deployments.
+  const { NoopInfraProvider } = await import("./infra/noop");
+  const infra = new NoopInfraProvider();
 
   return {
     target: "selfhosted",
     runtime,
-    routing,
-    ssl,
+    routing: infra,
+    ssl: infra,
     system,
     executor,
   };

@@ -1,7 +1,7 @@
 /**
  * Compile a normalized `RoutingConfig` (parsed from vercel.json) into the Oblien
  * `routes.set` payload — the CLOUD counterpart to `compileVercelRouting` →
- * OpenResty for self-hosted. Reuses `compileVercelRouting` for all parsing +
+ * Traefik for self-hosted. Reuses `compileVercelRouting` for all parsing +
  * injection-sanitization, then maps its structured result to Oblien's rule shape
  * (`client.routes.set(hostname, RoutesInput)`), so both emitters share one source
  * of truth and one set of safety guards.

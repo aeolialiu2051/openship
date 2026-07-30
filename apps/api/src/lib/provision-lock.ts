@@ -1,7 +1,7 @@
 /**
  * Provisioning lock — serializes server/workspace-scoped provisioning across
  * concurrent deploys so they never race the target's shared state (apt/dpkg,
- * the openresty unit + config, docker networks, the setup-state file).
+ * the traefik unit + config, docker networks, the setup-state file).
  *
  * Two layers:
  *   A. An in-process keyed async-mutex (module singleton) — serializes callers

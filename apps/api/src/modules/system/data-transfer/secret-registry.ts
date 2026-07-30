@@ -36,6 +36,10 @@ const SCHEME_BY_KEY: Record<string, { table: AnyTable; scheme: SecretScheme }> =
   "webhook_source.secret": { table: schema.webhookSource, scheme: "scalar" },
   "incoming_webhook.tokenEncrypted": { table: schema.incomingWebhook, scheme: "scalar" },
   "incoming_webhook.hmacSecretEncrypted": { table: schema.incomingWebhook, scheme: "scalar" },
+  "domain_settings.cloudflareApiTokenEncrypted": {
+    table: schema.domainSettings,
+    scheme: "scalar",
+  },
   "env_var.value": { table: schema.envVar, scheme: "scalar" },
   "backup_destination.accessKeyIdEnc": { table: schema.backupDestination, scheme: "enc1" },
   "backup_destination.secretAccessKeyEnc": { table: schema.backupDestination, scheme: "enc1" },

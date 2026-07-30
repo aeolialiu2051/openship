@@ -7,7 +7,6 @@
  *                  EXCEPT the SSH/Docker native stack — see `external` below)
  *   pglite/        pglite.wasm + pglite.data → OPENSHIP_PGLITE_ASSETS_DIR
  *   migrations/    drizzle .sql → OPENSHIP_MIGRATIONS_DIR
- *   lua/           OpenResty scripts read by openresty-lua.ts relative to its own bundled path
  *
  * Runs (under bun) after tsup, since tsup's `clean` wipes dist first. This only
  * runs at build/publish time in the monorepo; the published package ships the
@@ -60,9 +59,5 @@ for (const file of ["pglite.wasm", "pglite.data"]) {
 
 cpSync(join(REPO_ROOT, "packages/db/drizzle"), join(OUT, "migrations"), { recursive: true });
 
-// openresty-lua.ts resolves LUA_SRC_DIR relative to its own bundled module path
-// (dist/server/index.js after bundling), i.e. it expects dist/server/lua/*.lua.
-cpSync(join(REPO_ROOT, "packages/adapters/src/infra/lua"), join(OUT, "lua"), { recursive: true });
-
 const mb = (statSync(join(OUT, "index.js")).size / 1024 / 1024).toFixed(1);
-console.log(`[stage-server] staged API bundle → dist/server (${mb} MB) + pglite + migrations + lua`);
+console.log(`[stage-server] staged API bundle → dist/server (${mb} MB) + pglite + migrations`);

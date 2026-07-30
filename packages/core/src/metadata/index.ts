@@ -21,7 +21,7 @@ export { renderMetadataParser } from "./render";
 
 /**
  * One user-facing message for "the build output directory is missing/unset",
- * shared by every static deploy path (cloud Pages + self-hosted OpenResty) so
+ * shared by every static deploy path (cloud Pages + self-hosted Traefik) so
  * the wording never drifts. Vercel-style: names the directory and tells the user
  * exactly where to fix it, instead of leaking a runtime's internal error.
  */

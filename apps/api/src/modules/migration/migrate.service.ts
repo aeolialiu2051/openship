@@ -156,8 +156,8 @@ function volumeToComposeString(v: DiscoveredVolumeMount): string | null {
 
 /** Normalize an adopted service's ports for the shared Openship service group:
  *
- *   - Ports 80/443 belong to Openship's OpenResty edge → drop the host side,
- *     keep the container port (e.g. "80:3000" → "3000"); OpenResty routes to it.
+ *   - Ports 80/443 belong to Openship's Traefik edge → drop the host side,
+ *     keep the container port (e.g. "80:3000" → "3000"); Traefik routes to it.
  *   - Every OTHER host-published port must be UNIQUE across the group — two
  *     containers cannot bind the same host port (the classic "two postgres both
  *     on 127.0.0.1:5432" migration failure: `port is already allocated`). The
@@ -177,7 +177,7 @@ function normalizeHostPorts(
     const { host, container, proto } = parseComposePort(spec);
     const containerOnly = proto ? `${container}/${proto}` : container;
     if (host == null) return spec; // container-only expose — nothing published
-    if (EDGE_PORTS.has(host)) return containerOnly; // edge → OpenResty
+    if (EDGE_PORTS.has(host)) return containerOnly; // edge → Traefik
     if (claimed.has(host)) {
       droppedDuplicates.push(host);
       return containerOnly; // duplicate host port — keep only the container side
@@ -192,11 +192,9 @@ function normalizeHostPorts(
  * Map selected discovered services → compose service rows for `syncFromCompose`.
  * Shared by adopt AND re-import so the two paths can't drift: unique names,
  * group-wide host-port de-dup, adopt-the-running-image (never rebuild), and —
- * critically — services are left UNEXPOSED. Exposing here would fire the
- * routing/OpenResty ensure mid-import (which needs the 80/443 takeover-consent
- * modal the wizard can't surface); instead the user adds routes from the
- * project's Domains tab, and THAT redeploy runs the one unified ensure-OpenResty
- * + takeover-consent flow. Pushes a per-service warning when a host port is
+ * critically — services are left UNEXPOSED. The user adds and verifies routes
+ * from the project's Domains tab after import, then redeploys to publish them
+ * through shared Traefik. Pushes a per-service warning when a host port is
  * dropped as a duplicate.
  */
 export function buildAdoptedServiceRows(
@@ -327,7 +325,7 @@ export async function adoptServerStack(opts: {
 
   const stack = await discoverServerStack(serverId, organizationId, undefined, { flatDocker });
   const selected = new Set(serviceNames);
-  // Drop the edge proxy (traefik/nginx/… on 80/443): OpenResty replaces it, so
+  // Drop the edge proxy (traefik/nginx/… on 80/443): Traefik replaces it, so
   // adopting it would just replay the 80/443 conflict. Defense-in-depth — the
   // wizard already marks it non-importable and the orchestrator filters it too.
   const chosen = stack.services.filter((s) => selected.has(s.name) && !s.proxyKind);
@@ -400,7 +398,7 @@ export async function adoptServerStack(opts: {
     for (const [name, rs] of repoServices) {
       if (adoptedNames.has(name)) continue;
       // Run the compose host ports through the SAME normalizer + claimed-set as
-      // the adopted rows: strip edge-owned 80/443 (OpenResty owns them) and dedupe
+      // the adopted rows: strip edge-owned 80/443 (Traefik owns them) and dedupe
       // host ports already taken by a sibling — else a new `web` on "80:80" would
       // collide with the edge and fail the deploy.
       const { ports } = normalizeHostPorts(rs.ports ?? [], claimedHostPorts);
@@ -778,8 +776,8 @@ async function restoreFromSnapshot(opts: {
  * (status/logs/services) with no redeploy and no container disruption.
  *
  * Uses the SAME service mapping as adopt (`buildAdoptedServiceRows`) — services
- * land UNEXPOSED, so routing/OpenResty is untouched here; adding a domain later
- * runs the unified ensure-OpenResty + 80/443 takeover-consent flow.
+ * land UNEXPOSED, so routing is untouched here; adding and verifying a domain
+ * followed by redeploy publishes it through shared Traefik.
  */
 export async function reimportOpenshipProject(opts: {
   serverId: string;

@@ -422,6 +422,7 @@ export interface TraefikManualConfig {
 export interface ResolvedTraefikEdge {
   network: string;
   entrypoint: string;
+  httpEntrypoint?: string;
   tls: boolean;
   certResolver?: string;
   source: "vibrail" | "existing";

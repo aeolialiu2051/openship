@@ -2,7 +2,7 @@
  * Mail-server routing types.
  *
  * Replaces the per-VPS nginx routing that iRedMail used to set up. Now the
- * routes live in openship's routing layer (NginxProvider / OpenResty / Cloud
+ * routes live in Openship's routing layer (Traefik or Cloud
  * - whichever the deploy target uses), and the mail VPS has zero HTTP
  * listeners locally (only raw SMTP/IMAP/POP3 TCP).
  *

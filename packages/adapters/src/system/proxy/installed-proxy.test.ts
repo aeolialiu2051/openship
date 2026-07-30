@@ -48,8 +48,8 @@ describe("detectInstalledProxy", () => {
     expect(await detectInstalledProxy(host)).toBe("nginx");
   });
 
-  it("never matches OUR OpenResty — that would offer to import our own edge", async () => {
-    const host = hostWith(["/usr/local/openresty/nginx/conf/nginx.conf"]);
+  it("never matches OUR Traefik — that would offer to import our own edge", async () => {
+    const host = hostWith(["/usr/local/traefik/nginx/conf/nginx.conf"]);
     expect(await detectInstalledProxy(host)).toBeNull();
   });
 

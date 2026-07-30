@@ -194,7 +194,7 @@ On Windows, the OpenSSH agent is a named pipe rather than a socket and isn't sup
 ## A component won't install or reports unhealthy
 
 Openship installs and health-checks a small set of components on each server: **Docker**, **Git**,
-**OpenResty**, **Certbot**, and **rsync**. Docker and Git are the core requirements for deployments; the rest
+**Traefik**, **Certbot**, and **rsync**. Docker and Git are the core requirements for deployments; the rest
 are optional infrastructure. Manage them from the server's **Components** tab (the **System Health** card) or
 with `openship server install`/`check`.
 
@@ -230,32 +230,21 @@ Press **Re-check** (or `openship server check <serverId>`) — the Docker row sh
 </Steps>
 
 <Callout title="Docker installs only on Linux" type="warn">
-Automated Docker (and OpenResty) installation targets Linux servers. On a non-Linux host you'll see
+Automated Docker (and Traefik) installation targets Linux servers. On a non-Linux host you'll see
 `Docker installation is only supported on Linux servers` — install Docker yourself, then Re-check.
 </Callout>
 
 ### A component is installed but "unhealthy"
 
 <Callout type="error">
-A row shows a version but is flagged unhealthy, e.g. `OpenResty is installed but not running` or
-`OpenResty is running but analytics scripts are not deployed - reinstall to fix`.
+A component row shows a version but is flagged unhealthy.
 </Callout>
 
-**What it means.** The binary exists, but the check for it doing its job failed — the service isn't running,
-or (for OpenResty) its managed Lua scripts aren't in place.
+**What it means.** The binary exists, but the health check for it failed.
 
 **How to fix.**
 
 <Steps>
-
-<Step>
-For "not running", start the service on the server (`systemctl start openresty`) and **Re-check**.
-</Step>
-
-<Step>
-For "analytics scripts are not deployed", use **Reinstall** on that component's row — this re-lays OpenResty's
-managed config and scripts without a destructive removal.
-</Step>
 
 <Step>
 Watch the streamed **Install Logs** panel for the real error if a reinstall fails; the last lines name the
@@ -265,7 +254,7 @@ package or permission problem.
 </Steps>
 
 <Callout title="Reinstall, don't remove, to refresh" type="info">
-**Remove** is destructive — removing **OpenResty** takes down the reverse proxy and its managed config until
+**Remove** is destructive — removing **Traefik** takes down the reverse proxy and its managed config until
 you install it again. If you only need to refresh scripts or settings, use **Reinstall**.
 </Callout>
 
@@ -280,7 +269,7 @@ An install returns an error such as `install_in_progress`, `Invalid component na
 
 - `install_in_progress` — a setup session for this server is already running; only one runs at a time.
 - `Invalid component names` / `Invalid or missing component name` — the component isn't one Openship installs.
-  The valid names are `docker`, `git`, `openresty`, `certbot`, and `rsync`.
+  The valid names are `docker`, `git`, `traefik`, `certbot`, and `rsync`.
 
 **How to fix.**
 
@@ -292,8 +281,8 @@ new install. On the dashboard the in-progress session simply re-attaches.
 </Step>
 
 <Step>
-For an invalid name, re-run with one of the five supported components — the CLI rejects anything else up front
-with `Unknown component(s): … Valid: docker, git, openresty, certbot, rsync`.
+For an invalid name, re-run with a supported component — the CLI rejects anything else up front
+with `Unknown component(s): … Valid: docker, git, certbot, rsync`.
 </Step>
 
 <Step>

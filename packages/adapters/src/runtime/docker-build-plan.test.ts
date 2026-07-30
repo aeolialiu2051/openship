@@ -61,3 +61,24 @@ describe("generateDockerfile — non-PHP is unaffected", () => {
     expect(df).not.toContain("AS builder"); // single stage
   });
 });
+
+describe("generateDockerfile — static document roots", () => {
+  it("adds a path-specific SPA fallback for each static endpoint", () => {
+    const df = generateDockerfile(
+      config({
+        buildImage: "node:22",
+        runtimeImage: "nginx:alpine",
+        startCommand: "",
+        isStatic: true,
+        outputDirectory: "dist",
+        publicEndpoints: [
+          { targetPath: "/docs", domain: "docs.example.com" },
+          { targetPath: "/", domain: "root.example.com" },
+        ],
+      }),
+    );
+
+    expect(df).toContain("location /docs/ { try_files $uri $uri/ /docs/index.html; }");
+    expect(df).toContain("location / { try_files $uri $uri/ /index.html; }");
+  });
+});

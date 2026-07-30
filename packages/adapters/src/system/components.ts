@@ -16,20 +16,6 @@ export const SYSTEM_COMPONENTS: SystemComponentDefinition[] = [
     category: "core",
   },
   {
-    name: "openresty",
-    label: "OpenResty",
-    description: "Reverse proxy with Lua scripting for routing and traffic control",
-    installable: true,
-    category: "infrastructure",
-  },
-  {
-    name: "certbot",
-    label: "Certbot",
-    description: "Let's Encrypt certificate provisioning",
-    installable: true,
-    category: "infrastructure",
-  },
-  {
     name: "rsync",
     label: "rsync",
     description: "Fast directory sync for remote local-build transfers",

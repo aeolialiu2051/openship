@@ -61,7 +61,7 @@ describe("scanNginx", () => {
     const res = await scanNginx(makeExecutor([["nginx -T", conf]]));
     const good = res.sites.find((s) => s.serverNames.includes("good.example.com"));
     expect(good?.target).toEqual({ kind: "proxy", url: "http://127.0.0.1:9000" });
-    // undeclared upstream + nginx variable are NOT migrated (would break openresty -t)
+    // undeclared upstream + nginx variable are NOT migrated (would break traefik -t)
     expect(res.sites.some((s) => s.serverNames.includes("bad.example.com"))).toBe(false);
     expect(res.sites.some((s) => s.serverNames.includes("var.example.com"))).toBe(false);
     expect(res.warnings.some((w) => w.includes("ghost"))).toBe(true);

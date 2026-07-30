@@ -18,7 +18,7 @@ function isTraefikSummary(container: {
 }
 
 /** Locate the shared Traefik edge for a project without initializing the old
- * OpenResty routing stack. The managed container name is inspected first so
+ * Traefik routing stack. The managed container name is inspected first so
  * the common path costs one Docker call; full-host discovery is only a fallback
  * for adopted/custom Traefik installations. The caller owns runtime disposal. */
 export async function resolveTraefikLogSource(project: Project) {

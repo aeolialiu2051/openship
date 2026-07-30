@@ -140,8 +140,9 @@ app and upload the finished output to a cloud workspace to run.
 
 Once your app is running, something has to send visitors to it and serve HTTPS.
 
-- **Self-hosted (local and server)** uses **OpenResty** (a build of the nginx web server) to route requests,
-  and **certbot** to get free HTTPS certificates from **Let's Encrypt** and renew them automatically.
+- **Self-hosted Docker deployments** publish routing labels to the shared **Traefik** instance. Traefik's
+  configured certificate resolver obtains and renews HTTPS certificates. Bare deployments require
+  operator-managed public ingress.
 - **Cloud** delegates routing, HTTPS, and static-file hosting to Openship Cloud's edge — there's nothing to
   install or renew.
 

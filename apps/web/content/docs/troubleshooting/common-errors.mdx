@@ -108,7 +108,7 @@ before retrying. Every response also carries `X-RateLimit-Limit`, `X-RateLimit-R
 <Callout type="warn" title="Self-hosting behind a proxy?">
 If you get `400` with "Missing client IP — request must come through the proxy", your instance couldn't work
 out the caller's IP for its per-IP limits. That means requests are reaching the API without going through the
-reverse proxy that sets the forwarded-IP header. Route traffic through your proxy (openresty in the standard
+reverse proxy that sets the forwarded-IP header. Route traffic through your proxy (traefik in the standard
 topology) rather than hitting the API port directly.
 </Callout>
 

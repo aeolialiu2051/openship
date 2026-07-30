@@ -7,7 +7,7 @@
  * OWN app + domain pipeline — register the control plane as an **app** (it shows
  * up under Apps) with a domain:
  *   - Free   name.opsh.io  → Openship Cloud edge (Oblien); connects Cloud in-flow
- *   - Custom your-domain   → OpenResty + a free Let's Encrypt cert on this box
+ *   - Custom your-domain   → Traefik + a free Let's Encrypt cert on this box
  *   - BYO    your-domain   → you run your own reverse proxy in front
  *
  * No new deploy machinery — Openship deploys itself with its own tools.
@@ -54,9 +54,6 @@ import {
   composeInternalToken,
   sourceBuildDir,
 } from "../lib/compose";
-import { planAndApplyHostEdge, rollbackHostEdge, completeHostEdge } from "../lib/edge-preflight";
-import { importMigratedSites } from "../lib/edge-import";
-import type { ImportedSite } from "@repo/adapters/proxy";
 import { headlessProvision, type InstallInputs } from "../lib/instance-provision";
 
 declare const __CLI_VERSION__: string;
@@ -71,6 +68,7 @@ function ensure<T>(value: T | symbol): T {
 }
 
 const SLUG_RE = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/;
+const SETUP_LOCK = join(OS_DIR, "setup-in-progress");
 
 /* Loopback API helpers (internalGet/internalPost/bootstrapAdmin/waitHealthy/
  * waitDashboard/detectPublicIp) now live in lib/loopback-api and are imported
@@ -94,7 +92,7 @@ async function connectOpenshipCloud(port: string, token?: string): Promise<{ ema
   const capsEnv = await internalGet(port, "/api/health/env");
   const cloudApiUrl: string | undefined = capsEnv?.cloudApiUrl;
   if (!cloudApiUrl) {
-    log.error("Couldn't discover the Openship Cloud URL — free domain unavailable. Use a custom domain instead.");
+    log.error("Couldn't discover the Openship Cloud URL — free domain unavailable. Use a bring-your-own domain instead.");
     return null;
   }
 
@@ -188,77 +186,6 @@ async function promptLocalAdmin(): Promise<{ name: string; email: string; passwo
 }
 
 /** Consume the self-register SSE stream, driving the spinner until done. */
-async function streamProvision(
-  port: string,
-  sessionId: string,
-  s: ReturnType<typeof spinner>,
-): Promise<{ ok: boolean; detail?: string }> {
-  let ok = false;
-  // Remember the last warn/error line so a failure (e.g. an existing proxy still
-  // on 80/443, or a cert issue) reports WHY instead of a generic "not ready".
-  let detail: string | undefined;
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/system/self-register/stream?id=${sessionId}`, {
-      headers: { "X-Internal-Token": ensureInternalToken() },
-      signal: AbortSignal.timeout(300_000),
-    });
-    if (!res.ok || !res.body) return { ok: false };
-    const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-    const decoder = new TextDecoder();
-    let buffer = "";
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      let sep: number;
-      while ((sep = buffer.indexOf("\n\n")) >= 0) {
-        const frame = buffer.slice(0, sep);
-        buffer = buffer.slice(sep + 2);
-        const event = /event:\s*(.*)/.exec(frame)?.[1]?.trim();
-        const dataRaw = /data:\s*([\s\S]*)/.exec(frame)?.[1]?.trim();
-        if (!event) continue;
-        if (event === "log" && dataRaw) {
-          try {
-            const d = JSON.parse(dataRaw);
-            if (d.message) {
-              const msg = String(d.message).replace(/\s+/g, " ");
-              s.message(msg.slice(0, 68));
-              if (d.level === "warn" || d.level === "error") detail = msg;
-            }
-          } catch {
-            /* ignore */
-          }
-        } else if (event === "complete" && dataRaw) {
-          try {
-            const d = JSON.parse(dataRaw);
-            ok = d.status === "completed";
-            if (!ok && typeof d.error === "string") detail = d.error;
-          } catch {
-            /* ignore */
-          }
-        } else if (event === "end") {
-          return { ok, detail };
-        }
-      }
-    }
-  } catch {
-    return { ok, detail };
-  }
-  return { ok, detail };
-}
-
-/**
- * "Setup didn't finish" marker. Written once the wizard COMMITS the OS service
- * (so `serviceStatus().installed` flips true) and cleared only when setup runs
- * all the way to the end. If the wizard is interrupted in between — e.g. the
- * cloud-connect / domain step is cancelled or times out — this stays behind, so
- * the next `openship` resumes setup instead of showing the control panel as if
- * the install were finished. `openship up` never writes it (that path is a
- * complete install on its own), and pre-this-version installs never had one, so
- * neither is mistaken for interrupted.
- */
-const SETUP_LOCK = join(OS_DIR, "setup-in-progress");
-
 /** True when a prior wizard run installed the service but never completed. */
 export function isSetupInProgress(): boolean {
   return existsSync(SETUP_LOCK);
@@ -276,17 +203,12 @@ function wizardInputs(
   admin: { name: string; email: string; password: string },
   plan:
     | { type: "free"; slug: string; publicHost: string }
-    | { type: "custom"; hostname: string }
     | { type: "byo"; hostname: string }
     | { type: "none" },
 ): InstallInputs {
   switch (plan.type) {
     case "free":
       return { admin, domain: { kind: "free", slug: plan.slug, publicHost: plan.publicHost } };
-    case "custom":
-      // Compose edge is a container; headlessProvision issues the cert via the
-      // self-app project, so `edge` (host takeover) is a no-op here.
-      return { admin, domain: { kind: "custom", hostname: plan.hostname, acmeEmail: admin.email, edge: "cancel" } };
     case "byo":
       return { admin, domain: { kind: "byo", hostname: plan.hostname } };
     default:
@@ -351,27 +273,23 @@ export async function runWizard(): Promise<void> {
 
   let publicUrl: string | undefined;
   let behindProxy = false;
-  let managedEdge = false;
   // Domain wiring executed AFTER the service + admin are up.
   let domainPlan:
     | { type: "free"; slug: string; publicHost: string }
-    | { type: "custom"; hostname: string }
     | { type: "byo"; hostname: string }
     | { type: "none" } = { type: "none" };
 
   // 2. Reachability + domain (settings that hang off the admin created above) — a
   //    small back-navigable state machine. Clack has no native "back", so each
   //    select offers "← Back" and captured inputs survive re-entry. Produces
-  //    publicUrl / behindProxy / managedEdge / domainPlan.
-  const canManage = process.platform === "linux";
+  //    publicUrl / behindProxy / domainPlan.
   const BACK = "__back__";
   let slug = "";
-  let customDomainInput = "";
   let byoDomainInput = "";
   let publicHost: string | null = null;
 
-  // The server's public address — edge-proxy target + A-record hint. Auto-detect,
-  // and PROMPT when that fails: the free/custom paths REQUIRE it (without it the
+  // The server's public address — free-domain target + A-record hint. Auto-detect,
+  // and PROMPT when that fails: the free-domain path requires it (without it the
   // free registration 400s with "Could not resolve this server's public address").
   async function resolvePublicHost(): Promise<string> {
     if (publicHost) return publicHost;
@@ -394,7 +312,7 @@ export async function runWizard(): Promise<void> {
     return publicHost;
   }
 
-  type DomainStage = "reach" | "type" | "free" | "custom" | "byo";
+  type DomainStage = "reach" | "type" | "free" | "byo";
   let stage: DomainStage = "reach";
 
   log.message(chalk.dim("These are just starting choices — domain, Cloud, team, and the rest are all editable later in Settings."));
@@ -417,7 +335,6 @@ export async function runWizard(): Promise<void> {
         domainPlan = { type: "none" };
         publicUrl = undefined;
         behindProxy = false;
-        managedEdge = false;
         break planning;
       }
       stage = "type";
@@ -431,9 +348,6 @@ export async function runWizard(): Promise<void> {
           initialValue: "free",
           options: [
             { value: "free", label: "Free domain", hint: "name.opsh.io via Openship Cloud — HTTPS handled for you" },
-            ...(canManage
-              ? [{ value: "custom", label: "Custom domain", hint: "your domain + free Let's Encrypt on this box" }]
-              : []),
             { value: "byo", label: "Bring your own", hint: "your domain, behind your own reverse proxy" },
             { value: BACK, label: "← Back" },
           ],
@@ -481,48 +395,6 @@ export async function runWizard(): Promise<void> {
       publicUrl = `https://${slug}.opsh.io`;
       behindProxy = true; // Oblien's edge sets a trusted XFF
       domainPlan = { type: "free", slug, publicHost: host };
-      break planning;
-    }
-
-    if (stage === "custom") {
-      const raw = ensure(
-        await text({
-          message: "Your domain",
-          placeholder: "ops.example.com",
-          initialValue: customDomainInput || undefined,
-          validate: (v) => (v && normalizeUrl(v) ? undefined : "Enter a valid domain"),
-        }),
-      );
-      customDomainInput = raw;
-      const url = normalizeUrl(raw)!.replace(/^http:/i, "https:");
-      const hostname = new URL(url).hostname;
-      if (typeof process.getuid === "function" && process.getuid() !== 0) {
-        log.warn("Managed HTTPS installs OpenResty + certbot — that needs root. Re-run with sudo if it can't install.");
-      }
-      const host = await resolvePublicHost();
-      note(
-        `Add a DNS ${chalk.bold("A record")}:\n\n` +
-          `  ${chalk.cyan(hostname)}  →  ${chalk.cyan(host)}\n\n` +
-          chalk.dim("HTTPS is issued automatically once DNS resolves (it retries for a couple minutes)."),
-        "DNS",
-      );
-      const go = ensure(
-        await select({
-          message: "A record added?",
-          options: [
-            { value: "go", label: "Continue", hint: "HTTPS provisions once DNS resolves — it retries" },
-            { value: BACK, label: "← Back", hint: "change the domain" },
-          ],
-        }),
-      );
-      if (go === BACK) {
-        stage = "type";
-        continue;
-      }
-      publicUrl = url;
-      managedEdge = true;
-      behindProxy = true; // OpenResty terminates TLS + sets a trusted XFF
-      domainPlan = { type: "custom", hostname };
       break planning;
     }
 
@@ -611,24 +483,7 @@ export async function runWizard(): Promise<void> {
   const s = spinner();
   let started: { port: string; dashPort: string; publicUrl?: string };
   let provisionToken: string | undefined;
-  // Host-edge takeover state (compose only): what the operator chose, plus the
-  // sites/certs to hand the api once the container edge is up.
-  let edgeAction: "migrate" | "takeover" | "cancel" | undefined;
-  let migratedSites: ImportedSite[] | undefined;
-  let migratedCertPems: Record<string, { certPem: string; keyPem: string }> | undefined;
   if (method === "compose") {
-    // A foreign proxy already on 80/443? Migrate/take it over first (interactive)
-    // so the container edge can bind — the same host-edge pipe `openship up` uses.
-    const edgePlan = await planAndApplyHostEdge({});
-    if (!edgePlan.proceed) {
-      cancel("Left the existing proxy on 80/443 running — re-run and choose migrate/takeover when ready.");
-      process.exit(0);
-    }
-    // Kept outside this branch so the health-check failure below can roll the
-    // takeover back, and so the post-up import knows what to register.
-    edgeAction = edgePlan.action;
-    migratedSites = edgePlan.sites;
-    migratedCertPems = edgePlan.certPems;
     log.step(
       sourceBuildDir()
         ? "Building the Openship images from your source checkout (first run takes a few minutes)…"
@@ -636,11 +491,6 @@ export async function runWizard(): Promise<void> {
     );
     const up = composeUp({ publicUrl, trustProxy: behindProxy, version: __CLI_VERSION__ });
     if (!up.ok) {
-      // The preflight stopped + disabled the operator's proxy to free 80/443. The
-      // stack isn't coming up, so restore it rather than leaving the box dark.
-      if (edgePlan.action && (await rollbackHostEdge())) {
-        log.warn("Restored the previous proxy on 80/443 — your existing sites are serving again.");
-      }
       log.error("The Docker Compose stack didn't come up. Run `openship up --compose` to see the error.");
       process.exit(1);
     }
@@ -651,7 +501,7 @@ export async function runWizard(): Promise<void> {
     s.start("Installing Openship as a service");
     try {
       started = await startService(
-        { publicUrl, trustProxy: behindProxy, managedEdge, acmeEmail: managedEdge ? admin.email : undefined, uiVersion: uiTag },
+        { publicUrl, trustProxy: behindProxy, uiVersion: uiTag },
         { quiet: true },
       );
     } catch (e) {
@@ -665,9 +515,6 @@ export async function runWizard(): Promise<void> {
 
   if (!(await waitHealthy(started.port))) {
     s.stop("Openship didn't become healthy in time.", 1);
-    if (method === "compose" && edgeAction && (await rollbackHostEdge())) {
-      log.warn("Restored the previous proxy on 80/443 — your existing sites are serving again.");
-    }
     const reason = lastServiceError();
     if (reason) log.error(reason);
     if (reason && /lock/i.test(reason)) {
@@ -689,21 +536,6 @@ export async function runWizard(): Promise<void> {
     s.message("Starting the Openship dashboard");
     await waitDashboard(started.dashPort);
     s.stop("Deployed.");
-
-    // Migrate, phase 2 — the container edge exists now, so re-register the
-    // foreign proxy's sites into it (same helper `openship up` uses). Without
-    // this, "Migrate N sites & take over" would take the ports and serve nothing
-    // for those hostnames.
-    if (edgeAction === "migrate" && migratedSites?.length) {
-      const imported = await importMigratedSites(started.port, migratedSites, migratedCertPems);
-      if (!imported.ok) {
-        log.warn(
-          `Your ${migratedSites.length} existing site${migratedSites.length === 1 ? "" : "s"} ` +
-            "aren't served yet — re-run `openship up` to retry the import.",
-        );
-      }
-    }
-    if (edgeAction) await completeHostEdge();
 
     let liveUrl = publicUrl ?? `http://localhost:${started.dashPort}`;
     if (domainPlan.type === "free") {
@@ -827,108 +659,6 @@ export async function runWizard(): Promise<void> {
         )
           .trim()
           .toLowerCase();
-      }
-    }
-  } else if (domainPlan.type === "custom") {
-    // Managed HTTPS needs ports 80/443. If an existing proxy already owns them,
-    // ask before taking over — never silently kill someone's running service.
-    let edgeTakeover = false;
-    let edgeMigrate = false;
-    let proceedCustom = true;
-    const pf = await internalPost(port, "/api/system/self-edge/preflight", {});
-    const status = pf.ok
-      ? (pf.data?.status as
-          | { classification: string; canProceedClean: boolean; occupants: Array<{ command?: string; port: number }> }
-          | undefined)
-      : undefined;
-    const importable = pf.ok && Array.isArray(pf.data?.sites) ? (pf.data.sites as unknown[]).length : 0;
-    if (status && !status.canProceedClean && status.occupants?.length) {
-      const owner = status.occupants.map((o) => o.command ?? `port ${o.port}`).join(", ");
-      const known = status.classification === "known";
-
-      // Show WHAT would be migrated (not just a count) so the operator can audit
-      // it before handing us their edge. Mirrors the dashboard takeover modal.
-      const sites = (pf.ok && Array.isArray(pf.data?.sites) ? pf.data.sites : []) as Array<{
-        serverNames?: string[];
-        ssl?: boolean;
-        target?: { kind?: string; url?: string; root?: string };
-        source?: string;
-      }>;
-      if (sites.length > 0) {
-        const lines = sites.map((st) => {
-          const host = (st.serverNames ?? []).join(", ") || "(no server_name)";
-          const dest = st.target?.kind === "static" ? `static: ${st.target?.root ?? ""}` : st.target?.url ?? "";
-          return `${chalk.bold(host)} → ${chalk.dim(dest)}${st.ssl ? chalk.green(" [TLS]") : ""}`;
-        });
-        note(lines.join("\n"), `Detected ${sites.length} site${sites.length === 1 ? "" : "s"} on ${owner}`);
-      }
-      const warns = (pf.ok && Array.isArray(pf.data?.warnings) ? pf.data.warnings : []) as string[];
-      if (warns.length > 0) {
-        log.warn(`${warns.length} config item${warns.length === 1 ? "" : "s"} won't migrate automatically:`);
-        for (const w of warns.slice(0, 8)) log.message(chalk.dim(`• ${w}`));
-      }
-
-      const choice = ensure(
-        await select({
-          message: known
-            ? `An existing reverse proxy (${owner}) is serving ports 80/443.`
-            : `Ports 80/443 are in use by ${owner}, which we couldn't identify.`,
-          options: [
-            ...(importable > 0
-              ? [{
-                  value: "migrate",
-                  label: `Migrate ${importable} site${importable === 1 ? "" : "s"} & take over`,
-                  hint: "import the existing sites into Openship, then take 80/443",
-                }]
-              : []),
-            {
-              value: "override",
-              label: "Stop it & take over 80/443",
-              hint: known ? "the existing sites stop being served" : "may interrupt a running service",
-            },
-            { value: "cancel", label: "Cancel — leave it running" },
-          ],
-          // Per product decision: unknown owner pre-selects takeover; a known
-          // proxy defaults to cancel so the user chooses deliberately.
-          initialValue: known ? "cancel" : "override",
-        }),
-      );
-      if (choice === "cancel") proceedCustom = false;
-      else if (choice === "migrate") edgeMigrate = true;
-      else edgeTakeover = true;
-    }
-
-    if (!proceedCustom) {
-      log.warn(
-        "Left the existing proxy on 80/443 running. Registering Openship without managed HTTPS — " +
-          "front it with your proxy, or re-run setup to take over.",
-      );
-      await internalPost(port, "/api/system/self-register", {
-        domainType: "byo",
-        hostname: domainPlan.hostname,
-      });
-      liveUrl = `https://${domainPlan.hostname}`;
-    } else {
-      const res = await internalPost(port, "/api/system/self-register", {
-        domainType: "custom",
-        hostname: domainPlan.hostname,
-        dashPort: Number(started.dashPort),
-        acmeEmail: admin?.email,
-        edgeTakeover,
-        edgeMigrate,
-      });
-      if (res.ok && res.data?.sessionId) {
-        const s2 = spinner();
-        s2.start("Issuing HTTPS certificate (OpenResty + Let's Encrypt)");
-        const { ok: done, detail } = await streamProvision(port, res.data.sessionId, s2);
-        liveUrl = res.data.url ?? liveUrl;
-        if (done) s2.stop(`HTTPS ready: ${liveUrl}`);
-        else {
-          s2.stop("HTTPS isn't ready yet — it retries on reboot; the site serves over HTTP meanwhile.", 1);
-          if (detail) log.warn(detail);
-        }
-      } else {
-        log.warn(`Couldn't start domain provisioning: ${res.data?.error || "failed"}`);
       }
     }
   } else if (domainPlan.type === "byo") {

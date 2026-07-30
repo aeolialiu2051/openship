@@ -185,7 +185,7 @@ export async function createTopup(c: Context) {
 // through Stripe's hosted portal (POST /portal returns a one-shot
 // redirect URL). There is no first-party /payment-methods or
 // /invoices on the SaaS side — proxying those would hit a 404 HTML
-// page from openresty and break dashboard JSON handling.
+// page from traefik and break dashboard JSON handling.
 
 export async function createPortal(c: Context) {
   const ctx = getRequestContext(c);

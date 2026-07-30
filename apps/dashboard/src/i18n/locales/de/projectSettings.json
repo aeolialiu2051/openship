@@ -668,8 +668,6 @@
       "verifyNotYet": "{hostname} konnte noch nicht verifiziert werden.",
       "verifyFailedTitle": "Verifizierung fehlgeschlagen",
       "verifyFailed": "Verifizieren der Domain fehlgeschlagen.",
-      "sslRenewed": "SSL für {hostname} erneuert.",
-      "sslRenewFailed": "Erneuern des SSL für {hostname} fehlgeschlagen.",
       "sslTitle": "SSL",
       "sslVerified": "SSL für {hostname} verifiziert.",
       "sslNoCert": "Noch kein gültiges Zertifikat für {hostname} gefunden. Wenn Sie gerade deployt haben, geben Sie Let's Encrypt einen Moment und prüfen Sie dann erneut.",

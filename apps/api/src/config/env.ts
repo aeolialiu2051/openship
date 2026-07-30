@@ -92,17 +92,8 @@ const envSchema = z.object({
    */
   OPENSHIP_REQUIRE_AUTH: envBool("false"),
 
-  /**
-   * Managed edge: at boot, install OpenResty + certbot on THIS machine and
-   * route OPENSHIP_PUBLIC_URL's host → the local dashboard with a free Let's
-   * Encrypt cert (reusing the app-deploy route/SSL pipes). Set by the CLI
-   * wizard's "managed edge" path; off = bring-your-own reverse proxy.
-   */
-  OPENSHIP_MANAGED_EDGE: envBool("false"),
-  /** Loopback dashboard port the managed edge proxies to (defaults 3001). */
+  /** Loopback dashboard port used by the self-hosted control plane. */
   OPENSHIP_DASHBOARD_PORT: z.coerce.number().int().positive().catch(3001),
-  /** Let's Encrypt contact email for the managed edge (defaults to the admin). */
-  OPENSHIP_ACME_EMAIL: z.string().optional(),
 
   /* ---------- Mode ---------- */
   CLOUD_MODE: envBool("false"),
@@ -133,8 +124,8 @@ const envSchema = z.object({
   CLOUD_MAX_PROJECTS_PER_USER: z.coerce.number().int().min(1).default(2),
   /**
    * Deployment mode - determines the runtime + infrastructure combination:
-   *   - "docker"  (default) → Docker runtime + OpenResty routing/SSL (self-hosted)
-   *   - "bare"              → Process runtime + OpenResty routing/SSL (self-hosted)
+   *   - "docker"  (default) → Docker runtime + Traefik routing/SSL (self-hosted)
+   *   - "bare"              → Process runtime + Traefik routing/SSL (self-hosted)
    *   - "cloud"             → Oblien cloud API for everything (auto-set when CLOUD_MODE=true)
    *   - "desktop"           → Bare runtime, no routing/SSL (desktop app)
    */
@@ -216,7 +207,7 @@ const envSchema = z.object({
   /**
    * Operator-controlled toggle gating trust of `x-real-ip` /
    * `x-forwarded-for` headers (MEDIUM cleanup). When the API is behind
-   * a reverse proxy (openresty, nginx, traefik) that strips/rewrites
+   * a reverse proxy (traefik, nginx, traefik) that strips/rewrites
    * these headers, set true. When the API is the edge listener,
    * leave false — otherwise a malicious client can lie about its IP
    * and bypass per-IP rate limiting / audit attribution.

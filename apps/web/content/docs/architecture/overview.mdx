@@ -54,7 +54,7 @@ Because they share the API, you can start a deploy in the dashboard and check on
 When the API needs to *do* something to the outside world — build an image, start a container, wire up a domain, get an SSL certificate — it doesn't do it directly. It asks the **platform layer** (the `@repo/adapters` package). This is the "appliances" in the kitchen analogy, and it has three parts behind a single entry point:
 
 - **Runtime** — builds and runs your app. There are three runtimes: **Docker** (your app runs in a container), **Bare** (your app runs as a plain process, lighter for small machines and the desktop), and **Cloud** (the work is handed off to Openship Cloud).
-- **Infra** — routing and certificates. On self-hosted instances this is an OpenResty edge (an nginx-based server) for routing plus certbot for automatic Let's Encrypt HTTPS; in the Docker/Compose install the edge runs as a container on :80/:443 that the API drives. On cloud, Openship Cloud's edge handles it.
+- **Infra** — public routing and certificates. Self-hosted Docker services publish Traefik labels to the shared Traefik instance, whose certificate resolver handles HTTPS. Bare runtimes require operator-managed ingress. On cloud, Openship Cloud's edge handles routing and TLS.
 - **System** — prerequisite checks and setup (is Docker installed? is git present?). Self-hosted only.
 
 At startup the API picks the right combination of these once, and the rest of the code just calls `getPlatform()`. For the full story of how a deploy resolves to a concrete runtime, see [Runtime model](/docs/architecture/runtime-model).

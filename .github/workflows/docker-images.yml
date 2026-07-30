@@ -1,7 +1,7 @@
 name: Docker images
 
-# Publishes the official pull-based images (openship-api + openship-dashboard +
-# openship-edge) to GHCR. Deliberately SEPARATE from release.yml (the bun
+# Publishes the official pull-based images (openship-api + openship-dashboard)
+# to GHCR. Deliberately SEPARATE from release.yml (the bun
 # binary / npm CLI / desktop installers / GitHub release) so image publishing
 # can be iterated + tested on its own.
 #
@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard, edge]
+        image: [api, dashboard]
         platform: [amd64, arm64]
         include:
           - platform: amd64
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard, edge]
+        image: [api, dashboard]
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8

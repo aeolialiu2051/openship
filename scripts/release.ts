@@ -408,7 +408,6 @@ function releaseDocker(): void {
   log(``);
   log(`Verify when green:`);
   if (or) {
-    log(`  docker manifest inspect ghcr.io/${or.owner}/openship-edge:${shown}   # amd64 + arm64`);
     log(`  docker pull ghcr.io/${or.owner}/openship-api:${shown}`);
     log(`  Packages: https://github.com/orgs/${or.owner}/packages?repo_name=${or.repo}`);
   }

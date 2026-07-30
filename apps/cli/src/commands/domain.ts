@@ -1,5 +1,5 @@
 /**
- * `openship domain` — custom domains, DNS verification, and SSL.
+ * `openship domain` — custom domains and DNS ownership verification.
  *
  * Grounded in apps/api/src/modules/domains/domain.routes.ts (mounted at
  * /api/domains in app.ts). Each subcommand hits the real route:
@@ -9,9 +9,6 @@
  *   verify      POST   /domains/:id/verify      (200 verified | 422 not-yet)
  *   primary     POST   /domains/:id/primary
  *   records     GET    /domains/:id/records
- *   renew       POST   /domains/:id/renew
- *   verify-ssl  POST   /domains/:id/verify-ssl
- *   renew-all   POST   /domains/renew-all
  */
 
 import { Command } from "commander";
@@ -216,101 +213,13 @@ const recordsCmd = new Command("records")
     }
   });
 
-interface SslResult {
-  domain: string;
-  sslStatus: string;
-  expiresAt?: string | null;
-  issuer?: string | null;
-  verified?: boolean;
-}
-
-function printSsl(data: SslResult): void {
-  if (isJsonMode()) {
-    printJson(data);
-    return;
-  }
-  info(`  domain:  ${data.domain}`);
-  info(`  status:  ${data.sslStatus}`);
-  if (data.issuer) info(`  issuer:  ${data.issuer}`);
-  if (data.expiresAt) info(`  expires: ${data.expiresAt}`);
-}
-
-const renewCmd = new Command("renew")
-  .description("Renew the SSL certificate for a domain")
-  .argument("<id>", "Domain ID")
-  .action(async (id: string) => {
-    const sp = spin("Renewing certificate…");
-    try {
-      const res = await apiRequest<{ data: SslResult }>(`/domains/${encodeURIComponent(id)}/renew`, {
-        method: "POST",
-      });
-      sp?.succeed(`Renewed ${res.data.domain}`);
-      printSsl(res.data);
-    } catch (e) {
-      sp?.fail("Renew failed");
-      fail(e);
-    }
-  });
-
-const verifySslCmd = new Command("verify-ssl")
-  .description("Recheck that a domain's SSL certificate is issued and valid (no reissue)")
-  .argument("<id>", "Domain ID")
-  .action(async (id: string) => {
-    const sp = spin("Checking certificate…");
-    try {
-      const res = await apiRequest<{ data: SslResult }>(`/domains/${encodeURIComponent(id)}/verify-ssl`, {
-        method: "POST",
-      });
-      if (res.data.verified) sp?.succeed(`Certificate valid for ${res.data.domain}`);
-      else sp?.fail(`Certificate not valid yet for ${res.data.domain}`);
-      printSsl(res.data);
-      if (!isJsonMode() && !res.data.verified) process.exit(1);
-    } catch (e) {
-      sp?.fail("SSL check failed");
-      fail(e);
-    }
-  });
-
-interface RenewAllResult {
-  renewed: number;
-  results: Array<{ domain: string; status: string; error?: string }>;
-}
-
-const renewAllCmd = new Command("renew-all")
-  .description("Renew SSL for every near-expiry domain in your organization")
-  .action(async () => {
-    const sp = spin("Renewing expiring certificates…");
-    try {
-      const res = await apiRequest<{ data: RenewAllResult }>("/domains/renew-all", { method: "POST" });
-      sp?.succeed(`Renewed ${res.data.renewed} domain(s)`);
-      if (isJsonMode()) {
-        printJson(res.data);
-        return;
-      }
-      if (res.data.results.length > 0) {
-        printTable(
-          res.data.results.map((r) => ({ domain: r.domain, status: r.status, error: r.error ?? "" })),
-          ["domain", "status", "error"],
-        );
-      } else {
-        info("  Nothing needed renewal.");
-      }
-    } catch (e) {
-      sp?.fail("Renew-all failed");
-      fail(e);
-    }
-  });
-
 // ─── Parent group ────────────────────────────────────────────────────────────
 
 export const domainCommand = new Command("domain")
-  .description("Manage custom domains, DNS verification, and SSL certificates")
+  .description("Manage custom domains and DNS ownership verification")
   .addCommand(listCmd)
   .addCommand(addCmd)
   .addCommand(previewCmd)
   .addCommand(verifyCmd)
   .addCommand(primaryCmd)
-  .addCommand(recordsCmd)
-  .addCommand(renewCmd)
-  .addCommand(verifySslCmd)
-  .addCommand(renewAllCmd);
+  .addCommand(recordsCmd);

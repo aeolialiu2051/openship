@@ -4,7 +4,7 @@
  * Wizard "Routing" advanced section — a collapsible card wrapping the shared
  * RoutingConfigEditor, bound to the deployment config. Detected from the repo's
  * vercel.json at prepare; edits flow into `config.routingConfig` and are sent to
- * the backend on deploy (compiled to OpenResty for self-hosted).
+ * the backend on deploy (compiled to Traefik for self-hosted).
  */
 
 import React, { useState } from "react";

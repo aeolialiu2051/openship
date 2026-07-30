@@ -7,18 +7,7 @@ import type {
 } from "@repo/adapters";
 import { DockerRuntime } from "@repo/adapters";
 import { compileProjectTraefikRules } from "../modules/route-rules/route-rule.service";
-
-const SAFE_ROUTER_PART = /[^a-zA-Z0-9-]+/g;
-
-export function vibrailRouterName(...parts: Array<string | null | undefined>): string {
-  const suffix = parts
-    .filter((part): part is string => !!part)
-    .join("-")
-    .replace(SAFE_ROUTER_PART, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
-  return `vibrail-${suffix || "app"}`.slice(0, 63).replace(/-+$/g, "");
-}
+export { vibrailRouterName } from "./traefik-router-name";
 
 export async function resolveTraefikManualConfig(
   organizationId: string,

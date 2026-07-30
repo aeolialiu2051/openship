@@ -26,7 +26,6 @@ export const endpoints = {
     outputCheck: (id: string | number) => `projects/${id}/output-check`,
     toggle: (id: string | number, action: "enable" | "disable") => `projects/${id}/${action}`,
     retryRouting: (id: string | number) => `projects/${id}/routing/retry`,
-    edgeStatus: (id: string | number) => `projects/${id}/routing/edge-status`,
     clearCache: (id: string | number) => `projects/${id}/clear-cache`,
     clearBuild: (id: string | number) => `projects/${id}/clear-build`,
     routeRules: (id: string | number) => `projects/${id}/route-rules`,
@@ -130,8 +129,6 @@ export const endpoints = {
     buildStart: (id: string) => `deployments/${id}/build`,
     buildStatus: (id: string) => `deployments/${id}/build`,
     buildRedeploy: (id: string) => `deployments/${id}/redeploy`,
-    sslStatus: "deployments/ssl/status",
-    sslRenew: "deployments/ssl/renew",
     buildRespond: (id: string) => `deployments/${id}/build/respond`,
   },
 
@@ -142,8 +139,6 @@ export const endpoints = {
     preview: "domains/preview",
     byId: (id: string) => `domains/${encodeURIComponent(id)}`,
     verify: (id: string) => `domains/${encodeURIComponent(id)}/verify`,
-    verifySsl: (id: string) => `domains/${encodeURIComponent(id)}/verify-ssl`,
-    certificate: (id: string) => `domains/${encodeURIComponent(id)}/certificate`,
     primary: (id: string) => `domains/${encodeURIComponent(id)}/primary`,
     records: (id: string) => `domains/${encodeURIComponent(id)}/records`,
   },
@@ -268,14 +263,9 @@ export const endpoints = {
     servers: "system/servers",
     server: (id: string) => `system/servers/${id}`,
     serverReachability: (id: string) => `system/servers/${id}/reachability`,
-    serverRateLimit: (id: string) => `system/servers/${id}/rate-limit`,
     serverPortsScan: (id: string) => `system/servers/${id}/ports/scan`,
     serverDockerOverview: (id: string) => `system/servers/${id}/docker/overview`,
-    // Native-module versioning + migration (OpenResty, …)
-    serverModules: (id: string) => `system/servers/${id}/modules`,
-    serverModulesScan: (id: string) => `system/servers/${id}/modules/scan`,
-    serverModuleApply: (id: string, module: string) =>
-      `system/servers/${id}/modules/${module}/apply`,
+    // Native-module versioning + migration (Traefik, …)
     // Per-server GitHub auth (self-hosted)
     serverGithub: (id: string) => `system/servers/${id}/github`,
     serverGithubConnect: (id: string) => `system/servers/${id}/github/connect`,

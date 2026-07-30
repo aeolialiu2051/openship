@@ -3,7 +3,7 @@
  *
  * The counterpart to `openship up`. Where `stop` just halts things (compose down /
  * unload the service, keeping data), uninstall is the DESTRUCTIVE version: it also
- * drops the stack's volumes (database, issued certificates, edge vhosts), deletes
+ * drops the stack's volumes and database, deletes
  * the images we own, and removes ~/.openship.
  *
  * Two things it deliberately does NOT do, because this box is usually shared with
@@ -14,8 +14,6 @@
  *     workloads; removing the control plane shouldn't take their apps down with it
  *     (that's what project deletion is for).
  *
- * It also tries to hand :80/:443 back: if an install took over a proxy and never
- * finished, the takeover journal is rolled back so the previous proxy returns.
  */
 import { Command } from "commander";
 import chalk from "chalk";
@@ -24,12 +22,11 @@ import { existsSync, rmSync } from "node:fs";
 
 import { stop as stopService } from "../lib/service";
 import { readInstallMethod, composeUninstall } from "../lib/compose";
-import { rollbackHostEdge } from "../lib/edge-preflight";
 import { OS_DIR } from "../lib/paths";
 
 export const uninstallCommand = new Command("uninstall")
   .description(
-    "Remove Openship from this machine: stop it, delete its data (database, certs, edge config), its images, and ~/.openship. Deployed apps are left running.",
+    "Remove Openship from this machine: stop it, delete its data and images, and remove ~/.openship. Deployed apps are left running.",
   )
   .option("-y, --yes", "Skip the confirmation prompt (for scripts)")
   .option("--keep-data", "Keep the database/certs volumes and ~/.openship — remove only the running stack")
@@ -41,9 +38,9 @@ export const uninstallCommand = new Command("uninstall")
     if (!opts.yes) {
       const lines = [
         method === "compose"
-          ? "  • stop the Docker Compose stack (api, dashboard, postgres, redis, edge)"
+          ? "  • stop the Docker Compose stack (api, dashboard, postgres, redis)"
           : "  • stop and remove the Openship service",
-        destructive ? "  • DELETE its data: database, issued certificates, edge vhosts" : null,
+        destructive ? "  • DELETE its database and local state" : null,
         destructive ? `  • DELETE ${OS_DIR} (config, tokens, local database)` : null,
         !opts.keepImages && method === "compose" ? "  • delete the Openship container images" : null,
         "  • leave your DEPLOYED apps and their data untouched",
@@ -58,12 +55,6 @@ export const uninstallCommand = new Command("uninstall")
         return;
       }
     }
-
-    // Before tearing the edge down: if an install stopped the operator's proxy and
-    // never completed, put it back. Best-effort and a no-op when there's no
-    // unfinished journal (a COMPLETED takeover cleared it — see the hint below).
-    const restored = await rollbackHostEdge().catch(() => false);
-    if (restored) console.log(chalk.green("  Restored the proxy that was running before Openship."));
 
     if (method === "compose") {
       const { ok, removedImages } = composeUninstall({ removeImages: !opts.keepImages });
@@ -97,14 +88,6 @@ export const uninstallCommand = new Command("uninstall")
 
     console.log(
       chalk.green("\n  ✔ Openship uninstalled.\n") +
-        // A takeover that SUCCEEDED cleared its journal, so we have no record of
-        // what to restart — say so rather than leaving :80/:443 quietly dark.
-        (restored
-          ? ""
-          : chalk.dim(
-              "  If Openship took over :80/:443 from another proxy, re-enable it:\n" +
-                "    sudo systemctl enable --now nginx   (or caddy / apache2)\n",
-            )) +
         chalk.dim("  Deployed apps are still running — `docker ps` to review them.\n"),
     );
   });

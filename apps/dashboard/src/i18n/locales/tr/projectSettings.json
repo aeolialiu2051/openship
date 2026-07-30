@@ -778,8 +778,6 @@
       "verifyNotYet": "{hostname} henüz doğrulanamadı.",
       "verifyFailedTitle": "Doğrulama başarısız oldu",
       "verifyFailed": "Alan adı doğrulanamadı.",
-      "sslRenewed": "{hostname} için SSL yenilendi.",
-      "sslRenewFailed": "{hostname} için SSL yenilenemedi.",
       "sslTitle": "SSL",
       "sslVerified": "{hostname} için SSL doğrulandı.",
       "sslNoCert": "{hostname} için henüz geçerli bir sertifika bulunamadı. Az önce dağıtım yaptıysanız Let's Encrypt'e biraz zaman verip tekrar kontrol edin.",

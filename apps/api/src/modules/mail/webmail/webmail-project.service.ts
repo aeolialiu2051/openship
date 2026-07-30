@@ -16,7 +16,7 @@
  *      the bundled `client/` next to it.
  *
  * Everything else - preflight, toolchain (bun), workspace transfer,
- * OpenResty vhost, Let's Encrypt cert, lifecycle hooks - is the standard
+ * Traefik vhost, Let's Encrypt cert, lifecycle hooks - is the standard
  * `createQueuedDeployment` → `startBuild` path. The bespoke 10-step
  * engine that used to live here is gone. The previous "build on the
  * target" flow is gone too - it OOM-killed small VPSes during the Vite
@@ -69,7 +69,7 @@ const REMOTE_PERSIST_DIR = "/var/lib/openship-webmail";
 const REMOTE_BRANDING_DIR = `${REMOTE_PERSIST_DIR}/branding`;
 const REMOTE_SQLITE_PATH = `${REMOTE_PERSIST_DIR}/zero.db`;
 
-/** Internal port Zero binds to behind the OpenResty vhost the pipeline creates. */
+/** Internal port Zero binds to behind the Traefik vhost the pipeline creates. */
 const DEFAULT_INTERNAL_PORT = 4080;
 
 /**
@@ -176,7 +176,7 @@ async function readExistingWebmailBlock(
  * (the deploy didn't go through `startWebmailDeploy` - nothing to flip).
  *
  * For cloud deploys to the mail server's own `mail.<install>` subdomain
- * we ALSO register an OpenResty proxy route on the mail VPS that points
+ * we ALSO register an Traefik proxy route on the mail VPS that points
  * `mail.<install>` → the Opshcloud URL. Operators can't change DNS for
  * that subdomain (it's pinned to the mail VPS for IMAP/SMTP), so the
  * mail VPS proxies it for them.
@@ -237,7 +237,7 @@ export async function markWebmailInstalled(
 }
 
 /**
- * Register an OpenResty proxy on the mail VPS:
+ * Register an Traefik proxy on the mail VPS:
  *   `https://<hostname>` → `<cloudUrl>`
  *
  * Used only for the cloud-deploy-with-mail-subdomain case (mail.<install>
@@ -254,7 +254,7 @@ async function registerWebmailCloudProxy(
   cloudUrl: string,
   organizationId: string,
 ): Promise<void> {
-  // resolveTargetPlatform gives us the mail VPS's openresty + ssl -
+  // resolveTargetPlatform gives us the mail VPS's traefik + ssl -
   // same platform that fronts IMAP/SMTP traffic for this hostname today.
   // org-scoped: resolveTargetPlatform verifies mailServerId ∈ org.
   const { resolveTargetPlatform } = await import("../../../lib/deployment-runtime");
@@ -553,7 +553,7 @@ export interface StartWebmailDeployResult {
  * Flow:
  *   1. Locate the pre-built dist at `apps/email/dist/` (fail-fast if absent).
  *   2. Reconcile the project row to that dist + the fixed webmail config.
- *   3. Sync the project route (hostname → OpenResty + Let's Encrypt).
+ *   3. Sync the project route (hostname → Traefik + Let's Encrypt).
  *   4. Mint / reuse the branding token + session key in mail-state.
  *   5. Ensure persistent dirs on the target (/var/lib/openship-webmail).
  *   6. Build the env map (PORT, COOKIE_DOMAIN, IMAP/SMTP, secrets…).
@@ -627,7 +627,7 @@ export async function startWebmailDeploy(
   // subdomain, the DNS A record already pins it to the mail server (for
   // IMAP / SMTP). The operator CAN'T change that record without breaking
   // mail. So if they pick Opshcloud as the target, the cloud workload
-  // gets a default *.opsh.io URL and the mail server's OpenResty proxies
+  // gets a default *.opsh.io URL and the mail server's Traefik proxies
   // `mail.<install>` → that URL. No DNS work for the operator.
   //
   // For any OTHER hostname (e.g. `webmail.foo.com`), the operator owns

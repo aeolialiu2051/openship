@@ -47,19 +47,23 @@ export function deriveEnvironmentPublicEndpoints(
   if (!primaryEndpoint) return [];
 
   if (primaryEndpoint.targetPath) {
-    return [{
-      targetPath: primaryEndpoint.targetPath,
-      domain: normalizedSlug,
-      domainType: "free",
-    }];
+    return [
+      {
+        targetPath: primaryEndpoint.targetPath,
+        domain: normalizedSlug,
+        domainType: "free",
+      },
+    ];
   }
 
   if (primaryEndpoint.port !== undefined) {
-    return [{
-      port: primaryEndpoint.port,
-      domain: normalizedSlug,
-      domainType: "free",
-    }];
+    return [
+      {
+        port: primaryEndpoint.port,
+        domain: normalizedSlug,
+        domainType: "free",
+      },
+    ];
   }
 
   return [];
@@ -82,7 +86,10 @@ function draftEndpointsWithIds(
   endpoints: StoredPublicEndpoint[],
 ): ProjectRouteEndpoint[] {
   const idByHostname = new Map(
-    normalizeProjectRouteRows(projectDomains).map((domain) => [domain.hostname.toLowerCase(), domain.id]),
+    normalizeProjectRouteRows(projectDomains).map((domain) => [
+      domain.hostname.toLowerCase(),
+      domain.id,
+    ]),
   );
 
   return endpoints.map((endpoint, index) => {
@@ -180,7 +187,7 @@ export async function resolveProjectRouteState(
   project: ProjectRouteProject,
   opts?: { projectDomains?: Domain[] },
 ): Promise<ProjectRouteState> {
-  const projectDomains = opts?.projectDomains ?? await listProjectRouteRows(project.id);
+  const projectDomains = opts?.projectDomains ?? (await listProjectRouteRows(project.id));
   return deriveProjectRouteState(project, { projectDomains });
 }
 
@@ -205,7 +212,7 @@ export async function syncProjectRouteState(
     customDomain?: string | null;
   },
 ): Promise<ProjectRouteState> {
-  const projectDomains = input.projectDomains ?? await listProjectRouteRows(project.id);
+  const projectDomains = input.projectDomains ?? (await listProjectRouteRows(project.id));
   const nextState = deriveNextProjectRouteState(project, {
     ...input,
     projectDomains,
@@ -225,38 +232,21 @@ export async function syncProjectRouteState(
  * `previousHostnames` are the hostnames tracked BEFORE the edit; any that are
  * gone now get their live route torn down.
  *
- * Self-hosted uses the routing provider (nginx/openresty), resolving the
- * upstream from the active deployment's container (docker) or the host (bare).
+ * Self-hosted resolves the upstream from the active deployment's container or
+ * host before reconciling the route through the selected infrastructure layer.
  * Cloud re-applies via the runtime's page/workspace primitives.
  *
  * Static-path routes (served straight from the web root) are left to the next
  * deploy — they have no live upstream to point at here.
  */
-export interface ReapplyProjectLiveRoutesOptions {
-  /**
-   * The self-app (control plane) project legitimately routes its public
-   * hostname to its OWN dashboard port on loopback — that's the whole point
-   * of self-deploy.ts. Only self-deploy.ts's own call sites may pass this;
-   * it must never be derived from `project.appTemplateId`, which is
-   * client-writable via the ordinary create/update project APIs and would
-   * let any project forge its way past the reserved-port guard.
-   */
-  isSelfApp?: boolean;
-}
-
 /**
  * True when a resolved upstream must NOT be used for a public route: a
  * loopback host pointed at a reserved control-plane/mgmt port (the admin
- * API, the dashboard, or the unauthenticated OpenResty mgmt port) would
- * expose an internal service to the internet. `isSelfApp` is the one
- * exception — the control-plane project's own route to itself.
+ * API, the dashboard, or the Traefik mgmt port) would expose an internal
+ * service to the internet.
  */
-export function shouldRefuseLoopbackRoute(
-  host: string,
-  port: number,
-  opts: ReapplyProjectLiveRoutesOptions = {},
-): boolean {
-  return isLoopbackHost(host) && isReservedLoopbackPort(port) && !opts.isSelfApp;
+export function shouldRefuseLoopbackRoute(host: string, port: number): boolean {
+  return isLoopbackHost(host) && isReservedLoopbackPort(port);
 }
 
 export async function reapplyProjectLiveRoutes(
@@ -272,7 +262,6 @@ export async function reapplyProjectLiveRoutes(
     | "routeStrategy"
   >,
   previousHostnames: string[],
-  opts: ReapplyProjectLiveRoutesOptions = {},
 ): Promise<void> {
   const isCloud = !!project.cloudWorkspaceId;
   if (!isCloud && !project.activeDeploymentId) return;
@@ -388,9 +377,16 @@ export async function reapplyProjectLiveRoutes(
     // live). Bare / no-host-port fall back to container IP (or 127.0.0.1 bare).
     let hostPort: number | undefined;
     if (strategy === "loopback-port" && runtime.name !== "bare") {
-      hostPort = (await runtime.getContainerInfo?.(containerId).catch(() => null))?.hostPort ?? undefined;
+      hostPort =
+        (await runtime.getContainerInfo?.(containerId).catch(() => null))?.hostPort ?? undefined;
     }
-    const url = await resolveUpstreamUrl({ strategy, runtime, containerId, containerPort: port, hostPort });
+    const url = await resolveUpstreamUrl({
+      strategy,
+      runtime,
+      containerId,
+      containerPort: port,
+      hostPort,
+    });
     if (!url) {
       console.warn(
         `[project-route] ${project.slug}: could not resolve upstream for ${containerId} (target=${effectiveTarget}, server=${serverId ?? "local"})`,
@@ -399,11 +395,10 @@ export async function reapplyProjectLiveRoutes(
     }
     // Never proxy a public route at a reserved control-plane/mgmt port on the
     // host loopback — that would expose the admin API (env.PORT) or the
-    // unauthenticated OpenResty mgmt port (9145). Only guards loopback: a
-    // container's own bridge IP:<port> is the app's, not ours. The self-app is
-    // exempt (see ReapplyProjectLiveRoutesOptions.isSelfApp).
+    // internal control-plane ports. Only guards loopback: a
+    // container's own bridge IP:<port> is the app's, not ours.
     const m = url.match(/^https?:\/\/([^:/]+):(\d+)$/);
-    if (m && shouldRefuseLoopbackRoute(m[1], Number(m[2]), opts)) {
+    if (m && shouldRefuseLoopbackRoute(m[1], Number(m[2]))) {
       console.warn(
         `[project-route] ${project.slug}: refusing reserved loopback upstream port ${m[2]} for a public route`,
       );

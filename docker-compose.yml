@@ -14,7 +14,7 @@
 #                       there is deliberately NO Docker socket and NO edge.
 #   • From-source dev:  CLOUD_MODE=false (the .env.example default).
 #
-# SELF-HOSTING (run your own apps as host containers with the OpenResty edge on
+# SELF-HOSTING (run your own apps as host containers with the Traefik edge on
 # :80/:443) is a DIFFERENT stack — the pull-based images + `edge` + Docker-out-
 # of-Docker. That lives in docker/docker-compose.yml (or install it with the
 # `openship up` CLI). Don't add the edge/socket here; this stays a clean,

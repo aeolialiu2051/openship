@@ -1,6 +1,6 @@
 /**
  * Compile a normalized `RoutingConfig` (parsed from vercel.json / netlify) into
- * the reverse-proxy directives OpenResty can serve. PURE — no I/O — so the
+ * the reverse-proxy directives Traefik can serve. PURE — no I/O — so the
  * translation is unit-testable without a live nginx.
  *
  * Faithful to the documented CONFIG semantics (rewrites/redirects/headers/

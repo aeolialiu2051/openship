@@ -48,12 +48,9 @@ describe("resolveInstallInputs", () => {
     );
   });
 
-  it("custom requires a hostname and validates --edge", () => {
-    expect(() => resolveInstallInputs({ ...OK, domainKind: "custom" })).toThrow(HeadlessInputError);
-    const r = resolveInstallInputs({ ...OK, domainKind: "custom", hostname: "ops.example.com", edge: "takeover" });
-    expect(r.domain).toMatchObject({ kind: "custom", hostname: "ops.example.com", edge: "takeover" });
+  it("rejects the removed managed custom-domain mode", () => {
     expect(() =>
-      resolveInstallInputs({ ...OK, domainKind: "custom", hostname: "ops.example.com", edge: "bogus" }),
+      resolveInstallInputs({ ...OK, domainKind: "custom", hostname: "ops.example.com" }),
     ).toThrow(HeadlessInputError);
   });
 

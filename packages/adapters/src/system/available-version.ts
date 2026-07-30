@@ -1,6 +1,6 @@
 /**
  * Package-manager "is a newer version available?" probe for installed infra
- * components (git / OpenResty / certbot / rsync). Read-only, uses the LOCAL
+ * components (git / certbot / rsync). Read-only, uses the LOCAL
  * package index (no `apt-get update` / no root), so it's fast and safe to run on
  * a health check — it reports whatever the last index refresh knows, and
  * under-reports (never false-positives) when the index is stale.
@@ -20,7 +20,6 @@ import type { ComponentStatus } from "./types";
 const PACKAGE_NAMES: Record<string, string | null> = {
   git: "git",
   rsync: "rsync",
-  openresty: "openresty",
   certbot: "certbot",
   docker: null,
 };

@@ -36,7 +36,7 @@ import {
  * Callback that pauses the pipeline and asks the user for a decision.
  * Returns the action string chosen by the user.
  */
-/** A user-decision prompt (edge takeover, port conflict, …) — the ONE shape
+/** A user-decision prompt (port conflict, install confirmation, …) — the ONE shape
  *  shared by the deploy pipeline, server-setup, the CLI, and the dashboard modal
  *  that renders it. Resolves to the chosen action id. */
 export interface PromptPayload {

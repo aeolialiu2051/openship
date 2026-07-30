@@ -89,7 +89,7 @@ openship up --public-url https://openship.example.com   # + serve the dashboard 
 
 **`openship up` picks how it runs for you:**
 
-- **On Linux with Docker → Compose mode** (the default). Brings up the full stack — Postgres, Redis, API, dashboard, and a containerized **OpenResty edge on :80/:443** — from published images. This is the flavor that **hosts your deployed apps on the same box**, with automatic domains + Let's Encrypt TLS. Force it with `--compose`.
+- **On Linux with Docker → Compose mode** (the default). Brings up the full stack — Postgres, Redis, API, dashboard, and a containerized **Traefik edge on :80/:443** — from published images. This is the flavor that **hosts your deployed apps on the same box**, with automatic domains + Let's Encrypt TLS. Force it with `--compose`.
 - **Everywhere else → bare mode** (macOS, Windows, or Linux without Docker). A single lightweight process with an embedded database — an always-on control plane that **deploys apps out to a server (SSH) or Cloud**, like the desktop app but always on and login-required. Force it with `--bare`.
 
 A self-hosted instance **always requires login** (the admin you create in setup). `openship open` opens the dashboard · `openship stop` stops it · `openship update` upgrades · `openship up --foreground` runs attached.
@@ -125,7 +125,7 @@ cp .env.example .env          # then edit
 docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
-The stack is **postgres + redis + api + dashboard + edge**. The `edge` is OpenResty on **:80/:443** as a container (`network_mode: host`) — routing + Let's Encrypt, no bare host install. **Linux only** (host networking); on mac/win use `openship up` (bare). The `api` container mounts the host Docker socket so the control plane can build + run your apps as host containers — it's host-privileged through the socket, so run it only on a trusted host.
+The control-plane stack is **postgres + redis + api + dashboard**. The API mounts the host Docker socket so it can build and run application workloads. When the first public Docker route is deployed, Openship reuses a compatible Traefik instance or creates the shared `vibrail-edge` instance; application containers publish their routes through Docker labels. Run the socket-enabled stack only on a trusted host.
 
 **Upgrade:** pin `OPENSHIP_VERSION` in `.env` for reproducible pulls, then `docker compose --env-file .env -f docker/docker-compose.yml pull && … up -d` (or just `openship update`). **Build from source instead:** add `-f docker/docker-compose.build.yml … up -d --build`.
 
@@ -142,7 +142,7 @@ Point Openship at a source — a **GitHub repo**, a **local folder**, or a **pre
 1. **Detect.** It reads your `package.json`, framework config, lockfiles, and any `docker-compose.yml` / `openship.json` to work out the stack, package manager, build/start commands, and port. Zero config files required; an `openship.json` overrides the guesses if you want control.
 2. **Build.** On the target server or locally on the orchestrator, into a Docker image or a bare release. The resolved config is frozen into a snapshot, so redeploys and rollbacks re-run *exactly* what shipped.
 3. **Run.** As a container (published on loopback only — never a public port) or a supervised host process.
-4. **Route + secure.** The OpenResty edge writes a reverse-proxy vhost to your domain and issues a Let's Encrypt certificate (HTTP-01). Because routing and TLS happen *after* the app is up, a DNS or cert hiccup surfaces as "action required" — it never fails the deploy or takes your app down.
+4. **Route + secure.** The Traefik edge writes a reverse-proxy vhost to your domain and issues a Let's Encrypt certificate (HTTP-01). Because routing and TLS happen *after* the app is up, a DNS or cert hiccup surfaces as "action required" — it never fails the deploy or takes your app down.
 5. **Push-to-deploy.** A GitHub webhook re-runs the pipeline on every push to the tracked branch — rebuilding only the services a monorepo push actually touched.
 
 Databases, domains, SSL, CDN, mail, and backups are managed from the same place. (Push-to-deploy and public domains need an always-on server or Cloud — a desktop/loopback instance has no public endpoint to receive webhooks.)

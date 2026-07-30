@@ -49,7 +49,7 @@ export interface DeploymentHeaderRule {
  * Normalized routing config extracted from a repo's platform config
  * (`vercel.json`, `netlify.toml`/`_redirects`, …). Reproduces the documented
  * config semantics (not a platform's edge/serverless runtime). Persisted on the
- * project and compiled to the reverse-proxy (OpenResty) at deploy time.
+ * project and compiled to the reverse-proxy (Traefik) at deploy time.
  */
 export interface RoutingConfig {
   rewrites?: DeploymentRewrite[];
@@ -99,7 +99,7 @@ export interface DeploymentMetadata {
   rewrites?: DeploymentRewrite[];
   /**
    * Full routing config (rewrites/redirects/headers/cleanUrls/trailingSlash) —
-   * persisted on the project and compiled to OpenResty at deploy time.
+   * persisted on the project and compiled to Traefik at deploy time.
    */
   routing?: RoutingConfig;
   /**

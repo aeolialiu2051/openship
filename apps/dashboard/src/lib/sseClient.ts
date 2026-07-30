@@ -44,7 +44,7 @@ export const connectToLiveLogs = async ({
 };
 
 /**
- * Connect to server HTTP request logs SSE stream (OpenResty live pipe via local API)
+ * Connect to server HTTP request logs SSE stream (Traefik live pipe via local API)
  */
 export const connectToServerLogs = async ({
   projectId = '',

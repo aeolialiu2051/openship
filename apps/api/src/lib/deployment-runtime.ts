@@ -201,7 +201,7 @@ export function resolveEffectiveTarget(
 }
 
 export function usesManagedRouting(base: Platform["target"], effectiveTarget: DeployTarget): boolean {
-  // Managed (local OpenResty) routing applies only to on-box targets. A cloud
+  // Managed (local Traefik) routing applies only to on-box targets. A cloud
   // target — including the local-orchestrated cloud deploy — routes via cloud
   // pages/edge, not the local proxy.
   return (
@@ -301,7 +301,7 @@ export async function resolveDeploymentPlatform(
 /**
  * Resolve only the workload runtime for observability and lifecycle calls.
  * Deploy resolution also builds routing/TLS providers, which made every logs
- * connection detect and repair OpenResty even on a Traefik-backed server.
+ * connection detect and repair Traefik even on a Traefik-backed server.
  */
 export async function resolveDeploymentRuntimeOnly(
   snapshot: DeploymentMeta,
@@ -333,7 +333,7 @@ export async function resolveDeploymentRuntimeOnly(
     return { runtime, effectiveTarget, runtimeMode, serverId: null };
   }
 
-  // Cloud resolution has no OpenResty side effects and preserves org-scoped auth.
+  // Cloud resolution has no Traefik side effects and preserves org-scoped auth.
   const cloud = await resolveDeploymentPlatform(snapshot, opts);
   return { runtime: cloud.platform.runtime, effectiveTarget, runtimeMode, serverId: null };
 }
@@ -350,7 +350,7 @@ export async function resolveDeploymentRuntimeOnly(
  *   bare    BareRuntime(LocalExec)   BareRuntime(SshExec)
  *   docker  DockerRuntime(socket)    DockerRuntime(ssh transport)
  *
- * Each cell also gets the matching routing (OpenResty) and system manager.
+ * Each cell also gets the matching routing (Traefik) and system manager.
  * Cloud deployments go through the separate cloud-token flow.
  *
  * For server targets, the executor is acquired from `sshManager` (pooled,
@@ -392,13 +392,13 @@ export async function resolveTargetPlatform(
       ssh: ssh!,
       docker: runtimeMode === "docker" ? toDockerSshTransport(ssh!, executor) : undefined,
       // Serialize provisioning per target server, so concurrent deploys (across
-      // projects / single-app + compose) never race apt/openresty/networks/state.
+      // projects / single-app + compose) never race apt/traefik/networks/state.
       provisionLock: createProvisionLock(`provision:server:${id}`),
     });
   }
 
   // Local target - no SSH, no pooling needed. Still serialize provisioning: two
-  // local deploys share the same host's openresty/docker/state.
+  // local deploys share the same host's traefik/docker/state.
   return createPlatform({
     target: "selfhosted",
     runtime: runtimeMode,
@@ -524,7 +524,7 @@ export async function resolveDeploymentRuntime(
    * remote server/sandbox over SSH. This is the single, reused routing the
    * deploy pipeline uses; callers that re-apply routes on edit MUST use it
    * rather than the global `platform()` singleton (which only ever targets the
-   * orchestrator's local openresty).
+   * orchestrator's local traefik).
    */
   routing: Platform["routing"];
   effectiveTarget: DeployTarget;

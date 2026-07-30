@@ -15,7 +15,6 @@ import { setSignedCookie } from "hono/cookie";
 import { db, repos, schema, eq, and } from "@repo/db";
 import { generateId } from "@repo/core";
 import { hashPassword } from "better-auth/crypto";
-import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
 import { env } from "../../config";
 import { audit, auditContextFrom } from "../../lib/audit";
 import { getRequestContext } from "../../lib/request-context";
@@ -237,7 +236,6 @@ export async function setup(c: Context) {
       serverId = created.id;
     }
     sshManager.invalidate(serverId);
-    await invalidateOpenRestyPaths(serverId);
   }
 
   clearAuthModeCache();
@@ -478,7 +476,6 @@ export async function deleteSettings(c: Context) {
   }
 
   sshManager.invalidate();
-  await invalidateOpenRestyPaths();
   clearAuthModeCache();
   return c.json({ ok: true });
 }

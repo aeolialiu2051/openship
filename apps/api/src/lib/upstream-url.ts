@@ -1,7 +1,7 @@
 import type { RuntimeAdapter } from "@repo/adapters";
 
 /**
- * The single place that decides what `proxy_pass` target the OpenResty edge uses
+ * The single place that decides what `proxy_pass` target the Traefik edge uses
  * for an app/service. Every route-registration site funnels through here so the
  * strategy can never drift.
  *

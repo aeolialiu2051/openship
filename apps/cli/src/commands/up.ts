@@ -20,22 +20,11 @@ import {
 import { resolvePorts } from "../lib/ports";
 import { prepareFromSource, type FromSourceRun } from "../lib/from-source";
 import {
-  markStoppedProxyImported,
-  planAndApplyHostEdge,
-  rollbackHostEdge,
-  completeHostEdge,
-  type EdgeAction,
-} from "../lib/edge-preflight";
-import { importMigratedSites } from "../lib/edge-import";
-import {
   resolveInstallInputs,
   headlessProvision,
   HeadlessInputError,
 } from "../lib/instance-provision";
 import { OS_DIR, ensureInternalToken } from "../lib/loopback-api";
-import type { ImportedSite } from "@repo/adapters/proxy";
-
-const EDGE_ACTIONS: EdgeAction[] = ["migrate", "takeover", "cancel"];
 
 interface UpOpts {
   port?: string;
@@ -50,10 +39,6 @@ interface UpOpts {
   /** Bind the dashboard to this interface (e.g. 0.0.0.0 or a LAN IP) so an
    *  upstream reverse proxy can reach it; default 127.0.0.1 (loopback). */
   host?: string;
-  /** Install OpenResty + Let's Encrypt on this box and route --public-url here. */
-  managedEdge?: boolean;
-  /** ACME contact email for the managed edge. */
-  acmeEmail?: string;
   /** Preview mode: build + run from source (a branch) instead of a published release. */
   fromSource?: boolean;
   /** Git branch/tag/sha to build with --from-source (default: main). */
@@ -66,8 +51,6 @@ interface UpOpts {
   compose?: boolean;
   /** Force the bare process service (the pre-compose install). */
   bare?: boolean;
-  /** Non-interactive answer for the compose edge preflight when a foreign proxy holds :80/:443. */
-  edge?: string;
   /** Headless install: after the service is up, create the admin + register the
    *  domain from flags instead of prompting. Requires --admin-email + password. */
   nonInteractive?: boolean;
@@ -75,7 +58,7 @@ interface UpOpts {
   adminEmail?: string;
   /** Prefer OPENSHIP_ADMIN_PASSWORD env over the flag (keeps it out of argv). */
   adminPassword?: string;
-  /** byo | custom | free | none (default: byo when --public-url set, else none). */
+  /** byo | free | none (default: byo when --public-url set, else none). */
   domainKind?: string;
   hostname?: string;
   slug?: string;
@@ -151,25 +134,19 @@ export const upCommand = new Command("up")
     "--host <addr>",
     "Bind the dashboard to this interface so an upstream reverse proxy (or another LAN host) can reach it — e.g. 0.0.0.0 or a LAN IP like 192.168.1.50. Default 127.0.0.1. The API stays on loopback (the dashboard proxies to it). A concrete IP auto-trusts that browser origin for login; for 0.0.0.0 or a domain also pass --public-url (or set OPENSHIP_EXTRA_TRUSTED_ORIGINS) so login isn't rejected.",
   )
-  .option(
-    "--managed-edge",
-    "Managed edge: install OpenResty + a free Let's Encrypt cert on this box and route --public-url's domain to the dashboard (no reverse proxy needed)",
-  )
-  .option("--acme-email <email>", "Contact email for Let's Encrypt certificates (managed edge)")
   .option("--from-source", "Preview: build + run Openship from source (a branch) instead of a published release — runs attached")
   .option("--ref <branch>", "Git branch/tag/sha to build with --from-source (default: main)")
   .option("--source <path>", "Build from an existing local Openship checkout instead of cloning")
   .option("--repo <url>", "Git remote to clone for --from-source (default: oblien/openship)")
-  .option("--compose", "Install via Docker Compose using the published images (postgres + redis + api + dashboard + edge on :80/:443). Default when Docker is available on Linux.")
+  .option("--compose", "Install via Docker Compose using the published images (postgres + redis + api + dashboard). Default when Docker is available.")
   .option("--bare", "Install as the bare process service (embedded DB, no Docker) instead of Compose")
-  .option("--edge <action>", "Compose mode: how to handle an existing proxy on :80/:443 — 'migrate' (import its sites into Openship's edge), 'takeover' (stop it; its sites stop serving), or 'cancel'. Default: prompt when interactive, else cancel.")
   .option("--non-interactive", "Headless install: after the service starts, create the admin + register the domain from the flags below (no prompts). Alias: --yes.")
   .option("--yes", "Alias for --non-interactive.")
   .option("--admin-name <name>", "Admin display name (headless install)")
   .option("--admin-email <email>", "Admin email — required for a headless install")
   .option("--admin-password <password>", "Admin password (min 8). Prefer the OPENSHIP_ADMIN_PASSWORD env var to keep it out of shell history.")
-  .option("--domain-kind <kind>", "Headless install domain: byo | custom | free | none (default: byo if --public-url set, else none)")
-  .option("--hostname <host>", "Domain/hostname for --domain-kind byo|custom (or derived from --public-url)")
+  .option("--domain-kind <kind>", "Headless install domain: byo | free | none (default: byo if --public-url set, else none)")
+  .option("--hostname <host>", "Domain/hostname for --domain-kind byo (or derived from --public-url)")
   .option("--slug <slug>", "Free .opsh.io subdomain for --domain-kind free (box must already be Cloud-connected)")
   .action(async (opts: UpOpts & { yes?: boolean }) => {
     // From-source + foreground are bare-only (attached / dev preview).
@@ -226,8 +203,6 @@ async function runHeadlessProvision(
       hostname: opts.hostname,
       slug: opts.slug,
       publicUrl: opts.publicUrl,
-      acmeEmail: opts.acmeEmail,
-      edge: opts.edge,
     });
   } catch (err) {
     if (err instanceof HeadlessInputError) {
@@ -256,7 +231,7 @@ async function runHeadlessProvision(
 
 /**
  * `openship up` (Docker Compose): bring up the published images as a stack
- * (postgres + redis + api + dashboard + the OpenResty edge on :80/:443). The
+ * (postgres + redis + api + dashboard + the Traefik edge on :80/:443). The
  * heavier, production-shaped profile — Postgres/Redis instead of the bare
  * embedded PGlite. Managed via `docker compose` (openship stop/update/status).
  */
@@ -266,37 +241,6 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
     console.error(
       chalk.red("\n  Docker + `docker compose` are required for the Compose install.\n") +
         chalk.dim("  Install Docker, or run `openship up --bare` for the process mode.\n"),
-    );
-    process.exit(1);
-  }
-
-  // --edge validation (before any side effects).
-  if (opts.edge && !EDGE_ACTIONS.includes(opts.edge as EdgeAction)) {
-    console.error(
-      chalk.red(`\n  Invalid --edge value: ${opts.edge}`) +
-        chalk.dim(`\n  Expected one of: ${EDGE_ACTIONS.join(", ")}\n`),
-    );
-    process.exit(1);
-  }
-
-  // Edge preflight: the host-net edge container binds :80/:443 at `up` time, so
-  // if a foreign proxy holds them we detect + (on consent) migrate/stop it on the
-  // HOST first, reusing the native pipe (lib/edge-preflight.ts). The core delegates
-  // this to `openship up` in docker-edge mode (apps/api/.../self-edge.ts).
-  let edgePlan;
-  try {
-    edgePlan = await planAndApplyHostEdge({ edge: opts.edge as EdgeAction | undefined });
-  } catch (e) {
-    console.error(
-      chalk.red(`\n  Edge preflight failed: ${(e as Error).message}\n`) +
-        chalk.dim("  Re-run, or pass --edge=cancel to skip taking over :80/:443.\n"),
-    );
-    process.exit(1);
-  }
-  if (!edgePlan.proceed) {
-    console.log(
-      chalk.yellow("\n  Left the existing proxy on :80/:443 running — not starting the stack.\n") +
-        chalk.dim("  Re-run and choose migrate / take-over (or pass --edge=migrate|takeover) when ready.\n"),
     );
     process.exit(1);
   }
@@ -316,43 +260,15 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
   });
   if (!res.ok) {
     spinner.fail("docker compose failed to start the stack");
-    // The preflight stopped AND disabled the operator's proxy to free 80/443. The
-    // stack isn't coming up, so put it back — never leave the box dark.
-    const restored = edgePlan.action ? await rollbackHostEdge() : false;
-    console.error(
-      chalk.dim("\n  Check `docker compose -f ~/.openship/compose/docker-compose.yml logs`.\n") +
-        (restored
-          ? chalk.yellow("  Restored the previous proxy on :80/:443 — your sites are serving again.\n")
-          : chalk.dim("  If ports 80/443 are held by another proxy, re-run — the preflight will offer to migrate or take over.\n")),
-    );
+    console.error(chalk.dim("\n  Check `docker compose -f ~/.openship/compose/docker-compose.yml logs`.\n"));
     process.exit(1);
   }
   spinner.succeed("Openship is running via Docker Compose.");
 
-  // Migrate: the container edge is up now, so re-register the foreign proxy's
-  // sites into it. The api drives the DockerEdgeExecutor (the host CLI can't), so
-  // we hand it the parsed sites + host-read cert PEMs.
-  //
-  // NOT best-effort: we already stopped the operator's proxy, so an import that
-  // registers nothing means their hostnames are dark. Keep the takeover journal
-  // OPEN in that case — it is the only record of how to restart their proxy
-  // (unit + wasEnabled), and completing it throws that away. `importMigratedSites`
-  // has already printed the failure and the restore command.
-  let importedOk = true;
-  if (edgePlan.action === "migrate" && edgePlan.sites?.length) {
-    const outcome = await importMigratedSites(res.apiPort, edgePlan.sites, edgePlan.certPems);
-    importedOk = outcome.registered.length > 0;
-    // Don't re-offer a stopped proxy's sites on the next run once they're in.
-    if (importedOk) markStoppedProxyImported();
-  }
-  // Edge is serving — close the takeover journal so the next run's recovery
-  // doesn't mistake it for an interrupted one and restart the old proxy.
-  if (edgePlan.action && importedOk) await completeHostEdge();
-
   const dashboardUrl = publicUrl ?? `http://localhost:${res.dashPort}`;
   console.log(
     chalk.dim(`  Dashboard: ${dashboardUrl}  (login required)\n`) +
-      chalk.dim("  Images:    api + dashboard + edge (OpenResty on :80/:443)\n") +
+      chalk.dim("  Images:    api + dashboard\n") +
       chalk.dim("  Manage:    openship stop · openship update · openship status\n") +
       // In headless mode the admin is bootstrapped below — don't tell the user to do it by hand.
       (headless ? "" : chalk.dim("  Create an admin: open the dashboard and register the first account.\n")),
@@ -363,7 +279,7 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
 /**
  * `openship up --from-source`: build a branch (or a local checkout) from source
  * and run it attached — the remote sibling of `bun dev`. Reuses runForeground
- * for ALL env / port / public-url / managed-edge wiring; only the API entry
+ * for all environment, port, and public-URL wiring; only the API entry
  * (bun-run raw TS) and the dashboard dir (local build) differ.
  */
 async function runFromSource(opts: UpOpts): Promise<void> {
@@ -404,10 +320,8 @@ export async function startService(
       ui: opts.ui,
       uiVersion: opts.uiVersion,
       publicUrl,
-      trustProxy: opts.trustProxy || opts.managedEdge,
+      trustProxy: opts.trustProxy || false,
       host: opts.host,
-      managedEdge: opts.managedEdge,
-      acmeEmail: opts.acmeEmail,
     });
     console.log(
       chalk.dim(`\n  service manager: ${p.kind}\n  path: ${p.path}\n\n`) + p.content + "\n",
@@ -435,10 +349,8 @@ export async function startService(
     ui: opts.ui,
     uiVersion: opts.uiVersion,
     publicUrl,
-    trustProxy: opts.trustProxy || opts.managedEdge, // managed edge = OpenResty sets XFF
+    trustProxy: opts.trustProxy || false,
     host: opts.host,
-    managedEdge: opts.managedEdge,
-    acmeEmail: opts.acmeEmail,
   };
   try {
     const res = installAndStart(flags);
@@ -507,7 +419,6 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     const port = String(resolved.api);
     const dashPort = String(resolved.dashboard);
     const publicUrl = opts.publicUrl ? normalizePublicUrl(opts.publicUrl) : undefined;
-    const managedEdge = Boolean(opts.managedEdge && publicUrl);
     const dataDir: string = opts.dataDir || join(OS_DIR, "data");
     mkdirSync(dataDir, { recursive: true });
 
@@ -564,15 +475,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     // Only trust the forwarded client IP (X-Real-IP) when an operator confirms a
     // real proxy is in front that OVERWRITES it — otherwise a client that can
     // reach the app port directly could forge X-Real-IP (see client-ip).
-    if (opts.trustProxy || managedEdge) env.TRUST_PROXY = "true";
-    // Managed edge: the API boot hook (self-edge) installs OpenResty + a free
-    // Let's Encrypt cert on this box and routes the public hostname → the
-    // loopback dashboard. OpenResty terminates TLS and sets XFF (trusted above).
-    if (managedEdge) {
-      env.OPENSHIP_MANAGED_EDGE = "true";
-      env.OPENSHIP_DASHBOARD_PORT = dashPort;
-      if (opts.acmeEmail) env.OPENSHIP_ACME_EMAIL = opts.acmeEmail;
-    }
+    if (opts.trustProxy) env.TRUST_PROXY = "true";
     delete env.DATABASE_URL;
     delete env.POSTGRES_URL;
 
@@ -689,10 +592,9 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
             NODE_ENV: "production",
             OPENSHIP_TARGET: "local",
             PORT: dashPort,
-            // Reachable remotely when public; loopback-only otherwise. Under
-            // managed edge the local OpenResty fronts the dashboard, so it stays
-            // on loopback even though there's a public URL.
-            HOSTNAME: opts.host?.trim() || (publicUrl && !managedEdge ? "0.0.0.0" : "127.0.0.1"),
+            // Reachable remotely only when the operator explicitly exposes it
+            // with --host or configures a public URL for a BYO proxy.
+            HOSTNAME: opts.host?.trim() || (publicUrl ? "0.0.0.0" : "127.0.0.1"),
             // The dashboard's same-origin proxy (NEXT_PUBLIC_API_PROXY, baked
             // into the release build) forwards /api/proxy/* to this address, so
             // the browser never needs to know where the API lives. Set in every
@@ -762,9 +664,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
         (dashboardUrl ? chalk.dim(`  Dashboard: ${dashboardUrl}  (login required)\n`) : "") +
           chalk.dim("  API is proxied through the dashboard (bound to loopback, not exposed).\n") +
           chalk.dim(`  Data:      ${dataDir}\n`) +
-          (managedEdge
-            ? chalk.dim("  Managed edge (OpenResty + Let's Encrypt) fronts this box — point your domain's A record at this server's IP. Stop with Ctrl-C.\n")
-            : chalk.dim("  Point your reverse proxy / DNS at the dashboard port. Stop with Ctrl-C.\n")),
+          chalk.dim("  Point your reverse proxy / DNS at the dashboard port. Stop with Ctrl-C.\n"),
       );
     } else {
       console.log(

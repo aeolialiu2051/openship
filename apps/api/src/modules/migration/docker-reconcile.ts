@@ -62,10 +62,10 @@ export interface DiscoveredService {
   restart?: string;
   healthcheck?: ComposeHealthcheck;
   /** Reverse-proxy kind when this container IS the edge proxy (image/command
-   *  matches AND it binds a host edge port). Openship's OpenResty replaces it,
+   *  matches AND it binds a host edge port). Openship's Traefik replaces it,
    *  so it's dropped from import — importing it is the 80/443 conflict. */
   proxyKind?: ProxyKind;
-  /** Host edge ports (80/443) this service publishes. Reserved for OpenResty:
+  /** Host edge ports (80/443) this service publishes. Reserved for Traefik:
    *  stripped from an imported non-proxy service; the signal that a proxy owns
    *  the edge. */
   edgePorts?: number[];
@@ -209,7 +209,7 @@ function portsToComposeStrings(ports: DockerPortBinding[]): string[] {
   return out;
 }
 
-/** The host ports Openship's OpenResty edge owns — never re-published by an
+/** The host ports Openship's Traefik edge owns — never re-published by an
  *  imported workload. */
 export const EDGE_PORTS = new Set([80, 443]);
 

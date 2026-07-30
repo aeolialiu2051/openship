@@ -95,8 +95,8 @@ describe("addDomain retries", () => {
       hostname: existingDomain.hostname,
       isPrimary: true,
     });
-    // Self-hosted verification is ACME-driven (issuing the cert proves control),
-    // so there's no ownership TXT — just the A record as a "point it here" hint.
+    // Address routing and ownership proof are separate: the A record points the
+    // hostname at the server, while the TXT token authorizes the domain.
     expect(result.records).toEqual({
       mode: "selfhosted",
       records: [
@@ -105,6 +105,12 @@ describe("addDomain retries", () => {
           host: "@",
           name: "example.com",
           value: "203.0.113.10",
+        },
+        {
+          type: "TXT",
+          host: "_openship-challenge",
+          name: "_openship-challenge.example.com",
+          value: "verify-existing",
         },
       ],
     });

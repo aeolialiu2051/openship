@@ -124,8 +124,8 @@ export interface ServerCheckResult {
 
 // ─── Edge (port 80/443) preflight ──────────────────────────────────────────────
 
-export type EdgeProxyKind = "nginx" | "caddy" | "apache" | "traefik" | "haproxy" | "openresty";
-export type EdgeClassification = "free" | "ours" | "known" | "unknown";
+export type EdgeProxyKind = "nginx" | "caddy" | "apache" | "traefik" | "haproxy";
+export type EdgeClassification = "free" | "known" | "unknown";
 
 export interface EdgeOccupant {
   port: number;
@@ -137,7 +137,6 @@ export interface EdgeOccupant {
   isDocker?: boolean;
   containerName?: string;
   proxy?: EdgeProxyKind;
-  managedByOpenship: boolean;
 }
 
 export interface EdgeStatus {
@@ -179,7 +178,7 @@ export interface SetupLogEvent {
   level: "info" | "warn" | "error";
 }
 
-/** Mid-install prompt the pipeline is blocked on (e.g. OpenResty edge takeover). */
+/** Mid-install prompt the pipeline is blocked on (for example a port conflict). */
 export interface SetupPromptEvent {
   type: "prompt";
   promptId: string;
@@ -394,7 +393,7 @@ export const systemApi = {
       { timeout: 30_000 },
     ), // headroom for a cold SSH connect + parallel probes
 
-  /** Answer a mid-install prompt (e.g. the OpenResty edge-takeover hold) */
+  /** Answer a mid-install prompt. */
   respondInstall: (action: string, sessionId?: string) =>
     api.post<{ ok: boolean }>(endpoints.system.installRespond, {
       action,
@@ -455,42 +454,6 @@ export const systemApi = {
 
   /** Delete a server */
   deleteServerEntry: (id: string) => api.delete<{ ok: boolean }>(endpoints.system.server(id)),
-
-  // ── Native-module updates (per-server) ─────────────────────────────────────
-
-  /** Cached drift for a server's installed native modules. */
-  listServerModules: (serverId: string) =>
-    api.get<ServerModuleStatus[]>(endpoints.system.serverModules(serverId)),
-
-  /** Re-probe the server now and refresh the module drift cache. */
-  scanServerModules: (serverId: string) =>
-    api.post<{ ok: boolean; modules: unknown[] }>(endpoints.system.serverModulesScan(serverId), {}),
-
-  /** Apply a module's pending migrations (includes consent-tier — surface the
-   *  warning to the user first). */
-  applyServerModule: (serverId: string, moduleName: string) =>
-    api.post<ModuleApplyResult>(
-      endpoints.system.serverModuleApply(serverId, moduleName),
-      {},
-      {
-        timeout: 120_000,
-      },
-    ),
-
-  // ── Rate Limiting (per-server) ─────────────────────────────────────────────
-
-  /** Get rate limit config for a server */
-  getRateLimit: (serverId: string) =>
-    api.get<{ config: ServerRateLimitConfig }>(endpoints.system.serverRateLimit(serverId)),
-
-  /** Update rate limit config for a server */
-  updateRateLimit: (
-    serverId: string,
-    data: { rps?: number; burst?: number; whitelist?: string[] },
-  ) =>
-    api.patch<
-      { success: true; config: ServerRateLimitConfig } | { success: false; error?: string }
-    >(endpoints.system.serverRateLimit(serverId), data),
 
   // ── Port exposure scan (per-server) ────────────────────────────────────────
 

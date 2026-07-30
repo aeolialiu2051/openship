@@ -3,7 +3,7 @@
 /**
  * Project Routing/Domains tab card: view + edit the vercel.json-derived routing
  * (rewrites/redirects/headers). Saving PATCHes the project; the backend re-applies
- * it to the live deployment's OpenResty WITHOUT a rebuild (self-hosted). Wraps the
+ * it to the live deployment's Traefik WITHOUT a rebuild (self-hosted). Wraps the
  * shared RoutingConfigEditor (same editor the wizard uses).
  */
 

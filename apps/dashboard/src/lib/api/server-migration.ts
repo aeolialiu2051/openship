@@ -27,8 +27,8 @@ export interface DiscoveredService {
   command?: string;
   restart?: string;
   /** Set when this container IS the edge proxy (80/443) — dropped from import;
-   *  Openship's OpenResty replaces it. */
-  proxyKind?: "nginx" | "caddy" | "apache" | "traefik" | "haproxy" | "openresty";
+   *  Openship's Traefik replaces it. */
+  proxyKind?: "nginx" | "caddy" | "apache" | "traefik" | "haproxy" | "traefik";
   /** Host edge ports (80/443) it publishes — reserved for Openship's edge. */
   edgePorts?: number[];
   /** Routes the server's existing (foreign) reverse proxy already serves for this

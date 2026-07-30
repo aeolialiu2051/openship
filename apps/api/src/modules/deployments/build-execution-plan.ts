@@ -13,7 +13,7 @@
  */
 
 export type BuildMode = "static-sandbox" | "static-bare" | "normal";
-export type DeployMode = "static-edge" | "static-file-serve" | "server";
+export type DeployMode = "static-edge" | "static-container" | "static-file-serve" | "server";
 export type RuntimeModeValue = "bare" | "docker";
 
 export interface BuildRuntimeModes {
@@ -33,13 +33,27 @@ export interface DeployRouting {
   staticServeOutputDir: string;
 }
 
+/** Resolve the container port advertised to Traefik for a planned route.
+ * Explicit port routes always win. A path route needs the static HTTP
+ * container's runtime port; bare file-serving routes have no container port. */
+export function resolveTraefikRoutePort(input: {
+  targetPort?: number;
+  targetPath?: string;
+  isStaticContainer: boolean;
+  runtimePort: number;
+}): number | undefined {
+  if (input.targetPort !== undefined) return input.targetPort;
+  if (input.isStaticContainer && input.targetPath) return input.runtimePort;
+  return undefined;
+}
+
 /**
  * The runtime-mode decision, made BEFORE platform resolution. Encodes the two
  * historical "flips" as data:
  *   - services → Docker (containers can't run bare) for build AND serve.
- *   - a static app on a server / self-hosted host → BUILD in a Docker sandbox, but
- *     its lifecycle identity stays BARE (files served by the edge; a persisted
- *     "docker" would make rollback/purge 404-no-op on the release dir and leak it).
+ *   - a static app on a self-hosted host → build and serve the generated HTTP
+ *     image with Docker so Traefik labels and lifecycle operations address the
+ *     same container runtime.
  * Cloud static and Docker-less desktop-local static are left to their own runtime.
  */
 export function resolveBuildRuntimeModes(input: {
@@ -57,7 +71,7 @@ export function resolveBuildRuntimeModes(input: {
     input.effectiveTarget !== "cloud" &&
     (!!input.serverId || input.baseTarget === "selfhosted")
   ) {
-    return { buildRuntimeMode: "docker", serveRuntimeMode: "bare" };
+    return { buildRuntimeMode: "docker", serveRuntimeMode: "docker" };
   }
   return { buildRuntimeMode: undefined, serveRuntimeMode: undefined };
 }
@@ -81,12 +95,16 @@ export function resolveDeployRouting(input: {
   if (input.runtimeName === "cloud") {
     return { buildMode: "normal", deployMode: "static-edge", staticServeOutputDir: "" };
   }
-  // Static, self-hosted → served as files by the edge. Docker-built → doc-root
-  // already extracted (serve from release root ""); bare-built → serve from output dir.
+  // Static Docker builds already produce a minimal HTTP image. Keep that image
+  // and deploy it as a normal Traefik-routed workload. Only Docker-less bare
+  // targets retain the filesystem release mode for operator-managed ingress.
   const dockerBuilt = input.runtimeName === "docker";
+  if (dockerBuilt) {
+    return { buildMode: "normal", deployMode: "static-container", staticServeOutputDir: "" };
+  }
   return {
-    buildMode: dockerBuilt ? "static-sandbox" : "static-bare",
+    buildMode: "static-bare",
     deployMode: "static-file-serve",
-    staticServeOutputDir: dockerBuilt ? "" : input.outputDirectory,
+    staticServeOutputDir: input.outputDirectory,
   };
 }

@@ -319,7 +319,7 @@ export function subscribe(
     }));
   }
 
-  // Re-show a still-pending decision prompt (edge takeover, port conflict) so a
+  // Re-show a still-pending decision prompt (for example, a port conflict) so a
   // refresh/reconnect lands back on the modal instead of a silent stalled build.
   // Only for a live session — a finished build's prompt is stale.
   if (session.currentPrompt && !["ready", "failed", "cancelled"].includes(session.status)) {

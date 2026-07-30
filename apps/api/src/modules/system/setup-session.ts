@@ -167,7 +167,7 @@ export function appendSetupLog(
 /**
  * A prompt the install pipeline is blocked on while the user decides in the
  * dashboard. Mirrors the deploy session manager's prompt/respond so the SAME
- * generic prompt modal drives both flows (e.g. OpenResty edge takeover).
+ * generic prompt modal drives component-install decisions.
  */
 // The block-on-a-promise + timeout mechanic lives once in PromptRegistry; this
 // manager keeps only the session-object hold (pendingPrompt, for replay) + the

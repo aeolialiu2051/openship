@@ -35,9 +35,9 @@ function fakeExecutor() {
 
 describe("elevateCommand", () => {
   it("wraps a command as `sudo -n sh -c` with the apt env re-exported inside", () => {
-    const wrapped = elevateCommand("apt-get install -y -qq openresty");
+    const wrapped = elevateCommand("apt-get install -y -qq traefik");
     expect(wrapped).toBe(
-      `sudo -n sh -c ${sq(`export ${ENV}; apt-get install -y -qq openresty`)}`,
+      `sudo -n sh -c ${sq(`export ${ENV}; apt-get install -y -qq traefik`)}`,
     );
     expect(wrapped.startsWith("sudo -n sh -c ")).toBe(true);
   });
@@ -47,8 +47,8 @@ describe("elevateCommand", () => {
     // sq() escaping is load-bearing. Prove `sh` unquotes each to the original.
     const commands = [
       "pkill -f '[o]penresty' 2>/dev/null || true",
-      "sed -i '/http *{/a lua_shared_dict analytics 16m;' /etc/openresty/nginx.conf",
-      'echo "deb [signed-by=/usr/share/keyrings/openresty.gpg] http://x y" > /etc/apt/sources.list.d/openresty.list',
+      "sed -i '/http *{/a lua_shared_dict analytics 16m;' /etc/traefik/nginx.conf",
+      'echo "deb [signed-by=/usr/share/keyrings/traefik.gpg] http://x y" > /etc/apt/sources.list.d/traefik.list',
     ];
     for (const cmd of commands) {
       const payload = `export ${ENV}; ${cmd}`;
@@ -68,9 +68,9 @@ describe("elevatedExecutor", () => {
     await el.exec("apt-get update -qq");
     expect(exec).toHaveBeenCalledWith(elevateCommand("apt-get update -qq"), undefined);
 
-    await el.streamExec("systemctl enable openresty && systemctl start openresty", () => {});
+    await el.streamExec("systemctl enable traefik && systemctl start traefik", () => {});
     expect(streamExec.mock.calls[0]?.[0]).toBe(
-      elevateCommand("systemctl enable openresty && systemctl start openresty"),
+      elevateCommand("systemctl enable traefik && systemctl start traefik"),
     );
   });
 
@@ -78,7 +78,7 @@ describe("elevatedExecutor", () => {
     const { inner, writeFile, exec } = fakeExecutor();
     const el = elevatedExecutor(inner);
 
-    await el.writeFile("/etc/openresty/nginx.conf", "worker_processes 1;");
+    await el.writeFile("/etc/traefik/nginx.conf", "worker_processes 1;");
 
     // 1. staged into a user-writable temp (unelevated write)
     const staged = writeFile.mock.calls[0]!;
@@ -90,18 +90,18 @@ describe("elevatedExecutor", () => {
     expect(mv.startsWith("sudo -n sh -c ")).toBe(true);
     expect(mv).toContain("mkdir -p");
     expect(mv).toContain("mv -f");
-    expect(mv).toContain(sq("/etc/openresty/nginx.conf"));
+    expect(mv).toContain(sq("/etc/traefik/nginx.conf"));
   });
 
   it("elevates mkdir and rm", async () => {
     const { inner, exec } = fakeExecutor();
     const el = elevatedExecutor(inner);
 
-    await el.mkdir("/etc/openresty");
-    await el.rm("/usr/local/openresty");
+    await el.mkdir("/etc/traefik");
+    await el.rm("/usr/local/traefik");
 
-    expect(exec.mock.calls[0]?.[0]).toBe(elevateCommand(`mkdir -p ${sq("/etc/openresty")}`));
-    expect(exec.mock.calls[1]?.[0]).toBe(elevateCommand(`rm -rf ${sq("/usr/local/openresty")}`));
+    expect(exec.mock.calls[0]?.[0]).toBe(elevateCommand(`mkdir -p ${sq("/etc/traefik")}`));
+    expect(exec.mock.calls[1]?.[0]).toBe(elevateCommand(`rm -rf ${sq("/usr/local/traefik")}`));
   });
 
   it("passes reads and transfers straight through (no sudo)", async () => {
@@ -109,11 +109,11 @@ describe("elevatedExecutor", () => {
     const el = elevatedExecutor(inner);
 
     await el.readFile("/etc/os-release");
-    await el.exists("/etc/openresty");
+    await el.exists("/etc/traefik");
     await el.transferIn("/local", "/remote");
 
     expect(readFile).toHaveBeenCalledWith("/etc/os-release");
-    expect(exists).toHaveBeenCalledWith("/etc/openresty");
+    expect(exists).toHaveBeenCalledWith("/etc/traefik");
     expect(transferIn).toHaveBeenCalled();
     // none of those routed through an elevated exec
     expect(exec).not.toHaveBeenCalled();

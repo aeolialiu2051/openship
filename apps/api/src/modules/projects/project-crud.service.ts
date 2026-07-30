@@ -1092,7 +1092,7 @@ export async function updateProject(
           ),
         );
         // A free (*.opsh.io) domain resolves only through Openship Cloud's edge.
-        // reapplyProjectLiveRoutes handles the self-hosted OpenResty side; the
+        // reapplyProjectLiveRoutes handles the self-hosted Traefik side; the
         // managed edge must be re-registered too or an edited/added free URL
         // 404s with no signal. Only meaningful once deployed (no live target
         // otherwise — the next deploy syncs). On failure this sets
@@ -1113,7 +1113,7 @@ export async function updateProject(
 
   // Editing the vercel.json routing (rewrites/redirects/headers) re-applies it to
   // the live deployment without a rebuild — the routing counterpart to the
-  // domain/port re-sync above. Self-hosted → OpenResty, cloud → the Oblien edge;
+  // domain/port re-sync above. Self-hosted → Traefik, cloud → the Oblien edge;
   // best-effort internally.
   if (data.routingConfig !== undefined) {
     await applyProjectRouting(projectId);

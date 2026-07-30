@@ -217,7 +217,7 @@ export function incomingWebhookUrl(id: string): string {
 
 /**
  * The domain-strategy webhook callback URL: delivered directly to a project's
- * own verified domain via the `/_openship/hooks/` OpenResty location (proxied to
+ * own verified domain via the `/_openship/hooks/` Traefik location (proxied to
  * the loopback API). Used when a project sets an explicit `webhookDomain`.
  */
 export function domainWebhookUrl(hostname: string, scheme: "http" | "https" = "https"): string {

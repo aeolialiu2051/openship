@@ -61,7 +61,7 @@ sleep mode, cloud transfer, and logs. Alias: `openship projects`.
 | `project sleep-mode <id> <mode>` | Set the project sleep mode. |
 | `project transfer <id> <direction>` | Promote to Openship Cloud or bring it back (self-hosted only). |
 | `project logs <id>` | Show or stream runtime (container) logs. |
-| `project server-logs <id>` | Show or stream HTTP request logs (edge / OpenResty). |
+| `project server-logs <id>` | Show or stream HTTP request logs (edge / Traefik). |
 
 ### create
 
@@ -206,7 +206,7 @@ openship project transfer proj_123 to-cloud        # or: to-self-hosted
 
 ### logs / server-logs
 
-`logs` shows the container's runtime output; `server-logs` shows edge HTTP request logs (OpenResty). Both
+`logs` shows the container's runtime output; `server-logs` shows edge HTTP request logs (Traefik). Both
 print recent lines by default, or stream with `-f`. More context in the
 [logs & monitoring guide](/docs/guides/logs-monitoring).
 

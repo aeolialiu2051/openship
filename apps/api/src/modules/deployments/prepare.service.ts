@@ -94,7 +94,7 @@ export interface ProjectInfo {
   rootEnv?: Record<string, string>;
   /** Routing config parsed from the repo-root `vercel.json`/`openship.json`
    *  (rewrites/redirects/headers/cleanUrls/trailingSlash). Persisted on the
-   *  project + compiled to OpenResty at deploy. */
+   *  project + compiled to Traefik at deploy. */
   routing?: RoutingConfig;
   // ── Declared overlay (repo-root `openship.json`) ─────────────────────────
   // Fields the heuristic detector doesn't produce, declared by the user and

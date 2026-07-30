@@ -28,7 +28,7 @@ Openship models the move as a short, reversible pipeline:
    exactly what's live and **never rebuilds**. Services come in **unexposed**, so routing is untouched at
    import time.
 3. **Take over the edge** *(later, opt-in, rollback-safe)* — when you add a domain, Openship journals your
-   old proxy's state, disables it, installs its **OpenResty** edge, and re-registers your vhosts + certs. If
+   old proxy's state, disables it, installs its **Traefik** edge, and re-registers your vhosts + certs. If
    anything fails — or the box reboots mid-way — it rolls back automatically.
 4. **Cut over** *(opt-in, confirmed)* — only when you say so does it stop and remove the *old* containers.
    Your source volumes are never touched.
@@ -37,16 +37,15 @@ Openship models the move as a short, reversible pipeline:
 
 ## Before you start
 
-<Callout type="warn" title="Keep your old proxy running for the scan">
-Don't stop Coolify/Dokploy/Dokku's proxy *before* scanning — Openship reads your live domains and
-certificates from it. You'll retire it later, and Openship does that step for you (and can roll it back).
+<Callout type="warn" title="Keep existing traffic stable during the scan">
+The scan is read-only. Keep the source workloads available until you have verified the replacement deployment
+and planned your own traffic cutover.
 </Callout>
 
 - Migration is **self-hosted only** and needs `server:write` on the source (and target, for server-to-server).
 - **Connect the source server to Openship over SSH first** (Servers → Add server). Your apps and their proxy
   stay running throughout.
-- You can safely stop the old platform's **control-plane app** at any time — your running app containers and
-  their proxy don't depend on it. Leave the *proxy* up until the takeover step.
+- Do not remove the source platform until the replacement workloads and routes have been verified.
 
 ## Migrate a server (step by step)
 
@@ -88,19 +87,13 @@ in-place** strategy is genuinely zero-downtime for the workload — the containe
 </Step>
 
 <Step>
-### Take over the domains + edge
+### Verify domains and publish routes
 
-When you add a domain to a migrated service, Openship runs its edge takeover: it **journals your old
-proxy's config, disables it, installs OpenResty on `:80/:443`, and re-registers your vhosts and
-certificates** — rolling back on any failure or an interrupted reboot. Existing sites are imported from
-**nginx, Caddy, Apache, or Traefik**; HAProxy/unknown proxies are replaced rather than imported.
+Add each custom domain, publish its `_openship-challenge` TXT record, and verify ownership. A subsequent
+redeploy publishes the service route through the shared Traefik instance. Coordinate any DNS or load-balancer
+cutover yourself after checking the replacement deployment on the target server.
 
-<Callout type="info" title="The only brief interruption">
-Your containers keep running the whole time. The single short blip is the moment `:80/:443` swaps from your
-old proxy to OpenResty while it installs — measured in seconds, and rollback-safe.
-</Callout>
-
-<Callout title="Screenshot">A migrated service's Domains tab after the edge takeover — domain live on OpenResty with a valid certificate. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">A migrated service's Domains tab after TXT verification and redeploy. *(screenshot pending)*</Callout>
 </Step>
 
 <Step>
@@ -130,13 +123,9 @@ Moving a whole stack from one host to another is the same flow, with the data st
 
 Two things are worth understanding, because they're where Openship genuinely diverges from the others:
 
-- **A programmable OpenResty edge.** Routing runs on OpenResty with a **database-driven, reload-free
-  per-route rules engine** — per-route rate limiting, IP/CIDR + country + user-agent bans, method/CIDR/country
-  allow-lists, and hotlink protection — pushed live into a shared dictionary with **no nginx reload and no
-  Redis**, plus built-in request/bandwidth analytics and a live log stream. Coolify and Dokploy expose Traefik
-  middlewares and Dokku exposes nginx templates that can approximate these rules; Openship's difference is that
-  it's a managed, reload-free, per-route surface — **not** that it does more at the protocol level (see the
-  honest caveats below).
+- **Shared Traefik routing.** Self-hosted public services publish Docker labels to one shared Traefik instance.
+  The dashboard currently manages per-route rate limiting, IP allowlists, and in-flight request limits, which
+  are rendered into Traefik middleware on redeploy. Request analytics and logs are read from Traefik access logs.
 - **A real desktop mode.** Openship ships a **native desktop app** that runs the entire control plane — API,
   dashboard, embedded database, in-process jobs — **bound to loopback on your own machine**, with no-login
   access granted only to same-machine (kernel-verified) callers and **nothing left running after you quit**.
@@ -181,7 +170,6 @@ buildpack breadth), it's marked honestly.
 | **Server-to-server move (with data)** | ✗ | ✗ | ✗ | **✓** |
 | **Leave management, keep apps + data running (re-importable)** | ✗ delete prunes managed containers | ✗ delete tears down | ✗ `apps:destroy` removes | **✓ record-only, re-adoptable** |
 | **Relocate the whole instance into managed cloud — and back** | ✗ control-plane only | ✗ control-plane only | ✗ no managed cloud | **✓ instance dump → Cloud, reversible switch-back** |
-| **Take over an existing reverse proxy** | ✗ | ✗ | ✗ | **✓** |
 
 **Networking & edge**
 
@@ -191,20 +179,15 @@ buildpack breadth), it's marked honestly.
 | Unlimited custom domains + wildcards | ✓ | ✓ | ✓ | ✓ |
 | HTTP/3 (QUIC) | ✗ | ✓ | ✗ | ✗ |
 | CDN / response caching | ✗ | ✗ | ✗ | ✗ |
-| **Per-route rate limiting** | ~ Traefik mw | ~ Traefik mw | ~ nginx | **✓ UI, reload-free** |
-| **IP / CIDR ban + allow-lists** | ~ mw | ~ mw | ~ nginx | **✓ UI** |
-| **Country (geo) blocking** | ✗ | ✗ | ~ GeoIP module | **✓ built-in ** |
-| **Bad-user-agent + hotlink protection** | ~ mw | ~ mw | ~ nginx | **✓ UI** |
-| **Built-in request analytics** (traffic, status codes, top paths, geo) | ✗ add-on | ✗ add-on | ✗ | **✓** |
+| **Per-route rate limiting** | ~ Traefik mw | ~ Traefik mw | ~ nginx | **✓ UI** |
+| **IP / CIDR allow-lists** | ~ mw | ~ mw | ~ nginx | **✓ UI** |
+| **In-flight request limits** | ~ mw | ~ mw | ~ nginx | **✓ UI** |
+| **Built-in request analytics** (traffic, status codes, top paths) | ✗ add-on | ✗ add-on | ✗ | **✓** |
 | **Live per-route request-log stream** | ~ proxy logs | ~ proxy logs | ~ files | **✓** |
 | Resource metrics (CPU / memory / bandwidth) | ~ basic | ✓ | ~ plugin | ✓ |
 
-The edge is where the gap is widest: every route gets **per-route rate limiting, IP/CIDR + country + user-agent
-bans, and hotlink protection** from a UI (pushed live, no nginx reload), plus **built-in traffic analytics**
-— requests, status codes, top paths, and **geo/country breakdowns** — and a **live per-route request-log
-stream**. Coolify and Dokploy give you Traefik middlewares and bolt-on Grafana/Plausible; native
-country-level blocking and built-in request analytics aren't there. (Honestly: it's *not* a CDN or WAF — no
-HTTP/3, caching, or OWASP rules.)
+Openship exposes a focused Traefik rule surface: **per-route rate limiting, IP allowlists, and in-flight
+request limits**, plus access-log-based traffic analytics and request logs. It is not a CDN or full WAF.
 
 **Data, team & platform**
 
@@ -246,12 +229,9 @@ this edge is specific to desktop mode.)
 
 - **Zero-downtime is narrow, not blanket.** Only a **same-server "reuse in place"** import is truly
   zero-downtime. Same-server "copy" and **every** server-to-server move stop the originals for a consistent
-  copy and verify a fresh deploy (up to ~20 min) — a real window. The edge takeover briefly interrupts
-  `:80/:443` while OpenResty installs.
-- **The edge is programmable access rules + analytics — not a CDN and not a WAF.** There's no HTTP/3, no
-  brotli, and no response caching layer; the rules are a built-in ruleset (bans / allow-deny / hotlink /
-  method / rate-limit), not ModSecurity/OWASP CRS. It's also self-hosted-only — managed-cloud projects route
-  through the cloud edge, where rule coverage is still partial.
+  copy and verify a fresh deploy (up to ~20 min) — a real window. Plan DNS/load-balancer cutover separately.
+- **Routing controls are intentionally narrow.** Current self-hosted route rules cover rate limiting, IP
+  allowlists, and in-flight request limits; they are not a CDN or full WAF.
 - **The mail server is a real mail server.** It's a genuine Postfix + Dovecot stack — so DNS/DKIM/SPF setup,
   deliverability, and ongoing mail ops are yours to run. The others sidestep this by not offering mail at all.
 - **Catalog breadth isn't the pitch.** Coolify's 280+ one-click services is the largest catalog here; Openship
@@ -261,6 +241,6 @@ this edge is specific to desktop mode.)
 
 <Cards>
   <Card title="Custom servers" href="/docs/guides/custom-servers" description="Connect a VPS or dedicated box over SSH — the first step before any import." />
-  <Card title="Custom domains" href="/docs/guides/custom-domains" description="Point a domain at a migrated service and let the OpenResty edge issue TLS." />
+  <Card title="Custom domains" href="/docs/guides/custom-domains" description="Point a domain at a migrated service and let the Traefik edge issue TLS." />
   <Card title="Backups & restore" href="/docs/guides/backups-restore" description="Set up scheduled backups for your newly-adopted databases and volumes." />
 </Cards>

@@ -36,21 +36,4 @@ r.get("/container", { tag: "analytics:read", mcp: { description: "Container-leve
 /* ─── Dashboard ────────────────────────────────────────────────────────── */
 r.get("/dashboard", { tag: "analytics:read", mcp: { description: "Dashboard analytics rollup (headline metrics)." } }, cloudProjectProxyByQuery, ctrl.dashboard);
 
-/* ─── Server analytics (scraped from OpenResty mgmt API) ───────────────── */
-r.get(
-  "/server/:serverId",
-  { tag: "server:read", ids: { server: "serverId" } },
-  ctrl.serverAnalytics,
-);
-r.get(
-  "/server/:serverId/geo",
-  { tag: "server:read", ids: { server: "serverId" } },
-  ctrl.serverGeo,
-);
-r.get(
-  "/server/:serverId/live",
-  { tag: "server:read", ids: { server: "serverId" } },
-  ctrl.serverAnalyticsLive,
-);
-
 export const analyticsRoutes = r.hono;

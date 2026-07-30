@@ -13,11 +13,11 @@ import { servers } from "./servers";
 // ─── Server Analytics ────────────────────────────────────────────────────────
 
 /**
- * Per-domain, per-minute analytics snapshots scraped from OpenResty's
- * shared-dict counters via the management API (127.0.0.1:9145).
+ * Per-domain, per-minute analytics snapshots scraped from Traefik's
+ * request metrics collected by the active routing layer.
  *
  * The API scraper periodically fetches analytics from each managed server
- * and upserts rows here. This provides persistence across OpenResty restarts
+ * and upserts rows here. This provides persistence across Traefik restarts
  * (shared dict is pure RAM - survives reload but not restart).
  */
 export const serverAnalytics = pgTable(

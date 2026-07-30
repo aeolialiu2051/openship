@@ -1,5 +1,5 @@
 /**
- * Reverse-proxy tunables rendered into the OpenResty edge vhost (and the
+ * Reverse-proxy tunables rendered into the Traefik edge vhost (and the
  * server-wide default include). CURATED + strictly validated — never arbitrary
  * nginx passthrough, since these values are interpolated into generated config.
  *

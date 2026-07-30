@@ -14,6 +14,7 @@ import {
   buildProjectRouteDomains,
   buildServiceRouteDomain,
   buildServiceRouteDomains,
+  isRoutePublishable,
   serviceCustomHostnames,
   getRoutingBaseDomain,
 } from "../../src/lib/routing-domains";
@@ -72,6 +73,23 @@ describe("buildProjectRouteDomains", () => {
     const custom = planned.find((domain) => domain.hostname === "azharmedicinegirls.org");
     expect(custom?.domainType).toBe("custom");
     expect(custom?.isPrimary).toBe(true);
+    expect(custom?.verified).toBe(false);
+    expect(custom && isRoutePublishable(custom)).toBe(false);
+  });
+
+  it("publishes a project custom-domain route after its stored row is verified", () => {
+    const [route] = buildProjectRouteDomains({
+      project: { slug: "my-app" } as any,
+      projectDomains: [{ hostname: "app.example.com", verified: true } as any],
+      publicEndpoints: [
+        { port: 3000, customDomain: "app.example.com", domainType: "custom" },
+      ],
+      runtimeName: "docker",
+      usesManagedRouting: true,
+    });
+
+    expect(route?.verified).toBe(true);
+    expect(route && isRoutePublishable(route)).toBe(true);
   });
 
   it("still attaches the free .opsh.io fallback when there is no custom domain", () => {
@@ -152,11 +170,10 @@ describe("buildProjectRouteDomains", () => {
   });
 });
 
-describe("buildServiceRouteDomains — custom-domain SSL gate", () => {
+describe("buildServiceRouteDomains — custom-domain publish gate", () => {
   const project = { slug: "my-app", name: "My App" } as any;
 
-  it("does NOT provision SSL for a custom domain with no verified row (pending)", () => {
-    // No domain map → row unknown → treated as unverified → no certbot attempt.
+  it("keeps a custom domain with no verified row pending and unpublished", () => {
     const [route] = buildServiceRouteDomains({
       project,
       service: customSvc,
@@ -166,9 +183,11 @@ describe("buildServiceRouteDomains — custom-domain SSL gate", () => {
     expect(route?.hostname).toBe("api.example.com");
     expect(route?.domainType).toBe("custom");
     expect(route?.provisionSsl).toBe(false);
+    expect(route?.verified).toBe(false);
+    expect(route && isRoutePublishable(route)).toBe(false);
   });
 
-  it("provisions SSL only once the custom domain row is verified", () => {
+  it("publishes a custom domain only once its row is verified", () => {
     const domainByHostname = new Map<string, any>([
       ["api.example.com", { hostname: "api.example.com", verified: true }],
     ]);
@@ -179,7 +198,9 @@ describe("buildServiceRouteDomains — custom-domain SSL gate", () => {
       usesManagedRouting: true,
       domainByHostname,
     });
-    expect(route?.provisionSsl).toBe(true);
+    expect(route?.provisionSsl).toBe(false);
+    expect(route?.verified).toBe(true);
+    expect(route && isRoutePublishable(route)).toBe(true);
   });
 
   it("canonicalizes a scheme/slash-dressed custom domain to the stored host", () => {

@@ -528,7 +528,7 @@ const logsCmd = new Command("logs")
 // GET /api/projects/:id/server-logs/stream (SSE, self-hosted only)
 // (project.routes.ts:111-113)
 const serverLogsCmd = new Command("server-logs")
-  .description("Show or stream HTTP request logs (edge/OpenResty)")
+  .description("Show or stream HTTP request logs (edge/Traefik)")
   .argument("<id>", "Project ID")
   .option("--limit <n>", "Number of recent entries (max 200)", (v) => Number(v))
   .option("--domain <domain>", "Restrict to a specific domain")
@@ -547,7 +547,7 @@ const serverLogsCmd = new Command("server-logs")
 
       // Streaming path branches on deployment shape. Cloud projects mint an edge
       // token the browser connects to directly — not yet wired in the CLI — so we
-      // only follow self-hosted OpenResty streams here.
+      // only follow self-hosted Traefik streams here.
       const token = await apiRequest<{ kind: string }>(
         `${base}/stream-token${domainQs ? `?${domainQs}` : ""}`,
       );

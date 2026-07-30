@@ -18,7 +18,7 @@ function nodeInstallPlan(profile: EnvironmentProfile): ToolchainInstallPlan {
   if (profile.os === "linux" && ["apt", "dnf", "yum"].includes(profile.packageManager)) {
     const installCommands: Record<string, string> = {
       // NodeSource's `setup_lts.x` pins the apt repo to $(lsb_release -sc), so it
-      // breaks on a new/unpublished Ubuntu codename exactly like the OpenResty
+      // breaks on a new/unpublished Ubuntu codename exactly like the Traefik
       // #86 bug (and can leave a poisoned nodesource.list that fails later apt
       // runs). Their node_XX.x repos use the distro-agnostic `nodistro` suite, so
       // add it directly (no codename, no `curl | bash` of a remote script) and

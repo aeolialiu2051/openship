@@ -7,7 +7,7 @@ import { scanPorts } from "../system/port-scan";
  * and persisted on the project so redeploys/restarts keep the same target.
  *
  * The default range sits well above the reserved control-plane ports (API,
- * dashboard 3001, OpenResty mgmt 9145 — all < 10000), so the allocator never
+ * dashboard 3001 — all < 10000), so the allocator never
  * needs to know about them. Live occupancy is read once via `scanPorts`
  * (ss → procfs), and the caller passes `avoid` = host ports already pinned to
  * OTHER projects (which may not be listening right now). The deploy-time

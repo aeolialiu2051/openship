@@ -1,29 +1,19 @@
 /**
  * Shared helpers for resolving a project's tracked domain, server,
- * and querying the OpenResty management API.
- *
- * The actual HTTP-over-SSH-tunnel logic lives in `./ssh-tunnel.ts`.
- * This file provides the OpenResty-specific convenience wrappers and
- * project → domain + server resolution.
+ * and selecting the appropriate traffic source.
  *
  * Used by:
  *   - analytics.service.ts  (summary, periods)
  *   - project.controller.ts (server log stream, recent logs)
- *   - analytics-scraper.ts  (periodic scrape via SSH)
  */
 
 import { repos, type Project } from "@repo/db";
-import { OPENRESTY_MGMT_PORT } from "@repo/adapters";
-import { tunnelRequest, tunnelStream } from "./ssh-tunnel";
 import { isOblienBackedDeployment } from "./platform-mode";
-
-export type { TunnelStreamHandle } from "./ssh-tunnel";
 
 // ─── Domain normalisation ────────────────────────────────────────────────────
 
 /**
- * Normalize a hostname to match OpenResty's tracking key format.
- * Lua `site_logger.lua` stores counters under lowercase, no-www keys.
+ * Normalize a hostname to the canonical traffic key format.
  */
 export function normalizeTrackedDomain(hostname: string): string {
   return hostname
@@ -99,8 +89,8 @@ export async function resolveProjectTracking(projectId: string): Promise<Project
 /**
  * Map a fixed list of tracked domains to their traffic sources — the shared core
  * of the single/plural resolvers below. SaaS/OpenShip Cloud deploys observe
- * traffic at the Oblien edge; self-hosted deploys observe it via the target
- * server's OpenResty management API. Empty domain list (or no resolvable server)
+ * traffic at the Oblien edge; self-hosted deploys use their Traefik log source.
+ * Empty domain list (or no resolvable server)
  * → no sources.
  */
 async function buildTrafficSourcesForDomains(
@@ -193,73 +183,4 @@ export async function resolveProjectTrafficSources(
 
   const domains = await resolveProjectTrackedDomains(project);
   return buildTrafficSourcesForDomains(project, domains);
-}
-
-// ─── OpenResty management API wrappers ───────────────────────────────────────
-
-/**
- * GET JSON from the OpenResty management API through SSH tunnel.
- */
-export async function fetchMgmt<T>(serverId: string, path: string): Promise<T | null> {
-  const res = await tunnelRequest(serverId, OPENRESTY_MGMT_PORT, path);
-  if (!res || res.statusCode < 200 || res.statusCode >= 300) return null;
-  try {
-    return JSON.parse(res.body) as T;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * POST to the OpenResty management API through SSH tunnel.
- */
-export async function postMgmt<T>(serverId: string, path: string): Promise<T | null> {
-  const res = await tunnelRequest(serverId, OPENRESTY_MGMT_PORT, path, {
-    method: "POST",
-  });
-  if (!res || res.statusCode < 200 || res.statusCode >= 300) return null;
-  try {
-    return JSON.parse(res.body) as T;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * POST a JSON body to the OpenResty management API through the SSH tunnel.
- * Used to push per-route rules into the edge's `rules` shared dict (reload-free).
- */
-export async function postMgmtJson<T>(
-  serverId: string,
-  path: string,
-  json: unknown,
-): Promise<T | null> {
-  const res = await tunnelRequest(serverId, OPENRESTY_MGMT_PORT, path, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(json),
-  });
-  if (!res || res.statusCode < 200 || res.statusCode >= 300) return null;
-  try {
-    return JSON.parse(res.body) as T;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Lightweight health probe for the OpenResty management port.
- */
-export async function probeMgmt(serverId: string): Promise<boolean> {
-  const res = await tunnelRequest(serverId, OPENRESTY_MGMT_PORT, "/health");
-  return res?.body.trim() === "ok";
-}
-
-/**
- * Open a streaming SSE connection to the OpenResty management API.
- * Returns a tunnel stream handle - caller pipes `handle.stream.on("data", ...)`
- * to the SSE client.
- */
-export async function mgmtStream(serverId: string, path: string) {
-  return tunnelStream(serverId, OPENRESTY_MGMT_PORT, path);
 }

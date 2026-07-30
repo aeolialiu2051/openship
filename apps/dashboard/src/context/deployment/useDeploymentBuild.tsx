@@ -801,7 +801,7 @@ export function useDeploymentBuild(
             }
           : undefined,
         // Persist the repo's vercel.json routing so the backend compiles it to
-        // OpenResty at deploy (single-domain rewrites, redirects, headers).
+        // Traefik at deploy (single-domain rewrites, redirects, headers).
         routingConfig: config.routingConfig ?? undefined,
       });
 

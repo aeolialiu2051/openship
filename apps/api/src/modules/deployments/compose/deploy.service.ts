@@ -45,9 +45,9 @@ import { containerIdForService } from "../../services/service-container";
 import { isConnectionLoss } from "../../../lib/remote-state";
 import {
   buildServiceRouteDomains,
-  createTrackedSslProvider,
   ensureRouteDomainRecord,
   getRoutingBaseDomain,
+  isRoutePublishable,
   managedDomainsUseCloudEdge,
   toRoutedDomainInputs,
   type PlannedRouteDomain,
@@ -388,7 +388,15 @@ async function prepareServiceRoutes(opts: {
           serviceName: service.name,
         });
       }
-      ensured.push(route);
+      if (isRoutePublishable(route)) {
+        ensured.push(route);
+      } else {
+        logger.log(
+          `Domain "${route.hostname}" is pending TXT ownership verification; route not published.\n`,
+          "info",
+          { serviceName: service.name },
+        );
+      }
     } catch (err) {
       // Owned by another project / unclaimable → skip it entirely (NOT routed,
       // or we'd hijack their hostname). Domains are optional — never fatal.
@@ -483,9 +491,8 @@ export async function deployComposeServices(
   // The project's existing domain rows, keyed by hostname. This drives per-host
   // SSL gating in BOTH the toolchain preflight (below) and the per-service route
   // reconcile (routeContext), so it MUST be built before the preflight — the
-  // preflight needs to see a verified custom domain to install certbot (a mapless
-  // build would report provisionSsl=false and skip the ssl feature, leaving a
-  // verified custom service domain stuck on HTTP with no recovery path).
+  // preflight needs to see verified custom domains before selecting any fallback
+  // certificate work (a mapless build would report provisionSsl=false).
   const needsDomainMap =
     !!opts?.system ||
     (!!opts?.routing && !!opts.ssl && typeof opts?.usesManagedRouting === "boolean");
@@ -498,11 +505,9 @@ export async function deployComposeServices(
   // Ensure the server has the components this deploy needs — ONCE, before the
   // fan-out — mirroring the single-app deploy preflight (build-pipeline.ts
   // buildDeployEnvironment). Compose previously ensured nothing here, so on a
-  // fresh box the first exposed service would register routes / provision certs
-  // against an openresty/certbot that were never installed. Each ensureFeature
-  // is serialized per server by the injected provision lock. (No per-service
-  // host-port check: compose services are reached through openresty by hostname,
-  // not by binding host ports the way a bare process does.)
+  // fresh box the first exposed service could register routes before its edge was
+  // ready. Each ensureFeature is serialized per server by the injected provision
+  // lock. No per-service host-port check is needed for Traefik-routed services.
   const plannedRoutes = enabled.flatMap((svc) =>
     buildServiceRouteDomains({
       project,
@@ -532,27 +537,6 @@ export async function deployComposeServices(
       logger.log(`${entry.message}\n`, entry.level);
     };
     await opts.system.ensureFeature("deploy", systemLog);
-    // Routing/SSL toolchain is best-effort — domains are optional, so failing to
-    // install OpenResty/certbot must NOT fail the deploy. The services still run;
-    // routing is flagged action-required and retried later.
-    try {
-      if (usesTraefikEdge) {
-        logger.log(
-          "Using shared Traefik for public service routes; OpenResty is not installed or changed.\n",
-        );
-      } else if (plannedRoutes.length > 0) {
-        await opts.system.ensureFeature("routing", systemLog);
-      }
-      if (!usesTraefikEdge && plannedRoutes.some((route) => route.provisionSsl)) {
-        await opts.system.ensureFeature("ssl", systemLog);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      logger.log(
-        `Edge/routing setup failed — deploy continues; services run and routing is retried later: ${message}\n`,
-        "warn",
-      );
-    }
   }
 
   const projectEnvMap = await repos.project.getEnvMap(project.id, dep.environment);
@@ -615,7 +599,7 @@ export async function deployComposeServices(
     // Reuses the map built above (needsDomainMap covers this branch).
     routeContext = {
       routing: opts.routing,
-      trackedSsl: createTrackedSslProvider(opts.ssl, domainByHostname),
+      trackedSsl: opts.ssl,
       usesManagedRouting: opts.usesManagedRouting,
       organizationId: dep.organizationId,
       serverId: opts.serverId,
@@ -1025,9 +1009,11 @@ export async function deployComposeServices(
             project.routeKey ?? project.id,
             svc.id,
             String(route.targetPort),
+            route.hostname,
           ),
           hostname: route.hostname,
           port: route.targetPort!,
+          tls: route.tls,
         })),
       };
       serviceRuntimeConfig.ports = [];
@@ -1111,14 +1097,8 @@ export async function deployComposeServices(
           config: serviceDeployConfig,
           previousContainerId: previous?.containerId ?? undefined,
           domains: routeDomains,
-          routing:
-            routeDomains.length && !serviceRuntimeConfig.traefik
-              ? routeContext?.routing
-              : undefined,
-          ssl:
-            routeDomains.length && !serviceRuntimeConfig.traefik
-              ? routeContext?.trackedSsl
-              : undefined,
+          routing: undefined,
+          ssl: undefined,
           routeOptions: routeDomains.length ? routeContext?.routeOptions : undefined,
         },
         serviceLogger,
@@ -1570,9 +1550,10 @@ export async function deployComposeServices(
                 service: svc,
                 runtimeName: runtime.name,
                 usesManagedRouting: routeContext.usesManagedRouting,
+                domainByHostname: routeContext.domainByHostname,
               })[0] ?? null)
             : null;
-          return domain
+          return domain && isRoutePublishable(domain)
             ? { hostname: domain.hostname, isCustomDomain: domain.domainType === "custom" }
             : null;
         },

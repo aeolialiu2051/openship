@@ -81,7 +81,7 @@ export interface MailWebmailState {
    * For target="cloud", the *.opsh.io URL Opshcloud minted for this deploy.
    * When `hostname` is the mail server's own `mail.<domain>` subdomain (DNS
    * already pinned to the mail VPS for IMAP/SMTP), the mail server's
-   * OpenResty proxies that hostname → this URL.
+   * Traefik proxies that hostname → this URL.
    */
   cloudUrl?: string;
   /** Internal port the Zero server binds to on the target host. */

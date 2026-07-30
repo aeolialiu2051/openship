@@ -429,7 +429,7 @@ export async function onSuccess(
   // CTA can finally surface. Slug is the only carrier of mailServerId
   // through the generic lifecycle - preserved by `ensureWebmailProject`.
   // For cloud deploys we also pass `result.url` so the success hook can
-  // register an OpenResty proxy on the mail VPS pointing mail.<install>
+  // register an Traefik proxy on the mail VPS pointing mail.<install>
   // → opsh.io (when that's the chosen hostname).
   if (project.framework === "webmail") {
     const mailServerId = mailServerIdFromWebmailSlug(project.slug);

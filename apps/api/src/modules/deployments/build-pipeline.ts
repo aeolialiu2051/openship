@@ -27,7 +27,6 @@ import {
   runDeployPipeline,
   isMultiServiceRuntime,
   waitForReady,
-  ensureEdge,
 } from "@repo/adapters";
 import { platform } from "../../lib/controller-helpers";
 import { resolveUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
@@ -40,6 +39,7 @@ import {
 import {
   resolveBuildRuntimeModes,
   resolveDeployRouting,
+  resolveTraefikRoutePort,
   type DeployRouting,
 } from "./build-execution-plan";
 import { attachLinkedNetworks } from "./attach-linked-networks";
@@ -48,9 +48,9 @@ import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-ed
 import { decryptEnvMap } from "../../lib/encryption";
 import {
   buildProjectRouteDomains,
-  createTrackedSslProvider,
   ensureRouteDomainRecord,
   getRoutingBaseDomain,
+  isRoutePublishable,
   managedDomainsUseCloudEdge,
   toRoutedDomainInputs,
 } from "../../lib/routing-domains";
@@ -445,7 +445,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       logger.log(
         willRunServices
           ? "→ Services require the Docker runtime — running this service deploy on Docker.\n"
-          : "→ Static build runs in a Docker sandbox; files are served by the edge.\n",
+          : "→ Static build produces a minimal HTTP container routed by shared Traefik.\n",
       );
     }
 
@@ -465,10 +465,11 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     system = resolved.platform.system;
     ctx.runtime = runtime;
     if (resolved.platform !== plat) ownedRuntime = runtime;
-    // Persist the serve/lifecycle identity ONCE (no undo): bare for static
-    // file-serve, docker for services, unchanged otherwise.
+    // Keep every later phase aligned with the runtime that owns the deployed
+    // artifact: static HTTP images and services both have Docker lifecycles.
     if (runtimeModes.serveRuntimeMode !== undefined) {
       snapshot.runtimeMode = runtimeModes.serveRuntimeMode;
+      await repos.deployment.updateStatus(dep.id, dep.status, { meta: snapshot });
     }
 
     // Build + deploy routing, keyed off the RESOLVED runtime (ground truth) — this
@@ -489,11 +490,13 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       `→ Deploy target: ${resolved.effectiveTarget}` +
         (resolved.serverId ? ` (server ${resolved.serverId.slice(0, 8)})` : "") +
         ` · runtime: ${
-          !snapshot.hasServer
-            ? "static (built in a Docker sandbox, served as files by the edge)"
-            : resolved.runtimeMode === "docker"
-              ? "sandboxed (Docker container)"
-              : "direct (host process)"
+          !snapshot.hasServer && deployRouting.deployMode === "static-container"
+            ? "static (HTTP container behind shared Traefik)"
+            : !snapshot.hasServer
+              ? "static (filesystem release)"
+              : resolved.runtimeMode === "docker"
+                ? "sandboxed (Docker container)"
+                : "direct (host process)"
         }\n`,
     );
 
@@ -707,6 +710,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     // A static app builds via the minimal nginx image (generateStaticDockerfile);
     // only this flag selects it. Bare builds ignore it.
     buildConfig.isStatic = !snapshot.hasServer;
+    if (buildConfig.isStatic) buildConfig.publicEndpoints = routeState.publicEndpoints;
     // Folder-upload cloud deploy: the browser uploaded the source straight into
     // a pre-provisioned workspace — adopt it and skip clone + transfer. (The
     // self-hosted upload path instead rides snapshot.localPath, handled above.)
@@ -855,9 +859,9 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
 
     let buildResult: Awaited<ReturnType<typeof runtime.build>>;
     try {
-      // static-sandbox: build in a Docker sandbox, then extract the doc-root to a
-      // host dir the edge serves. Everything else (server apps, bare-built static
-      // on a Docker-less local box, cloud) builds normally.
+      // Docker static apps build directly into their minimal HTTP runtime image.
+      // Bare static apps still build to a filesystem release for an operator-
+      // managed ingress; every other workload uses the normal runtime build.
       if (deployRouting.buildMode === "static-sandbox") {
         // buildMode is derived from runtime.name === "docker", so the cast is sound.
         buildResult = await (runtime as DockerRuntime).buildStaticToHost(
@@ -1093,43 +1097,6 @@ function buildDeployEnvironment(
             };
 
             await serve.ensureRuntimeReady();
-            // Domains are OPTIONAL — edge/routing/SSL toolchain setup is
-            // best-effort and must NEVER fail the deploy. If OpenResty/certbot
-            // can't be installed, or 80/443 takeover is declined, the app still
-            // deploys and runs on its port; routing is flagged action-required
-            // and retried later (route registration below is also best-effort).
-            try {
-              if (cfg.traefik) {
-                logger.log(
-                  `Using shared Traefik network "${cfg.traefik.network}"; OpenResty is not installed or changed.\n`,
-                );
-              } else if (plannedDomains.length > 0) {
-                // Routing needs OpenResty on 80/443. If a foreign proxy already
-                // holds them, HOLD the deploy and prompt (migrate / take over /
-                // cancel) — the same session prompt flow used for port conflicts.
-                const edge = await ensureEdge(
-                  targetExecutor,
-                  (p) => system.ensureFeature("routing", systemLog, { promptUser: p }),
-                  { promptUser, onLog: systemLog },
-                );
-                if (edge.migrated && !edge.ok) {
-                  // ensureEdge already rolled back to the previous proxy — we
-                  // just don't fail the deploy over it.
-                  logger.log(
-                    "Edge migration failed — rolled back to the previous proxy; the app will deploy unrouted (Retry routing from the Domains tab).\n",
-                    "warn",
-                  );
-                }
-              }
-              if (!cfg.traefik && plannedDomains.some((d) => d.provisionSsl)) {
-                await system.ensureFeature("ssl", systemLog);
-              }
-            } catch (err) {
-              logger.log(
-                `Edge/routing setup failed — deploy continues; the app runs on its port and routing is retried later: ${safeErrorMessage(err)}\n`,
-                "warn",
-              );
-            }
           }
 
           if (!cfg.traefik) await serve.ensurePorts(cfg, promptUser);
@@ -1197,15 +1164,10 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     logger,
   } = phase;
 
-  // Static sites are served as files by the edge (OpenResty `root`), regardless
-  // of how they were BUILT — a Docker sandbox (server/self-hosted, the common
-  // case) or bare (Docker-less desktop "This Machine"). A dedicated bare
-  // file-serve runtime rooted at the edge-shared STATIC_RELEASE_BASE promotes
-  // the built dir into a release and hands the edge a `root`. Its executor is
-  // the platform executor, which is exactly the FS the build wrote to (SSH for a
-  // remote server; local for a local / docker-edge host where the extract landed
-  // on the shared openship_static volume).
+  // Docker static sites run their generated minimal HTTP image behind shared
+  // Traefik. Only Docker-less bare targets use the filesystem release path.
   const isStaticFileServe = phase.deployRouting.deployMode === "static-file-serve";
+  const isStaticContainer = phase.deployRouting.deployMode === "static-container";
   const staticServeRuntime = isStaticFileServe
     ? new BareRuntime({
         workDir: STATIC_RELEASE_BASE,
@@ -1409,7 +1371,10 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   const preparedTraefik =
     runtime instanceof DockerRuntime &&
     !isStaticFileServe &&
-    plannedDomains.some((route) => route.targetPort !== undefined)
+    plannedDomains.some(
+      (route) => route.targetPort !== undefined || (isStaticContainer && !!route.targetPath),
+    ) &&
+    plannedDomains.some(isRoutePublishable)
       ? await prepareTraefikConfig({
           runtime,
           organizationId: dep.organizationId,
@@ -1449,8 +1414,8 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   const createdDomainIds: string[] = [];
   const domainClaimWarnings: string[] = [];
   // Only domains we could CLAIM get routed. A hostname owned by another project
-  // (ConflictError) is skipped entirely — not just un-claimed but NOT routed in
-  // nginx either, or we'd hijack the other project's route. Domains are optional,
+  // (ConflictError) is skipped entirely — not just un-claimed but NOT advertised
+  // to the edge either, or we'd hijack the other project's route. Domains are optional,
   // so a conflict never fails the deploy; it's flagged action-required instead.
   const routableDomains: typeof plannedDomains = [];
   for (const route of plannedDomains) {
@@ -1464,7 +1429,13 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         createdDomainIds.push(created.id);
         logger.log(`Created domain record for "${route.hostname}".\n`);
       }
-      routableDomains.push(route);
+      if (isRoutePublishable(route)) {
+        routableDomains.push(route);
+      } else {
+        logger.log(
+          `Domain "${route.hostname}" is pending TXT ownership verification; route not published.\n`,
+        );
+      }
     } catch (err) {
       const message = safeErrorMessage(err);
       logger.log(`Skipping domain "${route.hostname}" (not routed — ${message}).\n`, "warn");
@@ -1474,15 +1445,29 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
 
   if (preparedTraefik) {
     const traefikRoutes = routableDomains
-      .filter((route) => route.targetPort !== undefined)
+      .map((route) => ({
+        ...route,
+        effectivePort: resolveTraefikRoutePort({
+          targetPort: route.targetPort,
+          targetPath: route.targetPath,
+          isStaticContainer,
+          runtimePort: snapshot.port,
+        }),
+      }))
+      .filter(
+        (route): route is typeof route & { effectivePort: number } =>
+          route.effectivePort !== undefined,
+      )
       .map((route) => ({
         routerName: vibrailRouterName(
           project.routeKey ?? project.id,
-          String(route.targetPort),
-          route.hostname.split(".")[0],
+          String(route.effectivePort),
+          route.hostname,
         ),
         hostname: route.hostname,
-        port: route.targetPort!,
+        port: route.effectivePort,
+        tls: route.tls,
+        ...(route.targetPath ? { targetPath: route.targetPath } : {}),
       }));
     if (traefikRoutes.length > 0) {
       deployConfig.traefik = { ...preparedTraefik, routes: traefikRoutes };
@@ -1511,10 +1496,6 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     plannedDomains,
     stopPreviousForTraefik: !!deployConfig.traefik,
   });
-
-  const deploySsl = plannedDomains.some((domain) => domain.provisionSsl)
-    ? createTrackedSslProvider(ssl, domainByHostname)
-    : ssl;
 
   // (Pre-deploy backups now fire once in executeBuildAndDeploy, covering all
   // deploy modes — see the firePreDeployBackups call before the compose branch.)
@@ -1564,8 +1545,8 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
       previousContainerId: prevDep?.containerId ?? undefined,
       deactivatePrevious: deactivateOldInPipeline,
       domains: toRoutedDomainInputs(routableDomains),
-      routing: deployConfig.traefik ? undefined : routing,
-      ssl: deployConfig.traefik ? undefined : deploySsl,
+      routing: undefined,
+      ssl: undefined,
       routeOptions: project.webhookDomain
         ? {
             webhookDomain: project.webhookDomain,

@@ -661,8 +661,6 @@
       "verifyNotYet": "{hostname} はまだ検証できませんでした。",
       "verifyFailedTitle": "検証に失敗しました",
       "verifyFailed": "ドメインの検証に失敗しました。",
-      "sslRenewed": "{hostname} の SSL を更新しました。",
-      "sslRenewFailed": "{hostname} の SSL の更新に失敗しました。",
       "sslTitle": "SSL",
       "sslVerified": "{hostname} の SSL を検証しました。",
       "sslNoCert": "{hostname} の有効な証明書がまだ見つかりません。デプロイしたばかりの場合は、Let's Encrypt に少し時間を置いてから再確認してください。",

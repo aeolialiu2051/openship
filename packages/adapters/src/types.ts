@@ -158,6 +158,8 @@ export interface BuildConfig {
    * monorepo pipeline is container-only).
    */
   isStatic?: boolean;
+  /** Static hostname-to-document-root mappings used by the generated web server. */
+  publicEndpoints?: DeployPublicEndpoint[];
   /** Environment variables injected at build time */
   envVars: Record<string, string>;
   /** Resources allocated for the build container */
@@ -221,6 +223,10 @@ export interface TraefikRouteConfig {
   hostname: string;
   /** Internal container port Traefik forwards to. */
   port: number;
+  /** Override the edge-wide TLS default for this hostname. */
+  tls?: boolean;
+  /** Static document-root prefix exposed as this hostname's URL root. */
+  targetPath?: string;
 }
 
 export interface TraefikRouteRuleConfig {
@@ -238,6 +244,8 @@ export interface TraefikEdgeConfig {
   network: string;
   /** HTTPS entrypoint exposed by the selected Traefik instance. */
   entrypoint: string;
+  /** Plain-HTTP entrypoint used when TLS terminates upstream. */
+  httpEntrypoint?: string;
   /** Whether the router enables TLS (normally true). */
   tls: boolean;
   /** Optional Traefik certificate resolver selected by the operator. */
@@ -379,7 +387,7 @@ export interface LogEntry {
  * A serialization gate for server/workspace-scoped provisioning. The API injects
  * a concrete implementation (in-process mutex + Postgres advisory lock) so
  * concurrent deploys touching the same server's shared state — apt/dpkg, the
- * openresty unit + shared config, docker networks, the setup-state file — wait
+ * traefik unit + shared config, docker networks, the setup-state file — wait
  * for each other instead of racing. Callers wrap the racy critical section in
  * `run`; when no lock is injected, callers fall back to running `fn` directly.
  */

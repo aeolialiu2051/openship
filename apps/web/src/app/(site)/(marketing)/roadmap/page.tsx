@@ -134,7 +134,7 @@ const PHASES: Phase[] = [
         icon: ShieldAlert,
         title: "Advanced route rules & WAF",
         status: "progress",
-        desc: "Per-route rules — rate limits, geo and user-agent filters, bans, hotlink protection — are live on self-hosted, edited from the dashboard and applied instantly with no reloads or config files. Next: composing them into a managed WAF and bringing the same rules to cloud.",
+        desc: "Per-route rate limits, IP allowlists, and in-flight request caps are available for self-hosted Traefik routes and managed from the dashboard. Next: broader managed WAF controls and cloud parity.",
       },
       {
         icon: Globe,

@@ -7,7 +7,7 @@
  * discovery). The join key is the published host port the proxy forwards to.
  */
 
-import { probeEdge, importSites, scanOpenshipEdge } from "@repo/adapters";
+import { probeEdge, scanImportableSites } from "@repo/adapters";
 import type { CommandExecutor, ImportedSite } from "@repo/adapters";
 import { sshManager } from "../../lib/ssh-manager";
 
@@ -86,11 +86,8 @@ export function buildProxyRouteIndex(sites: ImportedSite[]): Map<number, Existin
 
 /**
  * IO. One read-only SSH pass: detect the edge proxy and index the routes it
- * already serves by upstream port. Handles BOTH a recognized FOREIGN proxy
- * ("known" → `importSites` parses its vhosts) AND our OWN OpenResty edge
- * ("ours" → `scanOpenshipEdge` reads the sites tree NginxProvider wrote — so
- * containers previously deployed through Openship surface their existing
- * domain + SSL too). "free"/"unknown" → nothing to carry. Any failure → empty
+ * already serves by upstream port. Recognized proxies are parsed through their
+ * native configuration. "free"/"unknown" → nothing to carry. Any failure → empty
  * map (a scan failure must never fail discovery).
  */
 export async function scanProxyRoutes(serverId: string): Promise<Map<number, ExistingRoute[]>> {
@@ -114,9 +111,8 @@ export async function scanProxyRoutesWithExecutor(
     const edge = await probeEdge(exec);
     let sites: ImportedSite[];
     if (edge.classification === "known") {
-      sites = (await importSites(exec, edge)).sites; // never throws; empty for unimportable
-    } else if (edge.classification === "ours") {
-      sites = (await scanOpenshipEdge(exec)).sites; // our OpenResty server blocks
+      const proxy = edge.occupants.find((occupant) => occupant.proxy)?.proxy;
+      sites = proxy ? (await scanImportableSites(exec, proxy)).sites : [];
     } else {
       return new Map<number, ExistingRoute[]>();
     }

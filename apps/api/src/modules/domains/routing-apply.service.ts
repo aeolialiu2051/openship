@@ -4,7 +4,7 @@
  * the user edits routing from the Routing/Domains tab (`PUT /projects/:id/routing`).
  *
  * Two emitters over one parsed `RoutingConfig`:
- *   - Self-hosted → `buildCompositeRegistration` → OpenResty via the shared
+ *   - Self-hosted → `buildCompositeRegistration` → Traefik via the shared
  *     `reconcileProjectRoutes` dispatch.
  *   - Cloud → `compileRoutingToOblien` → the Oblien edge via `routes.set`.
  * `routes.set` ATOMICALLY REPLACES a hostname's edge behavior, so the cloud path
@@ -50,13 +50,13 @@ export async function applyProjectRouting(projectId: string): Promise<void> {
     const defs = await repos.service.listByProject(project.id);
     const liveRows = await repos.service.listByDeployment(project.activeDeploymentId);
 
-    // Cloud: apply the vercel routing at the Oblien edge (no OpenResty).
+    // Cloud: apply the vercel routing at the Oblien edge (no Traefik).
     if (runtime instanceof CloudRuntime) {
       await applyCloudRouting({ project, runtime, defs, liveRows, usesManaged: managed });
       return;
     }
 
-    // Self-hosted: compile to OpenResty locations and reconcile the domain.
+    // Self-hosted: compile to Traefik locations and reconcile the domain.
     if (!routing) return;
     const rowByService = new Map(liveRows.map((row) => [row.serviceId, row]));
     const routeStrategy = resolveRouteStrategy(project.routeStrategy);

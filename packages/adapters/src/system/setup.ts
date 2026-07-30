@@ -51,8 +51,8 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
  * Resolve prerequisite rules for a given runtime mode.
  *
  * The runtime mode deterministically implies everything:
- *   - docker → Docker + Git + OpenResty + certbot
- *   - bare   → Git + OpenResty + certbot
+ *   - docker → Docker + Git
+ *   - bare   → Git
  *
  * Note: Node.js / Go / Python / etc. are NOT system prerequisites.
  * They are installed on-demand by the toolchain layer (ensureToolchain)
@@ -63,24 +63,18 @@ function resolveRules(mode: RuntimeMode): PrerequisiteRule[] {
     return [
       { feature: "build", requires: ["git", "docker"], message: "Build requires Git and Docker" },
       { feature: "deploy", requires: ["docker"], message: "Deploy requires Docker" },
-      { feature: "routing", requires: ["openresty"], message: "Routing requires OpenResty" },
-      { feature: "ssl", requires: ["openresty", "certbot"], message: "SSL requires OpenResty and certbot" },
     ];
   }
 
   // bare mode - language runtimes handled per-stack by toolchain layer
   return [
     { feature: "build", requires: ["git"], message: "Build requires Git" },
-    { feature: "routing", requires: ["openresty"], message: "Routing requires OpenResty" },
-    { feature: "ssl", requires: ["openresty", "certbot"], message: "SSL requires OpenResty and certbot" },
   ];
 }
 
 /** Resolve which system components must be installed for a given runtime mode. */
 function resolveRequired(mode: RuntimeMode): string[] {
-  return mode === "docker"
-    ? ["docker", "git", "openresty", "certbot"]
-    : ["git", "openresty", "certbot"];
+  return mode === "docker" ? ["docker", "git"] : ["git"];
 }
 
 // ─── SystemManager ───────────────────────────────────────────────────────────
@@ -102,9 +96,7 @@ export interface SystemManagerOptions {
   provisionLock?: ProvisionLock;
   /**
    * Treat every feature as already provisioned — `ensureFeature`/`ensureComponents`
-   * become no-ops. Used when openship runs containerized (compose): docker is the
-   * mounted socket, OpenResty + certbot are the `openship-edge` image, so the
-   * api must NOT try to apt-install anything on its own container/host.
+   * become no-ops for containerized control-plane environments.
    */
   assumeInstalled?: boolean;
 }
@@ -206,7 +198,7 @@ export class SystemManager {
    * returns immediately without running system commands.
    */
   async checkFeature(feature: Feature): Promise<FeatureReadiness> {
-    // Docker-edge / assume-installed mode: the binaries (openresty, certbot) live
+    // Docker-edge / assume-installed mode: the binaries (traefik, certbot) live
     // in the edge container, not this api image. Treat every feature as ready —
     // mirroring ensureFeature's short-circuit — so requireFeature() doesn't
     // hard-fail a docker-edge deploy probing this image for a binary it never has.
@@ -269,7 +261,7 @@ export class SystemManager {
     config?: InstallerConfig,
   ): Promise<void> {
     // Containerized (compose): prerequisites are provided by the stack (docker
-    // socket + openship-edge image), not installable from inside the api — skip.
+    // socket), not installable from inside the api — skip.
     if (this.assumeInstalled) return;
 
     const logFn = onLog ?? (() => {});

@@ -90,7 +90,7 @@
     },
 
     "routes": {
-      "description": "Reverse-proxy routing rules compiled to OpenResty at deploy.",
+      "description": "Reverse-proxy routing rules compiled to Traefik at deploy.",
       "type": "object",
       "additionalProperties": false,
       "properties": {

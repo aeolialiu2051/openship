@@ -654,8 +654,6 @@
       "verifyNotYet": "{hostname} n'a pas encore pu être vérifié.",
       "verifyFailedTitle": "Échec de la vérification",
       "verifyFailed": "Échec de la vérification du domaine.",
-      "sslRenewed": "SSL renouvelé pour {hostname}.",
-      "sslRenewFailed": "Échec du renouvellement du SSL pour {hostname}.",
       "sslTitle": "SSL",
       "sslVerified": "SSL vérifié pour {hostname}.",
       "sslNoCert": "Aucun certificat valide trouvé pour {hostname} pour l'instant. Si vous venez de déployer, laissez à Let's Encrypt un moment, puis revérifiez.",

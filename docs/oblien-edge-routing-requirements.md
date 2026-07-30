@@ -2,9 +2,9 @@
 
 **Audience:** Oblien platform team.
 **Why:** openship parses each repo's `vercel.json` routing config and, on **self-hosted**,
-compiles it to OpenResty so a deployment behaves like Vercel — one domain serving static
+compiles it to Traefik so a deployment behaves like Vercel — one domain serving static
 assets at `/` and reverse-proxying a backend at `/api/*`, plus redirects/headers. On **cloud
-(Oblien)** there is no OpenResty, so this config is currently **persisted but not applied**.
+(Oblien)** there is no Traefik, so this config is currently **persisted but not applied**.
 This doc specifies the edge capabilities Oblien needs so openship can compile the *same* config
 to Oblien and reach parity. openship already has the parser, the persisted config, and a pure
 compiler abstraction; only a **cloud emitter** is missing on our side, gated on the API below.
@@ -126,13 +126,13 @@ the openship deployment so rollback restores that deployment's routes.
 
 openship parses `vercel.json` → a normalized `RoutingConfig`
 (`rewrites`/`redirects`/`headers`/`cleanUrls`/`trailingSlash`), persists it on the project, and
-compiles it — today to OpenResty (`compileVercelRouting`, self-hosted). To light up cloud we add
+compiles it — today to Traefik (`compileVercelRouting`, self-hosted). To light up cloud we add
 one **cloud emitter** over the SAME `RoutingConfig`, mapping:
 - `rewrites` (dest = path/function) → `proxy` to backend origin · (dest = `/index.html`) →
   `rewrite` · (dest = full URL) → `proxy` to that URL
 - `redirects` → `redirect` · `headers` → `headers` · `cleanUrls`/`trailingSlash` → flags
 
-So self-hosted (OpenResty locations) and cloud (Oblien routes) become two emitters over one
+So self-hosted (Traefik locations) and cloud (Oblien routes) become two emitters over one
 parsed config — genuine parity.
 
 ---

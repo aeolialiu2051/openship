@@ -1,11 +1,11 @@
 ---
 title: Servers
-description: Add your own servers over SSH, let Openship install what a deployment needs, and manage each server's health, rate limiting, port forwarding, and a live terminal.
+description: Add your own servers over SSH, let Openship install what a deployment needs, and manage each server's health, exposed ports, port forwarding, and a live terminal.
 ---
 
 The **Servers** section is where you connect the machines Openship deploys to. You give Openship SSH access to a
 box you already own — a VPS, a bare-metal server, a VM — and it installs and checks everything a deployment
-needs (Docker, OpenResty, Git). Once a server is connected, you can pick it as a deploy target from the
+needs (Docker, Traefik, Git). Once a server is connected, you can pick it as a deploy target from the
 [deploy flow](/docs/guides/deploy-from-github) and manage it from its own detail screen.
 
 <Callout title="Where this lives">
@@ -34,7 +34,7 @@ Server** button and four cards under "What gets configured":
 | Card | What it means |
 |---|---|
 | **Docker** | Container runtime |
-| **OpenResty** | Reverse proxy & SSL |
+| **Traefik** | Reverse proxy & SSL |
 | **Monitoring** | Health checks |
 | **Git** | Source deployments |
 
@@ -81,7 +81,7 @@ After you save a new server, Openship walks you through installing its prerequis
 run it:
 
 - **Automatic Setup** — "Check requirements and install everything automatically. One click — Openship handles
-  Docker, OpenResty, and Git."
+  Docker, Traefik, and Git."
 - **Step-by-Step Setup** — review each component and its detailed status before installing.
 
 The flow then moves through **Connect → Check → Install**: Openship opens the SSH connection, runs health
@@ -141,34 +141,15 @@ Header buttons let you **Install Missing (\{count})** in one go, or **Re-check**
 Installs and removals stream a progress card with component rows and an expandable logs panel, matching the
 setup flow.
 
-<Callout title="Removing OpenResty" type="warn">
+<Callout title="Removing Traefik" type="warn">
 Removing a component is destructive and can disable related deployment features until you install it again.
-Removing **OpenResty** takes down the reverse proxy and its managed config; use **Reinstall** if you only need
+Removing **Traefik** takes down the reverse proxy and its managed config; use **Reinstall** if you only need
 to refresh its scripts or settings.
 </Callout>
 
 <Callout title="Screenshot">Components tab showing the System Health list with per-row Install / Reinstall / Remove actions and the Detected Infrastructure divider. *(screenshot pending)*</Callout>
 
-### Security tab (rate limiting)
-
-This tab configures **OpenResty request rate limiting** for the server. The core control is **Requests /
-second**; Openship derives a **burst** allowance automatically (about 40% of the rate). Open **Advanced** to
-switch **Burst mode** to manual and set a custom **Burst allowance**.
-
-**Whitelisted IPs** let you list addresses or CIDR ranges that bypass the limit (loopback `127.0.0.1` and
-`::1` are always whitelisted). Type an IP or CIDR and press **Add**.
-
-Save with **Apply rate limit** (first time) or **Save changes** (when one already exists); **Remove rate
-limit** clears it, and **Refresh** re-reads the live config from OpenResty. A draft indicator at the bottom
-summarizes pending changes before you save.
-
-<Callout title="Needs OpenResty" type="info">
-Rate limiting reads and writes the live OpenResty config on the server, so OpenResty must be installed and
-reachable. If it can't be read, the tab shows a "Couldn't read OpenResty rate limit config" notice with a
-**Retry**.
-</Callout>
-
-#### Exposed-port scan
+### Security tab (exposed-port scan)
 
 The Security tab also has a **Scan ports** action that lists the ports actually **listening** on the server
 and classifies each as **exposed** (bound to a public/all-interfaces address) or **loopback-only** (bound to
@@ -176,7 +157,7 @@ and classifies each as **exposed** (bound to a public/all-interfaces address) or
 internet — a database that should be loopback-only, a debug port left open — so you can lock it down. It's a
 read-only probe (it changes nothing); re-run it after a deploy to confirm only what you expect is exposed.
 
-<Callout title="Screenshot">Security tab with the Requests / second field, the automatic-burst hint, the Advanced burst controls, the Whitelisted IPs input, and the Scan ports card. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">Security tab with the exposed-port scan card. *(screenshot pending)*</Callout>
 
 ### Ports tab (port forwarding)
 

@@ -119,7 +119,7 @@ export const ListProjectsQuery = Type.Object({
 /**
  * Routing config parsed from the repo's `vercel.json` (rewrites/redirects/
  * headers/cleanUrls/trailingSlash). Stored on the project and compiled to
- * OpenResty at deploy. Values are re-validated + sanitized at compile time
+ * Traefik at deploy. Values are re-validated + sanitized at compile time
  * (`compileVercelRouting`) since they originate from arbitrary repos.
  */
 const RoutingRuleSchema = Type.Object({

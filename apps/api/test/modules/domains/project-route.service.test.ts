@@ -34,45 +34,31 @@ import {
 
 describe("shouldRefuseLoopbackRoute", () => {
   it("refuses a tenant project's public route to the dashboard port on loopback", () => {
-    expect(shouldRefuseLoopbackRoute("127.0.0.1", 3001, { isSelfApp: false })).toBe(true);
+    expect(shouldRefuseLoopbackRoute("127.0.0.1", 3001)).toBe(true);
   });
 
   it("refuses a tenant project's public route to the admin API port on loopback", () => {
-    expect(shouldRefuseLoopbackRoute("127.0.0.1", 4000, { isSelfApp: false })).toBe(true);
-  });
-
-  it("allows the self-app's own public route to the dashboard port on loopback", () => {
-    expect(shouldRefuseLoopbackRoute("127.0.0.1", 3001, { isSelfApp: true })).toBe(false);
+    expect(shouldRefuseLoopbackRoute("127.0.0.1", 4000)).toBe(true);
   });
 
   it("allows a non-reserved port on loopback regardless of self-app status", () => {
-    expect(shouldRefuseLoopbackRoute("127.0.0.1", 8080, { isSelfApp: false })).toBe(false);
+    expect(shouldRefuseLoopbackRoute("127.0.0.1", 8080)).toBe(false);
   });
 
   it("allows any port on a non-loopback host (container IP)", () => {
-    expect(shouldRefuseLoopbackRoute("172.17.0.5", 3001, { isSelfApp: false })).toBe(false);
+    expect(shouldRefuseLoopbackRoute("172.17.0.5", 3001)).toBe(false);
   });
 });
 
 describe("deriveEnvironmentPublicEndpoints", () => {
   it("clones an explicit proxy target without inventing a fallback port", () => {
-    expect(
-      deriveEnvironmentPublicEndpoints(
-        [{ port: 4010 }],
-        "preview-app",
-      ),
-    ).toEqual([
+    expect(deriveEnvironmentPublicEndpoints([{ port: 4010 }], "preview-app")).toEqual([
       { port: 4010, domain: "preview-app", domainType: "free" },
     ]);
   });
 
   it("clones an explicit static path target without inventing a port", () => {
-    expect(
-      deriveEnvironmentPublicEndpoints(
-        [{ targetPath: "/docs" }],
-        "preview-docs",
-      ),
-    ).toEqual([
+    expect(deriveEnvironmentPublicEndpoints([{ targetPath: "/docs" }], "preview-docs")).toEqual([
       { targetPath: "/docs", domain: "preview-docs", domainType: "free" },
     ]);
   });
@@ -82,11 +68,7 @@ describe("deriveEnvironmentPublicEndpoints", () => {
   });
 });
 
-// Behavioral regression for issue #129: the self-app's own boot route to its
-// dashboard port on loopback was refused, so OpenResty never bound 443 and the
-// domain was unreachable. Drives the ACTUAL failing branch (bare adopt runtime,
-// resolveTargetUrl) rather than just the shouldRefuseLoopbackRoute predicate.
-describe("reapplyProjectLiveRoutes self-app loopback route (issue #129)", () => {
+describe("reapplyProjectLiveRoutes loopback guard", () => {
   // Mirrors the real self-app adopt deployment: meta { runtimeMode: "bare" } →
   // the app runs on the host, so the runtime resolves the upstream to
   // 127.0.0.1:<dashboard port> rather than a container IP.
@@ -134,16 +116,7 @@ describe("reapplyProjectLiveRoutes self-app loopback route (issue #129)", () => 
     });
   });
 
-  it("registers the self-app's own loopback dashboard route when isSelfApp is set", async () => {
-    await reapplyProjectLiveRoutes(project, [], { isSelfApp: true });
-
-    expect(reconcile).toHaveBeenCalledTimes(1);
-    expect(reconcile.mock.calls[0][1].registers).toEqual([
-      { hostname: "panel.example.com", targetUrl: "http://127.0.0.1:3001", isCustomDomain: false },
-    ]);
-  });
-
-  it("still refuses the same loopback dashboard route for an ordinary tenant project", async () => {
+  it("refuses a public route to the reserved loopback dashboard port", async () => {
     await reapplyProjectLiveRoutes(project, []);
 
     expect(reconcile).toHaveBeenCalledTimes(1);

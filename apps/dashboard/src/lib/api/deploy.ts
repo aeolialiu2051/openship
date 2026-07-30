@@ -286,14 +286,6 @@ export const deployApi = {
   buildRedeploy: (deployment_id: string) =>
     api.post<any>(endpoints.deploy.buildRedeploy(deployment_id)),
 
-  /** Check SSL certificate status for a domain */
-  sslStatus: (domain: string) =>
-    api.post<any>(endpoints.deploy.sslStatus, { domain }),
-
-  /** Renew SSL certificate */
-  sslRenew: (domain: string, includeWww = false) =>
-    api.post<any>(endpoints.deploy.sslRenew, { domain, includeWww }),
-
   /** Respond to a pipeline prompt (e.g. port conflict) */
   buildRespond: (deploymentId: string, action: string) =>
     api.post<any>(endpoints.deploy.buildRespond(deploymentId), { action }),

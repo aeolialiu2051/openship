@@ -4,25 +4,19 @@ import { getRoutingBaseDomain } from "./routing-domains";
 import { resolveServicePort, serviceKind } from "./deployable-service";
 import { env } from "../config/env";
 
-// OpenResty management port (packages/adapters openresty-lua.ts OPENRESTY_MGMT_PORT).
-// Hardcoded here so this leaf module doesn't pull the adapters barrel or the
-// env module (whose boot guards throw at import time under test).
-const OPENRESTY_MGMT_PORT = 9145;
-
 /**
  * Ports a tenant route must NEVER proxy at over the host loopback: the
- * control-plane API, the dashboard, and the UNAUTHENTICATED OpenResty
- * management port (9145). On a bare/self-hosted edge these live on the host's
+ * control-plane API and dashboard. On a bare/self-hosted target these live on the host's
  * 127.0.0.1, so a public route pointed at 127.0.0.1:<one of these> would expose
- * an internal service (admin API / edge rules-mgmt) to the internet. Only ever
- * applied to a LOOPBACK upstream — a container's own IP:9145 is the app's port,
- * not ours. See resolveTargetUrl in project-route.service.ts. Ports read from
+ * an internal service (admin API or dashboard) to the internet. Only ever
+ * applied to a LOOPBACK upstream. See resolveTargetUrl in
+ * project-route.service.ts. Ports read from
  * process.env directly (raw, no validated `env` import) to keep this leaf light.
  */
 export function isReservedLoopbackPort(port: number): boolean {
   const apiPort = env.PORT;
   const dashboardPort = env.OPENSHIP_DASHBOARD_PORT;
-  return port === apiPort || port === dashboardPort || port === OPENRESTY_MGMT_PORT;
+  return port === apiPort || port === dashboardPort;
 }
 
 /** True for a loopback host (the only place isReservedLoopbackPort applies). */
@@ -79,6 +73,12 @@ export function normalizeTargetPath(targetPath: string | null | undefined): stri
     .filter(Boolean);
 
   if (segments.some((segment) => segment === "..")) {
+    return undefined;
+  }
+
+  // This value becomes both a URL prefix and generated web-server syntax.
+  // Reject control/quoting characters instead of trying to escape two formats.
+  if (segments.some((segment) => !/^[A-Za-z0-9._~-]+$/.test(segment))) {
     return undefined;
   }
 
@@ -181,11 +181,14 @@ function routeRowsToPublicEndpoints(
 
 function primaryProjectDomain(projectDomains?: ProjectDomainRow[] | null): string | undefined {
   const projectLevelDomains = (projectDomains ?? []).filter(
-    (domain) => !domain.serviceId && inferPublicRouteDomainType(domain.hostname, domain.domainType) === "custom",
+    (domain) =>
+      !domain.serviceId &&
+      inferPublicRouteDomainType(domain.hostname, domain.domainType) === "custom",
   );
-  const primaryDomain = projectLevelDomains.find((domain) => domain.isPrimary)
-    ?? projectLevelDomains.find((domain) => domain.verified)
-    ?? projectLevelDomains[0];
+  const primaryDomain =
+    projectLevelDomains.find((domain) => domain.isPrimary) ??
+    projectLevelDomains.find((domain) => domain.verified) ??
+    projectLevelDomains[0];
 
   return normalizeCustomDomain(primaryDomain?.hostname);
 }
@@ -201,12 +204,10 @@ function normalizeStoredPublicEndpoint(
   const port = normalizePort(endpoint.port);
   const targetPath = normalizeTargetPath(endpoint.targetPath);
   const domainType = endpoint.domainType === "custom" ? "custom" : "free";
-  const domain = domainType === "free"
-    ? normalizeSlug(endpoint.domain ?? opts?.freeDomainFallback)
-    : undefined;
-  const customDomain = domainType === "custom"
-    ? normalizeCustomDomain(endpoint.customDomain)
-    : undefined;
+  const domain =
+    domainType === "free" ? normalizeSlug(endpoint.domain ?? opts?.freeDomainFallback) : undefined;
+  const customDomain =
+    domainType === "custom" ? normalizeCustomDomain(endpoint.customDomain) : undefined;
   const hasPortTarget = port !== null;
   const hasPathTarget = Boolean(targetPath);
 
@@ -230,15 +231,15 @@ export function normalizeStoredPublicEndpoints(
   if (!endpoints?.length) return [];
 
   return endpoints
-    .map((endpoint, index) => normalizeStoredPublicEndpoint(
-      endpoint,
-      index === 0 && opts?.primaryFreeDomainFallback
-        ? { freeDomainFallback: opts.primaryFreeDomainFallback }
-        : undefined,
-    ))
-    .filter(
-    (endpoint): endpoint is StoredPublicEndpoint => endpoint !== null,
-  );
+    .map((endpoint, index) =>
+      normalizeStoredPublicEndpoint(
+        endpoint,
+        index === 0 && opts?.primaryFreeDomainFallback
+          ? { freeDomainFallback: opts.primaryFreeDomainFallback }
+          : undefined,
+      ),
+    )
+    .filter((endpoint): endpoint is StoredPublicEndpoint => endpoint !== null);
 }
 
 function alignPrimaryStoredPublicEndpoint(
@@ -273,19 +274,22 @@ export function resolveStoredPublicEndpoints(opts: {
   const explicitTargetPort = normalizePort(opts.targetPort);
   const explicitTargetPath = normalizeTargetPath(opts.targetPath);
 
-  const explicitTarget = (explicitTargetPort !== null) !== Boolean(explicitTargetPath)
-    ? (explicitTargetPort !== null
+  const explicitTarget =
+    (explicitTargetPort !== null) !== Boolean(explicitTargetPath)
+      ? explicitTargetPort !== null
         ? { port: explicitTargetPort }
-        : { targetPath: explicitTargetPath! })
-    : null;
+        : { targetPath: explicitTargetPath! }
+      : null;
 
   if (explicitCustomDomain) {
     return explicitTarget
-      ? [{
-          customDomain: explicitCustomDomain,
-          ...explicitTarget,
-          domainType: "custom",
-        } satisfies StoredPublicEndpoint]
+      ? [
+          {
+            customDomain: explicitCustomDomain,
+            ...explicitTarget,
+            domainType: "custom",
+          } satisfies StoredPublicEndpoint,
+        ]
       : [];
   }
 
@@ -302,11 +306,13 @@ export function resolveStoredPublicEndpoints(opts: {
   const primaryCustomDomain = primaryProjectDomain(opts.projectDomains);
   if (primaryCustomDomain) {
     return explicitTarget
-      ? [{
-          customDomain: primaryCustomDomain,
-          ...explicitTarget,
-          domainType: "custom",
-        } satisfies StoredPublicEndpoint]
+      ? [
+          {
+            customDomain: primaryCustomDomain,
+            ...explicitTarget,
+            domainType: "custom",
+          } satisfies StoredPublicEndpoint,
+        ]
       : [];
   }
 
@@ -314,11 +320,13 @@ export function resolveStoredPublicEndpoints(opts: {
     return [];
   }
 
-  return [{
-    ...explicitTarget,
-    domain: normalizeSlug(opts.slug) ?? "project",
-    domainType: "free",
-  } satisfies StoredPublicEndpoint];
+  return [
+    {
+      ...explicitTarget,
+      domain: normalizeSlug(opts.slug) ?? "project",
+      domainType: "free",
+    } satisfies StoredPublicEndpoint,
+  ];
 }
 
 export function syncStoredPublicEndpoints(opts: {
@@ -374,9 +382,7 @@ export function syncStoredPublicEndpoints(opts: {
 }
 
 export function storedPublicEndpointsNeedCloud(
-  endpoints?:
-    | Array<Pick<StoredPublicEndpoint, "domainType" | "domain" | "customDomain">>
-    | null,
+  endpoints?: Array<Pick<StoredPublicEndpoint, "domainType" | "domain" | "customDomain">> | null,
 ): boolean {
   if (!endpoints?.length) return false;
   // Classify by the HOSTNAME's physical truth, never a bare `domainType` string.
@@ -407,7 +413,13 @@ export function storedPublicEndpointsNeedCloud(
 export function resolveServicePublicEndpoints(
   service: Pick<
     Service,
-    "exposed" | "exposedPort" | "ports" | "domain" | "customDomain" | "domainType" | "publicEndpoints"
+    | "exposed"
+    | "exposedPort"
+    | "ports"
+    | "domain"
+    | "customDomain"
+    | "domainType"
+    | "publicEndpoints"
   >,
 ): StoredPublicEndpoint[] {
   if (!service.exposed) return [];

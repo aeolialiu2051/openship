@@ -152,8 +152,8 @@ bun install            # one-time, fetches server runtime deps
 bun start              # boots the server, serves the SPA
 \`\`\`
 
-The server listens on \`PORT\` (default 4080). Put openresty / nginx in
-front to terminate TLS and route public traffic to it.
+The server listens on \`PORT\` (default 4080). Shared Traefik terminates TLS
+and routes public traffic to it.
 
 ## Required runtime environment
 

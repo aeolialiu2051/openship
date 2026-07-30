@@ -32,7 +32,7 @@ hand.
 In the dashboard, open the **Servers** page and press **Add Server**. (If this is your first server,
 the empty page has an **Add Your First Server** button that does the same thing.)
 
-<Callout title="Screenshot">The Servers page empty state, with the **Add Server** button and the "What gets configured" cards (Docker, OpenResty, Monitoring, Git). *(screenshot pending)*</Callout>
+<Callout title="Screenshot">The Servers page empty state, with the **Add Server** button and the "What gets configured" cards (Docker, Traefik, Monitoring, Git). *(screenshot pending)*</Callout>
 
 </Step>
 
@@ -96,7 +96,7 @@ Setup installs the **core** components first — the ones the server can't run a
 The routing and certificate tools aren't installed now. Openship adds them **automatically later**, the
 first time a deployment actually needs them — you never install them by hand:
 
-- **OpenResty** — the reverse proxy that routes web traffic to the right app. Added the first time an app needs a public web address.
+- **Traefik** — the reverse proxy that routes web traffic to the right app. Added the first time an app needs a public web address.
 - **Certbot** — provisions free HTTPS certificates from Let's Encrypt, so your sites get SSL. Added the first time an app needs HTTPS.
 - **rsync** — fast file transfer, added when a build is made elsewhere and copied to the server.
 
@@ -115,7 +115,7 @@ Each server gets its own page, split into tabs. From here you can see how it's d
 
 - **Overview** — live stats for the machine: CPU, memory, disk, uptime, and load, plus a quick list of which components are healthy.
 - **Components** — the health list for this server. **Re-check** re-runs the checks, **Install Missing** installs any core components the server still needs, and each installed component can be reinstalled or removed.
-- **Security** — request **rate limiting** (see below) and a **port-exposure scan** that lists which ports are listening and flags any bound to a public interface vs loopback-only.
+- **Security** — a read-only **port-exposure scan** that lists which ports are listening and flags any bound to a public interface vs loopback-only.
 - **Terminal** — a live SSH shell right in the browser, so you can poke around the server without leaving Openship. Up to 3 shells at once.
 - **Ports** — port forwarding (**desktop app only**, see below).
 
@@ -123,17 +123,6 @@ The header also has **Edit** (change the connection details) and, in the "…" m
 (which clears the stored SSH credentials and settings).
 
 <Callout title="Screenshot">A server detail page showing the Overview / Components / Security / Terminal tabs and the CPU / memory / disk stat cards. *(screenshot pending)*</Callout>
-
-### Rate limiting (Security tab)
-
-Rate limiting caps how many requests a single visitor can make per second, so one noisy client (or a
-bad bot) can't swamp your apps. It's applied at the OpenResty level for the whole server.
-
-Set **Requests / second** to turn it on. Openship picks a sensible **burst** allowance automatically
-(a small buffer for short spikes), or you can set your own under **Advanced**. You can also add
-**Whitelisted IPs** — addresses or CIDR ranges (like `10.0.0.0/8`) that skip the limit entirely.
-Loopback (`127.0.0.1`, `::1`) is always whitelisted. Setting requests per second back to `0` removes
-the limit.
 
 ### Port forwarding (Ports tab, desktop only)
 
@@ -164,10 +153,10 @@ openship server list
 openship server check <server-id>
 
 # Install the missing pieces, streaming the logs live
-openship server install <server-id> --component docker git openresty --follow
+openship server install <server-id> --component docker git --follow
 ```
 
-You can also test a connection without saving it, watch live stats, or manage rate limiting:
+You can also test a connection without saving it or watch live stats:
 
 ```bash
 # Try credentials without creating a server entry
@@ -176,11 +165,9 @@ openship server test-connection --host 203.0.113.10 --user root --auth-method ke
 # Stream live CPU / memory / disk stats (Ctrl-C to stop)
 openship server monitor <server-id>
 
-# Set a rate limit of 50 req/s (use --rps 0 to remove it)
-openship server rate-limit <server-id> --rps 50 --burst 20
 ```
 
-The installable components are `docker`, `git`, `openresty`, `certbot`, and `rsync`.
+The general server components are `docker`, `git`, and `rsync`. Feature-specific installers may add their own dependencies.
 
 ## If something goes wrong
 
@@ -202,12 +189,6 @@ actually has a working key loaded for that server.
 Open the **Components** tab and expand the install log — the last red lines say why. Common causes are
 no internet access on the server or a package manager that's busy or locked. Fix it on the server, then
 press **Re-check** and **Install Missing** to retry just the parts that failed.
-</Callout>
-
-<Callout title="Rate limit says it can't read the config" type="warn">
-The Security tab reads its settings from OpenResty. If OpenResty isn't installed (or isn't reachable)
-you'll see a "couldn't read" message. Install OpenResty from the **Components** tab first, then return
-to **Security**.
 </Callout>
 
 ## What next?

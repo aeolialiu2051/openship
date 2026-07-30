@@ -18,7 +18,7 @@ describe("sanitizeSpec", () => {
     });
   });
 
-  it("discards legacy OpenResty-only fields", () => {
+  it("discards legacy Traefik-only fields", () => {
     expect(
       sanitizeSpec({
         ban: { ips: ["203.0.113.10"] },

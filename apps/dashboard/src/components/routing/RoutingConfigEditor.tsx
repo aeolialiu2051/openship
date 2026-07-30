@@ -6,7 +6,7 @@
  * deploy wizard (advanced options) and the project Routing/Domains tab.
  *
  * Detected from the repo's vercel.json at prepare; the user can review/edit here
- * before deploy, or edit a live project (the backend re-applies to OpenResty
+ * before deploy, or edit a live project (the backend re-applies to Traefik
  * without a rebuild). Self-hosted only today — cloud edge routing is pending.
  */
 

@@ -25,13 +25,21 @@ import {
   readCurrentFqdn,
 } from "./mail-setup-runtime";
 import { safeErrorMessage } from "@repo/core";
-import { installRsync, installCertbot, foreignProxyOnEdge } from "@repo/adapters";
+import { installRsync, installCertbot, probeEdge } from "@repo/adapters";
 
 // ─── Shell quoting helper ─────────────────────────────────────────────────────
 
 /** Single-quote a value for safe shell interpolation. */
 function sq(value: string): string {
   return `'${value.replace(/'/g, "'\\''")}'`;
+}
+
+async function foreignProxyOnEdge(exec: CommandExecutor) {
+  const status = await probeEdge(exec);
+  const owner =
+    status.occupants.map((occupant) => occupant.proxy ?? occupant.command).filter(Boolean).join(", ") ||
+    status.classification;
+  return { status, owner };
 }
 
 // ─── Engine source-of-truth ──────────────────────────────────────────────────
@@ -374,8 +382,7 @@ export async function stepCheckPort25(
  *   - certbot   → used by step 12 (request_ssl) for mail.<domain>
  *
  * The mail core does not require a web reverse proxy. A server may already
- * run Traefik/Caddy for existing projects; installing OpenResty here would
- * demand a destructive edge takeover. Step 12 instead uses standalone
+ * run Traefik/Caddy for existing projects. Step 12 uses standalone
  * HTTP-01 when port 80 is free, or an existing webroot when it is listening.
  */
 export async function stepEnsureComponents(
@@ -678,7 +685,7 @@ async function repairFail2banAuth(
  * Dovecot, Amavis, ClamAV, SpamAssassin, iRedAPD, fail2ban, PostgreSQL.
  *
  * Because the engine no longer touches :80 / :443 at all, there's no need
- * to stop/restart OpenResty around the installer - the two stay running
+ * to stop/restart Traefik around the installer - the two stay running
  * side-by-side.
  *
  * Config: pre-seeded so the installer skips its dialog. The `#EOF` marker
@@ -1291,11 +1298,8 @@ export function spliceAmavisConf(
 /**
  * Step 12: Request a Let's Encrypt cert for `mail.<domain>`.
  *
- * Webroot mode through the RUNNING OpenResty: its default server already serves
- * `/.well-known/acme-challenge/` from `/var/www/acme` (deployLuaScripts), so the
- * HTTP-01 challenge is answered without ever stopping OpenResty. This is what
- * keeps every app behind the shared edge UP during mail cert issuance — the old
- * `systemctl stop openresty` + `--standalone` dance took the whole box dark.
+ * Uses a configured ACME webroot when port 80 is already served, otherwise
+ * certbot's standalone HTTP-01 mode.
  */
 export async function stepRequestSSL(
   exec: CommandExecutor,

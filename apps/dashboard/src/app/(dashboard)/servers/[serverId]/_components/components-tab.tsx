@@ -17,11 +17,10 @@ import type {
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 /** Component name → i18n key for its human/business role. The technical name
- *  (component.label, e.g. "OpenResty") stays as a small secondary tag. */
+ *  (component.label, e.g. "Traefik") stays as a small secondary tag. */
 const ROLE_KEY: Record<string, string> = {
   docker: "roleDocker",
   git: "roleGit",
-  openresty: "roleOpenresty",
   certbot: "roleCertbot",
   rsync: "roleRsync",
 };
@@ -49,7 +48,7 @@ function HealthRow({
   const removeDisabled = busy || component.removeSupported === false;
 
   // Lead with the human role ("Reverse proxy") and keep the technical name
-  // ("OpenResty") as a small secondary tag. Falls back to the raw label for
+  // ("Traefik") as a small secondary tag. Falls back to the raw label for
   // any component without a mapped role.
   const techName = component.label || component.name;
   const roleName =

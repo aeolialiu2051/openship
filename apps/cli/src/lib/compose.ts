@@ -4,9 +4,8 @@
  * The alternative to the "bare" process service (lib/service.ts): instead of
  * running the bundled API + downloaded dashboard as host processes (PGlite,
  * in-process jobs), bring up the published images as a compose stack —
- * postgres + redis + api + dashboard + the OpenResty `edge` container on
- * :80/:443. The api drives the edge + deployed app containers through the
- * mounted Docker socket (see OPENSHIP_EDGE_MODE=docker).
+ * postgres + redis + api + dashboard. Public application routing is provided
+ * by the shared Traefik runtime managed through the Docker socket.
  *
  * Lifecycle (up/stop/update/status) routes here when ~/.openship/install-method
  * is "compose"; otherwise the bare service backend handles it.
@@ -27,7 +26,7 @@ declare const __CLI_VERSION__: string;
 const COMPOSE_DIR = join(OS_DIR, "compose");
 const INSTALL_METHOD_FILE = join(OS_DIR, "install-method");
 const COMPOSE_FILE = join(COMPOSE_DIR, "docker-compose.yml");
-/** From-source override: BUILDs api/dashboard/edge instead of pulling them. */
+/** From-source override: builds API/dashboard instead of pulling them. */
 const BUILD_FILE = join(COMPOSE_DIR, "docker-compose.build.yml");
 const ENV_FILE = join(COMPOSE_DIR, ".env");
 
@@ -36,7 +35,6 @@ const ENV_FILE = join(COMPOSE_DIR, ".env");
 const BUILT_SERVICES = [
   { service: "api", dockerfile: "apps/api/Dockerfile" },
   { service: "dashboard", dockerfile: "apps/dashboard/Dockerfile" },
-  { service: "edge", dockerfile: "apps/edge/Dockerfile" },
 ] as const;
 
 export type InstallMethod = "compose" | "bare";
@@ -163,11 +161,6 @@ services:
     ports: ["\${OPENSHIP_BIND_ADDR:-0.0.0.0}:\${API_PORT:-4000}:\${API_PORT:-4000}"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - openship_sites:/usr/local/openresty/nginx/conf/sites-enabled
-      - openship_certs:/etc/letsencrypt
-      - openship_acme:/var/www/acme
-      # Static sites' extracted doc-roots — API writes, edge serves (shared).
-      - openship_static:/opt/openship/static
       # Host-op SSH key (createHostExecutor → host.docker.internal). /dev/null
       # when the host channel isn't provisioned → OPENSHIP_HOST_SSH_HOST stays
       # unset and the API falls back to LocalExecutor.
@@ -179,8 +172,6 @@ services:
       PORT: "\${API_PORT:-4000}"
       DATABASE_URL: postgresql://\${POSTGRES_USER:-openship}:\${POSTGRES_PASSWORD:?missing from .env — re-run openship up to regenerate it}@postgres:5432/\${POSTGRES_DB:-openship}
       REDIS_URL: redis://redis:6379
-      OPENSHIP_EDGE_MODE: docker
-      OPENSHIP_EDGE_CONTAINER: openship-edge
     depends_on:
       postgres: { condition: service_healthy }
       redis: { condition: service_healthy }
@@ -203,31 +194,9 @@ services:
     depends_on:
       api: { condition: service_healthy }
 
-  edge:
-    image: \${OPENSHIP_IMAGE_REGISTRY:-ghcr.io/oblien}/openship-edge:\${OPENSHIP_VERSION:-latest}
-    # PINNED, and it must stay pinned: the api reaches the edge by NAME through
-    # DockerEdgeExecutor (OPENSHIP_EDGE_CONTAINER above), and "ours" edge
-    # detection greps \`docker ps --filter name=openship-edge\`. Without this,
-    # compose derives \`<project>-edge-1\` from the directory and every
-    # \`docker exec\` into the edge fails with "No such container: openship-edge" —
-    # which silently migrated 0 sites after the operator's proxy was stopped.
-    # Safe here: the edge is a singleton (host networking, one per box).
-    container_name: openship-edge
-    restart: unless-stopped
-    network_mode: host
-    volumes:
-      - openship_sites:/usr/local/openresty/nginx/conf/sites-enabled
-      - openship_certs:/etc/letsencrypt
-      - openship_acme:/var/www/acme
-      - openship_static:/opt/openship/static
-
 volumes:
   postgres_data:
   redis_data:
-  openship_sites:
-  openship_certs:
-  openship_acme:
-  openship_static:
 `;
 
 /** Persist a stable secret in the compose .env — regenerated only if absent. */

@@ -668,8 +668,6 @@
       "verifyNotYet": "تعذّر توثيق {hostname} بعد.",
       "verifyFailedTitle": "فشل التوثيق",
       "verifyFailed": "تعذّر توثيق النطاق.",
-      "sslRenewed": "تم تجديد SSL لـ {hostname}.",
-      "sslRenewFailed": "تعذّر تجديد SSL لـ {hostname}.",
       "sslTitle": "SSL",
       "sslVerified": "تم توثيق SSL لـ {hostname}.",
       "sslNoCert": "لم يتم العثور على شهادة صالحة لـ {hostname} بعد. إذا كنت قد نشرت للتو، فامنح Let's Encrypt لحظة، ثم أعِد الفحص.",

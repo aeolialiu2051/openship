@@ -11,7 +11,6 @@ import { userServersOnly } from "../../middleware";
 import * as serversCtrl from "./servers.controller";
 import * as serverCheck from "./server-check.controller";
 import * as dockerOverview from "./docker-overview.controller";
-import * as rateLimit from "./rate-limit.controller";
 import * as serverGithub from "../github/server-github.controller";
 
 const r = secureRouter(new Hono(), {
@@ -28,8 +27,6 @@ r.post("/servers", { tag: "server:write", collection: true }, serversCtrl.create
 r.patch("/servers/:id", { tag: "server:write" }, serversCtrl.updateServer);
 r.delete("/servers/:id", { tag: "server:admin" }, serversCtrl.deleteServer);
 
-r.get("/servers/:id/rate-limit", { tag: "server:read" }, rateLimit.getRateLimit);
-r.patch("/servers/:id/rate-limit", { tag: "server:write" }, rateLimit.updateRateLimit);
 r.post(
   "/servers/:id/ports/scan",
   { tag: "server:read", readOnly: true, rateLimit: "server-probe" },

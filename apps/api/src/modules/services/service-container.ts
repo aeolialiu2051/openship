@@ -53,7 +53,7 @@ export async function resolveServicePlatform(
 }
 
 /** Runtime-only counterpart used by logs/status. It avoids constructing the
- * routing provider, so reading one service never probes or repairs OpenResty. */
+ * routing provider, so reading one service never probes or repairs Traefik. */
 export async function resolveServiceRuntime(
   project: { organizationId: string },
   dep: { meta: unknown },

@@ -13,7 +13,6 @@ import * as deploymentService from "./deployment.service";
 import { triggerReconcile } from "./reconcile.service";
 import * as buildService from "./build.service";
 import * as buildStatusService from "./build-status.service";
-import * as sslService from "./ssl.service";
 import * as prepareService from "./prepare.service";
 import { maybeProxyCloudProject, proxyToSaaS } from "../../lib/cloud/project-router";
 import { promoteProjectToCloud, TransferConflictError } from "../projects/transfer.service";
@@ -549,38 +548,4 @@ export async function buildStart(c: Context) {
       project_id: result.project_id,
     }),
   });
-}
-
-export async function sslStatus(c: Context) {
-  const ctx = getRequestContext(c);
-  const body = await c.req.json<{ domain: string }>();
-
-  if (!body.domain) {
-    return c.json({ success: false, error: "domain is required" }, 400);
-  }
-
-  try {
-    const result = await sslService.getStatus(body.domain, ctx.organizationId);
-    return c.json({ success: true, ...result });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to check SSL status";
-    return c.json({ success: false, error: message }, 400);
-  }
-}
-
-export async function sslRenew(c: Context) {
-  const ctx = getRequestContext(c);
-  const body = await c.req.json<{ domain: string; includeWww?: boolean }>();
-
-  if (!body.domain) {
-    return c.json({ success: false, error: "domain is required" }, 400);
-  }
-
-  try {
-    const result = await sslService.renew(body.domain, ctx.organizationId, body.includeWww);
-    return c.json(result);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to renew SSL";
-    return c.json({ success: false, error: message }, 400);
-  }
 }

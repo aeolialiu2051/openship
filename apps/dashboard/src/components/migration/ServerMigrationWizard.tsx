@@ -78,7 +78,7 @@ const MIGRATE_SOURCES = ["coolify", "caprover", "docker"] as const;
 /** A service that builds from source with no registry image can't migrate in v1. */
 const isBlocked = (s: DiscoveredService) => Boolean(s.build) && !s.image;
 
-/** The dockerized edge proxy (80/443). Openship's OpenResty replaces it, so it's
+/** The dockerized edge proxy (80/443). Openship's Traefik replaces it, so it's
  *  never imported — importing it would just replay the 80/443 conflict. */
 const isProxy = (s: DiscoveredService) => Boolean(s.proxyKind);
 
@@ -997,7 +997,7 @@ export function ServerMigrationWizard({
 
   // The natural next step: assign a domain per exposed service (the migrated
   // apps are pre-exposed, no domain yet) on the project's Domains tab. Adding a
-  // domain + redeploying is what ensures OpenResty (and reclaims 80/443 from the
+  // domain + redeploying is what ensures Traefik (and reclaims 80/443 from the
   // old proxy via the takeover modal).
   const openDomains = () => {
     const pid = lastProjectId();

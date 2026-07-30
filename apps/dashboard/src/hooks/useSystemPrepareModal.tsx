@@ -9,9 +9,8 @@
  * `ModalContext`, so callers never mount a `<Modal>` or re-import a component —
  * they just pass a stream + respond URL.
  *
- * `useEdgeModal` below is the first consumer (port-80/443 edge takeover); future
- * flows (component installs, port handovers, …) reuse `useSystemPrepareModal`
- * with their own endpoints.
+ * Component installs and other streamed maintenance flows reuse this hook with
+ * their own endpoints.
  *
  *   const prepare = useSystemPrepareModal();
  *   prepare({ streamUrl, respondUrl, title, onDone });
@@ -276,47 +275,5 @@ export function useSystemPrepareModal() {
       return id;
     },
     [showModal, hideModal],
-  );
-}
-
-/** Self-hosted domain verify with LIVE certbot logs — streams the standalone
- *  HTTP-01 run. No prompt (verify never asks for consent), so no respondUrl.
- *  `openVerifyModal(domainId, { hostname, onDone })`. */
-export function useVerifyModal() {
-  const prepare = useSystemPrepareModal();
-  return useCallback(
-    (domainId: string, opts?: { hostname?: string; onDone?: () => void }): string =>
-      prepare({
-        streamUrl: `domains/${domainId}/verify/stream`,
-        title: opts?.hostname ? `Verify ${opts.hostname}` : "Verify domain",
-        labels: {
-          working: "Verifying — issuing the certificate…",
-          done: "Verified — certificate issued and SSL active.",
-          failed: "Couldn't verify — see the log above for the exact reason.",
-        },
-        onDone: opts?.onDone,
-      }),
-    [prepare],
-  );
-}
-
-/** Port-80/443 edge takeover — the first `useSystemPrepareModal` consumer.
- *  `openEdgeModal(projectId, { onDone })`. */
-export function useEdgeModal() {
-  const prepare = useSystemPrepareModal();
-  return useCallback(
-    (projectId: string, opts?: { onDone?: () => void }): string =>
-      prepare({
-        streamUrl: `projects/${projectId}/routing/ensure-edge/stream`,
-        respondUrl: `projects/${projectId}/routing/ensure-edge/respond`,
-        title: "Set up edge routing",
-        labels: {
-          working: "Preparing the server's edge…",
-          done: "Edge ready — your routes are live.",
-          failed: "Edge setup didn't finish — the app stays on its port; routing is flagged on this tab.",
-        },
-        onDone: opts?.onDone,
-      }),
-    [prepare],
   );
 }

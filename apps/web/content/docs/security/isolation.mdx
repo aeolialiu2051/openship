@@ -29,7 +29,7 @@ On the **Docker** runtime, each deployment runs inside its own **container** —
 | Project network | `openship-<slug>` |
 | Project-scoped named volume | `openship-<slug>-<name>` |
 
-A single-app container publishes on a **random host port**, and Openship's built-in router (**OpenResty**, an nginx-based reverse proxy) forwards traffic to it — so nothing is exposed on a predictable port that another app could clash with.
+A single-app container publishes on a **random host port**, and the shared **Traefik** instance forwards traffic to it from the deployment's labels — so nothing is exposed on a predictable port that another app could clash with.
 
 ## Per-project networks
 

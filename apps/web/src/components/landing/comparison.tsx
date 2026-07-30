@@ -101,7 +101,7 @@ const GROUPS: Group[] = [
       {
         feature: "Traffic rules at the edge",
         openship: {
-          text: "Rate limits, country / IP / user-agent blocks and hotlink protection, set per route from the dashboard and applied without a reload.",
+          text: "Per-route rate limits, IP allowlists, and in-flight request caps configured from the dashboard.",
           status: "win",
         },
         managed: {
@@ -109,7 +109,7 @@ const GROUPS: Group[] = [
           status: "neutral",
         },
         selfhost: {
-          text: "Possible by hand-writing proxy config; no country rules out of the box.",
+          text: "Usually configured by hand in reverse-proxy middleware or config files.",
           status: "neutral",
         },
       },

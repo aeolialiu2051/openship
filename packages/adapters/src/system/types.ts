@@ -74,8 +74,8 @@ export interface SystemCheckResult {
 /**
  * High-level features. Prerequisites vary by runtime mode.
  *
- * Docker mode:  build → [git, docker], deploy → [docker], routing → [openresty], ssl → [openresty, certbot]
- * Bare mode:    build → [git],         deploy → [stack runtime], routing → [openresty], ssl → [openresty, certbot]
+ * Docker mode uses Docker + Git; Traefik owns routing and TLS.
+ * Bare mode uses Git and has no managed public edge.
  */
 export type Feature = "build" | "deploy" | "routing" | "ssl";
 
@@ -116,37 +116,20 @@ export interface SetupResult {
  * the setup flow, so the installers can run non-interactively.
  */
 export interface InstallerConfig {
-  /** ACME email for Let's Encrypt certificate provisioning */
-  acmeEmail?: string;
-  /** Primary domain for the platform */
-  domain?: string;
-  /**
-   * Pre-accepted authorization to take over ports 80/443 from an existing
-   * owner (persisted decision / non-interactive re-ensure). Skips the prompt.
-   */
-  edgePolicy?: EdgePolicy;
-  /**
-   * Interactive hold: when the edge ports are held by a foreign proxy and no
-   * edgePolicy is set, the installer pauses and asks via this callback — the
-   * SAME mechanism as the deploy "a service is already running" prompt. Returns
-   * the chosen action id ("override" | "cancel" | "migrate"). Absent + no
-   * policy → the installer throws EdgeConflictError rather than guessing.
-   */
   promptUser?: PromptUserFn;
 }
 
 // ─── Edge (port 80/443) ownership ──────────────────────────────────────────────
 
 /** Recognized reverse proxies that may already own the edge ports. */
-export type ProxyKind = "nginx" | "caddy" | "apache" | "traefik" | "haproxy" | "openresty";
+export type ProxyKind = "nginx" | "caddy" | "apache" | "traefik" | "haproxy";
 
 /**
  * free    → nothing on 80/443
- * ours    → the edge is our own OpenResty
  * known   → a recognized foreign proxy (migratable)
  * unknown → something holds the port we can't identify (takeover-only)
  */
-export type EdgeClassification = "free" | "ours" | "known" | "unknown";
+export type EdgeClassification = "free" | "known" | "unknown";
 
 export interface EdgeOccupant {
   port: number;
@@ -158,31 +141,14 @@ export interface EdgeOccupant {
   isDocker?: boolean;
   containerName?: string;
   proxy?: ProxyKind;
-  /** true when this is our own OpenResty (never counted as a conflict) */
-  managedByOpenship: boolean;
 }
 
 export interface EdgeStatus {
   classification: EdgeClassification;
   /** Foreign owners that must be resolved before we can bind 80/443. */
   occupants: EdgeOccupant[];
-  /** true for free | ours */
+  /** true when neither port is occupied */
   canProceedClean: boolean;
-}
-
-/** A single thing to stop when taking over a port. */
-export interface EdgeStopTarget {
-  port?: number;
-  unit?: string;
-  pid?: number;
-  container?: string;
-  label?: string;
-}
-
-/** Explicit, user-accepted authorization to reclaim the edge ports. */
-export interface EdgePolicy {
-  mode: "takeover";
-  stopTargets: EdgeStopTarget[];
 }
 
 // ─── Proxy config import (migrate) ──────────────────────────────────────────────
@@ -225,14 +191,6 @@ export interface ProxyScanResult {
  * message — render the SAME audit data: what proxy holds 80/443 and exactly which
  * sites a migrate would import.
  */
-export type EdgeConflictDetails = {
-  edge: EdgeStatus;
-  /** Sites parsed from the foreign proxy's config (empty for takeover-only proxies). */
-  sites: ImportedSite[];
-  /** Config the scan couldn't interpret — shown so the operator knows what WON'T migrate. */
-  warnings: string[];
-};
-
 // ─── Runtime mode ────────────────────────────────────────────────────────────
 
 export type RuntimeMode = "docker" | "bare";

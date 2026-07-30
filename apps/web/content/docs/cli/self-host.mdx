@@ -33,7 +33,6 @@ Manage the SSH servers your instance can build and deploy on. See the
 | `test-connection` (alias `test`) | Try an SSH connection **without** saving it. |
 | `check <serverId>` | Run component health checks against a saved server. |
 | `install <serverId>` | Install required components on a server. |
-| `rate-limit <serverId>` | Read or update per-server OpenResty rate limiting. |
 | `monitor <serverId>` | Stream live CPU / memory / disk / load stats. |
 | `ssh <serverId>` | Interactive SSH terminal *(coming soon — currently a stub)*. |
 
@@ -64,7 +63,7 @@ openship server list
 ### `check` and `install`
 
 `check` reports which components are present and healthy; `install` puts the missing ones on the box.
-The installable components are **`docker`, `git`, `openresty`, `certbot`, `rsync`**.
+The installable components are **`docker`, `git`, `certbot`, `rsync`**.
 
 | Command | Flag | Purpose |
 |---|---|---|
@@ -74,23 +73,10 @@ The installable components are **`docker`, `git`, `openresty`, `certbot`, `rsync
 
 ```bash
 openship server check srv_123
-openship server install srv_123 --component docker --component openresty --follow
+openship server install srv_123 --component docker --component git --follow
 ```
 
-### `rate-limit`
-
-With no flags it prints the current limit. Pass any of the flags below to update it (an OpenResty
-config change on that server).
-
-| Flag | Purpose |
-|---|---|
-| `--rps <n>` | Requests per second (`0` removes the limit). |
-| `--burst <n>` | Burst allowance. |
-| `--whitelist <cidr...>` | CIDRs exempt from limiting. |
-
 ```bash
-openship server rate-limit srv_123                          # read
-openship server rate-limit srv_123 --rps 50 --burst 100     # update
 openship server monitor srv_123                             # live stats (Ctrl-C to stop)
 ```
 

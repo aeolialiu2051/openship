@@ -38,13 +38,16 @@ import { parseVolumeSpec, type VolumeKind } from "./volume-spec";
 import { sq } from "../migration/direct-transfer";
 import { bounded, duBytes, volumeBytes } from "../migration/migration-size";
 import { deployComposeServices } from "../deployments/compose/deploy.service";
-import { buildServiceRouteDomains, serviceCustomHostnames } from "../../lib/routing-domains";
+import {
+  buildServiceRouteDomains,
+  isRoutePublishable,
+  serviceCustomHostnames,
+} from "../../lib/routing-domains";
 import { resolveServicePublicEndpoints } from "../../lib/public-endpoints";
 import { assertFreeEndpointsAllowed } from "../../lib/free-domain-guard";
 import {
   ensurePendingServiceDomain,
   removeServiceDomain,
-  reuseServerCertForDomain,
 } from "../domains/domain.service";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
 import {
@@ -392,6 +395,12 @@ export async function updateService(
   if (updated && (enabledChanged || exposedChanged || touchesRouting || nameChanged)) {
     try {
       const runtimeName = platform().runtime.name;
+      const domainByHostname = new Map(
+        (await repos.domain.listByProject(project.id)).map((domain) => [
+          domain.hostname.toLowerCase(),
+          domain,
+        ]),
+      );
       // `enabled` / `exposed` are non-nullable DB columns - no need to
       // fall back to `svc.*` on the updated row.
       const isRoutable = updated.enabled && updated.exposed;
@@ -410,6 +419,7 @@ export async function updateService(
             service: updated,
             runtimeName,
             usesManagedRouting: true,
+            domainByHostname,
           })
         : [];
       const nextByHost = new Map(nextRoutes.map((route) => [route.hostname.toLowerCase(), route]));
@@ -437,7 +447,7 @@ export async function updateService(
         hostPort = row?.hostPort ?? undefined;
       }
       const strategy = resolveRouteStrategy(project.routeStrategy);
-      const registers: RouteRegister[] = nextRoutes.map((route) => ({
+      const registers: RouteRegister[] = nextRoutes.filter(isRoutePublishable).map((route) => ({
         hostname: route.hostname,
         targetUrl: route.targetPort
           ? (buildUpstreamUrl({ strategy, ip, hostPort, containerPort: route.targetPort }) ??
@@ -462,22 +472,16 @@ export async function updateService(
         }
       }
 
-      // Mint a verifiable PENDING domain row for each custom service route, so
-      // it flows through the same DNS-preflight/verify/SSL pipe as a single-app
-      // custom domain (rather than only appearing — force-verified — at deploy).
-      // Track the freshly-created ones so we can reuse an existing on-server cert
-      // for them below (migration / first publish) instead of forcing an ACME
-      // re-issue.
-      const freshlyPublishedDomainIds: string[] = [];
+      // Mint a verifiable PENDING domain row for each custom service route so it
+      // flows through the same DNS ownership flow as a single-app custom domain.
       for (const route of nextRoutes) {
         if (route.domainType === "custom") {
-          const ensured = await ensurePendingServiceDomain({
+          await ensurePendingServiceDomain({
             projectId: project.id,
             serviceId,
             hostname: route.hostname,
             targetPort: route.targetPort,
           });
-          if (ensured.created && ensured.domainId) freshlyPublishedDomainIds.push(ensured.domainId);
         }
       }
       // Drop the derived row for any custom hostname the service no longer
@@ -503,7 +507,7 @@ export async function updateService(
           ? await repos.deployment.findById(project.activeDeploymentId)
           : null;
 
-      // The edge re-register (+ cert reuse) runs over SSH to the serving box.
+      // Best-effort route reconciliation may run over SSH to the serving box.
       // When that box is REMOTE (desktop mode) the write+reload can be slow — and
       // the service row is ALREADY saved above, with routing being best-effort
       // ([[domains-never-fail-deploy]]). So DON'T let the SSH edge apply hang the
@@ -512,12 +516,6 @@ export async function updateService(
       // already applied (the reported "keeps loading, but it took effect").
       const applyEdge = (async () => {
         await reconcileProjectRoutes(project, { deployment: dep, registers, removes });
-        // AFTER reconcile so installDomainCert re-registers the vhost with TLS on
-        // top of the live HTTP route — adopt an existing cert for a freshly
-        // published custom domain (migration / takeover) instead of ACME.
-        for (const domainId of freshlyPublishedDomainIds) {
-          await reuseServerCertForDomain(ctx, domainId).catch(() => {});
-        }
       })();
       applyEdge.catch((err) => console.error(`[SERVICE] edge apply for ${svc.name}:`, err));
       await Promise.race([

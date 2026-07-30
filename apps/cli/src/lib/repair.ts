@@ -226,17 +226,6 @@ export async function componentChecks(apiUp: boolean): Promise<ComponentCheck[]>
     detail: dashUp ? `serving on :${dashboardPort()}` : `not serving on :${dashboardPort()}`,
   });
 
-  // Edge (OpenResty) — our container is named `openship-edge`. Absent = not
-  // installed (fine on a private/local box), so warn-not-fail.
-  const edge = dockerNameRunning("openship-edge");
-  checks.push(
-    edge == null
-      ? { name: "Edge", state: "warn", detail: "docker unavailable — can't check" }
-      : edge
-        ? { name: "Edge", state: "pass", detail: "openship-edge running" }
-        : { name: "Edge", state: "warn", detail: "not installed (fine for a local box)" },
-  );
-
   return checks;
 }
 

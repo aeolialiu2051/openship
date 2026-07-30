@@ -77,7 +77,7 @@
     "addDomains": "Alan adları ekle",
     "viewDeployLogs": "Dağıtım günlüklerini görüntüle",
     "deployDetail": "Dağıtım günlükleri",
-    "routeHint": "Servisleriniz içe aktarıldı ancak henüz herkese açık değil. Alan Adları sekmesinde her servis için bir alan adı ekleyin — Openship edge servisini (OpenResty) kurmak üzere otomatik dağıtım yapar; eski proxy'niz hâlâ 80/443 portlarını kullanıyorsa devralmayı teklif eder.",
+    "routeHint": "Servisleriniz içe aktarıldı ancak henüz herkese açık değil. Alan Adları sekmesinde her servis için bir alan adı ekleyin — Openship edge servisini (Traefik) kurmak üzere otomatik dağıtım yapar; eski proxy'niz hâlâ 80/443 portlarını kullanıyorsa devralmayı teklif eder.",
     "downtimeNote": "Orijinal konteynerler taşıma sırasında durdurulur; yeni dağıtım canlıya geçene kadar kısa bir kesinti beklenir.",
     "movingImage": "imaj",
     "movingVolume": "disk birimi",

@@ -17,9 +17,7 @@ export type {
   ComponentStatus,
   EdgeClassification,
   EdgeOccupant,
-  EdgePolicy,
   EdgeStatus,
-  EdgeStopTarget,
   Feature,
   FeatureReadiness,
   InstallerConfig,
@@ -34,29 +32,9 @@ export type {
 } from "./types";
 
 // ─── Edge preflight + takeover ──────────────────────────────────────────────────
-export {
-  classifyProxy,
-  EdgeConflictError,
-  EdgeMigrateRequested,
-  freeEdgeTargets,
-  probeEdge,
-  stopTargetsForStatus,
-} from "./proxy/detect";
-export type { EdgeConflictDetails, ImportedSite, ProxyScanResult } from "./types";
+export { classifyProxy, probeEdge } from "./proxy/detect";
+export type { ImportedSite, ProxyScanResult } from "./types";
 export { scanImportableSites, canImportProxy } from "./proxy/import";
-export {
-  runEdgeTakeover,
-  type EdgeTakeoverOptions,
-  type EdgeTakeoverResult,
-} from "./proxy/takeover";
-export {
-  recoverInterruptedTakeover,
-  beginEdgeTakeover,
-  rollbackEdgeTakeover,
-  completeEdgeTakeover,
-} from "./proxy/takeover-journal";
-// The consolidated reverse-proxy / edge facade (single point for the chain).
-export { detectEdge, importSites, takeoverOnMigrate, foreignProxyOnEdge, ensureEdge } from "./proxy";
 
 // ─── State ───────────────────────────────────────────────────────────────────
 export type { SetupState, SetupStateStore, ComponentState } from "./state";
@@ -75,7 +53,6 @@ export {
   checkCertbot,
   checkDocker,
   checkGit,
-  checkOpenResty,
   checkRsync,
   COMPONENT_CHECKS,
 } from "./checks";
@@ -88,10 +65,8 @@ export {
   installCertbot,
   installDocker,
   installGit,
-  installOpenResty,
   installRsync,
   uninstallCertbot,
-  uninstallOpenResty,
   uninstallRsync,
 } from "./installer";
 

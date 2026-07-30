@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { BareRuntime } from "./bare";
 
-// C3 — resolveStaticRoot becomes OpenResty's `root <dir>;`. It MUST stay inside
+// C3 — resolveStaticRoot becomes Traefik's `root <dir>;`. It MUST stay inside
 // the deployment workDir; an absolute or ../-traversing outputDirectory would
 // point the document root at the host filesystem (arbitrary file disclosure).
 describe("BareRuntime.resolveStaticRoot confinement", () => {

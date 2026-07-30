@@ -20,7 +20,7 @@ import { param } from "../../lib/controller-helpers";
 /**
  * Sanitize a client-supplied spec into the trusted RouteRuleSpec shape.
  * Only capabilities implemented by native Traefik middlewares are accepted;
- * unsupported legacy OpenResty fields are intentionally discarded.
+ * unsupported legacy Traefik fields are intentionally discarded.
  */
 export function sanitizeSpec(input: unknown): RouteRuleSpec {
   const spec = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;

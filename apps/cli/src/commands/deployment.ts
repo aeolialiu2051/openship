@@ -15,8 +15,6 @@
  *   reject    POST   /deployments/:id/reject
  *   keep      POST   /deployments/:id/keep
  *   rm        DELETE /deployments/:id
- *   ssl status POST  /deployments/ssl/status    { domain }
- *   ssl renew  POST  /deployments/ssl/renew     { domain, includeWww? }
  */
 import { Command } from "commander";
 import { createInterface } from "node:readline";
@@ -222,39 +220,6 @@ const rm = new Command("rm")
     }),
   );
 
-/* ── SSL ────────────────────────────────────────────────────────────── */
-const sslStatus = new Command("status")
-  .description("Check SSL certificate status for a domain")
-  .argument("<domain>", "Domain to probe")
-  .action(
-    run(async (domain: string) => {
-      const res = await apiRequest("/deployments/ssl/status", {
-        method: "POST",
-        body: JSON.stringify({ domain }),
-      });
-      printJson(res);
-    }),
-  );
-
-const sslRenew = new Command("renew")
-  .description("Renew (issue) an SSL certificate for a domain")
-  .argument("<domain>", "Domain to renew")
-  .option("--www", "Also include the www subdomain")
-  .action(
-    run(async (domain: string, opts) => {
-      const res = await apiRequest("/deployments/ssl/renew", {
-        method: "POST",
-        body: JSON.stringify({ domain, includeWww: opts.www === true }),
-      });
-      report(res, `SSL renewal requested for ${domain}`);
-    }),
-  );
-
-const ssl = new Command("ssl")
-  .description("SSL certificate operations")
-  .addCommand(sslStatus)
-  .addCommand(sslRenew);
-
 export const deploymentCommand = new Command("deployment")
   .alias("deployments")
   .description("Manage deployments (list, inspect, redeploy, rollback, …)")
@@ -269,5 +234,4 @@ export const deploymentCommand = new Command("deployment")
   .addCommand(restart)
   .addCommand(reject)
   .addCommand(keep)
-  .addCommand(rm)
-  .addCommand(ssl);
+  .addCommand(rm);

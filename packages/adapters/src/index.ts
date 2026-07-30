@@ -3,7 +3,7 @@
  *
  * Three layers, one entry point:
  *   1. Runtime  → build/deploy/stop/start lifecycle (Docker, Bare, Cloud)
- *   2. Infra    → routing (OpenResty) + SSL (certbot/ACME) - separate from runtime
+ *   2. Infra    → shared Traefik routing plus cloud/BYO certificate providers
  *   3. System   → prerequisite checks + setup validation (self-hosted only)
  *
  * The Platform ties them together:
@@ -119,7 +119,6 @@ export { scopedVolumeName, scopeVolumeBinds, isHostPathSource } from "./runtime/
 
 // ─── Infrastructure layer ────────────────────────────────────────────────────
 export type { RoutingProvider, SslProvider } from "./infra/types";
-export { NginxProvider, type NginxProviderOptions, type RateLimitConfig } from "./infra/nginx";
 export {
   compileVercelRouting,
   sourceToLocation,
@@ -130,21 +129,13 @@ export {
 export { compileRoutingToOblien, type OblienRoutingContext } from "./runtime/oblien-routing";
 export { CloudInfraProvider } from "./infra/cloud";
 export { NoopInfraProvider } from "./infra/noop";
-export {
-  OPENRESTY_MGMT_PORT,
-  deployLuaScripts,
-  detectOpenRestyPaths,
-  type OpenRestyPaths,
-} from "./infra/openresty-lua";
 
 // ─── System layer ────────────────────────────────────────────────────────────
 export type {
   ComponentStatus,
   EdgeClassification,
   EdgeOccupant,
-  EdgePolicy,
   EdgeStatus,
-  EdgeStopTarget,
   Feature,
   FeatureReadiness,
   InstallerConfig,
@@ -158,37 +149,9 @@ export type {
   SystemLog,
   SystemLogCallback,
 } from "./system/types";
-export type { EdgeConflictDetails, ImportedSite, ProxyScanResult } from "./system/types";
-export {
-  classifyProxy,
-  EdgeConflictError,
-  EdgeMigrateRequested,
-  freeEdgeTargets,
-  probeEdge,
-  stopTargetsForStatus,
-} from "./system/proxy/detect";
-export { scanImportableSites, canImportProxy, scanOpenshipEdge } from "./system/proxy/import";
-export {
-  runEdgeTakeover,
-  registerImportedSites,
-  type EdgeTakeoverOptions,
-  type EdgeTakeoverResult,
-  type RegisterImportedSitesOptions,
-} from "./system/proxy/takeover";
-export {
-  recoverInterruptedTakeover,
-  beginEdgeTakeover,
-  rollbackEdgeTakeover,
-  completeEdgeTakeover,
-} from "./system/proxy/takeover-journal";
-// The consolidated reverse-proxy / edge facade (single point for the chain).
-export {
-  detectEdge,
-  importSites,
-  takeoverOnMigrate,
-  foreignProxyOnEdge,
-  ensureEdge,
-} from "./system/proxy";
+export type { ImportedSite, ProxyScanResult } from "./system/types";
+export { classifyProxy, probeEdge } from "./system/proxy/detect";
+export { scanImportableSites, canImportProxy } from "./system/proxy/import";
 
 export type { SetupState, SetupStateStore, ComponentState } from "./system/state";
 export { FileStateStore } from "./system/state";
@@ -204,23 +167,6 @@ export type {
 export { resolveEnvironment, detectPrivilege } from "./system/environment";
 export { elevatedExecutor, elevateCommand } from "./system/elevated-executor";
 export { systemCatalog } from "./system/catalog";
-// Native-module versioning + migration framework (verify → reconcile).
-export {
-  resolveVerifiedCatalog,
-  loadEmbeddedCatalog,
-  fetchRemoteCatalog,
-  reconcileServerModule,
-  readManifest,
-  readManifestOrSeed,
-  manifestPath,
-  MODULES_STATE_DIR,
-  type VerifiedCatalog,
-  type ModuleCatalog,
-  type ReconcileResult,
-  type ReconcileOptions,
-  type PendingConsent,
-  type OnBoxManifest,
-} from "./system/modules";
 export { SYSTEM_COMPONENTS, getSystemComponentDefinition } from "./system/components";
 export {
   isRemoteConnectionError,
@@ -259,7 +205,6 @@ export {
   createExecutor,
   createHostExecutor,
 } from "./system/executor";
-export { DockerEdgeExecutor } from "./system/docker-edge-executor";
 export {
   ensureRemoteJournal,
   runJournaled,
@@ -281,7 +226,6 @@ export {
   checkCertbot,
   checkDocker,
   checkGit,
-  checkOpenResty,
   COMPONENT_CHECKS,
 } from "./system/checks";
 export {
@@ -291,10 +235,8 @@ export {
   installCertbot,
   installDocker,
   installGit,
-  installOpenResty,
   installRsync,
   uninstallCertbot,
-  uninstallOpenResty,
   uninstallRsync,
 } from "./system/installer";
 export { SystemManager, type SystemManagerOptions } from "./system/setup";

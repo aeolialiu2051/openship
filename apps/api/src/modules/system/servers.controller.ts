@@ -8,7 +8,6 @@
 import type { Context } from "hono";
 import { repos } from "@repo/db";
 import { safeErrorMessage } from "@repo/core";
-import { invalidateOpenRestyPaths } from "@/lib/openresty-paths";
 import { buildSshConfig, sshManager, type SshSettingsInput } from "../../lib/ssh-manager";
 import { runConnectivityCheck } from "../../lib/connectivity";
 import "../../lib/connectivity-checks";
@@ -184,7 +183,7 @@ export async function createServer(c: Context) {
 
   // Saving a server is the binding boundary. Do not persist credentials that
   // merely open an SSH shell but cannot manage the host non-interactively —
-  // deployments need root or passwordless sudo for OpenResty, ACME and package
+  // deployments need root or passwordless sudo for Traefik, ACME and package
   // operations. The separate "Test connection" button is useful UX, but the
   // API must enforce the same invariant because clients can skip that button.
   const access = await validateManagementAccess({
@@ -224,7 +223,6 @@ export async function createServer(c: Context) {
   });
 
   sshManager.invalidate(server.id);
-  await invalidateOpenRestyPaths(server.id);
 
   // Names + non-secret connection details only. SSH passwords & key
   // passphrases are encrypted at rest; never include them in the audit.
@@ -336,7 +334,6 @@ export async function updateServer(c: Context) {
 
   const updated = await repos.server.update(id, patch);
   sshManager.invalidate(id);
-  await invalidateOpenRestyPaths(id);
 
   // Audit only the fields the caller intended to touch. Skip secrets entirely.
   const auditAfter: Record<string, unknown> = {};
@@ -424,7 +421,6 @@ export async function deleteServer(c: Context) {
       console.error("[server.delete] mail_server grant cleanup failed:", err),
     );
   sshManager.invalidate(id);
-  await invalidateOpenRestyPaths(id);
 
   audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "server.removed",

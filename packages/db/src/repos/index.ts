@@ -67,11 +67,6 @@ export {
   type NewUpdateStatus,
 } from "./update-status.repo";
 export {
-  createServerModuleStatusRepo,
-  type ServerModuleStatus,
-  type NewServerModuleStatus,
-} from "./server-module-status.repo";
-export {
   createCloudWebhookBindingRepo,
   type CloudWebhookBinding,
   type NewCloudWebhookBinding,
@@ -243,7 +238,6 @@ import { createWebhookSourceRepo } from "./webhook-source.repo";
 import { createIncomingWebhookRepo } from "./incoming-webhook.repo";
 import { createSystemNoticeRepo } from "./system-notice.repo";
 import { createUpdateStatusRepo } from "./update-status.repo";
-import { createServerModuleStatusRepo } from "./server-module-status.repo";
 import { createCloudWebhookBindingRepo } from "./cloud-webhook-binding.repo";
 import { createProjectConnectionRepo } from "./project-connection.repo";
 import { createCustomAppTemplateRepo } from "./custom-app-template.repo";
@@ -316,7 +310,6 @@ export const repos = {
   incomingWebhook: createIncomingWebhookRepo(db),
   notice: createSystemNoticeRepo(db),
   updateStatus: createUpdateStatusRepo(db),
-  serverModuleStatus: createServerModuleStatusRepo(db),
   cloudWebhookBinding: createCloudWebhookBindingRepo(db),
   projectConnection: createProjectConnectionRepo(db),
   customAppTemplate: createCustomAppTemplateRepo(db),

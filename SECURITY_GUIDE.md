@@ -44,7 +44,7 @@ The front door. Every request passes through here before it reaches a route.
 | `internal-auth.ts` | `INTERNAL_TOKEN` for machine-to-machine / bootstrap calls (CLI admin bootstrap). |
 | `mcp-consent.ts` | OAuth/consent for MCP clients (preserves `client_id`, `redirect_uri`, `code_challenge`, `state`). |
 | `origin-guard.ts`, `loopback-peer.ts`, `local-only.ts` | Origin/host/loopback restrictions (desktop-login redirect alignment lives near here). |
-| `client-ip.ts` | Trusted client-IP resolution (XFF is trusted only behind the OpenResty edge). |
+| `client-ip.ts` | Trusted client-IP resolution (XFF is trusted only behind the Traefik edge). |
 | `rate-limiter.ts` | Global rate limiting (policies in `apps/api/src/lib/rate-limit/`). |
 | `active-organization.ts`, `migration-guard.ts`, `better-auth-shield.ts` | Org scoping + Better-Auth hardening. |
 
@@ -119,7 +119,7 @@ Provisions a full mail stack (iRedMail) over SSH — heavy root-level remote wor
 
 Deploys the Zero webmail UI (self-host stack, or pointed at an external IMAP/SMTP backend).
 
-- `webmail/` — deploy flow (behind the OpenResty edge; XFF trusted there). External-backend
+- `webmail/` — deploy flow (behind the Traefik edge; XFF trusted there). External-backend
   connect pastes SMTP/IMAP credentials → encrypted at rest (see §8), never re-shown.
 - Instance SMTP transport (system mail: password resets, invites) —
   `apps/api/src/modules/system/setup.controller.ts` (`/system/settings/email`); password
@@ -148,13 +148,12 @@ env vars, SMTP passwords).
 **Rule:** serialized/API-returned objects expose only `hasX` flags, never ciphertext or
 plaintext. Losing the secret makes every stored credential undecryptable — treat it as such.
 
-## 9. Domains, SSL & the edge — `apps/api/src/lib/{domain-ssl,routing-domains,cloud-route}.ts` + `packages/adapters/src/infra/`
+## 9. Domains, SSL & routing — `apps/api/src/lib/{domain-ssl,routing-domains,cloud-route}.ts` + `packages/adapters/src/infra/`
 
-- Custom-domain verify → DNS-records → SSL (certbot) pipeline; hostname normalization is
-  cross-tenant-safe; certbot gated on verification.
-- OpenResty routing writes + reloads (`packages/adapters/src/infra/nginx.ts`, `openresty-lua.ts`)
-  and the per-route Lua rules engine (rate-limit / ban / country / UA) — DB is source of truth,
-  pushed to a shared dict.
+- Custom-domain verification and hostname normalization are cross-tenant-safe.
+- Self-hosted Docker routes are expressed as labels for the shared Traefik instance; its
+  configured certificate resolver owns automatic HTTPS. Cloud routing and operator-supplied
+  ingress remain separate providers.
 
 ## 10. Tokens, PAT & MCP scopes — `apps/api/src/modules/{auth,permissions}/`
 

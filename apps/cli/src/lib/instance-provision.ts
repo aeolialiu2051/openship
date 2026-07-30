@@ -13,15 +13,14 @@
  * copy the wizard uses (no duplication).
  */
 
-import { internalPost, waitHealthy, bootstrapAdmin, ensureInternalToken } from "./loopback-api";
+import { internalPost, waitHealthy, bootstrapAdmin } from "./loopback-api";
 
-export type DomainKind = "byo" | "custom" | "free" | "none";
+export type DomainKind = "byo" | "free" | "none";
 
 export interface InstallInputs {
   admin: { name: string; email: string; password: string };
   domain:
     | { kind: "byo"; hostname?: string }
-    | { kind: "custom"; hostname: string; acmeEmail?: string; edge: "migrate" | "takeover" | "cancel" }
     | { kind: "free"; slug: string; publicHost?: string }
     | { kind: "none" };
 }
@@ -59,8 +58,6 @@ export interface InstallFlags {
   hostname?: string;
   slug?: string;
   publicUrl?: string;
-  acmeEmail?: string;
-  edge?: string;
 }
 
 /**
@@ -92,14 +89,6 @@ export function resolveInstallInputs(flags: InstallFlags): InstallInputs {
       return { admin, domain: { kind: "none" } };
     case "byo":
       return { admin, domain: { kind: "byo", hostname } };
-    case "custom": {
-      if (!hostname) throw new HeadlessInputError("--domain-kind custom requires --hostname (or --public-url).");
-      const edge = (flags.edge?.trim().toLowerCase() || "cancel") as "migrate" | "takeover" | "cancel";
-      if (!["migrate", "takeover", "cancel"].includes(edge)) {
-        throw new HeadlessInputError(`Invalid --edge "${flags.edge}" (expected migrate | takeover | cancel).`);
-      }
-      return { admin, domain: { kind: "custom", hostname, acmeEmail: flags.acmeEmail?.trim() || email, edge } };
-    }
     case "free": {
       const slug = (flags.slug?.trim() || (hostname ? hostname.split(".")[0] : "")).toLowerCase();
       if (!slug || !SLUG_RE.test(slug)) {
@@ -108,7 +97,7 @@ export function resolveInstallInputs(flags: InstallFlags): InstallInputs {
       return { admin, domain: { kind: "free", slug, publicHost: hostOf(flags.publicUrl) } };
     }
     default:
-      throw new HeadlessInputError(`Invalid --domain-kind "${flags.domainKind}" (expected byo | custom | free | none).`);
+      throw new HeadlessInputError(`Invalid --domain-kind "${flags.domainKind}" (expected byo | free | none).`);
   }
 }
 
@@ -136,26 +125,6 @@ async function bootstrapOrReset(
   return { ok: false, message: boot.message || "bootstrap failed" };
 }
 
-/** Drain a self-register provisioning SSE stream best-effort (custom domain ACME).
- *  Never throws — the site serves over HTTP until the cert is ready. */
-async function drainProvisionStream(port: string, sessionId: string, token?: string): Promise<void> {
-  try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/system/self-register/stream?id=${sessionId}`, {
-      headers: { "X-Internal-Token": token ?? ensureInternalToken() },
-      signal: AbortSignal.timeout(180000),
-    });
-    if (!res.body) return;
-    const reader = res.body.getReader();
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-      const { done } = await reader.read();
-      if (done) break;
-    }
-  } catch {
-    /* best-effort: cert retries on reboot */
-  }
-}
-
 export interface ProvisionResult {
   adminReady: boolean;
   domainRegistered: boolean;
@@ -176,9 +145,7 @@ export async function headlessProvision(opts: {
    *  the ~/.openship token file); Compose install → the stack's compose/.env
    *  token (composeInternalToken). */
   token?: string;
-  /** Install method. Informational: the provisioning calls are now identical for
-   *  both — the api picks the host OpenResty or the container edge from
-   *  OPENSHIP_EDGE_MODE, so the CLI doesn't branch on it. */
+  /** Install method. Informational; provisioning calls are identical. */
   method?: "bare" | "compose";
   onLog?: (msg: string) => void;
 }): Promise<ProvisionResult> {
@@ -214,36 +181,6 @@ export async function headlessProvision(opts: {
     domainRegistered = res.ok;
     liveUrl = res.data?.url ?? (d.hostname ? `https://${d.hostname}` : undefined);
     if (!res.ok) warnings.push(`Domain registration returned: ${res.data?.error || "failed"}`);
-  } else if (d.kind === "custom") {
-    // Same call on compose and bare. It used to be skipped on compose out of a
-    // fear that self-register would install + take over the HOST's OpenResty and
-    // fight the container edge — it doesn't: with OPENSHIP_EDGE_MODE=docker,
-    // `ensureSelfEdgeInfra` returns early and installs nothing, then
-    // provisionSelfAppEdge routes + issues the cert THROUGH the edge container
-    // (vhost to the shared sites volume, `openresty -s reload` + certbot via
-    // `docker exec`). edgeTakeover/edgeMigrate are ignored in that mode — the
-    // host-side takeover already happened in the pre-up preflight.
-    const res = await internalPost(
-      port,
-      "/api/system/self-register",
-      {
-        domainType: "custom",
-        hostname: d.hostname,
-        dashPort,
-        acmeEmail: d.acmeEmail,
-        edgeTakeover: d.edge === "takeover",
-        edgeMigrate: d.edge === "migrate",
-      },
-      token,
-    );
-    domainRegistered = res.ok;
-    liveUrl = res.data?.url ?? `https://${d.hostname}`;
-    if (res.ok && res.data?.sessionId) {
-      log("Issuing HTTPS certificate (Let's Encrypt) — best-effort…");
-      await drainProvisionStream(port, String(res.data.sessionId), token);
-    } else if (!res.ok) {
-      warnings.push(`Custom domain provisioning returned: ${res.data?.error || "failed"}`);
-    }
   } else {
     // free — requires the box to be Cloud-connected already; the server rejects
     // otherwise (we surface that as a warning rather than inventing a token flow).
@@ -258,7 +195,7 @@ export async function headlessProvision(opts: {
     if (!res.ok) {
       warnings.push(
         `Free .opsh.io domain not registered: ${res.data?.error || "failed"}. ` +
-          `A free domain needs the box connected to Openship Cloud first — connect it, or use --domain-kind byo/custom.`,
+          `A free domain needs the box connected to Openship Cloud first — connect it, or use --domain-kind byo.`,
       );
     }
   }

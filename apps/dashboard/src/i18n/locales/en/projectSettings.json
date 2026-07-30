@@ -820,8 +820,6 @@
       "verifyNotYet": "{hostname} could not be verified yet.",
       "verifyFailedTitle": "Verification failed",
       "verifyFailed": "Failed to verify domain.",
-      "sslRenewed": "SSL renewed for {hostname}.",
-      "sslRenewFailed": "Failed to renew SSL for {hostname}.",
       "sslTitle": "SSL",
       "sslVerified": "SSL verified for {hostname}.",
       "sslNoCert": "No valid certificate found for {hostname} yet. If you just deployed, give Let's Encrypt a moment, then recheck.",

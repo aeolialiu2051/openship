@@ -12,9 +12,9 @@ export function streamSSE(
   c: Context,
   cb: (stream: SSEStreamingApi) => Promise<void>,
 ) {
-  // Disable reverse-proxy response buffering. nginx/OpenResty buffer proxied
+  // Disable reverse-proxy response buffering. nginx/Traefik buffer proxied
   // responses by default, which holds SSE events back until the buffer fills —
-  // the stream lags or appears stuck once deployed behind OpenResty, even
+  // the stream lags or appears stuck once deployed behind Traefik, even
   // though localhost (no proxy) streams fine. nginx turns off proxy_buffering
   // for any response carrying this header. Must be set before streamSSE()
   // commits the headers; it never sets X-Accel-Buffering itself, so this

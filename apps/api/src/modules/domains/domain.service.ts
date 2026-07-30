@@ -22,27 +22,18 @@ import {
   safeErrorMessage,
   normalizeCustomHostname,
   isValidCustomHostname,
-  SYSTEM,
 } from "@repo/core";
 import { platform, assertResourceInOrg } from "../../lib/controller-helpers";
 import { buildBackgroundContext, type RequestContext } from "../../lib/request-context";
-import {
-  manageDomainSsl,
-  installDomainCert,
-  provisionDomainCertForVerify,
-  verifyExistingCert,
-} from "../../lib/domain-ssl";
+import { manageDomainSsl } from "../../lib/domain-ssl";
 import { getRoutingBaseDomain } from "../../lib/routing-domains";
 import { resolveRecords } from "../../lib/dns-resolver";
 import { resolveProjectServerHost } from "../../lib/server-target";
 import { reconcileProjectRoutes } from "../../lib/route-apply.service";
 import { generateToken } from "../../lib/domain-token";
 import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
-import { sshManager } from "../../lib/ssh-manager";
-import type { DeploymentMeta } from "../../lib/deployment-runtime";
-import { scanProxyRoutesWithExecutor } from "../migration/proxy-route-scan";
 import type { TAddDomainBody } from "./domain.schema";
-import type { CloudRuntime, CommandExecutor, ManualCert } from "@repo/adapters";
+import type { CloudRuntime } from "@repo/adapters";
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
@@ -280,205 +271,6 @@ async function promoteCustomDomainToPrimary(domain: Domain, domainId: string): P
   }
 }
 
-/** Flip a row to verified + SSL active (+ promote), reusing an existing cert. */
-async function markDomainVerifiedActive(
-  domain: Domain,
-  domainId: string,
-  ssl: { issuer?: string; expiresAt?: string; manualSsl?: boolean },
-): Promise<void> {
-  await repos.domain.markVerified(domainId);
-  await promoteCustomDomainToPrimary(domain, domainId);
-  await repos.domain.updateSsl(domainId, {
-    sslStatus: "active",
-    ...(ssl.manualSsl ? { manualSsl: true } : {}),
-    ...(ssl.issuer ? { sslIssuer: ssl.issuer } : {}),
-    ...(ssl.expiresAt ? { sslExpiresAt: new Date(ssl.expiresAt) } : {}),
-  });
-}
-
-/** The server the project's active deployment runs on (for edge/cert reads). */
-async function resolveServerIdForProject(project: Project): Promise<string | null> {
-  if (!project.activeDeploymentId) return null;
-  const dep = await repos.deployment.findById(project.activeDeploymentId).catch(() => null);
-  return (dep?.meta as DeploymentMeta | undefined)?.serverId ?? null;
-}
-
-/**
- * Run `fn` with an executor that reaches the BOX the project's edge lives on —
- * the same host the bare/containerized OpenResty + certbot + /etc/letsencrypt sit
- * on. For the auto-registered "this server" (server-host mode) that's
- * `createHostExecutor()` (the LOCAL host — SSH-to-host when the API is itself
- * containerized); for a real remote server it's the pooled SSH executor. Returns
- * null when there's no server or the box is unreachable. This is what lets cert
- * reuse read the HOST's /etc/letsencrypt even when the API runs in a container
- * whose own /etc/letsencrypt is a different (empty) volume.
- */
-async function withServerHostExecutor<T>(
-  ctx: RequestContext,
-  project: Project,
-  fn: (exec: CommandExecutor) => Promise<T>,
-): Promise<T | null> {
-  const serverId = await resolveServerIdForProject(project);
-  if (!serverId) return null;
-  const server = await repos.server
-    .getInOrganization(serverId, ctx.organizationId)
-    .catch(() => null);
-  if (server?.isLocal) {
-    const { createHostExecutor } = await import("@repo/adapters");
-    return fn(createHostExecutor());
-  }
-  return sshManager.withExecutor(serverId, fn).catch(() => null);
-}
-
-/**
- * Bare-metal edge, but the SSL executor lands INSIDE a container: every SSL op
- * (certbot, cert read, vhost write) then hits the container's own (empty)
- * `/etc/letsencrypt`, not the host's bare OpenResty — so it silently no-ops.
- *
- * Probed THROUGH the resolved host executor (not the API's own `node:fs`) so the
- * verdict reflects where SSL ops ACTUALLY land: a bare API's LocalExecutor OR an
- * SSH-to-host executor targets the real host (no container marker → reachable);
- * only a containerized API with no host channel lands in a container. Docker-edge
- * mode shares the cert volume, so it's never "unreachable" there.
- */
-async function edgeHostUnreachable(ctx: RequestContext, project: Project): Promise<boolean> {
-  if (process.env.OPENSHIP_EDGE_MODE === "docker") return false;
-  // Only the LOCAL host-server can be "unreachable from a container" (a
-  // containerized API with no host channel). A REMOTE server is reached over SSH
-  // by definition — the SSH executor lands on its host, never a container — so
-  // skip the probe entirely (it's a wasted SSH round-trip that would otherwise be
-  // the FIRST, feedback-less blocking call and make verify look hung).
-  const serverId = await resolveServerIdForProject(project);
-  if (!serverId) return false;
-  const server = await repos.server
-    .getInOrganization(serverId, ctx.organizationId)
-    .catch(() => null);
-  if (!server?.isLocal) return false;
-  const { createHostExecutor } = await import("@repo/adapters");
-  const exec = createHostExecutor();
-  return (
-    (await exec.exists("/.dockerenv").catch(() => false)) ||
-    (await exec.exists("/run/.containerenv").catch(() => false))
-  );
-}
-
-const HOST_CHANNEL_HINT =
-  "This server runs a bare-metal edge, but Openship's API is in a container that can't reach the host's " +
-  "OpenResty or /etc/letsencrypt to manage TLS. Provision the host SSH channel (OPENSHIP_HOST_SSH_*, e.g. " +
-  "via `openship up`), or bind-mount the host's /etc/letsencrypt + OpenResty sites into the API container.";
-
-/** Guard a hostname before it's interpolated into a filesystem path (defence in
- *  depth — the row is already validated at creation). */
-function isPathSafeHostname(hostname: string): boolean {
-  return /^[a-z0-9]([a-z0-9.-]*[a-z0-9])?$/i.test(hostname) && !hostname.includes("..");
-}
-
-/**
- * Migration / first-publish SSL reuse. When a custom-domain row is freshly minted
- * for a hostname the SERVER ALREADY serves — an Openship re-migration on the same
- * box, or a foreign reverse proxy (nginx bare OR container) we're taking over —
- * adopt the cert that's already there instead of re-issuing via ACME (which fails
- * behind Cloudflare, or when the cert isn't at certbot's standard path). Sources,
- * in order, all read on the HOST executor so it works when the API is containerized:
- *   1. certbot's /etc/letsencrypt on the serving host, via the platform provider
- *      (verifyExistingCert).
- *   2. the host's /etc/letsencrypt/live/<host>/{fullchain,privkey}.pem read
- *      directly on the HOST executor — the bare-edge case where the API
- *      container's own /etc/letsencrypt is a different volume.
- *   3. the edge vhost's cert files (scanProxyRoutes → certPath/keyPath), read off
- *      the host and installed as a manual cert (foreign-proxy migration).
- * Self-hosted only; best-effort + non-fatal (domains never fail a deploy, see
- * [[domains-never-fail-deploy]]). No-op when nothing is reusable → the row stays
- * pending for the manual Verify (ACME) path. Returns true when it adopted a cert.
- */
-export async function reuseServerCertForDomain(
-  ctx: RequestContext,
-  domainId: string,
-): Promise<boolean> {
-  try {
-    const { domain, project } = await getDomainWithAuth(domainId, ctx.organizationId);
-    if (domain.verified) return true; // already good — nothing to reuse
-    // Cloud domains verify via Oblien (CNAME); reuse is a self-hosted concept.
-    if (platform().target === "cloud" || project.cloudWorkspaceId) return false;
-    // Can't reach the host from inside the container → nothing to reuse here; the
-    // manual Verify surfaces the actionable host-channel hint.
-    if (await edgeHostUnreachable(ctx, project)) {
-      console.warn(`[DOMAIN] cert reuse skipped for ${domain.hostname}: ${HOST_CHANNEL_HINT}`);
-      return false;
-    }
-
-    const installReused = async (cert: ManualCert) => {
-      const result = await installDomainCert(domain.hostname, cert, {
-        projectId: domain.projectId ?? undefined,
-        allowUnverified: true,
-      });
-      await markDomainVerifiedActive(domain, domainId, {
-        issuer: "reused",
-        manualSsl: true,
-        expiresAt: result.expiresAt || undefined,
-      });
-    };
-
-    // 1. A cert is already at certbot's standard path, reachable via the platform
-    //    provider (host-anchored for the local server-host).
-    const existing = await verifyExistingCert(domain.hostname, {
-      projectId: domain.projectId ?? undefined,
-    }).catch(() => null);
-    if (existing?.verified) {
-      await markDomainVerifiedActive(domain, domainId, {
-        issuer: existing.issuer,
-        expiresAt: existing.expiresAt || undefined,
-      });
-      return true;
-    }
-
-    // 2. Read the host's /etc/letsencrypt directly on the HOST executor — covers a
-    //    bare-metal edge whose certs live on the host while the API container's own
-    //    /etc/letsencrypt is a separate, empty volume.
-    if (isPathSafeHostname(domain.hostname)) {
-      const base = `/etc/letsencrypt/live/${domain.hostname}`;
-      const hostCert = await withServerHostExecutor(ctx, project, async (exec) => {
-        const certPem = await exec.readFile(`${base}/fullchain.pem`).catch(() => "");
-        const keyPem = await exec.readFile(`${base}/privkey.pem`).catch(() => "");
-        return certPem.trim() && keyPem.trim() ? { certPem, keyPem } : null;
-      }).catch(() => null);
-      if (hostCert) {
-        await installReused(hostCert);
-        return true;
-      }
-    }
-
-    // 3. A cert served by the edge vhost (our OpenResty at a non-standard path, or
-    //    a foreign proxy we're migrating from) — scan the edge + read the
-    //    referenced files, all on the HOST executor so it works on the local
-    //    host-server too (scanProxyRoutes' own sshManager can't reach that box).
-    const host = domain.hostname.toLowerCase();
-    const cert = await withServerHostExecutor(ctx, project, async (exec) => {
-      const routes = await scanProxyRoutesWithExecutor(exec);
-      const match = [...routes.values()]
-        .flat()
-        .find(
-          (r) =>
-            r.ssl.enabled &&
-            r.ssl.certPath &&
-            r.ssl.keyPath &&
-            r.domains.some((d) => d.toLowerCase() === host),
-        );
-      if (!match?.ssl.certPath || !match.ssl.keyPath) return null;
-      return {
-        certPem: await exec.readFile(match.ssl.certPath),
-        keyPem: await exec.readFile(match.ssl.keyPath),
-      };
-    }).catch(() => null);
-    if (!cert?.certPem?.trim() || !cert?.keyPem?.trim()) return false;
-    await installReused(cert);
-    return true;
-  } catch (err) {
-    console.error(`[DOMAIN] cert reuse failed for ${domainId}:`, safeErrorMessage(err));
-    return false;
-  }
-}
-
 // ─── Verify ──────────────────────────────────────────────────────────────────
 //
 // Checks DNS records and, on success, marks verified + active, promotes
@@ -509,166 +301,38 @@ export async function verifyDomain(
 
   const promoteToPrimary = () => promoteCustomDomainToPrimary(domain, domainId);
 
-  // ── Self-hosted: ACME-driven verification ─────────────────────────────────
-  // The operator owns the box, so there's no ownership challenge to prove, and
-  // we must NOT dig DNS: a CDN/Cloudflare in front resolves the hostname to the
-  // proxy — not this server — so an A-record check would always "fail". Instead
-  // we prove control the one way that survives a proxy: obtain the TLS cert.
-  // certbot's HTTP-01 challenge is forwarded to origin by the CDN over :80, so a
-  // successful issuance means the hostname really points here and :80/:443 are
-  // reachable. That single check replaces the old A-record + TXT-challenge dig.
+  // Self-hosted ownership is proven with the domain-specific TXT token. TLS is
+  // issued and renewed declaratively by Traefik after redeploy applies labels.
   if (target !== "cloud") {
-    // externalIngress: TLS terminates at the operator's OWN edge (they may have
-    // firewalled origin :80 to CDN IPs, or run Cloudflare "Flexible"), so ACME
-    // can't run here. Accept ownership by fiat — self-hosted, operator-owned box
-    // — and let their edge serve TLS.
-    if (external) {
-      log("External ingress — TLS handled upstream; marking verified without issuing a cert.");
+    const token = domain.verificationToken ?? generateToken(domain.hostname);
+    const txtOk = await verifyTxt(domain.hostname, token);
+    if (txtOk) {
       await repos.domain.markVerified(domainId);
       await promoteToPrimary();
-      await repos.domain.updateSsl(domainId, { sslStatus: "external" });
+      const sslStatus = external ? "external" : "provisioning";
+      await repos.domain.updateSsl(domainId, { sslStatus });
       return {
         verified: true,
         recordVerified: true,
         cnameVerified: true,
         txtVerified: true,
-        message:
-          "Domain verified — TLS is handled by your external ingress; no certificate is issued here.",
-        sslStatus: "external",
+        message: external
+          ? "Domain verified — TLS is handled by your external ingress."
+          : "Domain verified. Redeploy the project to publish the Traefik route and enable TLS.",
+        sslStatus,
       };
     }
-
-    // A containerized API with no host channel can't drive certbot on the bare
-    // host edge — running it would fail confusingly against the container's own
-    // /etc/letsencrypt. Surface the actionable reason instead.
-    if (await edgeHostUnreachable(ctx, project)) {
-      log(HOST_CHANNEL_HINT);
-      const attempts = await repos.domain.recordVerifyFailure(domainId, HOST_CHANNEL_HINT);
-      return {
-        verified: false,
-        recordVerified: false,
-        cnameVerified: false,
-        txtVerified: false,
-        attempts,
-        message: HOST_CHANNEL_HINT,
-      };
-    }
-
-    // Fast-fail a dead/slow REMOTE server (~2.5s TCP probe) with a clear message
-    // + immediate "connecting" feedback, instead of hanging on the full SSH
-    // connect timeout while the modal sits on a blank "Connecting…".
-    const serverId = await resolveServerIdForProject(project);
-    if (serverId) {
-      const server = await repos.server
-        .getInOrganization(serverId, ctx.organizationId)
-        .catch(() => null);
-      if (server && !server.isLocal) {
-        log(`Connecting to ${server.name || server.sshHost || "the server"}…`);
-        const reachable = await sshManager.probeReachable(serverId).catch(() => false);
-        if (!reachable) {
-          const message = `Can't reach ${server.sshHost || "the server"} over SSH — check it's online and reachable, then Verify again.`;
-          log(message);
-          const attempts = await repos.domain.recordVerifyFailure(domainId, message);
-          return {
-            verified: false,
-            recordVerified: false,
-            cnameVerified: false,
-            txtVerified: false,
-            attempts,
-            message,
-          };
-        }
-      }
-    }
-
-    // Reuse an already-valid cert instead of always re-issuing. A read-only
-    // probe (no ACME) on the serving host — reachability was just confirmed
-    // above, so if the edge already holds a cert with comfortable life left
-    // (beyond the renewal window) the domain is proven reachable AND TLS is
-    // live, so Verify succeeds without spending a Let's Encrypt issuance. A
-    // missing/near-expiry cert falls through to issuance below (which is itself
-    // locked + rechecks). `?force=1` skips this to force a fresh cert.
-    if (!opts.force) {
-      const existing = await verifyExistingCert(domain.hostname, {
-        projectId: domain.projectId ?? undefined,
-      }).catch(() => null);
-      const daysLeft = existing?.expiresAt
-        ? (new Date(existing.expiresAt).getTime() - Date.now()) / 86_400_000
-        : -1;
-      if (existing?.verified && daysLeft > SYSTEM.DOMAINS.SSL_RENEW_BEFORE_DAYS) {
-        log(
-          `A valid certificate is already present for ${domain.hostname} (expires ${existing.expiresAt.slice(0, 10)}) — reusing it. No new certificate requested.`,
-        );
-        await markDomainVerifiedActive(domain, domainId, {
-          issuer: existing.issuer,
-          expiresAt: existing.expiresAt,
-        });
-        return {
-          verified: true,
-          recordVerified: true,
-          cnameVerified: true,
-          txtVerified: true,
-          message:
-            "Domain verified — a valid certificate is already present; no new certificate was requested.",
-          sslStatus: "active",
-        };
-      }
-    }
-
-    try {
-      log(`Requesting a certificate for ${domain.hostname} (standalone HTTP-01 via the edge)…`);
-      const result = await provisionDomainCertForVerify(domain.hostname, {
-        projectId: domain.projectId ?? undefined,
-        onLog: opts.onLog,
-        force: opts.force,
-      });
-      if (result.verified) {
-        log("Certificate issued — marking the domain verified and SSL active.");
-        await repos.domain.markVerified(domainId);
-        await promoteToPrimary();
-        return {
-          verified: true,
-          recordVerified: true,
-          cnameVerified: true,
-          txtVerified: true,
-          message: "Domain verified — certificate issued.",
-          sslStatus: "active",
-        };
-      }
-      // certbot returned WITHOUT throwing but the cert isn't readable/usable
-      // (reason "missing" = no cert on this edge → likely running against the
-      // wrong edge/executor; "read_error" = cert present but unreadable). Surface
-      // the reason so the failure mode is diagnosable, not a generic "not yet".
-      const detail =
-        result.reason === "read_error"
-          ? "a certificate exists but couldn't be read on the edge"
-          : "no certificate was produced on the edge that serves this domain";
-      const message =
-        `Couldn't confirm a certificate (${detail}). Make sure the domain points at this server (a CDN like ` +
-        `Cloudflare in front is fine) and ports 80/443 are reachable, then Verify again.`;
-      const attempts = await repos.domain.recordVerifyFailure(domainId, message);
-      return {
-        verified: false,
-        recordVerified: false,
-        cnameVerified: false,
-        txtVerified: false,
-        attempts,
-        message,
-      };
-    } catch (err) {
-      // summarizeCertbotFailure (adapters) already mapped this to the real cause
-      // — DNS not resolving, :80 firewalled, or a proxy 404. Surface it verbatim.
-      const message = safeErrorMessage(err);
-      const attempts = await repos.domain.recordVerifyFailure(domainId, message);
-      return {
-        verified: false,
-        recordVerified: false,
-        cnameVerified: false,
-        txtVerified: false,
-        attempts,
-        message,
-      };
-    }
+    const message = `Add TXT _openship-challenge.${domain.hostname} = ${token}, wait for DNS propagation, then verify again.`;
+    const attempts = await repos.domain.recordVerifyFailure(domainId, message);
+    log(message);
+    return {
+      verified: false,
+      recordVerified: true,
+      cnameVerified: true,
+      txtVerified: false,
+      attempts,
+      message,
+    };
   }
 
   // ── Cloud (Oblien-managed): CNAME via Oblien + ownership TXT ───────────────
@@ -680,7 +344,7 @@ export async function verifyDomain(
     await repos.domain.markVerified(domainId);
     await promoteToPrimary();
 
-    // Externally-managed ingress: TLS terminates upstream, so no certbot here.
+    // Externally-managed ingress: TLS terminates upstream.
     if (external) {
       await repos.domain.updateSsl(domainId, { sslStatus: "external" });
       return {
@@ -693,11 +357,9 @@ export async function verifyDomain(
       };
     }
 
-    // Background SSL provisioning. Don't await — the verify response stays fast
-    // and the SSL status pill updates on the next list read. Failure is
-    // non-fatal: HTTP route stays up, Renew + the ssl-scheduler recover it.
+    // Background cloud-provider SSL provisioning. Don't await — the verify
+    // response stays fast and the status updates on the next list read.
     void manageDomainSsl(domain.hostname, {
-      action: "provision",
       projectId: domain.projectId ?? undefined,
     }).catch((err) => {
       console.error(
@@ -738,7 +400,7 @@ export async function removeDomain(ctx: RequestContext, domainId: string) {
 
   try {
     // Tear the route down on the RIGHT host (remote server / cloud), not the
-    // local orchestrator's OpenResty — reconcileProjectRoutes resolves the
+    // local orchestrator's Traefik — reconcileProjectRoutes resolves the
     // deployment's own runtime and handles the cloud case.
     const deployment = project.activeDeploymentId
       ? await repos.deployment.findById(project.activeDeploymentId).catch(() => null)
@@ -759,85 +421,6 @@ export async function removeDomain(ctx: RequestContext, domainId: string) {
   });
 
   await repos.domain.remove(domainId);
-}
-
-// ─── SSL ─────────────────────────────────────────────────────────────────────
-
-export async function renewDomainSsl(ctx: RequestContext, domainId: string) {
-  const { domain } = await getDomainWithAuth(domainId, ctx.organizationId);
-
-  // A manual cert can't be ACME-renewed — the operator must upload a fresh one.
-  if (domain.manualSsl) {
-    throw new ValidationError(
-      "This domain uses a manually uploaded certificate. Upload a new certificate to renew it.",
-    );
-  }
-
-  const result = await manageDomainSsl(domain.hostname, {
-    action: "renew",
-  });
-
-  return {
-    domain: domain.hostname,
-    sslStatus: result.expiresAt ? "active" : "provisioning",
-    expiresAt: result.expiresAt,
-    issuer: result.issuer,
-  };
-}
-
-/**
- * Recheck SSL: a READ-ONLY verification that the Let's Encrypt cert is actually
- * present + valid on the serving host (no certbot, no rate-limit cost). Recovers
- * a domain stuck in "provisioning" once its cert is in place, and confirms an
- * existing cert without re-issuing. The no-clobber persist (resolveSslPatch)
- * means a transient read failure leaves an "active" domain untouched.
- */
-export async function verifyDomainSsl(ctx: RequestContext, domainId: string) {
-  const { domain } = await getDomainWithAuth(domainId, ctx.organizationId);
-
-  const result = await manageDomainSsl(domain.hostname, {
-    action: "verify",
-  });
-
-  // Re-read the persisted row so the response reflects the no-clobber outcome
-  // (a transient read failure leaves an existing "active" untouched).
-  const updated = await repos.domain.findById(domainId);
-
-  return {
-    domain: domain.hostname,
-    sslStatus: updated?.sslStatus ?? (result.verified ? "active" : "provisioning"),
-    expiresAt: updated?.sslExpiresAt ?? (result.expiresAt || null),
-    issuer: updated?.sslIssuer ?? result.issuer,
-    verified: result.verified,
-  };
-}
-
-/**
- * Install an operator-supplied certificate (BYO / Cloudflare Origin CA) for a
- * verified custom domain. Flips `manualSsl` on so the route planner serves TLS
- * from the uploaded cert and never runs certbot — the piece that gives an
- * externalIngress domain (Cloudflare Full-strict) a real cert at origin.
- */
-export async function uploadDomainCert(ctx: RequestContext, domainId: string, cert: ManualCert) {
-  const { domain } = await getDomainWithAuth(domainId, ctx.organizationId);
-
-  const result = await installDomainCert(domain.hostname, cert, {
-    projectId: domain.projectId ?? undefined,
-  });
-
-  await repos.domain.update(domainId, {
-    manualSsl: true,
-    sslStatus: "active",
-    sslIssuer: "manual",
-    sslExpiresAt: result.expiresAt ? new Date(result.expiresAt) : undefined,
-  });
-
-  return {
-    domain: domain.hostname,
-    sslStatus: "active",
-    expiresAt: result.expiresAt,
-    issuer: "manual",
-  };
 }
 
 // ─── Batch pending verification ──────────────────────────────────────────────
@@ -943,31 +526,6 @@ export async function verifyPendingDomains(opts?: {
   }
 
   return result;
-}
-
-export async function renewOrgCerts(ctx: RequestContext) {
-  const projects = await repos.project.listByOrganization(ctx.organizationId, {
-    page: 1,
-    perPage: 1000,
-  });
-  const results: Array<{ domain: string; status: string; error?: string }> = [];
-
-  for (const p of projects.rows) {
-    const domains = await repos.domain.listByProject(p.id);
-    for (const d of domains) {
-      if (d.sslStatus !== "active" || !d.sslExpiresAt) continue;
-      const daysLeft = (new Date(d.sslExpiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
-      if (daysLeft > 14) continue;
-      try {
-        await renewDomainSsl(ctx, d.id);
-        results.push({ domain: d.hostname, status: "renewed" });
-      } catch (err) {
-        results.push({ domain: d.hostname, status: "failed", error: safeErrorMessage(err) });
-      }
-    }
-  }
-
-  return { renewed: results.filter((r) => r.status === "renewed").length, results };
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1102,19 +660,19 @@ async function buildRecords(
   }
 
   // ── Self-hosted ──
-  // No ownership TXT: the operator owns the box, and verification is ACME-driven
-  // (issuing the cert IS the proof), not a DNS dig.
+  const txt: DnsRecord = { type: "TXT", host: txtHost, name: txtName, value: token };
   if (externalIngress) {
-    // DNS points at the operator's own edge (Cloudflare/LB), not this box —
-    // there's nothing for us to hand them.
-    return { mode: "external", records: [] };
+    return { mode: "external", records: [txt] };
   }
-  // A record is GUIDANCE only ("point it here"). We never resolve it — a CDN in
-  // front would answer with its own IP — so it's a hint, not a gate.
+  // The A record is routing guidance; the TXT record is the ownership proof.
+  // This remains valid when a CDN fronts the application hostname.
   const serverIp = await resolveProjectServerHost(project);
   return {
     mode: "selfhosted",
-    records: [{ type: "A", host: routeHost, name: routeName, value: serverIp ?? "" }],
+    records: [
+      { type: "A", host: routeHost, name: routeName, value: serverIp ?? "" },
+      txt,
+    ],
   };
 }
 

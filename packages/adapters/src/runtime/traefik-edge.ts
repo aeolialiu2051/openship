@@ -4,12 +4,16 @@ import type { DockerContainerDetail, ResolvedTraefikEdge, TraefikManualConfig } 
 export const VIBRAIL_EDGE_CONTAINER = "vibrail-edge";
 export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
+export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
 export const VIBRAIL_EDGE_IMAGE = "traefik:v3.3";
 export const VIBRAIL_EDGE_MANAGED_LABEL = "vibrail.edge.managed";
+export const VIBRAIL_EDGE_CONFIG_VERSION_LABEL = "vibrail.edge.config-version";
+export const VIBRAIL_EDGE_CONFIG_VERSION = "2";
 export const VIBRAIL_EDGE_COMPATIBLE_LABEL = "vibrail.edge.compatible";
 export const VIBRAIL_EDGE_NETWORK_LABEL = "vibrail.edge.network";
 export const VIBRAIL_EDGE_ENTRYPOINT_LABEL = "vibrail.edge.entrypoint";
+export const VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL = "vibrail.edge.http-entrypoint";
 export const VIBRAIL_EDGE_TLS_LABEL = "vibrail.edge.tls";
 export const VIBRAIL_EDGE_CERT_RESOLVER_LABEL = "vibrail.edge.certresolver";
 
@@ -17,6 +21,7 @@ const SAFE_NAME = /^[a-zA-Z0-9_.-]+$/;
 
 export interface DetectedTraefikConfig extends TraefikManualConfig {
   dockerProvider?: boolean;
+  httpEntrypoint?: string;
 }
 
 function envMap(values: string[]): Map<string, string> {
@@ -130,6 +135,7 @@ export function parseTraefikStaticConfig(text: string): DetectedTraefikConfig {
   const network = entries.find((entry) => samePath(entry, "providers", "docker", "network"))?.value;
 
   const httpsEntrypoints = new Set<string>();
+  const httpEntrypoints = new Set<string>();
   for (const entry of entries) {
     if (
       entry.path.length === 3 &&
@@ -139,8 +145,17 @@ export function parseTraefikStaticConfig(text: string): DetectedTraefikConfig {
     ) {
       httpsEntrypoints.add(entry.path[1]!);
     }
+    if (
+      entry.path.length === 3 &&
+      entry.path[0] === "entrypoints" &&
+      entry.path[2] === "address" &&
+      /(^|:|\])80(?:\/tcp)?$/i.test(scalarValue(entry.value ?? ""))
+    ) {
+      httpEntrypoints.add(entry.path[1]!);
+    }
   }
   const entrypoint = httpsEntrypoints.size === 1 ? [...httpsEntrypoints][0] : undefined;
+  const httpEntrypoint = httpEntrypoints.size === 1 ? [...httpEntrypoints][0] : undefined;
 
   const resolvers = new Set<string>();
   for (const entry of entries) {
@@ -164,6 +179,7 @@ export function parseTraefikStaticConfig(text: string): DetectedTraefikConfig {
     ...(dockerProvider !== undefined ? { dockerProvider } : {}),
     ...(network ? { network } : {}),
     ...(entrypoint ? { entrypoint } : {}),
+    ...(httpEntrypoint ? { httpEntrypoint } : {}),
     ...(tls !== undefined ? { tls } : {}),
     ...(certResolver ? { certResolver } : {}),
   };
@@ -179,6 +195,9 @@ export function traefikConfigFromLabels(container: DockerContainerDetail): Detec
       : {}),
     ...(container.labels[VIBRAIL_EDGE_ENTRYPOINT_LABEL]
       ? { entrypoint: container.labels[VIBRAIL_EDGE_ENTRYPOINT_LABEL] }
+      : {}),
+    ...(container.labels[VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL]
+      ? { httpEntrypoint: container.labels[VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL] }
       : {}),
     ...(tls !== undefined ? { tls } : {}),
     ...(container.labels[VIBRAIL_EDGE_CERT_RESOLVER_LABEL]
@@ -234,6 +253,24 @@ function entrypointFromAddress(command: string[], env: Map<string, string>): str
   for (const [key, value] of env) {
     const match = /^TRAEFIK_ENTRYPOINTS_([A-Z0-9_]+)_ADDRESS$/i.exec(key);
     if (match && /(^|:|\])443(?:\/tcp)?$/i.test(value)) {
+      candidates.add(match[1]!.toLowerCase().replaceAll("_", "-"));
+    }
+  }
+  return candidates.size === 1 ? [...candidates][0] : undefined;
+}
+
+function httpEntrypointFromAddress(
+  command: string[],
+  env: Map<string, string>,
+): string | undefined {
+  const candidates = new Set<string>();
+  for (const part of command) {
+    const match = /^--entrypoints\.([a-zA-Z0-9_.-]+)\.address=(.+)$/i.exec(part);
+    if (match && /(^|:|\])80(?:\/tcp)?$/i.test(match[2]!)) candidates.add(match[1]!);
+  }
+  for (const [key, value] of env) {
+    const match = /^TRAEFIK_ENTRYPOINTS_([A-Z0-9_]+)_ADDRESS$/i.exec(key);
+    if (match && /(^|:|\])80(?:\/tcp)?$/i.test(value)) {
       candidates.add(match[1]!.toLowerCase().replaceAll("_", "-"));
     }
   }
@@ -333,9 +370,11 @@ export function resolveExistingTraefik(
     throw new Error("The configured Traefik certificate resolver name is invalid.");
   }
 
+  const httpEntrypoint = httpEntrypointFromAddress(command, env) || detected.httpEntrypoint;
   return {
     network,
     entrypoint,
+    ...(httpEntrypoint ? { httpEntrypoint } : {}),
     tls: manual.tls ?? detected.tls ?? true,
     ...(certResolver ? { certResolver } : {}),
     source: container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ? "vibrail" : "existing",
@@ -355,10 +394,7 @@ function middlewareNames(rule: TraefikRouteRuleConfig): string[] {
   ].filter((name): name is string => !!name);
 }
 
-function addMiddlewareLabels(
-  labels: Record<string, string>,
-  rule: TraefikRouteRuleConfig,
-): void {
+function addMiddlewareLabels(labels: Record<string, string>, rule: TraefikRouteRuleConfig): void {
   if (!SAFE_NAME.test(rule.name)) throw new Error(`Invalid Traefik rule name: ${rule.name}`);
   if (rule.rateLimit) {
     const middleware = `traefik.http.middlewares.${rule.name}-rate.ratelimit`;
@@ -391,18 +427,45 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
     }
     const router = `traefik.http.routers.${route.routerName}`;
     const service = `traefik.http.services.${route.routerName}`;
+    const tls = route.tls ?? config.tls;
+    const entrypoint = tls ? config.entrypoint : config.httpEntrypoint;
+    if (!entrypoint) {
+      throw new Error(
+        `Traefik route ${route.hostname} requires a plain-HTTP entrypoint, but none was detected.`,
+      );
+    }
     labels[`${router}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
-    labels[`${router}.entrypoints`] = config.entrypoint;
-    labels[`${router}.tls`] = String(config.tls);
+    labels[`${router}.entrypoints`] = entrypoint;
+    labels[`${router}.tls`] = String(tls);
     labels[`${router}.service`] = route.routerName;
-    if (config.certResolver) labels[`${router}.tls.certresolver`] = config.certResolver;
+    if (tls && config.certResolver) labels[`${router}.tls.certresolver`] = config.certResolver;
     labels[`${service}.loadbalancer.server.port`] = String(route.port);
+
+    if (tls && config.httpEntrypoint) {
+      const redirectRouter = `traefik.http.routers.${route.routerName}-redirect`;
+      const redirectMiddleware = `traefik.http.middlewares.${route.routerName}-https.redirectscheme`;
+      labels[`${redirectRouter}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
+      labels[`${redirectRouter}.entrypoints`] = config.httpEntrypoint;
+      labels[`${redirectRouter}.service`] = route.routerName;
+      labels[`${redirectRouter}.middlewares`] = `${route.routerName}-https@docker`;
+      labels[`${redirectMiddleware}.scheme`] = "https";
+      labels[`${redirectMiddleware}.permanent`] = "true";
+    }
+
+    const rootMiddleware =
+      route.targetPath && route.targetPath !== "/" ? `${route.routerName}-root` : null;
+    if (rootMiddleware) {
+      labels[`traefik.http.middlewares.${rootMiddleware}.addprefix.prefix`] = route.targetPath!;
+    }
 
     const rules = config.routeRules?.[route.hostname.trim().toLowerCase()] ?? [];
     for (const rule of rules) addMiddlewareLabels(labels, rule);
 
     const hostRules = rules.filter((rule) => !rule.pathPrefix);
-    const hostMiddlewares = hostRules.flatMap(middlewareNames);
+    const hostMiddlewares = [
+      ...(rootMiddleware ? [rootMiddleware] : []),
+      ...hostRules.flatMap(middlewareNames),
+    ];
     if (hostMiddlewares.length > 0) {
       labels[`${router}.middlewares`] = hostMiddlewares.map((name) => `${name}@docker`).join(",");
     }
@@ -423,14 +486,18 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
       const pathRouter = `traefik.http.routers.${pathRouterName}`;
       labels[`${pathRouter}.rule`] =
         `Host(\`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`;
-      labels[`${pathRouter}.entrypoints`] = config.entrypoint;
-      labels[`${pathRouter}.tls`] = String(config.tls);
+      labels[`${pathRouter}.entrypoints`] = entrypoint;
+      labels[`${pathRouter}.tls`] = String(tls);
       labels[`${pathRouter}.service`] = route.routerName;
       labels[`${pathRouter}.priority`] = String(10_000 + pathPrefix.length);
-      if (config.certResolver) labels[`${pathRouter}.tls.certresolver`] = config.certResolver;
+      if (tls && config.certResolver)
+        labels[`${pathRouter}.tls.certresolver`] = config.certResolver;
       // A more-specific path router wins over the base host router, so repeat
       // host-wide middlewares here before the path-specific chain.
-      const names = [...hostRules, ...pathRules].flatMap(middlewareNames);
+      const names = [
+        ...(rootMiddleware ? [rootMiddleware] : []),
+        ...[...hostRules, ...pathRules].flatMap(middlewareNames),
+      ];
       if (names.length > 0) {
         labels[`${pathRouter}.middlewares`] = names.map((name) => `${name}@docker`).join(",");
       }

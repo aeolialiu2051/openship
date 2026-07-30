@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { resolveBuildRuntimeModes, resolveDeployRouting } from "./build-execution-plan";
+import {
+  resolveBuildRuntimeModes,
+  resolveDeployRouting,
+  resolveTraefikRoutePort,
+} from "./build-execution-plan";
 
 /**
  * Locks the behavior-equivalence tables the pipeline restructure relied on. Each
@@ -31,7 +35,7 @@ describe("resolveBuildRuntimeModes (pre-resolve flip, as data)", () => {
     ).toEqual({ buildRuntimeMode: "docker", serveRuntimeMode: "docker" });
   });
 
-  it("static on a remote server → build in Docker sandbox, serve identity bare", () => {
+  it("static on a remote server → Docker owns build and serve lifecycle", () => {
     expect(
       resolveBuildRuntimeModes({
         hasServer: false,
@@ -40,10 +44,10 @@ describe("resolveBuildRuntimeModes (pre-resolve flip, as data)", () => {
         effectiveTarget: "server",
         willRunServices: false,
       }),
-    ).toEqual({ buildRuntimeMode: "docker", serveRuntimeMode: "bare" });
+    ).toEqual({ buildRuntimeMode: "docker", serveRuntimeMode: "docker" });
   });
 
-  it("static on a self-hosted host (no serverId) → sandbox build, bare serve", () => {
+  it("static on a self-hosted host (no serverId) → Docker owns build and serve lifecycle", () => {
     expect(
       resolveBuildRuntimeModes({
         hasServer: false,
@@ -52,7 +56,7 @@ describe("resolveBuildRuntimeModes (pre-resolve flip, as data)", () => {
         effectiveTarget: "local",
         willRunServices: false,
       }),
-    ).toEqual({ buildRuntimeMode: "docker", serveRuntimeMode: "bare" });
+    ).toEqual({ buildRuntimeMode: "docker", serveRuntimeMode: "docker" });
   });
 
   it("static cloud target → no flip (CloudRuntime owns it)", () => {
@@ -121,15 +125,52 @@ describe("resolveDeployRouting (post-resolve, keyed off runtime.name)", () => {
     ).toEqual({ buildMode: "normal", deployMode: "static-edge", staticServeOutputDir: "" });
   });
 
-  it("static + docker runtime → sandbox build, file-serve, doc-root already extracted", () => {
+  it("static + docker runtime → generated HTTP container", () => {
     expect(
       resolveDeployRouting({ hasServer: false, runtimeName: "docker", outputDirectory: "dist" }),
-    ).toEqual({ buildMode: "static-sandbox", deployMode: "static-file-serve", staticServeOutputDir: "" });
+    ).toEqual({ buildMode: "normal", deployMode: "static-container", staticServeOutputDir: "" });
   });
 
   it("static + bare runtime → bare build, file-serve from the output directory", () => {
     expect(
       resolveDeployRouting({ hasServer: false, runtimeName: "bare", outputDirectory: "dist" }),
-    ).toEqual({ buildMode: "static-bare", deployMode: "static-file-serve", staticServeOutputDir: "dist" });
+    ).toEqual({
+      buildMode: "static-bare",
+      deployMode: "static-file-serve",
+      staticServeOutputDir: "dist",
+    });
+  });
+});
+
+describe("resolveTraefikRoutePort", () => {
+  it("prefers an explicit route port", () => {
+    expect(
+      resolveTraefikRoutePort({
+        targetPort: 8080,
+        targetPath: "/docs",
+        isStaticContainer: true,
+        runtimePort: 3000,
+      }),
+    ).toBe(8080);
+  });
+
+  it("maps a static-container path route to the generated HTTP server port", () => {
+    expect(
+      resolveTraefikRoutePort({
+        targetPath: "/docs",
+        isStaticContainer: true,
+        runtimePort: 3000,
+      }),
+    ).toBe(3000);
+  });
+
+  it("does not invent a port for a bare static-file route", () => {
+    expect(
+      resolveTraefikRoutePort({
+        targetPath: "/docs",
+        isStaticContainer: false,
+        runtimePort: 3000,
+      }),
+    ).toBeUndefined();
   });
 });

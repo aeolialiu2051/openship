@@ -1765,8 +1765,8 @@ async function reRegisterDomainRoute(
     const portNum = Number(port) || undefined;
 
     // Never point a public webhook route at a reserved control-plane/mgmt port on
-    // the host loopback (admin API / dashboard / unauthenticated OpenResty mgmt
-    // 9145) — a member with a verified domain could otherwise proxy their vhost
+    // the host loopback (admin API / dashboard / unauthenticated Traefik mgmt
+    // internal control-plane ports — a member with a verified domain could otherwise proxy their vhost
     // straight at an internal service. Mirrors resolveTargetUrl in
     // project-route.service.ts.
     if (isLoopbackHost(primarySvc.ip) && portNum !== undefined && isReservedLoopbackPort(portNum)) {

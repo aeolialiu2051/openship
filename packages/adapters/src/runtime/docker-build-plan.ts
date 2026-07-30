@@ -15,7 +15,10 @@ function formatDockerBuildEvent(
 }
 
 function normalizeRelativePath(value?: string): string {
-  const normalized = value?.trim().replace(/^\.\//, "").replace(/^\/+|\/+$/g, "");
+  const normalized = value
+    ?.trim()
+    .replace(/^\.\//, "")
+    .replace(/^\/+|\/+$/g, "");
   if (!normalized || normalized === ".") {
     return "";
   }
@@ -71,7 +74,11 @@ function needsMultiStage(config: BuildConfig): boolean {
  *  must lead it — otherwise the build image (corepack disabled) fails with
  *  "pnpm: not found" before the per-app install line (which has its own prelude)
  *  is ever reached. */
-function workspacePrepareRunLine(config: BuildConfig, envPrefix: string, workspacePrepare: string): string {
+function workspacePrepareRunLine(
+  config: BuildConfig,
+  envPrefix: string,
+  workspacePrepare: string,
+): string {
   const pmEnsure = packageManagerEnsureCommand(config.packageManager);
   const body = pmEnsure ? `${pmEnsure} && ${workspacePrepare}` : workspacePrepare;
   return `RUN ${envPrefix}${body}`;
@@ -163,12 +170,25 @@ function generatePhpDockerfile(config: BuildConfig): string {
 
 // nginx server block for a static SPA build. `listen` is baked at build time
 // (the port is known); nginx's own $uri is written literally.
-function staticNginxTemplateLines(port: number): string[] {
+function staticNginxTemplateLines(
+  port: number,
+  targetPaths: Array<string | undefined> = [],
+): string[] {
+  const normalizedPaths = [
+    ...new Set(
+      targetPaths
+        .map((path) => path?.trim().replace(/\/+$/, ""))
+        .filter((path): path is string => !!path && path !== "/" && path.startsWith("/")),
+    ),
+  ];
   return [
     "server {",
     `    listen ${port} default_server;`,
     "    root /usr/share/nginx/html;",
     "    index index.html;",
+    ...normalizedPaths.map(
+      (path) => `    location ${path}/ { try_files $uri $uri/ ${path}/index.html; }`,
+    ),
     "    location / { try_files $uri $uri/ /index.html; }",
     "}",
   ];
@@ -188,7 +208,10 @@ function generateStaticDockerfile(config: BuildConfig): string {
   const workspacePrepare = config.workspacePrepareCommand?.trim();
   const output = normalizeRelativePath(config.outputDirectory);
   const outputPath = output ? `${sourceDir}/${output}` : sourceDir;
-  const nginxTemplate = staticNginxTemplateLines(config.port)
+  const nginxTemplate = staticNginxTemplateLines(
+    config.port,
+    config.publicEndpoints?.map((endpoint) => endpoint.targetPath),
+  )
     .map((line) => `'${line}'`)
     .join(" ");
 
@@ -236,16 +259,8 @@ export function generateDockerfile(config: BuildConfig): string {
   const workspacePrepare = config.workspacePrepareCommand?.trim();
 
   const lines: string[] = multiStage
-    ? [
-        `FROM ${config.buildImage} AS builder`,
-        `WORKDIR /workspace`,
-        `COPY . /workspace`,
-      ]
-    : [
-        `FROM ${config.runtimeImage}`,
-        `WORKDIR /workspace`,
-        `COPY . /workspace`,
-      ];
+    ? [`FROM ${config.buildImage} AS builder`, `WORKDIR /workspace`, `COPY . /workspace`]
+    : [`FROM ${config.runtimeImage}`, `WORKDIR /workspace`, `COPY . /workspace`];
 
   // Monorepo workspace prepare: runs ONCE at /workspace (repo root)
   // before we cd into the sub-app and run the per-service install.

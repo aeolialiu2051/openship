@@ -79,7 +79,7 @@ config, and a batch of self-hosting and reliability fixes.
 - **Health checks work when the control plane is containerized** — the
   post-deploy probe reaches your app through the host gateway, so a containerized
   self-host no longer fail-reverts an otherwise-healthy deploy.
-- **OpenResty installs on newer distros** — the edge install no longer pins the
+- **Traefik installs on newer distros** — the edge install no longer pins the
   APT repo to a codename that doesn't exist yet (e.g. Ubuntu 26.04), and self-heals
   a box already broken by the old pin.
 

@@ -1,7 +1,7 @@
 /**
  * Shared post-trigger navigation for deploys. After `deployApi.trigger(...)`
  * kicks a new deployment, callers land on the build screen for that version
- * (where progress + the edge-takeover prompt render), or the deployments list
+ * (where deployment progress and actionable prompts render), or the deployments list
  * if the server didn't return an id. One place for the trigger→/build idiom so
  * the Redeploy button and the domain-add auto-deploy can't drift.
  */

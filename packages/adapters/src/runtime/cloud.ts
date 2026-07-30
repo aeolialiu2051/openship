@@ -2505,7 +2505,7 @@ fi`;
 
   /**
    * Atomically set a hostname's edge routing table — the CLOUD counterpart to
-   * the self-hosted OpenResty route registration. Compile a project's
+   * the self-hosted Traefik route registration. Compile a project's
    * `RoutingConfig` with `compileRoutingToOblien` (static Page at `/`, backend
    * workspace proxied at `/api/*`, redirects/headers), then hand the result
    * here. Versioned + applied with no redeploy, so it also backs live edits

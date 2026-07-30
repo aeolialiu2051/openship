@@ -26,7 +26,7 @@ const STEPS = [
   {
     n: "04",
     title: "Route",
-    body: "Your domains are wired through OpenResty with automatic Let's Encrypt SSL, then traffic swaps to the new container with zero downtime. The previous version stays ready for rollback.",
+    body: "Your domains are wired through Traefik with automatic Let's Encrypt SSL, then traffic swaps to the new container with zero downtime. The previous version stays ready for rollback.",
   },
   {
     n: "05",

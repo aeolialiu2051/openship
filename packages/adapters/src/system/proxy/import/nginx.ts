@@ -43,7 +43,7 @@ function parseUpstreams(config: string): Map<string, string> {
  * Turn a raw proxy_pass value into a concrete Openship route target, or reject
  * it (so the caller warns and skips) when it can't be resolved to a real
  * host:port — an unknown/undeclared upstream, an nginx variable, or a unix
- * socket would otherwise produce a vhost that fails `openresty -t`.
+ * socket would otherwise produce a vhost that fails `traefik -t`.
  */
 function resolveProxyTarget(
   proxyPass: string,
@@ -187,8 +187,7 @@ function parseServer(
   return { site, warnings };
 }
 
-/** Parse a raw nginx config string into normalized sites. Shared by `scanNginx`
- *  (foreign `/etc/nginx`) and `scanOpenshipEdge` (our OpenResty sites tree). */
+/** Parse a raw nginx config string into normalized sites. */
 function parseNginxConfig(raw: string): ProxyScanResult {
   const warnings: string[] = [];
   const sites: ImportedSite[] = [];
@@ -217,20 +216,4 @@ function parseNginxConfig(raw: string): ProxyScanResult {
 
 export async function scanNginx(executor: CommandExecutor): Promise<ProxyScanResult> {
   return parseNginxConfig(await loadNginxConfig(executor));
-}
-
-/**
- * Scan OUR OWN OpenResty edge's per-domain `server{}` blocks. NginxProvider
- * writes them to the OpenResty sites-enabled tree (NOT `/etc/nginx`, and the
- * binary is `openresty` so `nginx -T` doesn't apply), so this is how migrate
- * surfaces routes Openship itself already serves (edge classification "ours").
- * The blocks are plain nginx (`server_name` + `proxy_pass http://host:<port>` +
- * `ssl_certificate`), so the same parser applies. Read-only; empty if unreadable.
- */
-export async function scanOpenshipEdge(executor: CommandExecutor): Promise<ProxyScanResult> {
-  const raw = await tryExec(
-    executor,
-    "cat /usr/local/openresty/nginx/conf/sites-enabled/*.conf /etc/openresty/sites-enabled/*.conf 2>/dev/null",
-  );
-  return parseNginxConfig(raw ?? "");
 }

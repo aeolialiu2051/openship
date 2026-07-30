@@ -50,7 +50,6 @@ const REPO = "/root/.openship-dev/cli-src";
 const DOCKERFILES = [
   `${REPO}/apps/api/Dockerfile`,
   `${REPO}/apps/dashboard/Dockerfile`,
-  `${REPO}/apps/edge/Dockerfile`,
 ];
 
 /** The compose invocations with `compose` and the `-f <file>` pairs stripped, so
@@ -77,7 +76,7 @@ beforeEach(() => {
 });
 
 describe("composeUp — from-source install", () => {
-  it("builds api/dashboard/edge from the checkout and never pulls them", () => {
+  it("builds api/dashboard from the checkout and never pulls them", () => {
     h.sourceInstall = { repo: "oblien/openship", ref: "main", dir: REPO };
     for (const f of DOCKERFILES) h.existing.add(f);
 
@@ -100,7 +99,6 @@ describe("composeUp — from-source install", () => {
     expect(override).toContain(`context: ${REPO}`);
     expect(override).toContain("dockerfile: apps/api/Dockerfile");
     expect(override).toContain("dockerfile: apps/dashboard/Dockerfile");
-    expect(override).toContain("dockerfile: apps/edge/Dockerfile");
   });
 
   it("falls back to pulling when there is no source install", () => {

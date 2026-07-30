@@ -375,16 +375,13 @@ class MigrationOrchestratorImpl {
       if (selected.length === 0) {
         throw new Error("None of the selected services were found on the server.");
       }
-      // Never adopt the edge proxy (traefik/nginx/… on 80/443) — Openship's
-      // OpenResty replaces it. Drop it from the workload set and leave it
-      // UNTOUCHED (absent from scannedContainerIds, so moveData won't stop it):
-      // we never blind-stop the user's proxy. It's reclaimed later — with
-      // consent — when the user adds a domain to a migrated service and the
-      // routed deploy's edge-takeover modal offers to take over 80/443.
+      // A reverse proxy is infrastructure, not an application workload. Exclude
+      // it from adoption and leave it untouched; migrated services publish via
+      // the target server's separately managed shared Traefik configuration.
       const chosen = selected.filter((s) => !s.proxyKind);
       if (chosen.length === 0) {
         throw new Error(
-          "Only a reverse proxy was selected. Openship installs its own edge on 80/443 — pick the app services to migrate instead.",
+          "Only a reverse proxy was selected. Pick the application services to migrate instead.",
         );
       }
       const blocked = chosen.filter((s) => Boolean(s.build) && !s.image);
@@ -1465,7 +1462,7 @@ class MigrationOrchestratorImpl {
     // SYMMETRIC RECONCILE (the security fix): re-apply the CURRENT live routes and
     // REMOVE every hostname that was served before but is NOT published now — via
     // the same atomic path the interactive edits use (reconcileProjectRoutes →
-    // NginxProvider.removeRoute deletes <slug>.conf + <slug>.route.json + validates
+    // The routing provider removes the registered route and validates its configuration.
     // and reloads, plus deregisters dropped free *.opsh.io slugs). This makes a
     // migrated route set to "None" actually take the domain DOWN on the edge
     // instead of leaving a legacy vhost pointed at the old port.

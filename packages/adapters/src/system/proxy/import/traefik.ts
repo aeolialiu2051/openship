@@ -10,7 +10,7 @@
  * container's labels + its resolved IP. This module is PURE (no I/O) — the
  * docker-inspect that gathers the inputs lives in the scan wrapper.
  *
- * An OpenResty vhost carries ONE upstream per host, so only the Host() part
+ * An Traefik vhost carries ONE upstream per host, so only the Host() part
  * migrates; PathPrefix / Headers / Method / middlewares / HostRegexp are
  * surfaced as coverage warnings ("re-add manually"), never silently dropped.
  */
@@ -41,7 +41,7 @@ function extractHosts(rule: string): string[] {
   return hosts;
 }
 
-/** Matchers other than Host() that a single-upstream OpenResty vhost can't express. */
+/** Matchers other than Host() that a single-upstream Traefik vhost can't express. */
 function extraMatchers(rule: string): string[] {
   const found = new Set<string>();
   for (const m of rule.matchAll(

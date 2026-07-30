@@ -127,27 +127,18 @@ certificate is still being requested (or a request hasn't finished). It normally
 2. If Recheck reports *"No valid certificate found for \{hostname} yet. If you just deployed, give Let's Encrypt
    a moment, then recheck."* — the certificate genuinely isn't there yet. Wait a little longer and recheck
    again.
-3. If it never provisions, click **Renew SSL** to force a fresh issuance attempt. Any real failure reason
-   (rate limit, ACME outage) surfaces on that action.
+3. Redeploy the project after verification. The redeploy publishes the route and lets Traefik obtain TLS
+   through its configured certificate resolver.
 
 <Callout title="Renewing certificates" type="info">
-Once a certificate is **Active** you normally never touch it again. Renewal targets certificates within about
-two weeks of expiry: on Openship Cloud, and on self-hosted setups where your proxy or edge (Traefik, Caddy, a
-load balancer) owns TLS, this is handled for you; a self-hosted operator can also point a scheduled job at the
-renew endpoint. **Renew SSL** is the manual fallback if a certificate ever lapses.
+On self-hosted installations, Traefik owns certificate issuance and renewal. Openship does not expose
+application-side renew, recheck, or certificate-upload actions. If issuance fails, inspect Traefik's resolver
+configuration and logs, confirm ports 80/443 and DNS are correct, then redeploy after correcting the cause.
 </Callout>
 
-<Callout title="“Recheck / Renew SSL” errors that the domain must be verified" type="warn">
-SSL actions require a **verified** domain — attempting them on a pending one returns
-*"Domain must be verified before SSL can be managed"*. Finish verification first (above), then manage the
-certificate.
-</Callout>
-
-<Callout title="If SSL was never set up on this host" type="warn">
-The certificate toolchain (certbot) is installed during a **deploy**, not by the on-demand Renew/Recheck
-buttons. If a host has never provisioned SSL for any custom domain, **redeploy the project** — the deploy
-preflight installs the toolchain and issues the certificate as part of the build, with the progress in the
-deploy logs. See [Troubleshooting → Deployments](/docs/troubleshooting/deployments).
+<Callout title="Pending domains are intentionally not published" type="warn">
+A custom hostname remains unpublished until its `_openship-challenge` TXT record verifies. This prevents an
+unverified hostname from being advertised by Traefik. After verification, redeploy the project to publish it.
 </Callout>
 
 ## External ingress: your edge terminates TLS (TXT only)
@@ -173,9 +164,8 @@ confirm you own the name and stay out of the certificate business.
    your external ingress; no certificate is issued here."*
 
 <Callout title="What the SSL pill shows" type="info">
-An external-ingress domain reads **External TLS** for its SSL status — that's correct and final. Openship
-issues nothing and never runs certbot for it; your edge owns the padlock. **Recheck SSL** and **Renew SSL**
-don't apply.
+An external-ingress domain reads **External TLS** for its SSL status — that's correct and final. Your upstream
+ingress owns HTTPS; Openship publishes only the plain-HTTP origin route after TXT verification and redeploy.
 </Callout>
 
 <Callout title="Turn it on only if you mean it" type="warn">

@@ -6,14 +6,14 @@
 
 import type { CommandExecutor } from "../../../types";
 import type { ProxyKind, ProxyScanResult } from "../../types";
-import { scanNginx, scanOpenshipEdge } from "./nginx";
+import { scanNginx } from "./nginx";
 import { scanCaddy } from "./caddy";
 import { scanApache } from "./apache";
 import { scanTraefik } from "./traefik";
 
 /**
  * Config markers that prove a proxy is INSTALLED on this host, checked in
- * priority order. Deliberately NOT `/usr/local/openresty/...` — that's ours.
+ * priority order. Deliberately NOT `/usr/local/traefik/...` — that's ours.
  */
 const INSTALLED_MARKERS: Array<{ proxy: ProxyKind; paths: string[] }> = [
   { proxy: "nginx", paths: ["/etc/nginx/nginx.conf"] },
@@ -89,4 +89,4 @@ export function canImportProxy(proxy: ProxyKind | undefined): boolean {
   return proxy === "nginx" || proxy === "caddy" || proxy === "apache" || proxy === "traefik";
 }
 
-export { scanNginx, scanOpenshipEdge, scanCaddy, scanApache, scanTraefik };
+export { scanNginx, scanCaddy, scanApache, scanTraefik };
