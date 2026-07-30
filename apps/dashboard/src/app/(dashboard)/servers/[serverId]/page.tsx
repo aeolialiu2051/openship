@@ -19,7 +19,6 @@ import {
   Globe,
   User,
   KeyRound,
-  Shield,
   Network,
   GitBranch,
 } from "lucide-react";
@@ -30,13 +29,13 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { ResourceNotFound } from "@/components/resource-not-found";
 import { useSetupStream } from "@/hooks/useSetupStream";
+import { checkServerAfterInstall } from "@/lib/server-health";
 import { useMonitorStream } from "@/hooks/useMonitorStream";
 import type { ServerInfo, ComponentStatus, SetupComponentProgress, SetupLogEvent } from "@/lib/api/system";
 import { PromptDetails } from "@/components/import-project/PromptDetails";
 import { useServerModal } from "@/components/servers/ServerModal";
 import { OverviewTab } from "./_components/overview-tab";
 import { ComponentsTab } from "./_components/components-tab";
-import { ServerModuleUpdates } from "./_components/module-updates";
 import { TerminalTab } from "./_components/terminal-tab";
 import {
   ConnectionBanner,
@@ -44,8 +43,6 @@ import {
   type ConnectionErrorKind,
 } from "./_components/connection-banner";
 
-import { RateLimitSettings } from "./_components/rate-limit-settings";
-import { ExposedPortsCard } from "./_components/exposed-ports-card";
 import { PortForwardingCard } from "./_components/port-forwarding-card";
 import { ServerGitHubConnect } from "@/components/github/ServerGitHubConnect";
 import { MigrationsTab } from "@/components/migration/MigrationsTab";
@@ -54,7 +51,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { countryCodeToFlagEmoji } from "@/lib/country-flag";
 import { invalidateServersList } from "@/hooks/useServersList";
 
-type Tab = "overview" | "migrations" | "components" | "github" | "security" | "ports" | "terminal";
+type Tab = "overview" | "migrations" | "components" | "github" | "ports" | "terminal";
 type ManualActionMode = "remove" | null;
 
 interface TabDef {
@@ -71,7 +68,6 @@ const TABS: TabDef[] = [
   { key: "migrations", icon: Boxes },
   { key: "components", icon: Blocks },
   { key: "github",     icon: GitBranch },
-  { key: "security",   icon: Shield },
   // Port forwarding is meaningful only in desktop mode (the orchestrator IS
   // the user's machine); hidden elsewhere.
   { key: "ports",      icon: Network, desktopOnly: true },
@@ -150,7 +146,7 @@ export default function ServerDetailPage({
       void (async () => {
         try {
           if (!serverId) return;
-          const result = await systemApi.checkServer(serverId);
+          const result = await checkServerAfterInstall(serverId);
           setComponents(result.components);
           setActiveActionComponent(null);
           if (event.status === "completed") {
@@ -172,7 +168,7 @@ export default function ServerDetailPage({
 
   const monitor = useMonitorStream(serverId || null, activeTab === "overview");
 
-  // Mid-install prompt (e.g. OpenResty edge takeover) — the SAME generic prompt
+  // Mid-install prompt (for example, a port conflict) — the SAME generic prompt
   // modal the deploy pipeline uses. Surfaced only when an install hits a
   // port-80/443 conflict; answering it resumes the install.
   const promptModalRef = useRef<string | null>(null);
@@ -358,9 +354,7 @@ export default function ServerDetailPage({
     const modalId = showModal({
       title: interpolate(t.servers.detail.removeComponentTitle, { label: component.label }),
       message:
-        component.name === "openresty"
-          ? t.servers.detail.removeOpenrestyMessage
-          : interpolate(t.servers.detail.removeComponentMessage, { label: component.label }),
+        interpolate(t.servers.detail.removeComponentMessage, { label: component.label }),
       icon: "warning",
       width: "100%",
       maxWidth: "32rem",
@@ -717,7 +711,6 @@ export default function ServerDetailPage({
 
             {activeTab === "components" && (
               <>
-              {serverId && <ServerModuleUpdates serverId={serverId} />}
               <ComponentsTab
                 components={components}
                 checking={checking}
@@ -746,13 +739,6 @@ export default function ServerDetailPage({
 
             {activeTab === "github" && serverId && (
               <ServerGitHubConnect serverId={serverId} variant="card" />
-            )}
-
-            {activeTab === "security" && (
-              <div className="space-y-6">
-                <ExposedPortsCard serverId={serverId} />
-                <RateLimitSettings serverId={serverId} />
-              </div>
             )}
 
             {activeTab === "ports" && isDesktop && serverId && (

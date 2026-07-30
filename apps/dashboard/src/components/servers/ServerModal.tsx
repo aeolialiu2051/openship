@@ -1,14 +1,52 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { ServerForm } from "@/app/(dashboard)/servers/_components/server-form";
 import { useModal } from "@/context/ModalContext";
 import { usePlatform } from "@/context/PlatformContext";
 import type { ServerInfo } from "@/lib/api/system";
+import { ServerSetupFlow } from "./ServerSetupFlow";
 
 interface ServerModalOptions {
   server?: ServerInfo | null;
   onSaved?: (server: ServerInfo) => void;
+}
+
+function ServerModalContent({
+  initialServer,
+  selfHosted,
+  userServers,
+  onSaved,
+  onDone,
+}: {
+  initialServer?: ServerInfo | null;
+  selfHosted: boolean;
+  userServers: boolean;
+  onSaved?: (server: ServerInfo) => void;
+  onDone: () => void;
+}) {
+  const [createdServer, setCreatedServer] = useState<ServerInfo | null>(null);
+
+  if (createdServer) {
+    return <ServerSetupFlow server={createdServer} onDone={onDone} />;
+  }
+
+  return (
+    <ServerForm
+      key={initialServer?.id ?? "new"}
+      server={initialServer}
+      selfHosted={selfHosted}
+      userServers={userServers}
+      onSaved={({ server, isEditing }) => {
+        onSaved?.(server);
+        if (isEditing) {
+          onDone();
+          return;
+        }
+        setCreatedServer(server);
+      }}
+    />
+  );
 }
 
 /** One shared modal for both server creation and editing. ServerForm owns the
@@ -26,15 +64,12 @@ export function useServerModal() {
         maxHeight: "90vh",
         overflow: "auto",
         customContent: (
-          <ServerForm
-            key={options.server?.id ?? "new"}
-            server={options.server}
+          <ServerModalContent
+            initialServer={options.server}
             selfHosted={selfHosted}
             userServers={userServers}
-            onSaved={({ server }) => {
-              hideModal(modalId);
-              options.onSaved?.(server);
-            }}
+            onSaved={options.onSaved}
+            onDone={() => hideModal(modalId)}
           />
         ),
       });

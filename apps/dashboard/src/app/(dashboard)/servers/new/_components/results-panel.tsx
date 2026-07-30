@@ -19,6 +19,8 @@ export function ResultsPanel({
   onManualContinue,
   onRecheck,
   onDone,
+  onSkip,
+  doneLabel,
 }: {
   components: ComponentState[];
   serverHost: string;
@@ -28,6 +30,8 @@ export function ResultsPanel({
   onManualContinue: () => void;
   onRecheck: () => void;
   onDone: () => void;
+  onSkip?: () => void;
+  doneLabel?: string;
 }) {
   const { t } = useI18n();
   const requiredComps = components.filter((c) => !c.status?.optional);
@@ -80,7 +84,7 @@ export function ResultsPanel({
             className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground text-sm font-medium rounded-xl hover:bg-primary/90 transition-all"
           >
             <CheckCircle2 className="size-4" />
-            {t.servers.setup.doneGoToServers}
+            {doneLabel ?? t.servers.setup.doneGoToServers}
           </button>
         ) : mode === "auto" ? (
           <button
@@ -106,6 +110,14 @@ export function ResultsPanel({
           <RotateCcw className="size-4" />
           {t.servers.setup.recheck}
         </button>
+        {!overallReady && onSkip && (
+          <button
+            onClick={onSkip}
+            className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {t.servers.setup.skipTitle}
+          </button>
+        )}
       </div>
     </div>
   );

@@ -12,8 +12,8 @@
 
 import type { CommandExecutor } from "../types";
 import type { ComponentStatus } from "./types";
-import { OPENRESTY_LUA_DIR } from "../infra/openresty-lua";
 import { systemCatalog } from "./catalog";
+import { elevatedExecutor } from "./elevated-executor";
 import { resolveEnvironment } from "./environment";
 import { enrichAvailableVersions } from "./available-version";
 import { getSystemComponentDefinition, SYSTEM_COMPONENTS } from "./components";
@@ -111,6 +111,24 @@ export async function checkDocker(
 
   const info = await tryExec(executor, recipe.daemonCommand!);
   if (!info) {
+    // The daemon may be healthy while the login user lacks access to
+    // /var/run/docker.sock. Probe once with passwordless sudo so we can report
+    // the real problem instead of incorrectly claiming dockerd is stopped.
+    const profile = await resolveEnvironment(executor);
+    if (!profile.isRoot && profile.canSudo) {
+      const elevatedInfo = await tryExec(
+        elevatedExecutor(executor),
+        recipe.daemonCommand!,
+      );
+      if (elevatedInfo) {
+        systemDebug("checks", `docker:permission-denied (${formatDuration(startedAt)})`);
+        return unhealthy("docker", recipe.permissionMessage!, {
+          version: parsed,
+          running: true,
+        });
+      }
+    }
+
     systemDebug("checks", `docker:not-running (${formatDuration(startedAt)})`);
     return unhealthy("docker", recipe.notRunningMessage!, {
       version: parsed,
@@ -152,52 +170,6 @@ export async function checkRsync(
   return healthy("rsync", parsed);
 }
 
-export async function checkOpenResty(
-  executor: CommandExecutor,
-): Promise<ComponentStatus> {
-  const startedAt = Date.now();
-  const recipe = systemCatalog.checks.openresty;
-  const version = await tryExec(executor, recipe.versionCommand);
-
-  // OpenResty binary must be installed - a plain nginx process doesn't count
-  if (!version) {
-    systemDebug("checks", `openresty:missing (${formatDuration(startedAt)})`);
-    return unhealthy("openresty", recipe.missingMessage);
-  }
-
-  const parsed = recipe.parseVersion(version);
-
-  const runningChecks = await Promise.all(
-    recipe.runningCommands!.map((command) => tryExec(executor, command)),
-  );
-  const running = runningChecks.some(Boolean);
-
-  if (!running) {
-    systemDebug("checks", `openresty:not-running (${formatDuration(startedAt)})`);
-    return unhealthy("openresty", recipe.notRunningMessage!, {
-      version: parsed,
-      running: false,
-    });
-  }
-
-  // Binary + process OK - verify Lua analytics/streaming scripts are deployed
-  const hasLua = await tryExec(
-    executor,
-    `test -f ${OPENRESTY_LUA_DIR}/site_logger.lua && test -f ${OPENRESTY_LUA_DIR}/pipe_stream.lua && echo ok`,
-  );
-  if (!hasLua) {
-    systemDebug("checks", `openresty:missing-lua (${formatDuration(startedAt)})`);
-    return unhealthy(
-      "openresty",
-      "OpenResty is running but analytics scripts are not deployed - reinstall to fix",
-      { version: parsed, running: true },
-    );
-  }
-
-  systemDebug("checks", `openresty:healthy (${formatDuration(startedAt)})`);
-  return healthy("openresty", parsed, true);
-}
-
 export async function checkCertbot(
   executor: CommandExecutor,
 ): Promise<ComponentStatus> {
@@ -219,7 +191,6 @@ type CheckFn = (executor: CommandExecutor) => Promise<ComponentStatus>;
 
 export const COMPONENT_CHECKS: Record<string, CheckFn> = {
   docker: checkDocker,
-  openresty: checkOpenResty,
   certbot: checkCertbot,
   git: checkGit,
   rsync: checkRsync,

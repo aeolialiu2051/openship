@@ -20,10 +20,8 @@ import {
   type CommandExecutor,
   COMPONENT_INSTALLERS,
   COMPONENT_UNINSTALLERS,
-  ensureEdge,
   getRemovalSupport,
   isSshAuthError,
-  recoverInterruptedTakeover,
   scanPorts,
   probeTcp,
   type PortScanResult,
@@ -46,12 +44,10 @@ import {
   appendSetupLog,
   finishSetupSession,
   subscribeSetupSession,
-  promptSetupUser,
   respondToSetupPrompt,
   rejectPendingSetupPrompt,
   setupPromptState,
 } from "./setup-session";
-import type { PromptUserFn } from "@repo/adapters";
 
 // ─── Allowlisted components ──────────────────────────────────────────────────
 
@@ -351,7 +347,7 @@ export async function checkServer(c: Context) {
 /**
  * POST /system/install/respond
  *
- * Answer a prompt raised mid-install (e.g. the OpenResty edge-takeover hold).
+ * Answer a prompt raised mid-install (e.g. the Traefik edge-takeover hold).
  * Body: { action: string, sessionId?: string }. Targets the active session
  * when no sessionId is given (only one install runs at a time).
  */
@@ -379,7 +375,7 @@ export async function installRespond(c: Context) {
  * POST /system/install
  *
  * Install a specific component on a server.
- * Body: { serverId: string, component: "docker" | "openresty" | ..., config?: InstallerConfig }
+ * Body: { serverId: string, component: "docker" | "git" | "certbot" | "rsync", config?: InstallerConfig }
  *
  * Returns: { success: boolean, component: string, version?: string, error?: string }
  */
@@ -415,6 +411,12 @@ export async function installComponent(c: Context) {
       ),
     );
 
+    // Docker group membership is applied at login. Drop the pooled SSH session
+    // so the next health check/deployment gets the user's refreshed groups.
+    if (componentName === "docker" && installResult.success) {
+      sshManager.invalidate(serverId);
+    }
+
     return c.json({
       ...installResult,
       logs,
@@ -439,7 +441,7 @@ export async function installComponent(c: Context) {
  * POST /system/remove
  *
  * Remove a specific component from a server.
- * Body: { serverId: string, component: "openresty" | "certbot" | "rsync" }
+ * Body: { serverId: string, component: "docker" | "git" | "certbot" | "rsync" }
  *
  * Returns: { success: boolean, component: string, error?: string, logs?: string[] }
  */
@@ -496,7 +498,7 @@ export async function removeComponent(c: Context) {
  * POST /system/install/stream
  *
  * Install multiple components with real-time SSE log streaming.
- * Body: { serverId: string, components: ["docker", "openresty", ...], config?: InstallerConfig }
+ * Body: { serverId: string, components: ["docker", "git", ...], config?: InstallerConfig }
  *
  * Returns an SSE stream with events:
  *   - progress: component status updates
@@ -561,21 +563,6 @@ export async function installStream(c: Context) {
     const installPromise = (async () => {
       let hasFailure = false;
 
-      // Before installing OpenResty, self-heal a takeover that crashed mid-flight
-      // on this server on a prior attempt (restores the previous proxy if the
-      // migrate didn't finish). No-op when there's no leftover journal.
-      if (validNames.includes("openresty")) {
-        try {
-          await sshManager.withExecutor(serverId, (executor) =>
-            recoverInterruptedTakeover(executor, (l) =>
-              appendSetupLog(session.id, "openresty", l.message, l.level),
-            ),
-          );
-        } catch {
-          /* best-effort */
-        }
-      }
-
       for (const name of validNames) {
         if (closed) break;
 
@@ -588,33 +575,20 @@ export async function installStream(c: Context) {
 
         updateComponentProgress(session.id, name, "installing");
 
-        // Bind the interactive "hold" to this session so installOpenResty can
-        // pause on an edge (80/443) conflict and surface the SAME prompt modal
-        // the deploy pipeline uses. Non-openresty installers ignore it.
-        const promptUser: PromptUserFn = (prompt) => promptSetupUser(session.id, prompt);
-
         const onLog = (log: { message: string; level: "info" | "warn" | "error" }) =>
           appendSetupLog(session.id, name, log.message, log.level);
 
         try {
-          const result = await sshManager.withExecutor(serverId, async (executor) => {
-            // Single edge-prepare point: the installer raises the edge-conflict
-            // consent prompt via promptUser; on "migrate", ensureEdge runs the
-            // takeover. Its InstallResult is returned unchanged when no migration.
-            const edge = await ensureEdge(
-              executor,
-              (p) => installerFn(executor, onLog, { ...config, promptUser: p }),
-              { promptUser, onLog, acmeEmail: config?.acmeEmail },
-            );
-            if (!edge.migrated) return edge.value;
-            return {
-              component: name,
-              success: edge.ok,
-              error: edge.ok ? undefined : "migration failed — rolled back to the previous proxy",
-            };
-          });
+          const result = await sshManager.withExecutor(serverId, (executor) =>
+            installerFn(executor, onLog, config),
+          );
 
           if (result.success) {
+            if (name === "docker") {
+              // See installComponent: reconnect so the new docker-group
+              // membership is visible to health checks and Docker transports.
+              sshManager.invalidate(serverId);
+            }
             appendSetupLog(session.id, name, `${name} installed successfully${result.version ? ` (${result.version})` : ""}`);
             updateComponentProgress(session.id, name, "installed");
           } else {

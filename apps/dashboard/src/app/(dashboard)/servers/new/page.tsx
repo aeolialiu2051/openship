@@ -17,6 +17,7 @@ import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
 import { usePlatform } from "@/context/PlatformContext";
 import { useSetupStream } from "@/hooks/useSetupStream";
+import { checkServerAfterInstall } from "@/lib/server-health";
 import { ServerForm } from "../_components/server-form";
 import { AutoSetupFlow } from "./_components/auto-setup-flow";
 import { CheckingState } from "./_components/checking-state";
@@ -100,7 +101,7 @@ export default function AddServerPage() {
         try {
           const currentServerId = existingServerId ?? initialServer?.id ?? null;
           if (!currentServerId) return;
-          const result = await systemApi.checkServer(currentServerId);
+          const result = await checkServerAfterInstall(currentServerId);
           setComponents((current) => buildComponentStates(result.components, current));
           setOverallReady(result.ready);
         } catch {
