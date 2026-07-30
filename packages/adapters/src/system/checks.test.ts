@@ -53,13 +53,10 @@ describe("checkDocker", () => {
 });
 
 describe("checkSslCertificates", () => {
-  it("counts Traefik ACME certificates without returning certificate data", async () => {
+  it("counts certificates actually served for active Traefik host rules", async () => {
     const exec = vi.fn(async (command: string) => {
       if (command.includes("/etc/letsencrypt/live")) return "0";
-      if (command.includes("docker volume inspect vibrail-edge-acme")) {
-        return "/var/lib/docker/volumes/vibrail-edge-acme/_data";
-      }
-      if (command.includes("acme.json")) return "3";
+      if (command.includes("openssl s_client")) return "2";
       throw new Error(`Unexpected command: ${command}`);
     });
 
@@ -70,22 +67,22 @@ describe("checkSslCertificates", () => {
       healthy: true,
       certificateStatus: {
         state: "present",
-        count: 3,
-        sourceCounts: { traefik: 3 },
+        count: 2,
+        sourceCounts: { traefik: 2 },
       },
     });
-    expect(
-      exec.mock.calls.some(([command]) => String(command).includes("cat /letsencrypt/acme.json")),
-    ).toBe(false);
+    const traefikProbe = exec.mock.calls.find(([command]) =>
+      String(command).includes("openssl s_client"),
+    );
+    expect(traefikProbe?.[0]).toContain("*dynamic*");
+    expect(traefikProbe?.[0]).toContain("-checkhost");
+    expect(traefikProbe?.[0]).not.toContain("acme.json");
   });
 
-  it("retries Traefik ACME storage with sudo when the Docker volume is not traversable", async () => {
+  it("retries the active Traefik route probe with sudo when Docker is not readable", async () => {
     const exec = vi.fn(async (command: string) => {
       if (command.includes("/etc/letsencrypt/live")) return "0";
-      if (command.includes("docker volume inspect vibrail-edge-acme")) {
-        return "/var/lib/docker/volumes/vibrail-edge-acme/_data";
-      }
-      if (command.includes("acme.json")) {
+      if (command.includes("openssl s_client")) {
         if (command.startsWith("sudo -n sh -c ")) return "1";
         throw new Error("permission denied");
       }
@@ -109,10 +106,10 @@ describe("checkSslCertificates", () => {
     expect(exec.mock.calls.some(([command]) => String(command).startsWith("sudo -n sh -c "))).toBe(true);
   });
 
-  it("counts Certbot certificates when Traefik storage is absent", async () => {
+  it("counts Certbot certificates referenced by active server configurations", async () => {
     const exec = vi.fn(async (command: string) => {
       if (command.includes("/etc/letsencrypt/live")) return "2";
-      if (command.includes("docker volume inspect vibrail-edge-acme")) throw new Error("No such volume");
+      if (command.includes("openssl s_client")) return "0";
       throw new Error(`Unexpected command: ${command}`);
     });
 
@@ -127,12 +124,19 @@ describe("checkSslCertificates", () => {
         sourceCounts: { certbot: 2 },
       },
     });
+    const certbotProbe = exec.mock.calls.find(([command]) =>
+      String(command).includes("/etc/letsencrypt/live"),
+    );
+    expect(certbotProbe?.[0]).toContain("nginx -T");
+    expect(certbotProbe?.[0]).toContain("/etc/apache2/sites-enabled");
+    expect(certbotProbe?.[0]).toContain("iRedMail.crt");
+    expect(certbotProbe?.[0]).not.toContain("-name fullchain.pem");
   });
 
   it("reports an empty certificate inventory", async () => {
     const exec = vi.fn(async (command: string) => {
       if (command.includes("/etc/letsencrypt/live")) return "0";
-      if (command.includes("docker volume inspect vibrail-edge-acme")) throw new Error("No such volume");
+      if (command.includes("openssl s_client")) return "0";
       throw new Error(`Unexpected command: ${command}`);
     });
 

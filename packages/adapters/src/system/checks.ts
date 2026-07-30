@@ -250,7 +250,7 @@ export async function checkTraefik(
   };
 }
 
-/** Count certificate assets across the supported stores without returning any
+/** Count certificates currently attached to active routes without returning any
  * certificate or private-key material. The remote shell emits integers only. */
 export async function checkSslCertificates(
   executor: CommandExecutor,
@@ -271,25 +271,46 @@ export async function checkSslCertificates(
 
   const certbotCount = await readCount(
     "if [ ! -d /etc/letsencrypt/live ]; then echo 0; " +
-      "elif [ ! -r /etc/letsencrypt/live ]; then exit 13; " +
-      "else find /etc/letsencrypt/live -mindepth 2 -maxdepth 2 -name fullchain.pem 2>/dev/null | wc -l; fi",
+      "elif [ ! -r /etc/letsencrypt/live ] || [ ! -x /etc/letsencrypt/live ]; then exit 13; " +
+      "elif [ -d /etc/letsencrypt/archive ] && [ ! -x /etc/letsencrypt/archive ]; then exit 13; " +
+      "else references=$( " +
+      "if command -v nginx >/dev/null 2>&1; then nginx -T 2>/dev/null || exit 13; fi; " +
+      "for directory in /etc/apache2/sites-enabled /etc/httpd/conf.d; do " +
+      "if [ -d \"$directory\" ]; then [ -r \"$directory\" ] || exit 13; " +
+      "find \"$directory\" \\( -type f -o -type l \\) " +
+      "-exec grep -h '/etc/letsencrypt/live/.*/fullchain\\.pem' {} + 2>/dev/null || exit 13; fi; done; " +
+      "readlink /etc/ssl/certs/iRedMail.crt 2>/dev/null || true " +
+      ") || exit 13; printf '%s\\n' \"$references\" | " +
+      "grep -o '/etc/letsencrypt/live/[^/[:space:];]*/fullchain\\.pem' | sort -u | " +
+      "while IFS= read -r certificate; do [ -f \"$certificate\" ] && echo \"$certificate\"; done | wc -l; fi",
   );
 
-  let traefikCount: number | null | undefined;
-  const mountpoint = await tryExec(
-    executor,
-    "docker volume inspect vibrail-edge-acme --format '{{.Mountpoint}}' 2>/dev/null",
+  // Discover Host rules from both Docker labels and bind-mounted Traefik file
+  // provider configs, then count only hostnames for which the running proxy is
+  // actually serving a matching, non-expired certificate on port 443. This
+  // ignores stale acme.json entries and supports pre-existing Traefik installs.
+  const traefikCount = await readCount(
+    "container_ids=$(docker ps -q 2>/dev/null) || exit 13; labels=''; " +
+      "if [ -n \"$container_ids\" ]; then " +
+      "labels=$(docker inspect $container_ids --format '{{range $key, $value := .Config.Labels}}{{printf \"%s=%s\\n\" $key $value}}{{end}}' 2>/dev/null) || exit 13; fi; " +
+      "traefik_ids=$(docker ps --format '{{.ID}}|{{.Names}}|{{.Image}}' 2>/dev/null | " +
+      "awk -F'|' '$2 == \"vibrail-edge\" || $3 ~ /(^|\\/)traefik([:@]|$)/ {print $1}') || exit 13; " +
+      "dynamic=''; if [ -n \"$traefik_ids\" ]; then " +
+      "mounts=$(docker inspect $traefik_ids --format '{{range .Mounts}}{{if eq .Type \"bind\"}}{{printf \"%s|%s\\n\" .Source .Destination}}{{end}}{{end}}' 2>/dev/null) || exit 13; " +
+      "while IFS='|' read -r source destination; do case \"$destination\" in *dynamic*) " +
+      "if [ -d \"$source\" ]; then [ -r \"$source\" ] || exit 13; " +
+      "content=$(find \"$source\" -type f -maxdepth 3 -exec grep -h 'Host(' {} + 2>/dev/null) || exit 13; " +
+      "dynamic=\"$dynamic\\n$content\"; elif [ -f \"$source\" ]; then [ -r \"$source\" ] || exit 13; " +
+      "content=$(grep 'Host(' \"$source\" 2>/dev/null) || true; dynamic=\"$dynamic\\n$content\"; fi;; esac; done <<EOF\n$mounts\nEOF\nfi; " +
+      "hostnames=$(printf '%s\\n%s\\n' \"$labels\" \"$dynamic\" | grep -o 'Host(`[^`]*`)' | " +
+      "sed 's/^Host(`//; s/`)$//' | sort -u); " +
+      "if [ -z \"$hostnames\" ]; then echo 0; elif ! command -v openssl >/dev/null 2>&1; then " +
+      "printf '%s\\n' \"$hostnames\" | wc -l; else count=0; " +
+      "while IFS= read -r hostname; do if printf '\\n' | " +
+      "openssl s_client -connect 127.0.0.1:443 -servername \"$hostname\" 2>/dev/null | " +
+      "openssl x509 -noout -checkhost \"$hostname\" -checkend 0 >/dev/null 2>&1; then count=$((count + 1)); fi; done <<EOF\n$hostnames\nEOF\n" +
+      "echo \"$count\"; fi",
   );
-  if (mountpoint?.trim().startsWith("/")) {
-    const acmeDir = mountpoint.trim().replace(/'/g, `'\\''`);
-    const acmePath = `${acmeDir}/acme.json`;
-    traefikCount = await readCount(
-      `if [ -f '${acmePath}' ]; then ` +
-        `if [ ! -r '${acmePath}' ]; then exit 13; ` +
-        `else grep -o '\"certificate\"' '${acmePath}' | wc -l; fi; ` +
-        `elif [ -x '${acmeDir}' ]; then echo 0; else exit 13; fi`,
-    );
-  }
 
   const knownCounts = [certbotCount, traefikCount].filter(
     (value): value is number => typeof value === "number",
