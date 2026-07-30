@@ -52,7 +52,7 @@
   "prepare": [
     {
       "service": "3x-ui",
-      "command": "marker=/etc/x-ui/.openship-credentials-initialized; credentials=/etc/x-ui/.openship-initial-credentials; if [ -f \"$marker\" ]; then if [ ! -s \"$credentials\" ] && [ -n \"$XUI_INITIAL_USERNAME\" ] && [ -n \"$XUI_INITIAL_PASSWORD\" ]; then umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$XUI_INITIAL_USERNAME\" \"$XUI_INITIAL_PASSWORD\" > \"$credentials\"; fi; printf 'credentials-ready\\n'; else username=${XUI_INITIAL_USERNAME:-admin}; password=${XUI_INITIAL_PASSWORD:-$(openssl rand -hex 32)}; /app/x-ui setting -username \"$username\" -password \"$password\" >/dev/null; umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$username\" \"$password\" > \"$credentials\"; touch \"$marker\"; printf 'credentials-ready\\n'; fi",
+      "command": "set -e; credentials=/etc/x-ui/.openship-initial-credentials; settings=$(/app/x-ui setting -show true); if printf '%s\\n' \"$settings\" | grep -q 'hasDefaultCredential: true'; then username=${XUI_INITIAL_USERNAME:-admin}; password=${XUI_INITIAL_PASSWORD:-$(openssl rand -hex 32)}; /app/x-ui setting -username \"$username\" -password \"$password\"; umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$username\" \"$password\" > \"$credentials\"; elif [ ! -s \"$credentials\" ]; then printf '3x-ui already has non-default credentials, but the original OpenShip credential record is missing\\n' >&2; exit 1; fi; printf 'credentials-ready\\n'",
       "capture": "initialCredentials",
       "phase": "post-ready",
       "mustSucceed": true,
@@ -69,7 +69,6 @@
       "persistAs": {
         "key": "XUI_INITIAL_USERNAME"
       },
-      "once": true,
       "mustSucceed": true
     },
     {
@@ -80,7 +79,6 @@
         "key": "XUI_INITIAL_PASSWORD",
         "secret": true
       },
-      "once": true,
       "mustSucceed": true
     }
   ],

@@ -20,6 +20,19 @@ describe("app catalog (JSON)", () => {
     }
   });
 
+  it("3x-ui initializes only real default credentials and republishes the stored values", () => {
+    const app = APP_TEMPLATES.find((template) => template.id === "3x-ui");
+    const command = app?.prepare?.[0]?.command ?? "";
+
+    expect(command).toContain("set -e");
+    expect(command).toContain("hasDefaultCredential: true");
+    expect(command).toContain("/app/x-ui setting -username");
+    expect(command).not.toContain(".openship-credentials-initialized");
+    expect(command).not.toContain("/usr/bin/x-ui restart");
+    expect(app?.prepare?.[1]?.once).not.toBe(true);
+    expect(app?.prepare?.[2]?.once).not.toBe(true);
+  });
+
   it("rejects a malformed template (missing required fields)", () => {
     expect(isValidAppTemplate({ id: "x" })).toBe(false);
     expect(isValidAppTemplate(null)).toBe(false);
