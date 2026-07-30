@@ -147,6 +147,7 @@
         "add": "添加应用"
       },
       "catalogDescriptions": {
+        "3x-ui": "基于网页的 Xray 管理面板，使用内置 SQLite 存储管理代理入站、客户端、流量和订阅。",
         "mail": "完整的自托管邮件服务器，在你自己的域名上提供 SMTP、IMAP 和网页邮箱。",
         "cli-proxy-api": "面向 CLI 模型服务商的 OpenAI 兼容 API 代理，支持持久化身份验证和自动生成访问凭据。",
         "supabase": "完整自托管的 Supabase，通过统一 API 网关提供 Postgres、认证、REST、实时服务、存储和 Studio。",

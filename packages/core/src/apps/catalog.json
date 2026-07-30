@@ -1866,6 +1866,168 @@
           }
         ]
       }
+    },
+    {
+      "available": true,
+      "verified": true,
+      "id": "3x-ui",
+      "name": "3x-ui",
+      "description": "A web-based Xray panel for managing proxy inbounds, clients, traffic, and subscriptions, backed by its built-in SQLite database.",
+      "kind": "template",
+      "logo": "3x-ui",
+      "category": "other",
+      "tags": [
+        "xray",
+        "proxy",
+        "vpn",
+        "networking",
+        "panel"
+      ],
+      "framework": "docker-compose",
+      "services": [
+        {
+          "name": "3x-ui",
+          "image": "ghcr.io/mhsanaei/3x-ui:v3.6.0",
+          "ports": [
+            "2053:2053"
+          ],
+          "exposedPort": 2053,
+          "exposed": true,
+          "secretEnv": [
+            "XUI_INITIAL_PASSWORD"
+          ],
+          "environment": {
+            "XRAY_VMESS_AEAD_FORCED": "false",
+            "XUI_DB_TYPE": "sqlite",
+            "XUI_INIT_WEB_BASE_PATH": "/",
+            "XUI_ENABLE_FAIL2BAN": "false",
+            "XUI_SKIP_HSTS": "true"
+          },
+          "volumes": [
+            "three_x_ui_db:/etc/x-ui",
+            "three_x_ui_cert:/root/cert",
+            "three_x_ui_acme:/root/.acme.sh"
+          ],
+          "restart": "unless-stopped"
+        }
+      ],
+      "configFields": [
+        {
+          "key": "XUI_INITIAL_USERNAME",
+          "service": "3x-ui",
+          "label": "Initial panel username",
+          "help": "Used only to initialize the first 3x-ui login.",
+          "default": "admin"
+        },
+        {
+          "key": "XUI_INITIAL_PASSWORD",
+          "service": "3x-ui",
+          "label": "Initial panel password",
+          "help": "Auto-generated and applied to 3x-ui on its first deployment.",
+          "generate": "secret",
+          "secret": true
+        }
+      ],
+      "prepare": [
+        {
+          "service": "3x-ui",
+          "command": "marker=/etc/x-ui/.openship-credentials-initialized; credentials=/etc/x-ui/.openship-initial-credentials; if [ -f \"$marker\" ]; then if [ ! -s \"$credentials\" ] && [ -n \"$XUI_INITIAL_USERNAME\" ] && [ -n \"$XUI_INITIAL_PASSWORD\" ]; then umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$XUI_INITIAL_USERNAME\" \"$XUI_INITIAL_PASSWORD\" > \"$credentials\"; fi; printf 'credentials-ready\\n'; else username=${XUI_INITIAL_USERNAME:-admin}; password=${XUI_INITIAL_PASSWORD:-$(openssl rand -hex 32)}; /app/x-ui setting -username \"$username\" -password \"$password\" >/dev/null; umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$username\" \"$password\" > \"$credentials\"; touch \"$marker\"; printf 'credentials-ready\\n'; fi",
+          "capture": "initialCredentials",
+          "phase": "post-ready",
+          "mustSucceed": true,
+          "readiness": {
+            "test": "test -s /etc/x-ui/x-ui.db",
+            "interval": 2000,
+            "retries": 30
+          }
+        },
+        {
+          "service": "3x-ui",
+          "command": "sed -n 's/^XUI_INITIAL_USERNAME=//p' /etc/x-ui/.openship-initial-credentials",
+          "capture": "initialUsername",
+          "persistAs": {
+            "key": "XUI_INITIAL_USERNAME"
+          },
+          "once": true,
+          "mustSucceed": true
+        },
+        {
+          "service": "3x-ui",
+          "command": "sed -n 's/^XUI_INITIAL_PASSWORD=//p' /etc/x-ui/.openship-initial-credentials",
+          "capture": "initialPassword",
+          "persistAs": {
+            "key": "XUI_INITIAL_PASSWORD",
+            "secret": true
+          },
+          "once": true,
+          "mustSucceed": true
+        }
+      ],
+      "connection": {
+        "title": {
+          "en": "Connect to 3x-ui",
+          "zh": "连接 3x-ui"
+        },
+        "description": {
+          "en": "Use these initial credentials to sign in. If you later change the username or password inside 3x-ui, this card keeps showing the original values and will not reset your new credentials on redeploy.",
+          "zh": "使用以下初始凭据登录。如果之后在 3x-ui 内修改用户名或密码，此卡片仍会显示最初的值；重新部署也不会把新凭据重置回初始值。"
+        },
+        "outputs": [
+          {
+            "id": "managementUrl",
+            "label": {
+              "en": "Management panel",
+              "zh": "管理面板"
+            },
+            "source": "publicUrl:3x-ui",
+            "service": "3x-ui",
+            "recommended": true
+          },
+          {
+            "id": "initialUsername",
+            "label": {
+              "en": "Initial username",
+              "zh": "初始用户名"
+            },
+            "help": {
+              "en": "This does not update after you change the username in 3x-ui.",
+              "zh": "在 3x-ui 内修改用户名后，此处不会同步更新。"
+            },
+            "source": "env:3x-ui:XUI_INITIAL_USERNAME",
+            "service": "3x-ui",
+            "width": "half"
+          },
+          {
+            "id": "initialPassword",
+            "label": {
+              "en": "Initial password",
+              "zh": "初始密码"
+            },
+            "help": {
+              "en": "This is the original generated password. It cannot reflect a password changed inside 3x-ui.",
+              "zh": "这是最初生成的密码，无法反映之后在 3x-ui 内修改的新密码。"
+            },
+            "source": "env:3x-ui:XUI_INITIAL_PASSWORD",
+            "service": "3x-ui",
+            "secret": true,
+            "width": "half"
+          }
+        ]
+      },
+      "endpoints": [
+        {
+          "service": "3x-ui",
+          "port": 2053,
+          "label": "Management panel",
+          "kind": "http",
+          "scope": "public",
+          "defaultMode": "domain",
+          "allowedModes": [
+            "domain",
+            "port"
+          ]
+        }
+      ]
     }
   ]
 }

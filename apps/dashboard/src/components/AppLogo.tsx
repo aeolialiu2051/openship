@@ -12,6 +12,7 @@ export const APP_LOGO: Record<
   string,
   { slug?: string; src?: string; fill?: boolean; darkInvert?: boolean }
 > = {
+  "3x-ui": { src: "https://avatars.githubusercontent.com/u/33454419?s=128&v=4" },
   convex: { src: "https://www.google.com/s2/favicons?domain=convex.dev&sz=128" },
   "cli-proxy-api": {
     src: "https://avatars.githubusercontent.com/u/233033915?s=128&v=4",
