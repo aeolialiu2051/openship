@@ -55,6 +55,43 @@ export function isVibrailManagedHostname(hostname: string): boolean {
   return normalized.endsWith(`.${base}`) && normalized !== base;
 }
 
+export interface DnsPropagationProbeOptions {
+  attempts?: number;
+  intervalMs?: number;
+  resolve?: (hostname: string) => Promise<string[]>;
+  sleep?: (delayMs: number) => Promise<void>;
+}
+
+/**
+ * Wait until a newly-written deployment hostname is visible through public DNS
+ * before publishing a TLS router for it. Without this gate Traefik can ask ACME
+ * while the hostname is still NXDOMAIN, cache the failed authorization, and
+ * keep serving its default self-signed certificate even after DNS appears.
+ */
+export async function waitForDeploymentDnsPropagation(
+  hostname: string,
+  options: DnsPropagationProbeOptions = {},
+): Promise<boolean> {
+  const normalized = normalizeDnsZoneDomain(hostname);
+  if (!normalized) return false;
+  const attempts = Math.max(1, Math.floor(options.attempts ?? 30));
+  const intervalMs = Math.max(0, Math.floor(options.intervalMs ?? 1_000));
+  const resolver = options.resolve ?? resolve4;
+  const sleep =
+    options.sleep ??
+    ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    try {
+      if ((await resolver(normalized)).length > 0) return true;
+    } catch {
+      // NXDOMAIN / propagation lag: retry within the bounded window below.
+    }
+    if (attempt + 1 < attempts && intervalMs > 0) await sleep(intervalMs);
+  }
+  return false;
+}
+
 async function cloudflare<T>(
   credentials: Pick<CloudflareCredentials, "zoneId" | "apiToken">,
   path: string,

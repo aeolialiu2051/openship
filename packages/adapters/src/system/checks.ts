@@ -281,10 +281,13 @@ export async function checkSslCertificates(
     "docker volume inspect vibrail-edge-acme --format '{{.Mountpoint}}' 2>/dev/null",
   );
   if (mountpoint?.trim().startsWith("/")) {
-    const acmePath = `${mountpoint.trim().replace(/'/g, `'\\''`)}/acme.json`;
+    const acmeDir = mountpoint.trim().replace(/'/g, `'\\''`);
+    const acmePath = `${acmeDir}/acme.json`;
     traefikCount = await readCount(
-      `if [ ! -f '${acmePath}' ]; then echo 0; elif [ ! -r '${acmePath}' ]; then exit 13; ` +
-        `else grep -o '\"certificate\"' '${acmePath}' | wc -l; fi`,
+      `if [ -f '${acmePath}' ]; then ` +
+        `if [ ! -r '${acmePath}' ]; then exit 13; ` +
+        `else grep -o '\"certificate\"' '${acmePath}' | wc -l; fi; ` +
+        `elif [ -x '${acmeDir}' ]; then echo 0; else exit 13; fi`,
     );
   }
 

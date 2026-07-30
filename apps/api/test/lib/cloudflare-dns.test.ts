@@ -49,6 +49,7 @@ import {
   deleteManagedDnsRecords,
   publishManagedDnsRecords,
   upsertDeploymentDnsRecord,
+  waitForDeploymentDnsPropagation,
 } from "../../src/lib/cloudflare-dns";
 import { collectMailDnsRecords } from "../../src/modules/mail/mail-dns.service";
 
@@ -65,6 +66,45 @@ function response(result: unknown) {
 }
 
 describe("Vibrail Cloudflare DNS", () => {
+  it("waits through NXDOMAIN until a new hostname resolves", async () => {
+    const resolve = vi
+      .fn<(hostname: string) => Promise<string[]>>()
+      .mockRejectedValueOnce(new Error("NXDOMAIN"))
+      .mockRejectedValueOnce(new Error("NXDOMAIN"))
+      .mockResolvedValue(["203.0.113.10"]);
+    const sleep = vi.fn(async () => {});
+
+    await expect(
+      waitForDeploymentDnsPropagation(" New-App.Example.com. ", {
+        attempts: 3,
+        intervalMs: 1,
+        resolve,
+        sleep,
+      }),
+    ).resolves.toBe(true);
+    expect(resolve).toHaveBeenCalledTimes(3);
+    expect(resolve).toHaveBeenLastCalledWith("new-app.example.com");
+    expect(sleep).toHaveBeenCalledTimes(2);
+  });
+
+  it("fails closed after the bounded DNS propagation window", async () => {
+    const resolve = vi.fn(async () => {
+      throw new Error("NXDOMAIN");
+    });
+    const sleep = vi.fn(async () => {});
+
+    await expect(
+      waitForDeploymentDnsPropagation("missing.example.com", {
+        attempts: 2,
+        intervalMs: 1,
+        resolve,
+        sleep,
+      }),
+    ).resolves.toBe(false);
+    expect(resolve).toHaveBeenCalledTimes(2);
+    expect(sleep).toHaveBeenCalledTimes(1);
+  });
+
   it("creates a proxied A record when none exists", async () => {
     const fetchMock = vi
       .fn()

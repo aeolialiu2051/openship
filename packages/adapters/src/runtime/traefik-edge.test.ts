@@ -3,8 +3,10 @@ import type { DockerContainerDetail } from "./types";
 import {
   VIBRAIL_EDGE_CERT_RESOLVER_LABEL,
   VIBRAIL_EDGE_COMPATIBLE_LABEL,
+  VIBRAIL_EDGE_CONFIG_VERSION,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL,
+  VIBRAIL_EDGE_IMAGE,
   VIBRAIL_EDGE_NETWORK_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
   buildTraefikLabels,
@@ -14,11 +16,18 @@ import {
   traefikStaticConfigSources,
 } from "./traefik-edge";
 
+describe("managed Traefik compatibility", () => {
+  it("uses a Docker-29-compatible image and migrates older managed edges", () => {
+    expect(VIBRAIL_EDGE_IMAGE).toBe("traefik:v3.6");
+    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(4);
+  });
+});
+
 function container(overrides: Partial<DockerContainerDetail> = {}): DockerContainerDetail {
   return {
     id: "traefik-id",
     name: "traefik",
-    image: "traefik:v3.3",
+    image: "traefik:v3.6",
     imageId: "sha256:1",
     state: "running",
     command: [

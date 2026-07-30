@@ -6,10 +6,14 @@ export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
-export const VIBRAIL_EDGE_IMAGE = "traefik:v3.3";
+// Traefik 3.3 uses Docker API v1.24 even when DOCKER_API_VERSION is set. Docker
+// 29 rejects that client, leaving the Docker provider offline and every managed
+// domain on Traefik's default 404/self-signed certificate. Traefik 3.6 uses a
+// compatible Docker client and has been verified against Docker 29.
+export const VIBRAIL_EDGE_IMAGE = "traefik:v3.6";
 export const VIBRAIL_EDGE_MANAGED_LABEL = "vibrail.edge.managed";
 export const VIBRAIL_EDGE_CONFIG_VERSION_LABEL = "vibrail.edge.config-version";
-export const VIBRAIL_EDGE_CONFIG_VERSION = "2";
+export const VIBRAIL_EDGE_CONFIG_VERSION = "4";
 export const VIBRAIL_EDGE_COMPATIBLE_LABEL = "vibrail.edge.compatible";
 export const VIBRAIL_EDGE_NETWORK_LABEL = "vibrail.edge.network";
 export const VIBRAIL_EDGE_ENTRYPOINT_LABEL = "vibrail.edge.entrypoint";

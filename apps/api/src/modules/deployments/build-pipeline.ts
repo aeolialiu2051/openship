@@ -89,7 +89,12 @@ import { resolveProjectRouteState } from "../domains/project-route.service";
 import { type DeploymentConfigSnapshot } from "./build.service";
 import * as settingsService from "../settings/settings.service";
 import { prepareTraefikConfig, vibrailRouterName } from "../../lib/traefik-routing";
-import { deleteDeploymentDnsRecord, upsertDeploymentDnsRecord } from "../../lib/cloudflare-dns";
+import {
+  deleteDeploymentDnsRecord,
+  isVibrailManagedHostname,
+  upsertDeploymentDnsRecord,
+  waitForDeploymentDnsPropagation,
+} from "../../lib/cloudflare-dns";
 
 // Build env = CI/telemetry defaults (BUILD_ENV_VARS) + the customer's own env
 // vars. NODE_ENV is deliberately NOT set or overridden here: it's the customer's
@@ -1430,6 +1435,26 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         logger.log(`Created domain record for "${route.hostname}".\n`);
       }
       if (isRoutePublishable(route)) {
+        if (usesManagedRouting) {
+          const action = await upsertDeploymentDnsRecord({
+            hostname: route.hostname,
+            organizationId: dep.organizationId,
+            serverId: snapshot.serverId,
+          });
+          if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
+            throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
+          }
+          if (action !== "skipped") {
+            logger.log(
+              `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
+            );
+            if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
+              throw new Error(
+                `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
+              );
+            }
+          }
+        }
         routableDomains.push(route);
       } else {
         logger.log(

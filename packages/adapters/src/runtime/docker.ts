@@ -803,10 +803,9 @@ export class DockerRuntime implements RuntimeAdapter {
           vibrailManaged &&
           owned.labels[VIBRAIL_EDGE_CONFIG_VERSION_LABEL] !== VIBRAIL_EDGE_CONFIG_VERSION
         ) {
-          // Managed v1 configured an entrypoint-wide HTTP→HTTPS redirect, which
-          // makes externally terminated TLS routes impossible. Recreate only the
-          // edge container (the named ACME volume survives) so the v2 per-router
-          // redirects and plain-HTTP routes become active after upgrade.
+          // Managed edge configuration is versioned so compatibility fixes can
+          // safely replace only the proxy container. The named ACME volume
+          // survives, so certificates are preserved across the migration.
           await this.destroy(owned.id);
           details = details.filter((container) => container.id !== owned!.id);
           owned = undefined;
