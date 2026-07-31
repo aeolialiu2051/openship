@@ -184,3 +184,45 @@ export function organizationInviteEmail(opts: {
     text: `${inviterLabel} invited you to ${opts.organizationName} on ${BRAND}.\n\nAccept: ${opts.url}\n\nThe invitation expires in 7 days.`,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/*  Project moderation                                                */
+/* ------------------------------------------------------------------ */
+
+export function projectSuspendedEmail(opts: {
+  user: { name?: string | null; email: string };
+  projectName: string;
+  reason: string;
+  supportEmail: string;
+}) {
+  const projectNameHtml = htmlEscape(opts.projectName);
+  const reasonHtml = htmlEscape(opts.reason);
+  const supportEmailHtml = htmlEscape(opts.supportEmail);
+  const html = layout(`
+    ${greeting(opts.user.name)}
+    <p style="color:#111827;font-size:16px;font-weight:600;margin:0 0 12px">
+      Your project “${projectNameHtml}” has been taken offline
+    </p>
+    <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 16px">
+      The project was taken offline because it does not comply with the platform rules.
+    </p>
+    <div style="margin:0 0 16px;padding:14px 16px;border-radius:10px;background:#fef2f2;border:1px solid #fecaca">
+      <p style="color:#991b1b;font-size:13px;font-weight:600;margin:0 0 6px">Reason</p>
+      <p style="color:#7f1d1d;font-size:14px;line-height:1.6;margin:0">${reasonHtml}</p>
+    </div>
+    <p style="color:#374151;font-size:14px;line-height:1.6;margin:0">
+      If you believe this action was made in error, contact
+      <a href="mailto:${supportEmailHtml}" style="color:#2563eb">${supportEmailHtml}</a>.
+    </p>
+  `);
+
+  return {
+    subject: `Your project “${opts.projectName}” has been taken offline`,
+    html,
+    text:
+      `Hi ${opts.user.name || "there"},\n\n` +
+      `Your project “${opts.projectName}” has been taken offline because it does not comply with the platform rules.\n\n` +
+      `Reason: ${opts.reason}\n\n` +
+      `If you believe this action was made in error, contact ${opts.supportEmail}.`,
+  };
+}

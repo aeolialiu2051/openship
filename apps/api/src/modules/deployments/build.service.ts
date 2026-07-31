@@ -709,6 +709,16 @@ export async function checkNoActiveBuild(projectId: string) {
   }
 }
 
+export function assertProjectMayDeploy(
+  project: Pick<Project, "id" | "moderationStatus">,
+): void {
+  if (project.moderationStatus === "suspended") {
+    throw new ForbiddenError(
+      "This project has been taken offline by the instance administrator and cannot be deployed.",
+    );
+  }
+}
+
 /**
  * Which enabled services have an env var (project-level or service-scoped)
  * modified since the active deployment went live — i.e. need an env-only
@@ -777,6 +787,10 @@ export async function createQueuedDeployment(opts: {
   changedPaths?: string[] | null;
   changedPathsTruncated?: boolean;
 }) {
+  const project = await repos.project.findById(opts.projectId);
+  if (!project) throw new NotFoundError("Project", opts.projectId);
+  assertProjectMayDeploy(project);
+
   // Persist the smart-deploy serviceIds onto the snapshot so the
   // executor can find them without re-resolving from request scope.
   let meta: DeploymentConfigSnapshot = opts.meta;
@@ -921,6 +935,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   if (!project) {
     throw new NotFoundError("Project", projectId);
   }
+  assertProjectMayDeploy(project);
   // Org-membership is verified by the route-level requirePermission
   // middleware before this is reached.
   // GitHub access gate: default-deny for everyone but the org owner —
@@ -1545,6 +1560,7 @@ export async function triggerDeployment(
   if (!project) {
     throw new NotFoundError("Project", data.projectId);
   }
+  assertProjectMayDeploy(project);
   // The Openship control plane IS the running host service, not a redeployable
   // workload — it updates itself via the CLI. It's a release-provider project, so
   // the git/localPath 403 below would NOT catch it; guard it explicitly.

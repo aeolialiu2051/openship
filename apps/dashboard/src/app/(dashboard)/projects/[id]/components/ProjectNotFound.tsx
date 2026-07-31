@@ -5,10 +5,12 @@ import { Home, RefreshCw, AlertCircle } from "lucide-react";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { useI18n } from "@/components/i18n-provider";
 import { ResourceNotFound } from "@/components/resource-not-found";
+import { getSupportEmail } from "@/lib/support-email";
 
 export const ProjectNotFound: React.FC = () => {
   const { domain } = useProjectSettings();
   const { t } = useI18n();
+  const supportEmail = getSupportEmail();
   const nf = t.projects.notFound;
   const reasons = [nf.reasonDeleted, nf.reasonAccess, nf.reasonUrl];
 
@@ -64,12 +66,14 @@ export const ProjectNotFound: React.FC = () => {
               {nf.documentation}
             </a>
             <span className="text-muted-foreground/70">·</span>
-            <a
-              href="mailto:support@oblien.com"
-              className="font-semibold text-foreground transition-colors hover:text-primary"
-            >
-              {nf.support}
-            </a>
+            {supportEmail ? (
+              <a
+                href={`mailto:${supportEmail}`}
+                className="font-semibold text-foreground transition-colors hover:text-primary"
+              >
+                {nf.support}
+              </a>
+            ) : null}
           </div>
         </div>
       </ResourceNotFound>

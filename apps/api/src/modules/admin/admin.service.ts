@@ -11,7 +11,12 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
-import { db, schema } from "@repo/db";
+import { ForbiddenError, NotFoundError, ValidationError, safeErrorMessage } from "@repo/core";
+import { db, repos, schema } from "@repo/db";
+import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
+import { projectSuspendedEmail } from "../../lib/email-templates";
+import { sendMail } from "../../lib/mail";
+import { getSupportEmail } from "../../lib/support-email";
 
 const MAX_PAGE_SIZE = 200;
 const TREND_RANGE_DAYS = [7, 14, 30] as const;
@@ -422,6 +427,290 @@ export async function listUsers(
     total: Number(total?.value ?? 0),
     page,
     perPage,
+  };
+}
+
+export async function listApplications(
+  opts: AdminListOptions & { moderationStatus?: string; deploymentStatus?: string },
+) {
+  const { page, perPage, offset, search } = normalizeListOptions(opts);
+  const outerProjectId = sql.raw('"project"."id"');
+  const outerProjectOrganizationId = sql.raw('"project"."organization_id"');
+  const filters: SQL[] = [
+    isNull(schema.project.deletedAt),
+    sql`exists (
+      select 1 from ${schema.deployment} listed_deployment
+      where listed_deployment.project_id = ${outerProjectId}
+    )`,
+  ];
+
+  if (search) {
+    const pattern = `%${search}%`;
+    const searchFilter = or(
+      ilike(schema.project.name, pattern),
+      ilike(schema.project.id, pattern),
+      ilike(schema.project.slug, pattern),
+      ilike(schema.projectGroup.name, pattern),
+      ilike(schema.organization.name, pattern),
+      sql`exists (
+        select 1 from ${schema.domain} search_domain
+        where search_domain.project_id = ${outerProjectId}
+          and search_domain.hostname ilike ${pattern}
+      )`,
+      sql`exists (
+        select 1
+        from ${schema.member} search_member
+        join ${schema.user} search_user on search_user.id = search_member.user_id
+        where search_member.organization_id = ${outerProjectOrganizationId}
+          and search_member.role = 'owner'
+          and (search_user.email ilike ${pattern} or search_user.name ilike ${pattern})
+      )`,
+    );
+    if (searchFilter) filters.push(searchFilter);
+  }
+
+  if (opts.moderationStatus === "active" || opts.moderationStatus === "suspended") {
+    filters.push(eq(schema.project.moderationStatus, opts.moderationStatus));
+  }
+  if (opts.deploymentStatus) {
+    filters.push(sql`(
+      select latest_deployment.status
+      from ${schema.deployment} latest_deployment
+      where latest_deployment.project_id = ${outerProjectId}
+      order by latest_deployment.created_at desc
+      limit 1
+    ) = ${opts.deploymentStatus}`);
+  }
+
+  const where = and(...filters);
+  const latestDeploymentStatus = sql<string | null>`(
+    select latest_deployment.status
+    from ${schema.deployment} latest_deployment
+    where latest_deployment.project_id = ${outerProjectId}
+    order by latest_deployment.created_at desc
+    limit 1
+  )`;
+
+  const [rows, [total]] = await Promise.all([
+    db
+      .select({
+        id: schema.project.id,
+        name: schema.project.name,
+        appName: schema.projectGroup.name,
+        environmentName: schema.project.environmentName,
+        environmentType: schema.project.environmentType,
+        slug: schema.project.slug,
+        framework: schema.project.framework,
+        isApp: schema.project.isApp,
+        appTemplateId: schema.project.appTemplateId,
+        gitProvider: schema.project.gitProvider,
+        gitOwner: schema.project.gitOwner,
+        gitRepo: schema.project.gitRepo,
+        cloudWorkspaceId: schema.project.cloudWorkspaceId,
+        moderationStatus: schema.project.moderationStatus,
+        suspendedAt: schema.project.suspendedAt,
+        suspendedReason: schema.project.suspendedReason,
+        activeDeploymentId: schema.project.activeDeploymentId,
+        organizationId: schema.project.organizationId,
+        organizationName: schema.organization.name,
+        ownerName: sql<string | null>`(
+          select owner_user.name
+          from ${schema.member} owner_member
+          join ${schema.user} owner_user on owner_user.id = owner_member.user_id
+          where owner_member.organization_id = ${outerProjectOrganizationId}
+            and owner_member.role = 'owner'
+          order by owner_member.created_at asc
+          limit 1
+        )`,
+        ownerEmail: sql<string | null>`(
+          select owner_user.email
+          from ${schema.member} owner_member
+          join ${schema.user} owner_user on owner_user.id = owner_member.user_id
+          where owner_member.organization_id = ${outerProjectOrganizationId}
+            and owner_member.role = 'owner'
+          order by owner_member.created_at asc
+          limit 1
+        )`,
+        primaryDomain: sql<string | null>`(
+          select project_domain.hostname
+          from ${schema.domain} project_domain
+          where project_domain.project_id = ${outerProjectId}
+          order by project_domain.is_primary desc, project_domain.created_at asc
+          limit 1
+        )`,
+        latestDeploymentId: sql<string | null>`(
+          select latest_deployment.id
+          from ${schema.deployment} latest_deployment
+          where latest_deployment.project_id = ${outerProjectId}
+          order by latest_deployment.created_at desc
+          limit 1
+        )`,
+        latestDeploymentStatus,
+        latestDeploymentUrl: sql<string | null>`(
+          select latest_deployment.url
+          from ${schema.deployment} latest_deployment
+          where latest_deployment.project_id = ${outerProjectId}
+          order by latest_deployment.created_at desc
+          limit 1
+        )`,
+        latestDeploymentCreatedAt: sql<Date | null>`(
+          select latest_deployment.created_at
+          from ${schema.deployment} latest_deployment
+          where latest_deployment.project_id = ${outerProjectId}
+          order by latest_deployment.created_at desc
+          limit 1
+        )`,
+        createdAt: schema.project.createdAt,
+        updatedAt: schema.project.updatedAt,
+      })
+      .from(schema.project)
+      .innerJoin(schema.projectGroup, eq(schema.project.groupId, schema.projectGroup.id))
+      .innerJoin(schema.organization, eq(schema.project.organizationId, schema.organization.id))
+      .where(where)
+      .orderBy(
+        desc(sql`case when ${schema.project.moderationStatus} = 'suspended' then 1 else 0 end`),
+        desc(schema.project.updatedAt),
+        desc(schema.project.id),
+      )
+      .limit(perPage)
+      .offset(offset),
+    db
+      .select({ value: count() })
+      .from(schema.project)
+      .innerJoin(schema.projectGroup, eq(schema.project.groupId, schema.projectGroup.id))
+      .innerJoin(schema.organization, eq(schema.project.organizationId, schema.organization.id))
+      .where(where),
+  ]);
+
+  return {
+    data: rows,
+    total: Number(total?.value ?? 0),
+    page,
+    perPage,
+  };
+}
+
+async function activeDeploymentContainerIds(projectId: string, activeDeploymentId: string | null) {
+  if (!activeDeploymentId) return { deployment: null, containerIds: [] as string[] };
+  const deployment = await repos.deployment.findById(activeDeploymentId);
+  if (!deployment || deployment.projectId !== projectId) {
+    return { deployment: null, containerIds: [] as string[] };
+  }
+  const serviceDeployments = await repos.service.listByDeployment(activeDeploymentId);
+  const containerIds = new Set<string>();
+  if (deployment.containerId && deployment.containerId !== "compose") {
+    containerIds.add(deployment.containerId);
+  }
+  for (const row of serviceDeployments) {
+    if (row.containerId && row.containerId !== "compose") containerIds.add(row.containerId);
+  }
+  return { deployment, containerIds: [...containerIds] };
+}
+
+export async function suspendApplication(projectId: string, reason?: string) {
+  const project = await repos.project.findById(projectId);
+  if (!project) throw new NotFoundError("Project", projectId);
+  if (project.appTemplateId === "openship") {
+    throw new ForbiddenError("The Openship control plane cannot be suspended");
+  }
+
+  const normalizedReason = reason?.trim().slice(0, 500) || "";
+  if (!normalizedReason) {
+    throw new ValidationError("A suspension reason is required", {
+      reason: ["Enter the policy violation or other reason shown to the project owner."],
+    });
+  }
+
+  const suspendedAt = new Date();
+  await repos.project.update(project.id, {
+    moderationStatus: "suspended",
+    suspendedAt,
+    suspendedReason: normalizedReason,
+  });
+
+  const { deployment, containerIds } = await activeDeploymentContainerIds(
+    project.id,
+    project.activeDeploymentId,
+  );
+  let warning: string | null = null;
+  if (deployment && containerIds.length > 0) {
+    try {
+      const { runtime } = await resolveDeploymentRuntime(deployment);
+      for (const containerId of containerIds) await runtime.stop(containerId);
+    } catch (err) {
+      warning = `Project was marked suspended, but its runtime could not be stopped: ${safeErrorMessage(err)}`;
+      console.warn(`[admin] ${project.id}: ${warning}`);
+    }
+  }
+
+  let emailWarning: string | null = null;
+  const [owner] = await db
+    .select({ name: schema.user.name, email: schema.user.email })
+    .from(schema.member)
+    .innerJoin(schema.user, eq(schema.member.userId, schema.user.id))
+    .where(
+      and(
+        eq(schema.member.organizationId, project.organizationId),
+        eq(schema.member.role, "owner"),
+      ),
+    )
+    .orderBy(asc(schema.member.createdAt))
+    .limit(1);
+
+  if (owner?.email) {
+    try {
+      await sendMail({
+        to: owner.email,
+        organizationId: project.organizationId,
+        ...projectSuspendedEmail({
+          user: owner,
+          projectName: project.name,
+          reason: normalizedReason,
+          supportEmail: getSupportEmail(),
+        }),
+      });
+    } catch (err) {
+      emailWarning = `The project owner notification could not be sent: ${safeErrorMessage(err)}`;
+      console.warn(`[admin] ${project.id}: ${emailWarning}`);
+    }
+  } else {
+    emailWarning = "The organization has no owner email to notify.";
+  }
+
+  return {
+    beforeStatus: project.moderationStatus,
+    project: {
+      ...project,
+      moderationStatus: "suspended",
+      suspendedAt,
+      suspendedReason: normalizedReason,
+    },
+    warning,
+    emailWarning,
+  };
+}
+
+export async function resumeApplication(projectId: string) {
+  const project = await repos.project.findById(projectId);
+  if (!project) throw new NotFoundError("Project", projectId);
+
+  const { deployment, containerIds } = await activeDeploymentContainerIds(
+    project.id,
+    project.activeDeploymentId,
+  );
+  if (deployment && containerIds.length > 0) {
+    const { runtime } = await resolveDeploymentRuntime(deployment);
+    for (const containerId of containerIds) await runtime.start(containerId);
+  }
+
+  await repos.project.update(project.id, {
+    moderationStatus: "active",
+    suspendedAt: null,
+    suspendedReason: null,
+  });
+  return {
+    beforeStatus: project.moderationStatus,
+    project: { ...project, moderationStatus: "active", suspendedAt: null, suspendedReason: null },
   };
 }
 

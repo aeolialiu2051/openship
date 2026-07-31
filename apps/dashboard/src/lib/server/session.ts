@@ -117,6 +117,8 @@ export type DeploymentInfo = {
   version?: string;
   cloudAuthUrl: string;
   cloudApiUrl: string;
+  /** Contact mailbox parsed by the API from SMTP_FROM. */
+  supportEmail?: string;
   machineName?: string;
   hostDomain?: string;
   /**

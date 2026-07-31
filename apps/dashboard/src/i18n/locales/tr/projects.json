@@ -7,6 +7,7 @@
     "noTargetDesc": "Başlamak için bu hedefe bir uygulama dağıtın veya yeni bir proje oluşturun."
   },
   "status": {
+    "suspended": "Yayından kaldırıldı",
     "live": "Yayında",
     "attention": "İşlem Gerekiyor",
     "queued": "Sıraya Alındı",

@@ -789,6 +789,16 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       );
     }
 
+    // Moderation is checked again immediately before runtime activation. A
+    // project can be suspended while a long build is in progress; the entry
+    // point guard alone would otherwise allow that build to publish afterward.
+    const currentProject = await repos.project.findById(project.id);
+    if (!currentProject || currentProject.moderationStatus === "suspended") {
+      throw new Error(
+        "Deployment stopped because the project was taken offline by the instance administrator.",
+      );
+    }
+
     if (useServicePipeline && isMultiServiceRuntime(runtime)) {
       // snapshot.composeServices is a DeployableService[] - mixed compose +
       // monorepo. syncFromCompose strictly owns compose rows; passing a

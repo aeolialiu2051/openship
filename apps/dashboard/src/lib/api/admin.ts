@@ -52,6 +52,37 @@ export interface AdminUserRow {
   lastActionAt: string | null;
 }
 
+export interface AdminApplicationRow {
+  id: string;
+  name: string;
+  appName: string;
+  environmentName: string;
+  environmentType: string;
+  slug: string;
+  framework: string | null;
+  isApp: boolean;
+  appTemplateId: string | null;
+  gitProvider: string | null;
+  gitOwner: string | null;
+  gitRepo: string | null;
+  cloudWorkspaceId: string | null;
+  moderationStatus: "active" | "suspended";
+  suspendedAt: string | null;
+  suspendedReason: string | null;
+  activeDeploymentId: string | null;
+  organizationId: string;
+  organizationName: string;
+  ownerName: string | null;
+  ownerEmail: string | null;
+  primaryDomain: string | null;
+  latestDeploymentId: string | null;
+  latestDeploymentStatus: string | null;
+  latestDeploymentUrl: string | null;
+  latestDeploymentCreatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface AdminAccessLogRow {
   id: string;
   userId: string | null;
@@ -118,6 +149,26 @@ export const adminApi = {
     verified?: boolean;
   } = {}) {
     return api.get<AdminPage<AdminUserRow>>("admin/users", { params: params(input) });
+  },
+
+  applications(input: {
+    page?: number;
+    perPage?: number;
+    search?: string;
+    moderationStatus?: string;
+    deploymentStatus?: string;
+  } = {}) {
+    return api.get<AdminPage<AdminApplicationRow>>("admin/apps", { params: params(input) });
+  },
+
+  suspendApplication(projectId: string, reason?: string) {
+    return api.post<{ data: { warning: string | null; emailWarning: string | null } }>(`admin/apps/${projectId}/suspend`, {
+      reason,
+    });
+  },
+
+  resumeApplication(projectId: string) {
+    return api.post<{ data: unknown }>(`admin/apps/${projectId}/resume`);
   },
 
   accessLogs(input: {

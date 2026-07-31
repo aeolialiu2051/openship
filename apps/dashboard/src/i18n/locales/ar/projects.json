@@ -6,6 +6,7 @@
     "noTargetProjects": "لا توجد مشاريع منشورة على هذا الهدف بعد."
   },
   "status": {
+    "suspended": "تم إيقافه",
     "live": "مباشر",
     "attention": "إجراء مطلوب",
     "queued": "في الطابور",

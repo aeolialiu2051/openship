@@ -100,7 +100,12 @@ export const ProjectSidebar = () => {
   const isLocalDev = !hasDomain && !selfHosted;
   const canOpen = hasDomain || isLocalDev;
   const displayUrl = hasDomain ? activeDomain : localUrl;
-  const siteHref = isLocalDev ? `http://${localUrl}` : `https://${activeDomain}`;
+  const siteHref =
+    projectData.moderationStatus === "suspended"
+      ? `/suspended?site=${encodeURIComponent(displayUrl)}`
+      : isLocalDev
+        ? `http://${localUrl}`
+        : `https://${activeDomain}`;
 
   const handleTabChange = (tabId: string) => {
     const scrollY = window.scrollY;

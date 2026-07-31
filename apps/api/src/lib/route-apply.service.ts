@@ -23,7 +23,7 @@
  * failure logs and defers to the next deploy rather than failing the request.
  */
 
-import type { Deployment } from "@repo/db";
+import { repos, type Deployment } from "@repo/db";
 import type { Platform, RouteProxyLocation, RouteRedirect, RouteHeaderRule } from "@repo/adapters";
 import { safeErrorMessage } from "@repo/core";
 import { platform } from "./controller-helpers";
@@ -79,8 +79,17 @@ export async function reconcileProjectRoutes(
     removes?: RouteRemove[];
   },
 ): Promise<void> {
-  const registers = opts.registers ?? [];
+  let registers = opts.registers ?? [];
   const removes = opts.removes ?? [];
+  if (registers.length > 0) {
+    const currentProject = await repos.project.findById(project.id);
+    if (!currentProject || currentProject.moderationStatus === "suspended") {
+      console.warn(
+        `[route-apply] project ${project.id} is suspended — skipped ${registers.length} route registration(s)`,
+      );
+      registers = [];
+    }
+  }
   if (registers.length === 0 && removes.length === 0) return;
 
   // Cloud: page/workspace primitives. The webhook proxy is an nginx concern, so

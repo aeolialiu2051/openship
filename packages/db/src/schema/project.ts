@@ -340,6 +340,14 @@ export const project = pgTable(
     /** Soft delete */
     deletedAt: timestamp("deleted_at"),
     /**
+     * Instance-admin moderation switch. Projects are live by default; a
+     * suspended project keeps its data and deployment history but may not
+     * publish or start a new deployment until an instance admin restores it.
+     */
+    moderationStatus: text("moderation_status").notNull().default("active"),
+    suspendedAt: timestamp("suspended_at"),
+    suspendedReason: text("suspended_reason"),
+    /**
      * Set true at the start of the atomic teardown flow so concurrent
      * requests refuse to operate on the row. The teardown either succeeds
      * (row hard-deletes — flag disappears with it) or fails (flag is
@@ -364,6 +372,7 @@ export const project = pgTable(
     uniqueIndex("uq_project_cloud_workspace_id")
       .on(table.cloudWorkspaceId)
       .where(sql`${table.cloudWorkspaceId} IS NOT NULL AND ${table.deletedAt} IS NULL`),
+    index("idx_project_moderation_status").on(table.moderationStatus),
   ],
 );
 

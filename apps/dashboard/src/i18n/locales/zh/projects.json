@@ -7,6 +7,7 @@
     "noTargetDesc": "将应用部署到此目标，或创建一个新项目以开始使用。"
   },
   "status": {
+    "suspended": "已下架",
     "live": "运行中",
     "attention": "需要处理",
     "queued": "排队中",

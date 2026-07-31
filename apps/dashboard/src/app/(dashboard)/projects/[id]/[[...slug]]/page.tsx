@@ -44,6 +44,7 @@ import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectDeletionTracker } from "@/context/ProjectDeletionContext";
+import { getSupportEmail } from "@/lib/support-email";
 
 const ProjectTabLoading = () => (
   <div className="space-y-4" aria-hidden="true">
@@ -526,10 +527,11 @@ const ProjectSettingsContent = () => {
   // know enough about the project to even render its tabs.
   const { isLoading: isLoadingProjectInfo, error: projectInfoError } = useProjectInfo(id);
 
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { showToast } = useToast();
   const { showModal, hideModal } = useModal();
   const { trackProjectDeletion } = useProjectDeletionTracker();
+  const supportEmail = getSupportEmail();
   const router = useRouter();
   const [deletionOperationId, setDeletionOperationId] = useState<string | null>(null);
   const [deletionOperation, setDeletionOperation] = useState<ResourceOperationView | null>(null);
@@ -1131,6 +1133,28 @@ const ProjectSettingsContent = () => {
       </div>
 
       {deletionProgressBanner}
+
+      {projectData.moderationStatus === "suspended" && (
+        <div className="mb-5 rounded-2xl border border-danger/25 bg-danger-bg px-4 py-3 text-danger">
+          <p className="text-sm font-semibold">
+            {locale === "zh" ? "该项目已被平台下架" : "This project has been taken offline"}
+          </p>
+          <p className="mt-1 text-xs leading-5 text-muted-foreground">
+            {projectData.suspendedReason ||
+              (locale === "zh"
+                ? "该项目因违反平台规定已停止对外访问。"
+                : "This project is no longer publicly available because it violates platform rules.")}
+          </p>
+          {supportEmail ? (
+            <a
+              href={`mailto:${supportEmail}`}
+              className="mt-2 inline-block text-xs font-medium text-danger underline underline-offset-2"
+            >
+              {locale === "zh" ? `如有异议，请联系 ${supportEmail}` : `Appeal: ${supportEmail}`}
+            </a>
+          ) : null}
+        </div>
+      )}
 
       {/* Content */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">

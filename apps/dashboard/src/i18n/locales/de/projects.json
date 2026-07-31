@@ -6,6 +6,7 @@
     "noTargetProjects": "Noch keine Projekte auf diesem Ziel bereitgestellt."
   },
   "status": {
+    "suspended": "Offline genommen",
     "live": "Live",
     "attention": "Aktion erforderlich",
     "queued": "In Warteschlange",

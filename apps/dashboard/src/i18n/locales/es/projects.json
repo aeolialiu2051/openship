@@ -6,6 +6,7 @@
     "noTargetProjects": "Aún no hay proyectos desplegados en este destino."
   },
   "status": {
+    "suspended": "Retirado",
     "live": "En vivo",
     "attention": "Acción requerida",
     "queued": "En cola",

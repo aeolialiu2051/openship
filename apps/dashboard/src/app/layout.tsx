@@ -15,6 +15,8 @@ import {
   type Locale,
 } from "@/i18n";
 import { loadDictionary } from "@/i18n/dictionaries";
+import { getSupportEmail } from "@/lib/support-email";
+import { getDeploymentInfoOrNull } from "@/lib/server/session";
 
 /** Resolve the request locale server-side: explicit cookie first, then the
  *  browser's Accept-Language, else the default. Keeps SSR and first paint in
@@ -76,6 +78,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (a module-load constant that can't read a runtime env) targets it. Read
   // per-request thanks to `force-dynamic` above.
   const localApiOrigin = process.env.OPENSHIP_LOCAL_API_URL;
+  const deploymentInfo = await getDeploymentInfoOrNull();
+  const supportEmail = deploymentInfo?.supportEmail || getSupportEmail();
 
   const locale = await resolveRequestLocale();
   const dir = getUiDirection(locale);
@@ -102,6 +106,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             }}
           />
         ) : null}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__OPENSHIP_SUPPORT_EMAIL__=${JSON.stringify(supportEmail)}`,
+          }}
+        />
       </head>
       <body>
         <ThemeProvider>

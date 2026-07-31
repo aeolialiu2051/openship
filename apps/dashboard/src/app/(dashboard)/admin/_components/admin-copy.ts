@@ -9,6 +9,7 @@ export function adminCopy(locale: Locale) {
       : "Inspect instance users, product usage, and global audit activity.",
     overview: zh ? "总览" : "Overview",
     users: zh ? "用户" : "Users",
+    applications: zh ? "用户应用" : "User apps",
     accessLogs: zh ? "访问日志" : "Access logs",
     activityLogs: zh ? "活动日志" : "Activity logs",
     search: zh ? "搜索用户、路径、IP…" : "Search users, paths, IPs…",

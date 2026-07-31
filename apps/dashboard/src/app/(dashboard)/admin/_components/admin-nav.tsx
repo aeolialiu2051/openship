@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, LayoutDashboard, ScrollText, Users } from "lucide-react";
+import { Activity, AppWindow, LayoutDashboard, ScrollText, Users } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { adminCopy } from "./admin-copy";
 
@@ -13,6 +13,7 @@ export function AdminNav() {
   const items = [
     { href: "/admin", label: copy.overview, icon: LayoutDashboard },
     { href: "/admin/users", label: copy.users, icon: Users },
+    { href: "/admin/apps", label: copy.applications, icon: AppWindow },
     { href: "/admin/access-logs", label: copy.accessLogs, icon: Activity },
     { href: "/admin/activity", label: copy.activityLogs, icon: ScrollText },
   ];

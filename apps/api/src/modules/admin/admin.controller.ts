@@ -1,4 +1,7 @@
 import type { Context } from "hono";
+import { audit, auditContextFrom } from "../../lib/audit";
+import { param } from "../../lib/controller-helpers";
+import { getRequestContext } from "../../lib/request-context";
 import * as service from "./admin.service";
 
 function pageParams(c: Context) {
@@ -30,6 +33,50 @@ export async function users(c: Context) {
       verified,
     }),
   );
+}
+
+export async function applications(c: Context) {
+  return c.json(
+    await service.listApplications({
+      ...pageParams(c),
+      moderationStatus: c.req.query("moderationStatus") || undefined,
+      deploymentStatus: c.req.query("deploymentStatus") || undefined,
+    }),
+  );
+}
+
+export async function suspendApplication(c: Context) {
+  const ctx = getRequestContext(c);
+  const projectId = param(c, "id");
+  const body: { reason?: string } = await c.req.json<{ reason?: string }>().catch(() => ({}));
+  const result = await service.suspendApplication(projectId, body.reason);
+  await audit.record(auditContextFrom(c, result.project.organizationId, ctx.userId), {
+    eventType: "admin.project.suspended",
+    resourceType: "project",
+    resourceId: projectId,
+    before: { moderationStatus: result.beforeStatus },
+    after: {
+      moderationStatus: "suspended",
+      suspendedReason: result.project.suspendedReason,
+      warning: result.warning,
+      emailWarning: result.emailWarning,
+    },
+  });
+  return c.json({ data: result });
+}
+
+export async function resumeApplication(c: Context) {
+  const ctx = getRequestContext(c);
+  const projectId = param(c, "id");
+  const result = await service.resumeApplication(projectId);
+  await audit.record(auditContextFrom(c, result.project.organizationId, ctx.userId), {
+    eventType: "admin.project.resumed",
+    resourceType: "project",
+    resourceId: projectId,
+    before: { moderationStatus: result.beforeStatus },
+    after: { moderationStatus: "active" },
+  });
+  return c.json({ data: result });
 }
 
 export async function accessLogs(c: Context) {

@@ -65,10 +65,12 @@ export function SearchBox({
   value,
   onChange,
   onSubmit,
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
+  placeholder?: string;
 }) {
   const { locale } = useI18n();
   const copy = adminCopy(locale);
@@ -84,7 +86,7 @@ export function SearchBox({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={copy.search}
+        placeholder={placeholder ?? copy.search}
         className="h-10 w-full rounded-xl border border-border/60 bg-card pl-9 pr-3 text-sm text-foreground outline-none focus:border-primary/50"
       />
     </form>

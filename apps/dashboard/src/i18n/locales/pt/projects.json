@@ -6,6 +6,7 @@
     "noTargetProjects": "Ainda não há projetos implementados neste destino."
   },
   "status": {
+    "suspended": "Retirado do ar",
     "live": "Ativo",
     "attention": "Ação Necessária",
     "queued": "Em fila",

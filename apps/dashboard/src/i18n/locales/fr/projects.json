@@ -7,6 +7,7 @@
     "noTargetDesc": "Déployez une application sur cette cible, ou créez un nouveau projet pour commencer."
   },
   "status": {
+    "suspended": "Mis hors ligne",
     "live": "En ligne",
     "attention": "Action requise",
     "queued": "En file d'attente",

@@ -6,6 +6,7 @@ import { hostname, userInfo } from "node:os";
 import { cloudRuntimeTarget, env, USER_SERVERS_ENABLED } from "../../config/env";
 import { rateLimiterFor } from "../../middleware/rate-limiter";
 import { APP_VERSION } from "../../lib/app-version";
+import { getSupportEmail } from "../../lib/support-email";
 
 /** Running server version (apps/api/package.json, via lib/app-version — the same
  *  value sent to the cloud on every call). Lets the dashboard tell a self-hosted
@@ -120,6 +121,7 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     // must use these, not its static table, to reach the right cloud.
     cloudAuthUrl: cloudRuntimeTarget.dashboard,
     cloudApiUrl: cloudRuntimeTarget.api,
+    supportEmail: getSupportEmail(),
     ...(machineName && { machineName }),
     ...(env.HOST_DOMAIN && { hostDomain: env.HOST_DOMAIN }),
   });

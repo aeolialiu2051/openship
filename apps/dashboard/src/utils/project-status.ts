@@ -1,6 +1,7 @@
 import type { Dictionary } from "@/i18n";
 
 export type ProjectStatus =
+  | "suspended"
   | "live"
   | "attention"
   | "queued"
@@ -26,6 +27,7 @@ type ProjectStatusSource = {
   /** True while an atomic teardown is in flight (the real in-progress flag;
    *  teardown hard-deletes on success, so `deletedAt` is rarely set). */
   deletionInProgress?: boolean | null;
+  moderationStatus?: "active" | "suspended" | null;
   /** Marks the Openship control-plane self-app. It IS the running host service and
    *  has no deployment behind it, so it must never fall through to "draft". */
   appTemplateId?: string | null;
@@ -39,6 +41,10 @@ export const PROJECT_STATUS_META: Record<
   ProjectStatus,
   { badge: string; dot: string }
 > = {
+  suspended: {
+    badge: "bg-danger-bg text-danger",
+    dot: "bg-danger-solid",
+  },
   live: {
     badge: "bg-success-bg text-success",
     dot: "bg-success-solid",
@@ -86,6 +92,10 @@ export function projectStatusLabel(status: ProjectStatus, t: Dictionary): string
 export function getProjectStatus(project: ProjectStatusSource): ProjectStatus {
   if (project.deletedAt || project.deletionInProgress) {
     return "deleting";
+  }
+
+  if (project.moderationStatus === "suspended") {
+    return "suspended";
   }
 
   // The Openship control-plane self-app IS the running host process; it has no

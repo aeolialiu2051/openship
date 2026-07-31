@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getOverview, listUsers } from "./admin.service";
+import { getOverview, listApplications, listUsers } from "./admin.service";
 
 describe("admin user listing", () => {
   it("executes correlated user-stat queries without ambiguous columns", async () => {
@@ -54,5 +54,16 @@ describe("admin user listing", () => {
     const invalidTimeZone = await getOverview({ timeZone: "not/a-real-time-zone" });
     expect(invalidTimeZone.usageTrend.timeZone).toBeTruthy();
     expect(invalidTimeZone.usageTrend.timeZone).not.toBe("not/a-real-time-zone");
+  });
+
+  it("lists applications across organizations with moderation filters", async () => {
+    const result = await listApplications({
+      page: 1,
+      perPage: 25,
+      search: "__admin_application_query_probe_that_matches_nothing__",
+      moderationStatus: "active",
+    });
+
+    expect(result).toMatchObject({ data: [], total: 0, page: 1, perPage: 25 });
   });
 });

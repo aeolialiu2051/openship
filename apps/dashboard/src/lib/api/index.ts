@@ -102,6 +102,7 @@ export { settingsApi } from "./settings";
 export { adminApi } from "./admin";
 export type {
   AdminOverview,
+  AdminApplicationRow,
   AdminUserRow,
   AdminAccessLogRow,
   AdminActivityLogRow,
