@@ -1400,7 +1400,7 @@ export async function runPreflightChecks(
   const clonesOnRemote =
     !repoIsPublic &&
     runtimeMode === "bare" &&
-    // Static apps now BUILD in a Docker sandbox (see build-pipeline's static
+    // Static apps now BUILD in a temporary Docker container (see build-pipeline's static
     // flip) which clones on the orchestrator — never a remote bare clone — so
     // they never need a remote clone credential even if runtimeMode is "bare".
     snapshot.hasServer &&

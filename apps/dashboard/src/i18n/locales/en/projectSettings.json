@@ -316,7 +316,7 @@
       "rootDirectory": "Root directory",
       "startCommand": "Start command",
       "staticNoServer": "Static (no server)",
-      "modeSandboxed": "Sandboxed (container)",
+      "modeDocker": "Docker container",
       "modeDirect": "Direct (host process)",
       "modeDefault": "Default (resolved at deploy)"
     },

@@ -14,13 +14,13 @@ import type { RuntimeMode } from "@/context/deployment/types";
  * step, persisted to the project (see requestBuildAccess) so it sticks across
  * redeploys.
  *
- * Default: the RAM-aware recommendation (Sandboxed everywhere except <2 GB boxes
+ * Default: the RAM-aware recommendation (Docker everywhere except <2 GB boxes
  * where the engine itself would contend for the app's memory). Applied
  * automatically only for a FRESH deploy — an existing project's saved choice is
  * hydrated into config.runtimeMode and respected, never overridden.
  */
 
-// Below this RAM the sandbox engine contends for memory with the app — on a
+// Below this RAM the Docker runtime contends for memory with the app — on a
 // 512MB/1GB VPS that's a real problem. Above it Docker's overhead is
 // single-digit-% CPU + ~30-80MB RAM, negligible vs. the isolation upside.
 const TWO_GB = 2 * 1024 * 1024 * 1024;
@@ -41,8 +41,8 @@ const ServerRuntimePicker: React.FC<{ enabled?: boolean }> = ({ enabled = true }
   }> = [
     {
       value: "docker",
-      label: t.deploy.runtime.sandboxedLabel,
-      description: t.deploy.runtime.sandboxedDesc,
+      label: t.deploy.runtime.dockerLabel,
+      description: t.deploy.runtime.dockerDesc,
       icon: <ShieldCheck className="size-5" />,
     },
     {
@@ -57,7 +57,7 @@ const ServerRuntimePicker: React.FC<{ enabled?: boolean }> = ({ enabled = true }
   const hasUserSelectedRef = useRef(false);
 
   const lowRam = useMemo(() => (stats ? stats.memTotal < TWO_GB : false), [stats]);
-  // Sandbox is the default everywhere — the safe, isolated norm. On a very small
+  // Docker is the default everywhere — the safe, isolated norm. On a very small
   // box Direct uses less RAM, but that's surfaced as a caveat when the user
   // actually picks Direct (below), not a silent default flip. Keeps the common
   // case one obvious choice instead of a machine-dependent guess.

@@ -189,10 +189,10 @@
     "targetCloud": "Openship Bulut",
     "buildLocal": "Bu Bilgisayar",
     "buildRemote": "Uzak Sunucu",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "Statik · uçtan sunulur",
+    "runtimeContainerIsolated": "Konteyner yalıtımlı",
+    "runtimeDirectWarning": "Ana makinede doğrudan",
+    "runtimeDirectHint": "Doğrudan ana makine işlemi olarak çalışır."
   },
   "power": {
     "heading": "Performans Gücü",
@@ -223,12 +223,12 @@
     "subtitle": "İzolasyon yöntemi",
     "subtitleRam": "İzolasyon yöntemi · {ram} GB RAM",
     "recommended": "Önerilen",
-    "sandboxedLabel": "Korumalı Alan (Sandboxed)",
-    "sandboxedDesc": "İzole konteyner. Çok düşük ek yük.",
+    "dockerLabel": "Docker konteyneri",
+    "dockerDesc": "İşlem ve dosya sistemi izolasyonuyla bir Docker konteynerinde çalışır.",
     "directLabel": "Doğrudan (Direct)",
     "directDesc": "Ana makinede çalışır. En düşük ek yük.",
-    "caveatLowRam": "Burada RAM sınırlı — Korumalı alan ~50–80 MB ekler. Doğrudan daha hafiftir, Korumalı Alan daha güvenlidir.",
-    "caveat": "Doğrudan çalışma, sistem ele geçirilirse ana makineye tam erişim sağlar. Korumalı alan ise gerçek izolasyon için yaklaşık %1–2 CPU ek yükü oluşturur."
+    "caveatLowRam": "Bu sunucuda RAM sınırlı: Docker ~50–80 MB ekler. Doğrudan daha hafiftir; Docker konteyner izolasyonu sağlar.",
+    "caveat": "Doğrudan mod uygulamayı ana makine işlemi olarak çalıştırır. Docker az miktarda ek yük oluşturur ve uygulamayı konteynerde izole eder."
   },
   "addServer": {
     "title": "Sunucunuzu ekleyin",
@@ -300,7 +300,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "Geçici bir Docker derleme konteynerinde oluşturulur ve ardından statik dosyalar edge tarafından sunulur.",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npm start",
     "startCommandHint": "Leave empty to serve the build output as static files from the edge (nothing runs). Enter a command to run it as a live server process.",

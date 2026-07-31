@@ -1111,12 +1111,12 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     }
   }
 
-  // Persist an EXPLICIT runtime-isolation choice (the deploy "sandbox vs direct"
-  // modal pick) onto the project so it STICKS. Without this the choice lives only
+  // Persist an EXPLICIT runtime choice (Docker container vs direct host process)
+  // onto the project so it STICKS. Without this the choice lives only
   // in this one deployment's snapshot: the modal re-asks every deploy, a later
   // config-save reads project.runtimeMode (still null) and writes the host
   // default, and a redeploy then resolves to that default (bare) — silently
-  // flipping a docker/sandbox project to direct-on-host. Best-effort: a failed
+  // flipping a Docker project to direct-on-host. Best-effort: a failed
   // persist must not block the deploy. Only write when it actually changed.
   const runtimeModeToPersist = composeFirst ? "docker" : runtimeMode;
   if (

@@ -74,14 +74,6 @@
     "needAttentionSingular": "{count} proyecto necesita atención",
     "needAttentionPlural": "{count} proyectos necesitan atención"
   },
-  "sandboxes": {
-    "title": "Entornos de prueba",
-    "developmentEnvironments": "Entornos de desarrollo",
-    "totalSandboxes": "Entornos de prueba totales",
-    "active": "Activos",
-    "runningCount": "{count} en ejecución",
-    "stoppedCount": "{count} detenidos"
-  },
   "stats": {
     "creditsBalance": "Saldo de créditos",
     "tokenUsage": "Uso de tokens",
@@ -90,9 +82,7 @@
     "last7Days": "Últimos 7 días",
     "deployments": "Despliegues",
     "successfulCount": "{count} exitosos",
-    "activeProjects": "Proyectos activos",
-    "sandboxes": "Entornos de prueba",
-    "activeCount": "{count} activos"
+    "activeProjects": "Proyectos activos"
   },
   "tokenUsage": {
     "title": "Uso de tokens",

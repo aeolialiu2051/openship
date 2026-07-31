@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   APP_CLOUD_INSTALL_AVAILABLE,
+  canChooseServerRuntimeIsolation,
+  hasBuildLocationChoice,
   canUseLocalBuildLocation,
   canUseLocalAppDestination,
 } from "./app-destination-availability";
@@ -34,5 +36,19 @@ describe("app destination availability", () => {
 
   it("fails closed for unknown deployment modes", () => {
     expect(canUseLocalBuildLocation({ deployMode: "future-mode" })).toBe(false);
+  });
+
+  it("only exposes runtime isolation on operator-controlled hosts", () => {
+    expect(canChooseServerRuntimeIsolation({ deployMode: "desktop" })).toBe(true);
+    expect(canChooseServerRuntimeIsolation({ deployMode: "docker" })).toBe(true);
+    expect(canChooseServerRuntimeIsolation({ deployMode: "bare" })).toBe(true);
+    expect(canChooseServerRuntimeIsolation({ deployMode: "cloud" })).toBe(false);
+    expect(canChooseServerRuntimeIsolation({ deployMode: "future-mode" })).toBe(false);
+  });
+
+  it("hides the build-location picker when only one location is available", () => {
+    expect(hasBuildLocationChoice(0)).toBe(false);
+    expect(hasBuildLocationChoice(1)).toBe(false);
+    expect(hasBuildLocationChoice(2)).toBe(true);
   });
 });

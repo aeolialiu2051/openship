@@ -11,7 +11,6 @@ export { default as DeploymentsChart } from './DeploymentsChart';
 export { default as ActivityChart } from './ActivityChart';
 
 // Card components
-export { default as SandboxesCard } from './SandboxesCard';
 export { default as ProjectsCard } from './ProjectsCard';
 export { default as ApiRequestsCard } from './ApiRequestsCard';
 
@@ -20,4 +19,3 @@ export { default as OverviewSkeleton } from './LoadingSkeleton';
 
 // Types
 export * from './types';
-

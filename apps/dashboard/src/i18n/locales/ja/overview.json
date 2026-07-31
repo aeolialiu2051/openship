@@ -74,14 +74,6 @@
     "needAttentionSingular": "{count}件のプロジェクトに対応が必要です",
     "needAttentionPlural": "{count}件のプロジェクトに対応が必要です"
   },
-  "sandboxes": {
-    "title": "サンドボックス",
-    "developmentEnvironments": "開発環境",
-    "totalSandboxes": "サンドボックス合計",
-    "active": "アクティブ",
-    "runningCount": "{count}件実行中",
-    "stoppedCount": "{count}件停止中"
-  },
   "stats": {
     "creditsBalance": "クレジット残高",
     "tokenUsage": "トークン使用量",
@@ -90,9 +82,7 @@
     "last7Days": "過去7日間",
     "deployments": "デプロイ",
     "successfulCount": "{count}件成功",
-    "activeProjects": "アクティブなプロジェクト",
-    "sandboxes": "サンドボックス",
-    "activeCount": "{count}件アクティブ"
+    "activeProjects": "アクティブなプロジェクト"
   },
   "tokenUsage": {
     "title": "トークン使用量",

@@ -7,14 +7,14 @@ import { Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { useDeployment } from "@/context/DeploymentContext";
 import { getFrameworkSelectionUpdates } from "@/context/deployment/framework-selection";
 import { getModeSwitchUpdates } from "@/context/deployment/mode-config";
-import type { DeploymentConfig } from "@/context/deployment/types";
+import { usesServiceDeployment, type DeploymentConfig } from "@/context/deployment/types";
 import { useI18n } from "@/components/i18n-provider";
 import type { FrameworkId } from "./types";
 import { DockerMark } from "@/components/icons/DockerMark";
 import { STACKS } from "@repo/core";
 
 interface ProjectSettingsProps {
-  /** Render a detected Compose project as a locked, authoritative stack. */
+  /** Allow switching between the detected Compose stack and a single-app framework. */
   allowComposeDeployment?: boolean;
 }
 
@@ -27,9 +27,9 @@ function getPickerCategory(frameworkId?: string): StackCategory {
 const ProjectSettings: React.FC<ProjectSettingsProps> = ({ allowComposeDeployment = false }) => {
   const { config, updateConfig } = useDeployment();
   const { t } = useI18n();
-  const [showFrameworkPicker, setShowFrameworkPicker] = useState(false);
+  const [showFrameworkPicker, setShowFrameworkPicker] = useState(allowComposeDeployment);
 
-  const isComposeDeployment = allowComposeDeployment;
+  const isComposeDeployment = allowComposeDeployment && usesServiceDeployment(config);
   const selectedFrameworkId = isComposeDeployment ? "docker-compose" : config.framework;
   const detectedFrameworkId = allowComposeDeployment ? "docker-compose" : config.detectedFramework;
   const isAutoDetected = detectedFrameworkId != null && selectedFrameworkId === detectedFrameworkId;
@@ -46,7 +46,7 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({ allowComposeDeploymen
 
   const handleFrameworkChange = useCallback(
     (frameworkId: FrameworkId) => {
-      if (allowComposeDeployment) {
+      if (allowComposeDeployment && frameworkId === "docker-compose") {
         updateConfig(getModeSwitchUpdates(config, "services"));
         return;
       }
@@ -98,16 +98,14 @@ const ProjectSettings: React.FC<ProjectSettingsProps> = ({ allowComposeDeploymen
                 </div>
               </div>
             </div>
-            {!allowComposeDeployment && (
-              <button
-                type="button"
-                onClick={handleChangeClick}
-                className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
-              >
-                {t.importProject.projectSettings.change}
-                <ChevronDown className="size-3.5" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleChangeClick}
+              className="flex items-center gap-1 text-sm font-medium text-primary hover:text-primary/80 transition-colors"
+            >
+              {t.importProject.projectSettings.change}
+              <ChevronDown className="size-3.5" />
+            </button>
           </div>
         </div>
       )}

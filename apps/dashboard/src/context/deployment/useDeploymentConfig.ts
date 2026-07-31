@@ -9,7 +9,7 @@ import type { Service } from "@/lib/api/services";
 import { ApiError, getApiErrorMessage, isAbortError } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
 import type { BuildMode } from "@/lib/api/settings";
-import { appendProjectRouteKey, generateProjectRouteKey, resolveServiceHostnameLabel, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
+import { appendProjectRouteKey, generateProjectRouteKey, getProjectType, resolveServiceHostnameLabel, STACKS, getBuildImage, type SourceProvider, type StackDefinition, type StackId } from "@repo/core";
 import { STARTER_TEMPLATE_METADATA, hasStarterTemplate } from "@repo/core/starter-template-metadata";
 import type { BuildStrategy, DeploymentConfig, DeploymentModeSnapshot, MonorepoAppConfig, MonorepoWorkspaceConfig, PublicEndpoint } from "./types";
 import {
@@ -23,6 +23,7 @@ import {
   buildSingleModeSnapshot,
   syncActiveModeSnapshot,
 } from "./mode-config";
+import { resolveSavedProjectType } from "./saved-project-shape";
 import { normalizeSubdomain } from "@/utils/subdomain";
 
 type PersistedProject = Record<string, any> | null;
@@ -267,14 +268,17 @@ function buildSavedProjectResponse(
   // whose rows exist must hydrate as "services" even if that derived field is
   // stale/absent. `serviceKind` treats a null `kind` as compose, matching the
   // rest of the app. Fall back to the field, then "app", only when there are
-  // no service rows at all.
+  // no service rows at all. Compose framework detection remains authoritative
+  // for first MCP/API imports: those projects can be opened before their
+  // canonical service rows have been seeded.
   const monorepoRows = services.filter((s) => serviceKind(s) === "monorepo");
   const composeRows = services.filter((s) => serviceKind(s) === "compose");
-  const projectType: PrepareProjectResponse["projectType"] = monorepoRows.length
-    ? "monorepo"
-    : composeRows.length
-      ? "services"
-      : ((project.projectType as PrepareProjectResponse["projectType"]) || "app");
+  const projectType: PrepareProjectResponse["projectType"] = resolveSavedProjectType({
+    framework: project.framework,
+    projectType: project.projectType as PrepareProjectResponse["projectType"],
+    hasMonorepoRows: monorepoRows.length > 0,
+    hasComposeRows: composeRows.length > 0,
+  });
   const opts = project.options ?? {};
   const productionPaths: string[] = Array.isArray(opts.productionPaths)
     ? opts.productionPaths
@@ -736,7 +740,7 @@ export function useDeploymentConfig() {
         //
         // When the column is UNSET (legacy projects — 0021 added runtime_mode
         // nullable with no backfill), default an existing project to "docker":
-        // the historical default runtime was the sandbox, so an un-chosen project
+        // the historical default runtime was Docker, so an un-chosen project
         // must NOT be silently downgraded to Direct-on-host (bare) on save. Only
         // brand-new deploys (no projectId) use the projectType-derived default.
         runtimeMode:
@@ -935,7 +939,42 @@ export function useDeploymentConfig() {
         const stackDef: StackDefinition | undefined = context?.stack
           ? (STACKS[context.stack as StackId] as StackDefinition)
           : undefined;
-        if (context?.stack && stackDef) {
+        if (context?.stack === "docker-compose") {
+          const scan = await folderApi.scan(sessionId);
+          if ((scan as { error?: string })?.error) {
+            return { success: false, error: (scan as { error?: string }).error, errorType: "api_error" };
+          }
+          if (scan.projectType !== "services" || !scan.services?.length) {
+            return {
+              success: false,
+              error: "No Docker Compose services were found in the uploaded folder",
+              errorType: "api_error",
+            };
+          }
+          name = scan.name || context.name || "app";
+          response = {
+            repository: {
+              name,
+              full_name: name,
+              owner: { login: "upload" },
+              private: true,
+              default_branch: "main",
+            },
+            stack: scan.stack,
+            projectType: scan.projectType,
+            category: scan.category,
+            packageManager: scan.packageManager,
+            installCommand: scan.installCommand,
+            buildCommand: scan.buildCommand,
+            startCommand: scan.startCommand,
+            buildImage: scan.buildImage,
+            outputDirectory: scan.outputDirectory,
+            rootDirectory: scan.rootDirectory,
+            productionPaths: scan.productionPaths,
+            port: scan.port,
+            services: scan.services,
+          } as unknown as PrepareProjectResponse;
+        } else if (context?.stack && stackDef) {
           name = context.name || "app";
           const pm = context.packageManager || "npm";
           response = {
@@ -947,7 +986,7 @@ export function useDeploymentConfig() {
               default_branch: "main",
             },
             stack: context.stack,
-            projectType: "app",
+            projectType: getProjectType(context.stack as StackId),
             category: stackDef.category,
             packageManager: pm,
             installCommand: installCommandFor(pm),
@@ -958,6 +997,7 @@ export function useDeploymentConfig() {
             rootDirectory: "",
             productionPaths: stackDef.productionPaths ? [...stackDef.productionPaths] : [],
             port: stackDef.defaultPort ?? 3000,
+            productionMode: stackDef.category === "docker" ? "host" : undefined,
             services: undefined,
           } as unknown as PrepareProjectResponse;
         } else {

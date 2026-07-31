@@ -19,7 +19,11 @@ import { useAddServerModal } from "@/components/servers/ServerModal";
 import ServerRuntimePicker from "./ServerRuntimePicker";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { isDeploySelectionComingSoon } from "./deploy-target-availability";
-import { canUseLocalBuildLocation } from "@/components/deploy/app-destination-availability";
+import {
+  canChooseServerRuntimeIsolation,
+  canUseLocalBuildLocation,
+  hasBuildLocationChoice,
+} from "@/components/deploy/app-destination-availability";
 
 // ─── Option card ─────────────────────────────────────────────────────────────
 
@@ -278,11 +282,11 @@ interface CompactSummaryProps {
   hasServer?: boolean;
   /** Resolved runtime for a self-hosted SERVER deploy — drives a persistent
    *  chip so a user who never opens Advanced still sees whether the app runs
-   *  sandboxed (Docker) or directly on the host ("bare"), the latter carrying a
+   *  containerized (Docker) or directly on the host ("bare"), the latter carrying a
    *  warning. Ignored for cloud (tier chip) and static (edge-served chip). */
   runtimeMode?: RuntimeMode;
   /** True when the project deploys as a multi-service stack (compose). A stack
-   *  runs sandboxed containers — never static edge-served files — so it must
+   *  runs Docker containers — never static edge-served files — so it must
    *  never show the Static chip even when the project-level hasServer/framework
    *  is unset (those live per-service). */
   isServices?: boolean;
@@ -343,28 +347,30 @@ export const DeployTargetSummary: React.FC<CompactSummaryProps> = ({
   const buildDest = buildStrategy === "local" ? "local" : deployTarget;
   const sameDestination = showBuildStrategy && buildDest === deployTarget;
 
+  const dockerRuntimeChip = (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-bg text-[11px] font-medium text-success shrink-0">
+      <ShieldCheck className="size-3" />
+      {t.deploy.summary.runtimeContainerIsolated}
+    </span>
+  );
+
   // Right-hand chip on the summary — one at a time, by workload shape:
   //   - Static (files served from the edge, any target): neutral info chip.
-  //     No machine to size, no process to sandbox.
+  //     No machine to size and no long-running process.
   //   - Cloud + server: the picked resource tier (Zap).
-  //   - Self-hosted server: the runtime — "bare" carries a persistent WARNING
-  //     (runs directly on the host, unsandboxed) so it's visible even when the
-  //     user never opens Advanced; "docker" a neutral Sandboxed chip.
+  //   - Container runtime: neutral isolation badge, without exposing the
+  //     implementation brand or making a general security claim.
+  //   - Self-hosted bare runtime: direct-on-host warning.
   const runtimeChip = isServices ? (
-    // A service stack (compose) always runs sandboxed containers — never static
+    // A service stack (compose) always runs Docker containers — never static
     // edge-served files — regardless of the project-level hasServer/framework
-    // (which are unset for compose). Show the tier on cloud, else Sandboxed.
+    // (which are unset for compose). Show the tier on cloud; otherwise Docker.
     deployTarget === "cloud" && cloudResourceTier ? (
       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-warning-bg text-[11px] font-medium text-warning shrink-0">
         <Zap className="size-3" />
         <span>{tierLabels[cloudResourceTier] ?? cloudResourceTier}</span>
       </span>
-    ) : (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-bg text-[11px] font-medium text-success shrink-0">
-        <ShieldCheck className="size-3" />
-        {t.deploy.summary.runtimeSandboxed}
-      </span>
-    )
+    ) : dockerRuntimeChip
   ) : !hasServer ? (
     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-info-bg text-[11px] font-medium text-info shrink-0">
       <Globe className="size-3" />
@@ -385,12 +391,7 @@ export const DeployTargetSummary: React.FC<CompactSummaryProps> = ({
       <ShieldAlert className="size-3" />
       {t.deploy.summary.runtimeDirectWarning}
     </span>
-  ) : deployTarget === "server" && runtimeMode === "docker" ? (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-success-bg text-[11px] font-medium text-success shrink-0">
-      <ShieldCheck className="size-3" />
-      {t.deploy.summary.runtimeSandboxed}
-    </span>
-  ) : null;
+  ) : runtimeMode === "docker" ? dockerRuntimeChip : null;
 
   return (
     <button
@@ -886,7 +887,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // silently snaps back to the cloud default. Reset when the deploy target
   // changes so the sensible default applies to the new target.
   const buildStrategyTouchedRef = useRef(false);
-  // Fresh server-app deploys default to Sandbox (docker). The Sandbox/Direct
+  // Fresh server-app deploys default to Docker. The Docker/direct-host
   // picker now lives in the collapsed Advanced disclosure and may never mount,
   // so we can't rely on its own auto-default — seed it here instead.
   const runtimeDefaultedRef = useRef(false);
@@ -903,7 +904,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     });
   };
   const isServiceDeployment = usesServiceDeployment(config);
-  const showBuildStrategy =
+  const supportsBuildStrategy =
     config.projectType === "app" || (config.projectType === "services" && !isServiceDeployment);
 
   // UNIFIED BUILD — build where you deploy, as the PERSISTENT default (every
@@ -932,7 +933,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     updateConfig({ buildStrategy: "server" });
   }, [localBuildAvailable, config.buildStrategy, updateConfig]);
 
-  // Sandbox (docker) is the default for a fresh self-hosted server APP. Seeded
+  // Docker is the default for a fresh self-hosted server app. Seeded
   // once, and only when the runtime choice actually applies (server app, not
   // docker/compose/static) — never clobbers a saved project value or a choice
   // the user makes in Advanced.
@@ -1210,6 +1211,11 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           : []),
       ]
     : buildOptions;
+  // Do not render a fake choice. Managed cloud mode, for example, only permits
+  // building on the deployment target, so the single forced option stays
+  // implicit and the deployment request keeps its normalized server strategy.
+  const showBuildStrategy =
+    supportsBuildStrategy && hasBuildLocationChoice(visibleBuildOptions.length);
 
   // Clone-location picker (DOCKER server deploys, incl. services). Bare always
   // clones on the target, so it keeps the credential-forwarding checkbox below
@@ -1366,7 +1372,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   };
 
   // Right-column "how it runs" panel: cloud → power/resource picker; a
-  // self-hosted SERVER app → runtime-isolation (Sandbox/Direct) picker. Both
+  // self-hosted server app → runtime (Docker/direct host) picker. Both
   // lay the step out as 2 columns (existing flow left, panel right). Anything
   // else (local, static, docker/compose, compact summary, loading) stays
   // single-column. This component owns its own max-width (below) so the parent
@@ -1376,18 +1382,24 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   // Server runtime / build / clone knobs now live under ONE collapsed "Advanced"
   // disclosure in the main column instead of an always-open right panel — the
   // main screen is just "where to deploy", details one click away. Default is
-  // Sandbox; most users never open this. Only cloud keeps a right-hand panel
+  // Docker; most users never open this. Only cloud keeps a right-hand panel
   // (its resource/power picker).
-  const showServerAdvanced =
-    showFullPicker && config.deployTarget === "server" && !!config.serverId;
-  // Runtime-isolation (Sandbox/Direct) applies only to a self-hosted server APP
-  // that runs a process: docker/compose always run sandboxed, and a static app
+  // Runtime choice (Docker/direct host) applies only to a self-hosted server app
+  // that runs a process: docker/compose always run in containers, and a static app
   // (files served by the edge, hasServer=false) has nothing to isolate. Shown in
   // the Advanced panel (right column).
   const showRuntimeIsolation =
+    canChooseServerRuntimeIsolation({ deployMode }) &&
     config.options.hasServer &&
     config.projectType !== "docker" &&
     !isServiceDeployment;
+  // Hide the entire disclosure when every setting is fixed by the current
+  // platform/workload. A clone-only Compose/server deployment still keeps it.
+  const showServerAdvanced =
+    showFullPicker &&
+    config.deployTarget === "server" &&
+    !!config.serverId &&
+    (showRuntimeIsolation || showBuildStrategy || showCloneStrategy);
   const showRightPanel = showCloudPicker || showServerAdvanced;
   // Self-hosted server layout: the server/cloud choice is the MAIN wide column on
   // the LEFT; Advanced is a collapsed RAIL on the right. Opening Advanced EXCHANGES
@@ -1591,7 +1603,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
           it lives with the app's build settings (the "Start" toggle), so the deploy
           step stays about WHERE to deploy, not how the app is built/served. */}
 
-      {/* Advanced (Sandbox/Direct, build location, clone, git-forward) renders
+      {/* Advanced (Docker/direct host, build location, clone, git-forward) renders
           as a compact panel in the RIGHT column for server deploys — see the
           right-panel block below. Continue lives in the unified header. */}
 
@@ -1657,7 +1669,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
                   }`}
                 >
                   <div className="border-t border-border/50 px-4 py-4 space-y-5">
-                  {/* Runtime isolation — Sandbox (default) vs Direct. Server app only. */}
+                  {/* Runtime — Docker (default) vs direct host. Server app only. */}
                   {showRuntimeIsolation && <ServerRuntimePicker enabled={advancedOpen} />}
 
                   {/* Build location — where the clone + build run. */}
@@ -1691,7 +1703,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
                     </div>
                   )}
 
-                  {/* Clone location — docker/compose server deploys (sandboxed). */}
+                  {/* Clone location — Docker/Compose server deploys. */}
                   {showCloneStrategy && (
                     <div className="space-y-3">
                       <div>

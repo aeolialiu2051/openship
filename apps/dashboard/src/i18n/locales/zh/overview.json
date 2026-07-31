@@ -74,14 +74,6 @@
     "needAttentionSingular": "{count} 个项目需要关注",
     "needAttentionPlural": "{count} 个项目需要关注"
   },
-  "sandboxes": {
-    "title": "沙盒",
-    "developmentEnvironments": "开发环境",
-    "totalSandboxes": "沙盒总数",
-    "active": "活动中",
-    "runningCount": "{count} 个运行中",
-    "stoppedCount": "{count} 个已停止"
-  },
   "stats": {
     "creditsBalance": "额度余额",
     "tokenUsage": "Token 用量",
@@ -90,9 +82,7 @@
     "last7Days": "最近 7 天",
     "deployments": "部署",
     "successfulCount": "{count} 次成功",
-    "activeProjects": "活动项目",
-    "sandboxes": "沙盒",
-    "activeCount": "{count} 个活动中"
+    "activeProjects": "活动项目"
   },
   "tokenUsage": {
     "title": "Token 用量",

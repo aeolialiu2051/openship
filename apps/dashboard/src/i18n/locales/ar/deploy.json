@@ -198,10 +198,10 @@
     "targetCloud": "Openship Cloud",
     "buildLocal": "هذا الجهاز",
     "buildRemote": "بعيد",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "ثابت · يُقدَّم عبر الحافة",
+    "runtimeContainerIsolated": "معزول داخل حاوية",
+    "runtimeDirectWarning": "مباشر على المضيف",
+    "runtimeDirectHint": "يعمل مباشرة كعملية على المضيف."
   },
   "power": {
     "heading": "الأداء",
@@ -232,12 +232,12 @@
     "subtitle": "كيفية عزل هذا التطبيق على الخادم",
     "subtitleRam": "كيفية عزل هذا التطبيق على الخادم — {ram} GB من RAM.",
     "recommended": "موصى به",
-    "sandboxedLabel": "معزول",
-    "sandboxedDesc": "يعمل داخل حاوية معزولة. لا يمكن لعملية مخترَقة الوصول إلى ملفات مضيفك أو تطبيقاتك الأخرى. عبء ضئيل، وأمان كبير.",
+    "dockerLabel": "حاوية Docker",
+    "dockerDesc": "يعمل داخل حاوية Docker مع عزل العمليات ونظام الملفات.",
     "directLabel": "مباشر",
     "directDesc": "يعمل كعملية نظام عادية. أقل عبء، لكن الاختراق يمنح وصولًا كاملًا إلى المضيف. اختر هذا فقط إذا كانت الذاكرة شحيحة فعلًا.",
-    "caveatLowRam": "نقترح المباشر هنا لأن هذا الخادم يملك ذاكرة محدودة — يضيف المعزول نحو 50–80 MB. إذا كان بإمكانك توفيرها، فالمعزول يبقى أكثر أمانًا.",
-    "caveat": "المباشر يشغّل التطبيق مباشرة على المضيف — أي ثغرة تعني وصولًا كاملًا إلى المضيف. يضيف المعزول ربما 1–2% من المعالج وبضع عشرات من MB من الذاكرة. بالنسبة لمعظم التطبيقات، المفاضلة ليست متقاربة."
+    "caveatLowRam": "ذاكرة هذا الخادم محدودة: يضيف Docker نحو 50–80 MB. الوضع المباشر أخف، بينما يوفر Docker عزل الحاوية.",
+    "caveat": "يشغّل الوضع المباشر التطبيق كعملية على المضيف. يضيف Docker عبئًا بسيطًا ويعزل التطبيق داخل حاوية."
   },
   "addServer": {
     "title": "أضف خادمك",
@@ -309,7 +309,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "يُبنى داخل حاوية Docker مؤقتة ثم تُقدَّم الملفات الثابتة عبر الحافة.",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npm start",
     "startCommandHint": "Leave empty to serve the build output as static files from the edge (nothing runs). Enter a command to run it as a live server process.",

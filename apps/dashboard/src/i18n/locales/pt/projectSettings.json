@@ -208,7 +208,7 @@
       "rootDirectory": "Diretório raiz",
       "startCommand": "Comando de arranque",
       "staticNoServer": "Estático (sem servidor)",
-      "modeSandboxed": "Isolado (contentor)",
+      "modeDocker": "Contêiner Docker",
       "modeDirect": "Direto (processo do anfitrião)",
       "modeDefault": "Predefinido (resolvido na implementação)"
     },

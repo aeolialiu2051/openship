@@ -279,7 +279,7 @@
       "rootDirectory": "Kök dizin",
       "startCommand": "Başlatma komutu",
       "staticNoServer": "Statik (sunucu yok)",
-      "modeSandboxed": "Korumalı Alan (konteyner)",
+      "modeDocker": "Docker konteyneri",
       "modeDirect": "Doğrudan (ana makine süreci)",
       "modeDefault": "Varsayılan (dağıtımda çözümlenir)"
     },

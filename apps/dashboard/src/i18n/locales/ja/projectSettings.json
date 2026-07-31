@@ -208,7 +208,7 @@
       "rootDirectory": "ルートディレクトリ",
       "startCommand": "起動コマンド",
       "staticNoServer": "静的（サーバーなし）",
-      "modeSandboxed": "サンドボックス化（コンテナ）",
+      "modeDocker": "Docker コンテナ",
       "modeDirect": "ダイレクト（ホストプロセス）",
       "modeDefault": "デフォルト（デプロイ時に解決）"
     },

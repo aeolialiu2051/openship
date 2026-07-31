@@ -71,15 +71,15 @@ Pick a server and an **Advanced** section appears (collapsed by default — most
 never open it). Its summary line shows the current build location; expand it for:
 
 - **Runtime** — how the app is isolated on the server.
-  - **Sandboxed** (recommended) — runs in an isolated container; a compromise can't reach
-    the host. Tiny overhead.
+  - **Docker container** (recommended) — runs in a container with process and filesystem
+    isolation. Tiny overhead.
   - **Direct** — runs straight on the host. Lowest overhead, but full host access if
     compromised. Picking it shows a security caveat (and a memory-aware note on small
     boxes).
 - **Build location** — **This Machine** (build locally, then transfer the output — faster
   on a powerful machine) or **Remote** (build on the deploy target — best when your machine
   is limited).
-- **Clone location** — for sandboxed/compose server deploys: **On your device** /
+- **Clone location** — for Docker/Compose server deploys: **On your device** /
   **On Openship** (clone then upload; works everywhere) or **On the server** (clone on the
   server, no upload; best for big repos).
 

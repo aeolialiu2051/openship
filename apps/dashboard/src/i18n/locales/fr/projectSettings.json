@@ -185,7 +185,7 @@
       "rootDirectory": "Répertoire racine",
       "startCommand": "Commande de démarrage",
       "staticNoServer": "Statique (sans serveur)",
-      "modeSandboxed": "En bac à sable (conteneur)",
+      "modeDocker": "Conteneur Docker",
       "modeDirect": "Direct (processus hôte)",
       "modeDefault": "Par défaut (résolu au déploiement)"
     },

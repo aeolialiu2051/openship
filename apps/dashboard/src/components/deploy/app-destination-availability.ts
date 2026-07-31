@@ -26,3 +26,17 @@ export function canUseLocalAppDestination({
 export function canUseLocalBuildLocation({ deployMode }: { deployMode: string }): boolean {
   return deployMode === "desktop" || deployMode === "docker" || deployMode === "bare";
 }
+
+/**
+ * Runtime isolation is an operator-controlled host setting. Managed cloud mode
+ * can deploy to a registered server, but it must not expose host-level
+ * Docker/direct-runtime controls that the managed control plane does not own.
+ */
+export function canChooseServerRuntimeIsolation({ deployMode }: { deployMode: string }): boolean {
+  return deployMode === "desktop" || deployMode === "docker" || deployMode === "bare";
+}
+
+/** A picker is useful only when the user has a real choice to make. */
+export function hasBuildLocationChoice(optionCount: number): boolean {
+  return optionCount > 1;
+}

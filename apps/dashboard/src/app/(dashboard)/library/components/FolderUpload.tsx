@@ -6,7 +6,7 @@ import { Upload, Loader2, AlertCircle, Package, X, ArrowRight, ArrowLeft } from 
 import { buildFolderTarGz, collectFolderFiles } from "@/utils/tarGz";
 import { encodeUploadSlug } from "@/utils/repoSlug";
 import { folderApi } from "@/lib/api/folder";
-import { frameworks, type FrameworkConfig } from "@/components/import-project/Frameworks";
+import { folderImportFrameworks, type FrameworkConfig } from "@/components/import-project/Frameworks";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 type Phase = "idle" | "packing" | "uploading";
@@ -118,7 +118,7 @@ export function FolderUpload() {
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-          {frameworks
+          {folderImportFrameworks
             .filter((fw) => fw.id !== "static")
             .map((fw) => (
               <button

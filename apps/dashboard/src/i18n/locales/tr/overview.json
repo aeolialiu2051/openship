@@ -116,14 +116,6 @@
     "needAttentionSingular": "{count} projenin müdahaleye ihtiyacı var",
     "needAttentionPlural": "{count} projenin müdahaleye ihtiyacı var"
   },
-  "sandboxes": {
-    "title": "Korumalı Alanlar (Sandboxes)",
-    "developmentEnvironments": "Geliştirme ortamları",
-    "totalSandboxes": "Toplam korumalı alan",
-    "active": "Aktif",
-    "runningCount": "{count} çalışıyor",
-    "stoppedCount": "{count} durdurulmuş"
-  },
   "stats": {
     "creditsBalance": "Kredi Bakiyesi",
     "tokenUsage": "Jeton Kullanımı",
@@ -132,9 +124,7 @@
     "last7Days": "Son 7 gün",
     "deployments": "Dağıtımlar",
     "successfulCount": "{count} başarılı",
-    "activeProjects": "Aktif Projeler",
-    "sandboxes": "Korumalı Alanlar",
-    "activeCount": "{count} aktif"
+    "activeProjects": "Aktif Projeler"
   },
   "tokenUsage": {
     "title": "Jeton Kullanımı",

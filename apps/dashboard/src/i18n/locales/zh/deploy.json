@@ -198,10 +198,10 @@
     "targetCloud": "Openship Cloud",
     "buildLocal": "此机器",
     "buildRemote": "远程",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "静态 · 边缘分发",
+    "runtimeContainerIsolated": "容器隔离",
+    "runtimeDirectWarning": "主机直接运行",
+    "runtimeDirectHint": "作为主机进程直接运行。"
   },
   "power": {
     "heading": "性能",
@@ -232,12 +232,12 @@
     "subtitle": "此应用在服务器上如何隔离",
     "subtitleRam": "此应用如何隔离——{ram} GB 内存。",
     "recommended": "推荐",
-    "sandboxedLabel": "沙盒",
-    "sandboxedDesc": "隔离的容器——即使被攻破也无法触及主机。开销极小。",
+    "dockerLabel": "Docker 容器",
+    "dockerDesc": "在 Docker 容器中运行，提供进程和文件系统隔离。",
     "directLabel": "直接",
     "directDesc": "直接在主机上运行。开销最低，但一旦被攻破将获得对主机的完全访问权限。",
-    "caveatLowRam": "我们在此建议使用“直接”，因为此服务器内存有限——沙盒会额外占用约 50–80 MB。如果你能腾出这些资源，沙盒仍然更安全。",
-    "caveat": "“直接”会让应用直接在主机上运行——一次漏洞利用即意味着对主机的完全访问权限。沙盒大约额外占用 1–2% 的 CPU 和几十 MB 的内存。对大多数应用而言，这个取舍并不难选。"
+    "caveatLowRam": "此服务器内存有限——Docker 容器会额外占用约 50–80 MB。直接运行更轻量；Docker 提供容器隔离。",
+    "caveat": "直接模式会把应用作为主机进程运行。Docker 会增加少量开销，并将应用隔离在容器中。"
   },
   "addServer": {
     "title": "添加你的服务器",
@@ -310,7 +310,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "在临时 Docker 构建容器中完成构建，然后由边缘服务提供静态文件。",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npx serve -s dist -l $PORT",
     "startCommandHint": "The command that starts your server. For a static bundle, use a static file server (e.g. npx serve).",

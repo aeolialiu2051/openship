@@ -23,24 +23,24 @@ The target is a per-deploy choice. Deploy to your laptop today to try something,
 project to a real server or the cloud later — nothing about the app has to change.
 </Callout>
 
-## Two ways to run it: sandboxed or direct
+## Two ways to run it: Docker or direct
 
 For the two self-hosted targets (local and server), Openship also picks *how* the app runs on that machine.
 This is the **isolation mode**, and there are two:
 
-- **Sandboxed (Docker)** — your app runs inside a **container**: a sealed box with its own files and
+- **Docker container** — your app runs inside a **container** with its own files and
   dependencies, kept apart from everything else on the machine. This is the default.
 - **Direct (bare)** — your app runs as a plain process on the machine, with no box around it. Lighter, but
   it shares the machine's environment.
 
-Sandboxed is the default everywhere because the isolation is worth it and the overhead is tiny. The one time
+Docker is the default everywhere because the container isolation is worth it and the overhead is tiny. The one time
 Direct earns its keep is on a very small machine — under about **2 GB of RAM** — where the container engine
 would compete with your app for memory. Openship surfaces that as a note when you pick Direct, rather than
 silently switching for you.
 
 <Callout title="How a Direct app stays running" type="info">
 A Direct (bare) app is kept alive by the machine's own process supervisor — **systemd** on Linux,
-**nohup** on macOS — so it restarts if it crashes or the box reboots. A Sandboxed app is kept alive by Docker.
+**nohup** on macOS — so it restarts if it crashes or the box reboots. A containerized app is kept alive by Docker.
 </Callout>
 
 ## Build first, then hand off
@@ -68,7 +68,7 @@ The build pipeline always runs the same steps: **prepare → clone → install �
 ### Deploy — start the new version and send traffic to it
 
 Once the build succeeds, Openship starts the new version, waits for it, points your web address at it, and
-then stops the old one. For Sandboxed and Cloud apps this happens **without downtime**: the old version keeps
+then stops the old one. For Docker and Cloud apps this happens **without downtime**: the old version keeps
 serving until the exact moment traffic is repointed, so a failure before that moment leaves the old one
 untouched. See [Zero-downtime and auto-revert](#zero-downtime-and-auto-revert) below.
 
@@ -95,7 +95,7 @@ workspace by default, though a self-hosted box can build locally and upload just
 **Local** runs your app on the very machine Openship is installed on — great for trying things out on the
 desktop app or a single box.
 
-- **Sandboxed** talks to the machine's Docker socket directly.
+- **Docker** talks to the machine's Docker socket directly.
 - **Direct** runs the process on the machine and supervises it with systemd or nohup.
 
 Web addresses and HTTPS are handled by Openship's built-in router on that same machine (see
@@ -110,7 +110,7 @@ from a terminal. You add the server once — on the **Servers** page, or right i
 your own server** — and Openship keeps a pooled connection to it, so repeat deploys reuse the same link
 instead of dialing in fresh each time.
 
-- **Sandboxed** drives the remote machine's Docker engine over an SSH tunnel.
+- **Docker** drives the remote machine's Docker engine over an SSH tunnel.
 - **Direct** runs shell commands on the server over that same SSH connection.
 
 The router and certificate tooling are set up on *your* server, so traffic never detours through Openship.
@@ -153,7 +153,7 @@ For attaching your own domain, verifying DNS, and managing certificates, see the
 
 The deploy stage adapts to whether the new version can run **alongside** the old one:
 
-- **Sandboxed and Cloud apps can overlap.** Each version gets its own container or workspace, so Openship
+- **Docker and Cloud apps can overlap.** Each version gets its own container or workspace, so Openship
   starts the new one, checks it, repoints traffic, and only *then* stops the old one. If anything fails before
   the switch, the old version was never touched — it keeps serving, and the failed deploy simply doesn't take.
 - **Direct apps can't overlap**, because the new process needs the same fixed port the old one is holding. So

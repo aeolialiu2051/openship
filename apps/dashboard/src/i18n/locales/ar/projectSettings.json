@@ -208,7 +208,7 @@
       "rootDirectory": "المجلد الجذر",
       "startCommand": "أمر البدء",
       "staticNoServer": "ثابت (بدون خادم)",
-      "modeSandboxed": "معزول (حاوية)",
+      "modeDocker": "حاوية Docker",
       "modeDirect": "مباشر (عملية على المضيف)",
       "modeDefault": "افتراضي (يُحدَّد عند النشر)"
     },

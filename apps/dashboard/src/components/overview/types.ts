@@ -11,8 +11,6 @@ export interface OverviewStats {
   totalDeployments: number;
   successfulDeployments: number;
   failedDeployments: number;
-  totalSandboxes: number;
-  activeSandboxes: number;
   totalAgents: number;
 }
 
@@ -60,20 +58,6 @@ export interface AgentData {
   trend: number;
 }
 
-export interface SandboxData {
-  total: number;
-  active: number;
-  inactive: number;
-  recent: RecentSandbox[];
-}
-
-export interface RecentSandbox {
-  id: string;
-  name: string;
-  status: 'running' | 'stopped' | 'error';
-  createdAt: string;
-}
-
 export interface ProjectData {
   total: number;
   live: number;
@@ -113,4 +97,3 @@ export interface QuickLink {
 
 export type ChartType = 'bar' | 'area' | 'line';
 export type TimePeriod = 7 | 14 | 30;
-

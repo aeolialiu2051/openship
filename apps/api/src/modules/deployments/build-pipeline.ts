@@ -442,7 +442,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
   try {
     // Decide the runtime modes as DATA (no mutate-then-undo). Two historical
     // flips, encoded in resolveBuildRuntimeModes: services → Docker (containers
-    // can't run bare); a server/self-hosted STATIC app → BUILD in a Docker sandbox
+    // can't run bare); a server/self-hosted STATIC app → BUILD in a temporary Docker container
     // but keep a BARE serve/lifecycle identity (files served by the edge — a
     // persisted "docker" would make rollback/purge 404-no-op on the release dir and
     // leak it). Cloud static + Docker-less desktop-local static keep their own mode.
@@ -498,7 +498,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
     const targetExecutor: CommandExecutor | null = resolved.platform.executor;
 
     // Surface the resolved deploy path so the operator can SEE where it lands —
-    // in particular the self-hosted sandbox-vs-direct runtime, the choice that
+    // in particular the self-hosted Docker-vs-direct runtime, the choice that
     // could silently flip to "direct" before runtimeMode was persisted.
     logger.log(
       `→ Deploy target: ${resolved.effectiveTarget}` +
@@ -509,7 +509,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
             : !snapshot.hasServer
               ? "static (filesystem release)"
               : resolved.runtimeMode === "docker"
-                ? "sandboxed (Docker container)"
+                ? "Docker container"
                 : "direct (host process)"
         }\n`,
     );
@@ -883,19 +883,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
 
     let buildResult: Awaited<ReturnType<typeof runtime.build>>;
     try {
-      // Docker static apps build directly into their minimal HTTP runtime image.
-      // Bare static apps still build to a filesystem release for an operator-
-      // managed ingress; every other workload uses the normal runtime build.
-      if (deployRouting.buildMode === "static-sandbox") {
-        // buildMode is derived from runtime.name === "docker", so the cast is sound.
-        buildResult = await (runtime as DockerRuntime).buildStaticToHost(
-          buildConfig,
-          `${STATIC_RELEASE_BASE}/.builds/${buildSessionId}`,
-          logger,
-        );
-      } else {
-        buildResult = await runtime.build(buildConfig, logger);
-      }
+      buildResult = await runtime.build(buildConfig, logger);
     } finally {
       // Reverse tunnel + remote helper script torn down regardless of outcome —
       // the credential is reachable only for the build's duration.
@@ -991,8 +979,8 @@ interface DeployPhaseInputs {
   envMap: Record<string, string>;
   prodResources: ResourceConfig;
   logger: BuildLogger;
-  /** Build/deploy routing decided once from the resolved runtime (static-sandbox /
-   *  static-file-serve / server / static-edge) — replaces scattered `instanceof`. */
+  /** Build/deploy routing decided once from the resolved runtime (static-bare /
+   *  static-container / static-file-serve / server / static-edge). */
   deployRouting: DeployRouting;
 }
 
@@ -1198,7 +1186,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         executor: phase.targetExecutor ?? undefined,
       })
     : null;
-  // Where the static doc-root lives: "" when a Docker sandbox build already
+  // Where the static doc-root lives: "" when a Docker container build already
   // extracted it (release root), else the configured output dir (bare build).
   const staticServeOutputDir = phase.deployRouting.staticServeOutputDir;
 

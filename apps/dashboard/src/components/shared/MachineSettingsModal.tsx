@@ -6,7 +6,7 @@ import { ExternalLink, BookOpen } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/context/ToastContext';
 import { useI18n, interpolate } from '@/components/i18n-provider';
-import { projectsApi, sandboxApi } from '@/lib/api';
+import { projectsApi } from '@/lib/api';
 
 // Resource tier definitions (credits per month)
 const CPU_TIERS = [
@@ -40,7 +40,6 @@ interface MachineConfig {
 interface MachineSettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'sandbox' | 'project';
   resourceId: string;
   resourceName: string;
   currentConfig: MachineConfig;
@@ -111,7 +110,6 @@ const ResourceRow = ({ label, tiers, currentValue, selectedValue, onChange }: Re
 export default function MachineSettingsModal({
   isOpen,
   onClose,
-  type,
   resourceId,
   resourceName,
   currentConfig,
@@ -164,9 +162,7 @@ export default function MachineSettingsModal({
         storage: selectedStorage,
       };
 
-      const response = type === 'sandbox'
-        ? await sandboxApi.updateResources(resourceId, resources)
-        : await projectsApi.updateResources(resourceId, resources);
+      const response = await projectsApi.updateResources(resourceId, resources);
 
       if (response.success) {
         showToast(w.toastUpdated, 'success');
@@ -183,9 +179,7 @@ export default function MachineSettingsModal({
     }
   };
 
-  const docsUrl = type === 'sandbox' 
-    ? '/docs/sandbox/configuration' 
-    : '/docs/projects/configuration';
+  const docsUrl = '/docs/projects/configuration';
 
   return (
     <Modal

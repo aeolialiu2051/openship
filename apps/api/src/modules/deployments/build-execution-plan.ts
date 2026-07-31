@@ -12,7 +12,7 @@
  *      as the old inline `instanceof` checks were.
  */
 
-export type BuildMode = "static-sandbox" | "static-bare" | "normal";
+export type BuildMode = "static-bare" | "normal";
 export type DeployMode = "static-edge" | "static-container" | "static-file-serve" | "server";
 export type RuntimeModeValue = "bare" | "docker";
 
@@ -28,8 +28,8 @@ export interface BuildRuntimeModes {
 export interface DeployRouting {
   buildMode: BuildMode;
   deployMode: DeployMode;
-  /** outputDirectory to serve a static file-serve deploy from ("" when the doc-root
-   *  was already extracted by a Docker sandbox build). */
+  /** outputDirectory to serve a static file-serve deploy from. Empty for build
+   *  modes that package or publish their own runtime artifact. */
   staticServeOutputDir: string;
 }
 
@@ -80,7 +80,7 @@ export function resolveBuildRuntimeModes(input: {
  * The build + deploy routing, made AFTER platform resolution — keyed off the
  * resolved runtime's `.name` (the ground truth), which is exactly what the old
  * inline `runtime instanceof …` checks did. Centralizing them here is the point:
- * one place decides static-sandbox vs static-bare vs normal, and static-edge
+ * one place decides static-bare vs normal, and static-edge
  * (cloud) vs static-file-serve vs server.
  */
 export function resolveDeployRouting(input: {

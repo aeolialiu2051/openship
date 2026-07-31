@@ -198,10 +198,10 @@
     "targetCloud": "Openship Cloud",
     "buildLocal": "Esta máquina",
     "buildRemote": "Remoto",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "Estático · servido desde el edge",
+    "runtimeContainerIsolated": "Aislado en contenedor",
+    "runtimeDirectWarning": "Directo en el host",
+    "runtimeDirectHint": "Se ejecuta directamente como proceso del host."
   },
   "power": {
     "heading": "Potencia",
@@ -232,12 +232,12 @@
     "subtitle": "Cómo se aísla esta aplicación en el servidor",
     "subtitleRam": "Cómo se aísla esta aplicación — {ram} GB de RAM.",
     "recommended": "Recomendado",
-    "sandboxedLabel": "Aislado",
-    "sandboxedDesc": "Contenedor aislado: una vulneración no puede alcanzar el host. Sobrecarga mínima.",
+    "dockerLabel": "Contenedor Docker",
+    "dockerDesc": "Se ejecuta en un contenedor Docker con aislamiento de procesos y archivos.",
     "directLabel": "Directo",
     "directDesc": "Se ejecuta directamente en el host. La menor sobrecarga, pero acceso total al host si se ve comprometido.",
-    "caveatLowRam": "Aquí sugerimos Directo porque este servidor tiene RAM limitada — el modo Aislado añade ~50–80 MB. Si puedes permitírtelo, el modo Aislado sigue siendo más seguro.",
-    "caveat": "El modo Directo ejecuta la aplicación directamente en el host: un exploit significa acceso total al host. El modo Aislado añade quizá un 1–2 % de CPU y unas pocas decenas de MB de RAM. Para la mayoría de aplicaciones, la diferencia no está ni cerca."
+    "caveatLowRam": "Este servidor tiene RAM limitada: Docker añade ~50–80 MB. Directo es más ligero; Docker proporciona aislamiento de contenedor.",
+    "caveat": "Directo ejecuta la aplicación como proceso del host. Docker añade una pequeña sobrecarga y la aísla en un contenedor."
   },
   "addServer": {
     "title": "Añade tu servidor",
@@ -309,7 +309,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "Se compila en un contenedor Docker temporal y luego el edge sirve los archivos estáticos.",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npx serve -s dist -l $PORT",
     "startCommandHint": "The command that starts your server. For a static bundle, use a static file server (e.g. npx serve).",

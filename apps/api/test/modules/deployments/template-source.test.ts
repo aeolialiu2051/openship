@@ -17,4 +17,5 @@ describe("built-in template source", () => {
   it("rejects a stack that has no built-in source", async () => {
     await expect(materializeStarterTemplate("angular")).rejects.toThrow(/not available/i);
   });
+
 });

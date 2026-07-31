@@ -296,7 +296,7 @@
       "rootDirectory": "根目录",
       "startCommand": "启动命令",
       "staticNoServer": "静态（无服务器）",
-      "modeSandboxed": "沙盒化（容器）",
+      "modeDocker": "Docker 容器",
       "modeDirect": "直接（主机进程）",
       "modeDefault": "默认（部署时解析）"
     },

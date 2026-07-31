@@ -116,14 +116,6 @@
     "needAttentionSingular": "{count} projet nécessite une intervention",
     "needAttentionPlural": "{count} projets nécessitent une intervention"
   },
-  "sandboxes": {
-    "title": "Bacs à sable",
-    "developmentEnvironments": "Environnements de développement",
-    "totalSandboxes": "Total des bacs à sable",
-    "active": "Actifs",
-    "runningCount": "{count} en cours d'exécution",
-    "stoppedCount": "{count} arrêtés"
-  },
   "stats": {
     "creditsBalance": "Solde de crédits",
     "tokenUsage": "Utilisation des tokens",
@@ -132,9 +124,7 @@
     "last7Days": "7 derniers jours",
     "deployments": "Déploiements",
     "successfulCount": "{count} réussis",
-    "activeProjects": "Projets actifs",
-    "sandboxes": "Bacs à sable",
-    "activeCount": "{count} actifs"
+    "activeProjects": "Projets actifs"
   },
   "tokenUsage": {
     "title": "Utilisation des tokens",

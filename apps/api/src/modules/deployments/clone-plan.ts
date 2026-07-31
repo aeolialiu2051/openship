@@ -21,7 +21,7 @@ export interface ClonePlanInput {
   effectiveTarget: "local" | "server" | "cloud";
   /** Target server id (server deploys only). */
   serverId?: string | null;
-  /** Resolved runtime is bare (host process) vs docker (sandbox). The pipeline
+  /** Resolved runtime is bare (host process) vs Docker (container). The pipeline
    *  passes `runtime.name === "bare"`; preflight passes `runtimeMode === "bare"`
    *  — each from its own source, kept as an input so neither has to know the
    *  other's variable. */

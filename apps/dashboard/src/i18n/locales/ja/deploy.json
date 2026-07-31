@@ -198,10 +198,10 @@
     "targetCloud": "Openship Cloud",
     "buildLocal": "このマシン",
     "buildRemote": "リモート",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "静的 · エッジ配信",
+    "runtimeContainerIsolated": "コンテナ分離",
+    "runtimeDirectWarning": "ホストで直接実行",
+    "runtimeDirectHint": "ホストプロセスとして直接実行します。"
   },
   "power": {
     "heading": "パワー",
@@ -232,12 +232,12 @@
     "subtitle": "このアプリがサーバー上でどのように分離されるか",
     "subtitleRam": "このアプリがどのように分離されるか — RAM {ram} GB。",
     "recommended": "推奨",
-    "sandboxedLabel": "サンドボックス",
-    "sandboxedDesc": "分離されたコンテナ — 侵害されてもホストには到達できません。オーバーヘッドはごくわずかです。",
+    "dockerLabel": "Docker コンテナ",
+    "dockerDesc": "プロセスとファイルシステムを分離した Docker コンテナで実行します。",
     "directLabel": "ダイレクト",
     "directDesc": "ホスト上で直接実行します。オーバーヘッドは最小ですが、侵害されるとホストへの完全なアクセスを許します。",
-    "caveatLowRam": "このサーバーはRAMが限られているため、ここではダイレクトをおすすめします — サンドボックスは約50〜80 MBを追加します。余裕があれば、サンドボックスの方が安全です。",
-    "caveat": "ダイレクトはアプリをホスト上で直接実行します — 悪用されるとホストへの完全なアクセスを意味します。サンドボックスはCPUを約1〜2%、RAMを数十MB追加します。ほとんどのアプリでは、このトレードオフは比較になりません。"
+    "caveatLowRam": "このサーバーはRAMが限られています。Docker は約50〜80 MB追加します。直接実行は軽量で、Docker はコンテナ分離を提供します。",
+    "caveat": "直接モードはアプリをホストプロセスとして実行します。Docker は少量のオーバーヘッドを追加し、アプリをコンテナ内に分離します。"
   },
   "addServer": {
     "title": "サーバーを追加",
@@ -309,7 +309,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "一時的な Docker ビルドコンテナでビルドし、その後エッジから静的ファイルとして配信します。",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npx serve -s dist -l $PORT",
     "startCommandHint": "The command that starts your server. For a static bundle, use a static file server (e.g. npx serve).",

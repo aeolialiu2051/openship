@@ -288,7 +288,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     router.push(`/projects/${config.projectId}?${params.toString()}`);
   }, [config.branch, config.projectId, router]);
 
-  // Runtime isolation (Direct/Sandbox) for self-hosted server apps is now an
+  // Runtime selection (direct host/Docker) for self-hosted server apps is now an
   // inline setting in the target step (ServerRuntimePicker) — config.runtimeMode
   // already carries the choice, so deploy proceeds with no interruption.
   const continueDeploy = useCallback(async (overrides?: { buildStrategy?: BuildStrategy }) => {

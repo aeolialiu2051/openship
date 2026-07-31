@@ -208,7 +208,7 @@
       "rootDirectory": "Stammverzeichnis",
       "startCommand": "Startbefehl",
       "staticNoServer": "Statisch (kein Server)",
-      "modeSandboxed": "Sandbox (Container)",
+      "modeDocker": "Docker-Container",
       "modeDirect": "Direkt (Host-Prozess)",
       "modeDefault": "Standard (beim Deploy aufgelöst)"
     },

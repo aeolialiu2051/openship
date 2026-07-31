@@ -7,7 +7,6 @@ import {
   Cpu, 
   Box, 
   Activity,
-  Bot,
   TrendingUp,
   TrendingDown
 } from 'lucide-react';
@@ -101,8 +100,8 @@ const StatsGrid: React.FC<StatsGridProps> = ({ stats, isLoading = false }) => {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {Array(6).fill(0).map((_, i) => <StatCardSkeleton key={i} />)}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+        {Array(5).fill(0).map((_, i) => <StatCardSkeleton key={i} />)}
       </div>
     );
   }
@@ -146,18 +145,10 @@ const StatsGrid: React.FC<StatsGridProps> = ({ stats, isLoading = false }) => {
       color: '#ec4899',
       bgColor: 'rgba(236, 72, 153, 0.1)',
     },
-    {
-      title: t.overview.stats.sandboxes,
-      value: stats.totalSandboxes,
-      subtitle: interpolate(t.overview.stats.activeCount, { count: String(stats.activeSandboxes) }),
-      icon: <Bot className="w-5 h-5" />,
-      color: '#06b6d4',
-      bgColor: 'rgba(6, 182, 212, 0.1)',
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
       {statCards.map((stat, index) => (
         <StatCard key={index} {...stat} />
       ))}
@@ -166,4 +157,3 @@ const StatsGrid: React.FC<StatsGridProps> = ({ stats, isLoading = false }) => {
 };
 
 export default StatsGrid;
-

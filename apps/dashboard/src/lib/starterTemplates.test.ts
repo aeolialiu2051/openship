@@ -8,7 +8,10 @@ describe("built-in starter templates", () => {
     for (const [stackId, starter] of Object.entries(STARTER_TEMPLATES)) {
       const stack = STACKS[stackId as keyof typeof STACKS];
       expect(stack, stackId).toBeDefined();
-      expect(LANGUAGES[stack.language].packageManagers, stackId).toContain(starter.packageManager);
+      const supportedPackageManagers = LANGUAGES[stack.language].packageManagers;
+      if (supportedPackageManagers.length > 0) {
+        expect(supportedPackageManagers, stackId).toContain(starter.packageManager);
+      }
       expect(hasStarterTemplate(stackId)).toBe(true);
     }
   });
@@ -34,4 +37,5 @@ describe("built-in starter templates", () => {
     expect(hasStarterTemplate("express")).toBe(true);
     expect(hasStarterTemplate("django")).toBe(true);
   });
+
 });

@@ -112,3 +112,13 @@ export const getFrameworkConfig = (frameworkId: string): FrameworkConfig => {
   return frameworks.find((fw) => fw.id === "static")!;
 };
 
+/**
+ * Stacks that can seed a folder upload or a built-in starter. Unlike the
+ * in-wizard application-framework picker, source creation also supports a
+ * repository-owned Dockerfile. Compose remains detection-driven because it
+ * needs a parsed service graph rather than a single stack choice.
+ */
+export const folderImportFrameworks: FrameworkConfig[] = [
+  getFrameworkConfig("docker-compose"),
+  ...frameworks,
+];

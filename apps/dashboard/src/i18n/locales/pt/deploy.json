@@ -198,10 +198,10 @@
     "targetCloud": "Openship Cloud",
     "buildLocal": "Esta máquina",
     "buildRemote": "Remoto",
-    "runtimeStatic": "Static · edge-served",
-    "runtimeSandboxed": "Sandboxed",
-    "runtimeDirectWarning": "Not sandboxed",
-    "runtimeDirectHint": "Runs directly on the host — not sandboxed."
+    "runtimeStatic": "Estático · servido na edge",
+    "runtimeContainerIsolated": "Isolado em contêiner",
+    "runtimeDirectWarning": "Direto no host",
+    "runtimeDirectHint": "Executa diretamente como processo do host."
   },
   "power": {
     "heading": "Potência",
@@ -232,12 +232,12 @@
     "subtitle": "Como este aplicativo é isolado no servidor",
     "subtitleRam": "Como este aplicativo é isolado — {ram} GB de RAM.",
     "recommended": "Recomendado",
-    "sandboxedLabel": "Isolado",
-    "sandboxedDesc": "Contêiner isolado — um comprometimento não consegue alcançar o host. Sobrecarga mínima.",
+    "dockerLabel": "Contêiner Docker",
+    "dockerDesc": "Executa em um contêiner Docker com isolamento de processos e arquivos.",
     "directLabel": "Direto",
     "directDesc": "Roda diretamente no host. Menor sobrecarga, mas acesso total ao host se comprometido.",
-    "caveatLowRam": "Sugerimos Direto aqui porque este servidor tem RAM limitada — o modo Isolado adiciona ~50–80 MB. Se você puder dispor disso, o modo Isolado ainda é mais seguro.",
-    "caveat": "O modo Direto roda o aplicativo diretamente no host — uma exploração significa acesso total ao host. O modo Isolado adiciona talvez 1–2% de CPU e algumas dezenas de MB de RAM. Para a maioria dos aplicativos, o custo-benefício não é sequer próximo."
+    "caveatLowRam": "Este servidor tem pouca RAM: Docker adiciona ~50–80 MB. Direto é mais leve; Docker fornece isolamento em contêiner.",
+    "caveat": "Direto executa o aplicativo como processo do host. Docker adiciona uma pequena sobrecarga e o isola em um contêiner."
   },
   "addServer": {
     "title": "Adicione o seu servidor",
@@ -309,7 +309,7 @@
     "staticDesc": "The build output is served directly by the edge. Nothing runs as a process.",
     "serverLabel": "Run as a server process",
     "serverDesc": "Start a long-running process (needs a start command and port).",
-    "staticNote": "Built in an isolated Docker sandbox, then served as static files by the edge.",
+    "staticNote": "Compilado em um contêiner Docker temporário e depois servido como arquivos estáticos pelo edge.",
     "startCommandLabel": "Start command",
     "startCommandPlaceholder": "npx serve -s dist -l $PORT",
     "startCommandHint": "The command that starts your server. For a static bundle, use a static file server (e.g. npx serve).",

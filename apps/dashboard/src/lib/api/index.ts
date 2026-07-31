@@ -58,7 +58,6 @@ export { iconsApi } from "./icons";
 export { imagesApi } from "./images";
 export type { ImageCatalogEntry, ListImagesResponse } from "./images";
 export { aiApi } from "./ai";
-export { sandboxApi } from "./sandbox";
 export { systemApi } from "./system";
 export { migrationApi } from "./migration";
 export { dockerMigrationApi } from "./server-migration";

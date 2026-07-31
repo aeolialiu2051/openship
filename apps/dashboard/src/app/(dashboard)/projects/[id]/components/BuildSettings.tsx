@@ -185,7 +185,7 @@ export const BuildSettings = () => {
   // ── Single-app: read-only configuration summary. ──────────────────────
   const runtimeModeLabel =
     projectData?.runtimeMode === "docker"
-      ? t.projectSettings.build.runtime.modeSandboxed
+      ? t.projectSettings.build.runtime.modeDocker
       : projectData?.runtimeMode === "bare"
         ? t.projectSettings.build.runtime.modeDirect
         : t.projectSettings.build.runtime.modeDefault;
