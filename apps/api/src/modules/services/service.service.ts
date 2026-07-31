@@ -365,7 +365,7 @@ export async function updateService(
     patch.domainType = normalized.domainType;
     patch.publicEndpoints = normalized.publicEndpoints;
 
-    // Atomic gate: a free (*.opsh.io) route only resolves behind the Openship
+    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Openship
     // Cloud edge. Refuse before the DB write so a disconnected instance can't
     // persist a dead "Pending" route. resolveServicePublicEndpoints is the same
     // resolver the deploy loop uses, so the gate sees the exact routes to apply.

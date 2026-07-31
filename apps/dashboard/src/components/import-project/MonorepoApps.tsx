@@ -173,7 +173,7 @@ const AppCard: React.FC<{ app: MonorepoAppConfig; index: number }> = ({ app, ind
 
   // Preview the host this sub-app will be served on - same logic the
   // deploy backend uses to mint the default free subdomain. Lets the
-  // operator see "→ apps-dashboard-diavira.opsh.io" right in the row
+  // operator see "→ apps-dashboard-diavira.vibrail.warpgateapi.com" right in the row
   // header without having to expand the card or look at the right
   // sidebar (which still only shows the PROJECT-level endpoint).
   const previewHost = previewSubAppHost(

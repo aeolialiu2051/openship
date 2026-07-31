@@ -341,7 +341,7 @@ projects|post_projects_by_id_output_check|POST /api/projects/:id/output-check|re
 projects|post_projects_by_id_port_check|POST /api/projects/:id/port-check|read|Live%20port-reachability%20check%20for%20the%20project's%20active%20deployment%20(advisory).
 projects|get_projects_by_id_resources|GET /api/projects/:id/resources|read|Get%20the%20project's%20CPU%2FRAM%2Fdisk%20resource%20config.
 projects|patch_projects_by_id_resources|PATCH /api/projects/:id/resources|write|Update%20the%20project's%20CPU%2FRAM%2Fdisk%2C%20sleep%20mode%2C%20or%20port.
-projects|post_projects_by_id_routing_retry|POST /api/projects/:id/routing/retry|write|Retry%20syncing%20the%20project's%20free%20.opsh.io%20edge%20route%20(no%20rebuild)%3B%20clears%20the%20routing%20'Action%20Required'%20warning%20on%20success.
+projects|post_projects_by_id_routing_retry|POST /api/projects/:id/routing/retry|write|Retry%20syncing%20the%20project's%20free%20.vibrail.warpgateapi.com%20edge%20route%20(no%20rebuild)%3B%20clears%20the%20routing%20'Action%20Required'%20warning%20on%20success.
 projects|get_projects_by_id_server_logs_recent|GET /api/projects/:id/server-logs/recent|read|Fetch%20recent%20HTTP%20request%20logs%20for%20the%20project.
 projects|post_projects_by_id_sleep_mode|POST /api/projects/:id/sleep-mode|write|Set%20the%20project's%20sleep%20mode%20(auto_sleep%20%2F%20always_on).
 projects|get_projects_by_id_webhook_deliveries|GET /api/projects/:id/webhook-deliveries|read|List%20a%20project's%20webhook%20delivery%20feed%20%E2%80%94%20GitHub%20pushes%20%2B%20custom%20hooks%20(paginated).

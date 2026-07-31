@@ -291,7 +291,7 @@
     "notAvailable": "利用不可",
     "domainTitle": "ドメイン",
     "domainHintProxy": "メールサーバーはすでにこのホスト名を所有しています - メールVPS経由でOpshcloudワークロードにプロキシします。DNSの変更は不要です。",
-    "domainHintCloud": "プロビジョニングする *.opsh.io のURLにCNAMEを向けてください(デプロイ後に表示されます)。",
+    "domainHintCloud": "プロビジョニングする *.vibrail.warpgateapi.com のURLにCNAMEを向けてください(デプロイ後に表示されます)。",
     "domainHintDefault": "オペレーターがアクセスするURLです。DNSはデプロイ先を指している必要があります。",
     "summary": "概要",
     "summaryTarget": "デプロイ先",

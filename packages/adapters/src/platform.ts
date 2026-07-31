@@ -81,7 +81,7 @@ export interface PlatformConfig {
    * scope.
    *
    * Currently scoped to static-page creation on shared zones like
-   * `opsh.io`; same shape as analytics/edge-proxy proxy pattern.
+   * `vibrail.warpgateapi.com`; same shape as analytics/edge-proxy proxy pattern.
    */
   cloudAdminProxy?: import("./runtime/cloud").CloudAdminProxy;
   /**

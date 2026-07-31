@@ -1104,7 +1104,7 @@ export const DomainSettings = () => {
   const handleAddRoute = async () => {
     setAddRouteError(null);
     const { domainType, domain, port } = addRouteDraft;
-    // Free *.opsh.io routes only resolve behind the Openship Cloud edge — gate
+    // Free *.vibrail.warpgateapi.com routes only resolve behind the Openship Cloud edge — gate
     // the add on a cloud connection, identical to handleSaveRoute /
     // handleSavePublicEndpoints. requireCloud opens the connect modal and
     // returns false when not connected, so the free route is never persisted.

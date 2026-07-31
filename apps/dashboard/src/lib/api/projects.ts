@@ -309,7 +309,7 @@ export const projectsApi = {
   toggle: (id: string | number, enable: boolean) =>
     api.post<any>(endpoints.projects.toggle(id, enable ? "enable" : "disable")),
 
-  /** Retry the free .opsh.io edge-route sync (no rebuild). ok:false + warning
+  /** Retry the free .vibrail.warpgateapi.com edge-route sync (no rebuild). ok:false + warning
    *  when it still can't sync; clears the routing warning on success. */
   retryRouting: (id: string | number) =>
     api.post<{ ok: boolean; warning?: string; error?: string }>(endpoints.projects.retryRouting(id)),

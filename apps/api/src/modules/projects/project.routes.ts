@@ -176,7 +176,7 @@ r.post("/:id/enable", { tag: "project:write", mcp: { description: "Enable a proj
 r.post("/:id/disable", { tag: "project:write", mcp: { description: "Disable a project (pause deploys / take offline)." } }, cloudProjectProxy, ctrl.disable);
 
 /* ─── Retry free-domain edge routing (no rebuild) ──────────────────────── */
-r.post("/:id/routing/retry", { tag: "project:write", mcp: { description: "Retry syncing the project's free .opsh.io edge route (no rebuild); clears the routing 'Action Required' warning on success." } }, cloudProjectProxy, ctrl.retryRouting);
+r.post("/:id/routing/retry", { tag: "project:write", mcp: { description: "Retry syncing the project's free .vibrail.warpgateapi.com edge route (no rebuild); clears the routing 'Action Required' warning on success." } }, cloudProjectProxy, ctrl.retryRouting);
 
 /* ─── Environment variables ────────────────────────────────────────────── */
 // Project-scoped bulk routes (no per-env_var id in the URL) → gate on the

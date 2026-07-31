@@ -313,7 +313,7 @@
   },
   "routingRetry": {
     "title": "Free domain routing needs attention",
-    "description": "The app is live on the server, but its free .opsh.io URL didn't route through Openship Cloud's edge. Retry once the server is reachable from the cloud on port 80.",
+    "description": "The app is live on the server, but its free .vibrail.warpgateapi.com URL didn't route through Openship Cloud's edge. Retry once the server is reachable from the cloud on port 80.",
     "retry": "Retry routing",
     "retrying": "Retrying…",
     "success": "Free domain routing synced.",

@@ -430,7 +430,7 @@ export async function onSuccess(
   // through the generic lifecycle - preserved by `ensureWebmailProject`.
   // For cloud deploys we also pass `result.url` so the success hook can
   // register an Traefik proxy on the mail VPS pointing mail.<install>
-  // → opsh.io (when that's the chosen hostname).
+  // → vibrail.warpgateapi.com (when that's the chosen hostname).
   if (project.framework === "webmail") {
     const mailServerId = mailServerIdFromWebmailSlug(project.slug);
     if (mailServerId) void markWebmailInstalled(mailServerId, project.organizationId, result.url);

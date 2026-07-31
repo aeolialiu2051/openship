@@ -554,6 +554,13 @@
       "when": 1893456000002,
       "tag": "0078_project_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1893456000003,
+      "tag": "0079_vibrail_managed_domain",
+      "breakpoints": true
     }
   ]
 }

@@ -271,7 +271,7 @@
   },
   "routingRetry": {
     "title": "Ücretsiz alan adı yönlendirmesinin müdahaleye ihtiyacı var",
-    "description": "Uygulama sunucuda yayında ancak ücretsiz .opsh.io URL'si Openship Bulut'un edge servisi üzerinden yönlendirilmedi. Sunucuya buluttan 80 numaralı port üzerinden erişilebildiğinde tekrar deneyin.",
+    "description": "Uygulama sunucuda yayında ancak ücretsiz .vibrail.warpgateapi.com URL'si Openship Bulut'un edge servisi üzerinden yönlendirilmedi. Sunucuya buluttan 80 numaralı port üzerinden erişilebildiğinde tekrar deneyin.",
     "retry": "Yönlendirmeyi tekrar dene",
     "retrying": "Tekrar deneniyor…",
     "success": "Ücretsiz alan adı yönlendirmesi senkronize edildi.",

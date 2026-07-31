@@ -256,7 +256,7 @@
   },
   "routingRetry": {
     "title": "O encaminhamento do domínio gratuito precisa de atenção",
-    "description": "A aplicação está ativa no servidor, mas o seu URL gratuito .opsh.io não foi encaminhado através da edge do Openship Cloud. Tente novamente assim que o servidor estiver acessível a partir da cloud na porta 80.",
+    "description": "A aplicação está ativa no servidor, mas o seu URL gratuito .vibrail.warpgateapi.com não foi encaminhado através da edge do Openship Cloud. Tente novamente assim que o servidor estiver acessível a partir da cloud na porta 80.",
     "retry": "Repetir encaminhamento",
     "retrying": "A repetir…",
     "success": "Encaminhamento do domínio gratuito sincronizado.",

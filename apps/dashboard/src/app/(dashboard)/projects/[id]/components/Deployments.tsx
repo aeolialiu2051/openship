@@ -35,7 +35,7 @@ export const Deployments = () => {
   // itself via the CLI — redeploy/self-update controls would only 403, so hide them.
   const isSelfApp = projectData?.appTemplateId === "openship";
 
-  /** Re-run just the free .opsh.io edge-route sync (no rebuild). On success the
+  /** Re-run just the free .vibrail.warpgateapi.com edge-route sync (no rebuild). On success the
    *  routing warning clears and the project flips back to Live; on failure the
    *  same guidance is re-surfaced as an error toast. */
   const handleRetryRouting = async () => {
@@ -247,7 +247,7 @@ export const Deployments = () => {
   return (
     <div className="space-y-6">
       {/* Routing-not-synced nudge — the release is live on the server but its
-          free .opsh.io edge route didn't sync. A dedicated Retry re-runs just
+          free .vibrail.warpgateapi.com edge route didn't sync. A dedicated Retry re-runs just
           the edge sync (no rebuild); on success the warning clears. */}
       {projectData.routingUnsynced && !projectData.awaitingDecision && (
         <WarningCallout

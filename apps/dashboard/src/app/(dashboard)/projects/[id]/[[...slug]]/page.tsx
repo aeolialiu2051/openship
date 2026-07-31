@@ -1126,7 +1126,9 @@ const ProjectSettingsContent = () => {
             <DropdownMenu
               actions={helpMenuActions}
               trigger={<MoreVertical className="w-5 h-5 text-muted-foreground" />}
+              ariaLabel={locale === "zh" ? "更多项目操作" : "More project actions"}
               align="right"
+              triggerClassName="inline-flex size-9 items-center justify-center rounded-full border border-border/50 bg-card text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground"
             />
           </div>
         </div>

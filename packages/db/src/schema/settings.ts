@@ -95,7 +95,7 @@ export const instanceSettings = pgTable("instance_settings", {
   migratedAt: timestamp("migrated_at"),
   /**
    * Oblien tunnel slug (the host portion, e.g. "myteam" for
-   * "myteam.opsh.io" / "myteam-<suffix>.preview.oblien.com"). Set when
+   * "myteam.vibrail.warpgateapi.com" / "myteam-<suffix>.preview.oblien.com"). Set when
    * teamMode transitions through the tunneled path. Null otherwise.
    */
   tunnelSlug: text("tunnel_slug"),

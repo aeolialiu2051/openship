@@ -46,7 +46,7 @@ export type OpenshipEnvValue = { value: string; secret?: boolean };
 export type OpenshipEnv = Record<string, string | OpenshipEnvValue>;
 
 export interface OpenshipDomain {
-  /** Hostname. A `.opsh.io`-style label = a free subdomain; anything with a dot = custom. */
+  /** Hostname. A `.vibrail.warpgateapi.com`-style label = a free subdomain; anything with a dot = custom. */
   domain: string;
   /** Which service/exposed port this hostname routes to (defaults to the app port). */
   port?: number;

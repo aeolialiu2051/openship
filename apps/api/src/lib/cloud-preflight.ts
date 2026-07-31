@@ -62,7 +62,7 @@ export interface CloudPreflightData {
  *   - `runtime` + `getQuota`  → namespace-scoped client (quota lives
  *                               inside the user's namespace).
  *   - `slug` check            → MASTER client. Availability on the
- *                               shared `.opsh.io` zone is an
+ *                               shared `.vibrail.warpgateapi.com` zone is an
  *                               account-level read; namespace tokens
  *                               may be rejected (same scope rule that
  *                               required the `pages.create` SaaS

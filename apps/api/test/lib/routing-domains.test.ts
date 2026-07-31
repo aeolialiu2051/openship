@@ -51,9 +51,9 @@ describe("buildProjectRouteDomains", () => {
     expect(planned.find((domain) => domain.hostname === "admin.example.com")?.targetPort).toBe(4000);
   });
 
-  it("does NOT attach the free .opsh.io fallback when an endpoint has a custom domain", () => {
+  it("does NOT attach the free .vibrail.warpgateapi.com fallback when an endpoint has a custom domain", () => {
     // Regression: a self-hosted deploy with a manual/custom domain was
-    // still synthesizing <slug>.opsh.io as the primary route, which then
+    // still synthesizing <slug>.vibrail.warpgateapi.com as the primary route, which then
     // forced a (failing) cloud edge-proxy sync. The custom domain must be
     // the only — and primary — route.
     const planned = buildProjectRouteDomains({
@@ -92,7 +92,7 @@ describe("buildProjectRouteDomains", () => {
     expect(route && isRoutePublishable(route)).toBe(true);
   });
 
-  it("still attaches the free .opsh.io fallback when there is no custom domain", () => {
+  it("still attaches the free .vibrail.warpgateapi.com fallback when there is no custom domain", () => {
     const planned = buildProjectRouteDomains({
       project: { slug: "girls-collage" } as any,
       projectDomains: [],

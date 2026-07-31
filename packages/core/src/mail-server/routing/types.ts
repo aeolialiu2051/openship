@@ -42,7 +42,7 @@ export interface MailServerRouteInput {
 
   /**
    * Where the Zero web client is served from. Could be:
-   *   - An openship app deployment URL ("https://zero-client-xyz.opsh.io")
+   *   - An openship app deployment URL ("https://zero-client-xyz.vibrail.warpgateapi.com")
    *   - A Cloudflare Workers URL
    *   - A static-asset CDN URL
    *

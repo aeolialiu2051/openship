@@ -610,7 +610,7 @@
       "pickServer": "Server auswählen",
       "domain": "Domain",
       "freeSubdomain": "Kostenlose Subdomain",
-      "freeSubdomainHint": "name.opsh.io",
+      "freeSubdomainHint": "name.vibrail.warpgateapi.com",
       "customDomain": "Eigene Domain",
       "customDomainHint": "DNS auf Server verwiesen",
       "freeSlugPlaceholder": "meinteam",

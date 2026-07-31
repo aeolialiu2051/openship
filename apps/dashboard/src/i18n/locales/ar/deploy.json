@@ -291,7 +291,7 @@
     "notAvailable": "غير متاح",
     "domainTitle": "النطاق",
     "domainHintProxy": "يملك خادم بريدك بالفعل اسم المضيف هذا - سنوجّهه عبر خادم البريد الافتراضي (VPS) الخاص بك إلى حِمل عمل Opshcloud. لا حاجة لأي تغييرات في DNS.",
-    "domainHintCloud": "وجّه سجل CNAME إلى رابط *.opsh.io الذي نوفّره (ستراه بعد النشر).",
+    "domainHintCloud": "وجّه سجل CNAME إلى رابط *.vibrail.warpgateapi.com الذي نوفّره (ستراه بعد النشر).",
     "domainHintDefault": "الرابط الذي سيزوره المشغّلون. يجب أن يشير DNS إلى وجهة النشر.",
     "summary": "الملخص",
     "summaryTarget": "الوجهة",

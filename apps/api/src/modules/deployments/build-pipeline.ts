@@ -1683,7 +1683,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   const metaPatch: Record<string, unknown> = {};
   if (portCheck.length > 0) metaPatch.portCheck = portCheck;
   // Surface a free-domain edge-sync failure so the deploy doesn't read as cleanly
-  // green with a dead .opsh.io URL. `edgeUnsynced` is the structured signal the
+  // green with a dead .vibrail.warpgateapi.com URL. `edgeUnsynced` is the structured signal the
   // project status reads to flag "Action Required" + offer Retry routing;
   // `deployWarning` is the human message (both cleared when routing later syncs).
   if (postSync.warningMessage) {
@@ -1753,11 +1753,11 @@ async function runPostDeploySync(opts: {
     logger,
   } = opts;
 
-  // Collect free-domain edge-sync failures so a self-hosted + free-.opsh.io
+  // Collect free-domain edge-sync failures so a self-hosted + free-.vibrail.warpgateapi.com
   // deploy that comes up locally but whose cloud edge route didn't wire is
   // surfaced as a deployment warning — not just a buried log line that leaves
   // the operator with a green deploy and a dead URL.
-  // Best-effort: this only wires the free .opsh.io URL through cloud edge.
+  // Best-effort: this only wires the free .vibrail.warpgateapi.com URL through cloud edge.
   // Containers are up and custom domains route locally, so a cloud failure
   // (403, slug taken, unreachable) must not fail the deploy. Shared with the
   // standalone "retry routing" action via syncManagedEdgeRoutes.

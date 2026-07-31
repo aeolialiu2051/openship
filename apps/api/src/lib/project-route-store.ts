@@ -25,7 +25,7 @@ interface DesiredProjectRoute {
 }
 
 /**
- * If `hostname` is a managed `<slug>.<baseDomain>` (e.g. business-servio.opsh.io),
+ * If `hostname` is a managed `<slug>.<baseDomain>` (e.g. business-servio.vibrail.warpgateapi.com),
  * return the slug. Otherwise null - custom domains aren't Oblien-issued.
  */
 function managedSlug(hostname: string): string | null {
@@ -38,7 +38,7 @@ function managedSlug(hostname: string): string | null {
 }
 
 /**
- * Ask Oblien whether a managed slug is free. Source of truth for `*.opsh.io`
+ * Ask Oblien whether a managed slug is free. Source of truth for `*.vibrail.warpgateapi.com`
  * subdomains. Returns true/false on a definitive answer, null if we can't
  * reach Oblien - callers treat null as "fall back to local DB".
  */
@@ -143,7 +143,7 @@ export async function syncProjectPublicRoutes(
   for (const route of desiredRoutes) {
     let existing = existingByHostname.get(route.hostname);
 
-    // A route IS a domain. Free (`*.opsh.io`) routes are host-managed → live
+    // A route IS a domain. Free (`*.vibrail.warpgateapi.com`) routes are host-managed → live
     // immediately. CUSTOM routes must prove DNS ownership first, so a NEW
     // custom row is created pending (with a deterministic verification token)
     // and only the /verify endpoint promotes it. This is the single place that
@@ -172,7 +172,7 @@ export async function syncProjectPublicRoutes(
       }
     }
 
-    // For Oblien-managed slugs (e.g. *.opsh.io), Oblien is the source of truth.
+    // For Oblien-managed slugs (e.g. *.vibrail.warpgateapi.com), Oblien is the source of truth.
     // If local DB looks free but Oblien says taken, surface the real conflict.
     if (!existing) {
       const oblienAvailable = await checkManagedSlugAvailable(route.hostname);

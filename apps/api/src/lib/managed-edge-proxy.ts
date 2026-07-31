@@ -35,14 +35,14 @@ export async function ensureManagedEdgeProxy(
 }
 
 export interface ManagedEdgeTarget {
-  /** Full managed hostname, e.g. `myapp.opsh.io` — used in log/warning text. */
+  /** Full managed hostname, e.g. `myapp.vibrail.warpgateapi.com` — used in log/warning text. */
   hostname: string;
   /** The `<slug>` the SaaS edge keys the route on. */
   subdomain: string;
 }
 
 /**
- * Sync every managed (*.opsh.io) route for a project through the SaaS edge,
+ * Sync every managed (*.vibrail.warpgateapi.com) route for a project through the SaaS edge,
  * best-effort. Shared by the deploy pipeline (post-deploy) and the standalone
  * "retry routing" action so the loop + failure collection live in one place.
  * Never throws — collects per-target failures (the app is already live locally;
@@ -71,7 +71,7 @@ export async function syncManagedEdgeRoutes(
 }
 
 /**
- * Tear down every managed (*.opsh.io) edge route for a set of freed slugs,
+ * Tear down every managed (*.vibrail.warpgateapi.com) edge route for a set of freed slugs,
  * best-effort. The delete-side counterpart to `syncManagedEdgeRoutes`: dropping
  * a free domain must release its slug→target route on Openship Cloud's edge, or
  * the old URL keeps resolving and the slug stays taken. Never throws — a stale

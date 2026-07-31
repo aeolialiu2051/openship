@@ -259,7 +259,7 @@
   },
   "routingRetry": {
     "title": "免费域名路由需要处理",
-    "description": "应用已在服务器上运行，但其免费的 .opsh.io URL 未通过 Openship Cloud 的边缘节点进行路由。请在服务器可从云端经 80 端口访问后重试。",
+    "description": "应用已在服务器上运行，但其免费的 .vibrail.warpgateapi.com URL 未通过 Openship Cloud 的边缘节点进行路由。请在服务器可从云端经 80 端口访问后重试。",
     "retry": "重试路由",
     "retrying": "重试中……",
     "success": "免费域名路由已同步。",

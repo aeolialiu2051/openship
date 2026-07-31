@@ -76,7 +76,7 @@ proxy rule (`origin: https://…`) is simplest; a separate `origins` registry re
 also works.
 
 ### D. Domain / TLS
-One managed (`*.opsh.io`) or custom domain serving **both** static and proxied paths, with
+One managed (`*.vibrail.warpgateapi.com`) or custom domain serving **both** static and proxied paths, with
 automatic TLS (Pages already does TLS — it just needs to coexist with proxy rules).
 
 ### E. Matching semantics — documented + deterministic

@@ -627,7 +627,7 @@ export async function startWebmailDeploy(
   // subdomain, the DNS A record already pins it to the mail server (for
   // IMAP / SMTP). The operator CAN'T change that record without breaking
   // mail. So if they pick Opshcloud as the target, the cloud workload
-  // gets a default *.opsh.io URL and the mail server's Traefik proxies
+  // gets a default *.vibrail.warpgateapi.com URL and the mail server's Traefik proxies
   // `mail.<install>` → that URL. No DNS work for the operator.
   //
   // For any OTHER hostname (e.g. `webmail.foo.com`), the operator owns
@@ -637,7 +637,7 @@ export async function startWebmailDeploy(
   const useProxyVariant = input.target.kind === "cloud" && isOwnMailSubdomain;
 
   // ── 4. Project route - for the proxy variant we DON'T register the
-  //       hostname against the project (the cloud workload uses opsh.io;
+  //       hostname against the project (the cloud workload uses vibrail.warpgateapi.com;
   //       the mail VPS handles the public hostname via its own routing).
   //       Every other case goes through the standard custom-domain path. ─
   const projectDomains = await listProjectRouteRows(project.id);

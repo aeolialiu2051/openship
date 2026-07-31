@@ -477,7 +477,7 @@ function ServerForm({
               className="w-full ps-3 pe-24 py-2 bg-muted/30 border border-border/50 rounded-xl text-sm text-foreground font-mono"
             />
             <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
-              .opsh.io
+              .vibrail.warpgateapi.com
             </span>
           </div>
         ) : (

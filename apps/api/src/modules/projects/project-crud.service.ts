@@ -121,7 +121,7 @@ function readActiveDeploymentSummary(dep: Deployment | null | undefined): {
     activeVersion: dep?.version ?? null,
     activeDeploymentStatus: dep?.status ?? null,
     awaitingDecision: meta?.composeDeployment?.decision === "pending",
-    // Live, but the free .opsh.io edge route didn't sync — surfaced as
+    // Live, but the free .vibrail.warpgateapi.com edge route didn't sync — surfaced as
     // "Action Required" with a Retry routing action (see routing/retry).
     routingUnsynced: meta?.edgeUnsynced === true || typeof meta?.deployWarning === "string",
   };
@@ -391,7 +391,7 @@ async function createProductionProject(
   organizationId: string,
 ) {
   // Atomic free-domain gate — same rule and shape as updateProject. When the
-  // caller EXPLICITLY sends endpoints, a free (*.opsh.io) route only resolves
+  // caller EXPLICITLY sends endpoints, a free (*.vibrail.warpgateapi.com) route only resolves
   // behind the Openship Cloud edge, so refuse BEFORE any group/project row is
   // written on a disconnected instance (no dead "Pending" route persisted). The
   // auto-derived default (data.publicEndpoints undefined) is deliberately NOT
@@ -1050,7 +1050,7 @@ export async function updateProject(
     const beforeState = await resolveProjectRouteState(p).catch(() => null);
     const previousHostnames = beforeState?.projectDomains.map((d) => d.hostname) ?? [];
 
-    // Atomic gate: a free (*.opsh.io) route only resolves behind the Openship
+    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Openship
     // Cloud edge — refuse before any write so a disconnected instance can't
     // INTRODUCE a dead route. Only gate endpoints whose hostname isn't already
     // live: re-validating the WHOLE set blocked removing/editing a route whenever
@@ -1106,7 +1106,7 @@ export async function updateProject(
             `[updateProject] live route re-apply failed (non-fatal): ${safeErrorMessage(err)}`,
           ),
         );
-        // A free (*.opsh.io) domain resolves only through Openship Cloud's edge.
+        // A free (*.vibrail.warpgateapi.com) domain resolves only through Openship Cloud's edge.
         // reapplyProjectLiveRoutes handles the self-hosted Traefik side; the
         // managed edge must be re-registered too or an edited/added free URL
         // 404s with no signal. Only meaningful once deployed (no live target

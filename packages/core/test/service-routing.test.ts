@@ -45,8 +45,8 @@ describe("resolvePublicUrlPlaceholders", () => {
   // port to its own route; a token with no port hits the primary.
   const urlForService = (name: string, port?: number): string | undefined => {
     if (name !== "backend") return undefined;
-    if (port === 3211) return "https://app-backend-http.opsh.io";
-    if (port === 3210 || port === undefined) return "https://app-backend.opsh.io";
+    if (port === 3211) return "https://app-backend-http.vibrail.warpgateapi.com";
+    if (port === 3210 || port === undefined) return "https://app-backend.vibrail.warpgateapi.com";
     return undefined;
   };
 
@@ -58,8 +58,8 @@ describe("resolvePublicUrlPlaceholders", () => {
       },
       urlForService,
     );
-    expect(out.CONVEX_CLOUD_ORIGIN).toBe("https://app-backend.opsh.io");
-    expect(out.CONVEX_SITE_ORIGIN).toBe("https://app-backend-http.opsh.io");
+    expect(out.CONVEX_CLOUD_ORIGIN).toBe("https://app-backend.vibrail.warpgateapi.com");
+    expect(out.CONVEX_SITE_ORIGIN).toBe("https://app-backend-http.vibrail.warpgateapi.com");
   });
 
   it("resolves a bare (no-port) token to the primary route (back-compat)", () => {
@@ -67,7 +67,7 @@ describe("resolvePublicUrlPlaceholders", () => {
       { NEXT_PUBLIC_DEPLOYMENT_URL: "{{publicUrl:backend}}" },
       urlForService,
     );
-    expect(out.NEXT_PUBLIC_DEPLOYMENT_URL).toBe("https://app-backend.opsh.io");
+    expect(out.NEXT_PUBLIC_DEPLOYMENT_URL).toBe("https://app-backend.vibrail.warpgateapi.com");
   });
 
   it("blanks unknown services / ports rather than leaking the placeholder", () => {

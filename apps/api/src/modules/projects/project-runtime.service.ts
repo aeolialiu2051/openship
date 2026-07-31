@@ -129,9 +129,9 @@ export async function disableProject(projectId: string, organizationId: string) 
 }
 
 /**
- * Retry the managed free-domain (*.opsh.io) edge-proxy sync WITHOUT a rebuild.
+ * Retry the managed free-domain (*.vibrail.warpgateapi.com) edge-proxy sync WITHOUT a rebuild.
  *
- * A deploy can come up live on the server yet fail to wire its free .opsh.io
+ * A deploy can come up live on the server yet fail to wire its free .vibrail.warpgateapi.com
  * URL through Openship Cloud's edge (target unreachable on :80, ownership not
  * yet verified, slug taken). That's surfaced as "Action Required"
  * (`meta.edgeUnsynced`); this re-runs just the edge sync for the project's
@@ -152,7 +152,7 @@ export async function retryProjectRouting(
 }
 
 /**
- * Core managed free-domain (*.opsh.io) edge reconciler, shared by the deploy
+ * Core managed free-domain (*.vibrail.warpgateapi.com) edge reconciler, shared by the deploy
  * "retry routing" action and the live domain edit path — both need the SAME
  * idempotent slug→target upsert plus routing-warning bookkeeping.
  *
@@ -189,7 +189,7 @@ export async function syncProjectManagedEdge(
     .filter((m) => m.isManaged && m.subdomain)
     .map((m) => ({ hostname: m.hostname, subdomain: m.subdomain! }));
 
-  // No free .opsh.io routes → nothing to sync; treat as resolved.
+  // No free .vibrail.warpgateapi.com routes → nothing to sync; treat as resolved.
   if (targets.length === 0) {
     await clearRoutingWarning(dep);
     return { ok: true, failures: [] };

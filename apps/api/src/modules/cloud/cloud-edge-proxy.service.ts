@@ -67,7 +67,7 @@ export async function syncCloudEdgeProxy(
 /**
  * Tear down a namespaced edge proxy on Oblien for a freed slug.
  *
- * Mirror of syncCloudEdgeProxy for the delete side (dropping a free *.opsh.io
+ * Mirror of syncCloudEdgeProxy for the delete side (dropping a free *.vibrail.warpgateapi.com
  * domain). Namespace-scoped `list` finds the proxy this org owns, then
  * `delete(id)` removes it — same namespace-isolation guarantee as sync (the
  * caller can only ever see/delete its own proxies). Idempotent: an absent slug

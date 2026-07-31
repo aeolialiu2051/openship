@@ -19,6 +19,7 @@ export interface MenuAction {
 interface DropdownMenuProps {
   actions: MenuAction[];
   trigger?: React.ReactNode;
+  ariaLabel?: string;
   align?: "left" | "right";
   className?: string;
   triggerClassName?: string;
@@ -28,6 +29,7 @@ interface DropdownMenuProps {
 const DropdownMenu: React.FC<DropdownMenuProps> = ({
   actions,
   trigger,
+  ariaLabel,
   align = "right",
   className = "",
   triggerClassName = "",
@@ -77,6 +79,9 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
       <button
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
+        aria-label={ariaLabel}
+        aria-expanded={isOpen}
+        aria-haspopup="menu"
         className={`${triggerClassName ||
           `p-2 rounded-lg transition-all duration-200 ${
             disabled

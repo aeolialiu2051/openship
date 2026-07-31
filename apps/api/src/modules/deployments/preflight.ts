@@ -827,7 +827,7 @@ async function resolveCloudPreflight(
   // service routes via its own endpoint (needsManagedComposeDomains), so an
   // internal-only services deploy (nothing exposed, e.g. an adopted Docker
   // stack migrated to a self-hosted server) must NOT demand a managed free
-  // .opsh.io domain it can't route without cloud.
+  // .vibrail.warpgateapi.com domain it can't route without cloud.
   const needsManagedProjectDomain =
     (!opts?.multiService && !!opts?.slug && !opts?.customDomain && usesCloudManagedRouting) ||
     (usesCloudManagedRouting && hasManagedPublicEndpoints);
@@ -1085,7 +1085,7 @@ function checkCustomDomainCloudVerified(
   }
 
   // Unverified custom domain on a cloud deploy — deploy proceeds via
-  // the free `.opsh.io` slug attached alongside the custom one. The
+  // the free `.vibrail.warpgateapi.com` slug attached alongside the custom one. The
   // custom domain shows as "pending" on the Domains tab with a Verify
   // button; once DNS resolves, the cloud edge attaches a cert.
   return {
@@ -1094,7 +1094,7 @@ function checkCustomDomainCloudVerified(
     status: "warn",
     message:
       cloud.message ??
-      `${customDomain} isn't DNS-verified yet — deploy continues on the free .opsh.io domain; verify the custom domain from the Domains tab to attach it.`,
+      `${customDomain} isn't DNS-verified yet — deploy continues on the free .vibrail.warpgateapi.com domain; verify the custom domain from the Domains tab to attach it.`,
   };
 }
 
@@ -1125,7 +1125,7 @@ async function checkCustomDomainSelfHosted(
       id: "domain",
       label: "Domain DNS",
       status: "warn",
-      message: `No DNS records found yet for ${customDomain}. Point it at your server's IP; the deploy continues on the free .opsh.io domain — TLS issuance for ${customDomain} retries after Verify.`,
+      message: `No DNS records found yet for ${customDomain}. Point it at your server's IP; the deploy continues on the free .vibrail.warpgateapi.com domain — TLS issuance for ${customDomain} retries after Verify.`,
     };
   }
 
@@ -1166,7 +1166,7 @@ async function checkCustomDomainSelfHosted(
 /**
  * Cloud route fallback — caller is targeting cloud but the SaaS-side
  * preflight didn't return customDomain data. Verify the CNAME points
- * at the cloud edge directly. Non-blocking; the .opsh.io free domain
+ * at the cloud edge directly. Non-blocking; the .vibrail.warpgateapi.com free domain
  * stays attached so the deploy still ships.
  */
 async function checkCustomDomainCloudCname(
@@ -1180,7 +1180,7 @@ async function checkCustomDomainCloudCname(
       id: "domain",
       label: "Domain DNS",
       status: "warn",
-      message: `No CNAME record found for ${customDomain} yet. Add a CNAME pointing to ${CLOUD_EDGE_CNAME}, then click Verify on the Domains tab. Deploy continues on the free .opsh.io domain.`,
+      message: `No CNAME record found for ${customDomain} yet. Add a CNAME pointing to ${CLOUD_EDGE_CNAME}, then click Verify on the Domains tab. Deploy continues on the free .vibrail.warpgateapi.com domain.`,
     };
   }
   if (records.some((record) => record.toLowerCase() === CLOUD_EDGE_CNAME)) {
@@ -1190,7 +1190,7 @@ async function checkCustomDomainCloudCname(
     id: "domain",
     label: "Domain DNS",
     status: "warn",
-    message: `CNAME for ${customDomain} doesn't point to ${CLOUD_EDGE_CNAME} yet (current: ${records.join(", ")}). Deploy continues on the free .opsh.io domain; fix DNS and verify from the Domains tab to attach the custom domain.`,
+    message: `CNAME for ${customDomain} doesn't point to ${CLOUD_EDGE_CNAME} yet (current: ${records.join(", ")}). Deploy continues on the free .vibrail.warpgateapi.com domain; fix DNS and verify from the Domains tab to attach the custom domain.`,
   };
 }
 
@@ -1529,7 +1529,7 @@ export async function runPreflightChecks(
       label: "Public URL",
       status: "warn",
       message:
-        "This deploy has no public domain attached. It will build and start but nothing will route to it. Add a custom domain on the Domains tab or connect Openship Cloud to get a free .opsh.io subdomain.",
+        "This deploy has no public domain attached. It will build and start but nothing will route to it. Add a custom domain on the Domains tab or connect Openship Cloud to get a free .vibrail.warpgateapi.com subdomain.",
     });
   }
 

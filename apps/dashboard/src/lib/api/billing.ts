@@ -84,7 +84,7 @@ export interface CapacityMeter {
  *   routes/workspaces/vcpus → whole counts · ramMb → MB · diskGb/bandwidthGb → GB.
  */
 export interface BillingCapacity {
-  /** Free *.opsh.io edge routes the org is using vs its allowed maximum. */
+  /** Free *.vibrail.warpgateapi.com edge routes the org is using vs its allowed maximum. */
   routes?: CapacityMeter;
   workspaces?: CapacityMeter;
   vcpus?: CapacityMeter;

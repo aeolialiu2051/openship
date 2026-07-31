@@ -458,7 +458,7 @@ export async function syncEdgeProxy(c: Context) {
  * POST /api/cloud/edge-proxy/delete  { slug }
  *
  * Tear down the caller's managed edge proxy for a freed slug (a dropped free
- * *.opsh.io domain). Namespace-scoped, so a caller can only remove its own
+ * *.vibrail.warpgateapi.com domain). Namespace-scoped, so a caller can only remove its own
  * proxy. Idempotent — an unknown slug returns `removed:false`, not an error.
  */
 export async function deleteEdgeProxy(c: Context) {

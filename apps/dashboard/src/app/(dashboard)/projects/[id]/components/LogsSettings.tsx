@@ -65,7 +65,7 @@ export const LogsSettings = () => {
   // logs available via the same /server-logs/* endpoints — those
   // endpoints route by `resolveProjectTrafficSource` server-side and
   // fall back to Oblien's edge proxy when there's no runtime
-  // container. So a static .opsh.io page still has request logs even
+  // container. So a static .vibrail.warpgateapi.com page still has request logs even
   // with no runtime stdout to stream.
   const deployTarget = projectData?.deployTarget as string | null | undefined;
   const canShowRequestLogs = deployTarget === "cloud";

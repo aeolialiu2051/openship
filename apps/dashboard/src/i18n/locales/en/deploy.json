@@ -307,7 +307,7 @@
     "notAvailable": "Not available",
     "domainTitle": "Domain",
     "domainHintProxy": "Your mail server already owns this hostname - we'll proxy it through your mail VPS to the Opshcloud workload. No DNS changes needed.",
-    "domainHintCloud": "Point a CNAME at the *.opsh.io URL we provision (you'll see it after deploy).",
+    "domainHintCloud": "Point a CNAME at the *.vibrail.warpgateapi.com URL we provision (you'll see it after deploy).",
     "domainHintDefault": "The URL operators will visit. DNS must point at the deploy target.",
     "summary": "Summary",
     "summaryTarget": "Target",

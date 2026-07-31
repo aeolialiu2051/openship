@@ -1245,7 +1245,7 @@ export async function deployComposeServices(
         });
       }
 
-      // Sync the managed edge proxy for EACH free .opsh.io route (a multi-port
+      // Sync the managed edge proxy for EACH free .vibrail.warpgateapi.com route (a multi-port
       // service has several). Best-effort: the container is already running and
       // any custom domain is routed locally; the edge proxy only wires up the
       // free URL via Openship Cloud, so a failure here (403, slug taken,
