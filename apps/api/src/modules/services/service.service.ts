@@ -40,6 +40,7 @@ import { bounded, duBytes, volumeBytes } from "../migration/migration-size";
 import { deployComposeServices } from "../deployments/compose/deploy.service";
 import {
   buildServiceRouteDomains,
+  ensureRouteDomainRecord,
   isRoutePublishable,
   serviceCustomHostnames,
 } from "../../lib/routing-domains";
@@ -61,7 +62,12 @@ import type {
   TSetServiceEnvVarsBody,
 } from "./service.schema";
 import { findContainerByTrackedId } from "./container-id";
+import { syncServiceRouteDns } from "../../lib/service-route-dns";
 import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
+import {
+  clearServiceRoutingWarning,
+  markServiceRoutingWarning,
+} from "../../lib/deployment-routing-warning";
 
 /** Cap how long a route update AWAITS the (SSH) edge re-register before
  *  returning. Past this, the DB change is already saved and the edge apply
@@ -424,8 +430,10 @@ export async function updateService(
         : [];
       const nextByHost = new Map(nextRoutes.map((route) => [route.hostname.toLowerCase(), route]));
 
-      const removes: RouteRemove[] = oldRoutes
-        .filter((route) => !nextByHost.has(route.hostname.toLowerCase()))
+      const removedRoutes = oldRoutes.filter(
+        (route) => !nextByHost.has(route.hostname.toLowerCase()),
+      );
+      const removes: RouteRemove[] = removedRoutes
         .map((route) => ({
           hostname: route.hostname,
           isCustomDomain: route.domainType === "custom",
@@ -447,7 +455,39 @@ export async function updateService(
         hostPort = row?.hostPort ?? undefined;
       }
       const strategy = resolveRouteStrategy(project.routeStrategy);
-      const registers: RouteRegister[] = nextRoutes.filter(isRoutePublishable).map((route) => ({
+      // Resolve the active deployment before touching DNS: its serverId selects
+      // the public address Cloudflare must point at. Domain rows are ensured for
+      // every next route, then DNS is written BEFORE the live proxy is updated.
+      const dep = project.activeDeploymentId
+        ? await repos.deployment.findById(project.activeDeploymentId)
+        : null;
+      const serverId = (dep?.meta as { serverId?: string } | null)?.serverId ?? undefined;
+      let dnsFailures: Awaited<ReturnType<typeof syncServiceRouteDns>>["failures"] = [];
+      let routesReadyToPublish = nextRoutes.filter(isRoutePublishable);
+      if (dep) {
+        const dnsSync = await syncServiceRouteDns({
+          projectId: project.id,
+          organizationId: ctx.organizationId,
+          serverId,
+          nextRoutes,
+          removedRoutes,
+          domainByHostname,
+        });
+        routesReadyToPublish = dnsSync.publishableRoutes;
+        dnsFailures = dnsSync.failures;
+      } else {
+        // No live target exists yet, but keep domain persistence consistent so
+        // the next deployment can publish the saved endpoint configuration.
+        for (const route of nextRoutes) {
+          await ensureRouteDomainRecord({
+            projectId: project.id,
+            route,
+            domainByHostname,
+          });
+        }
+      }
+
+      const registers: RouteRegister[] = routesReadyToPublish.map((route) => ({
         hostname: route.hostname,
         targetUrl: route.targetPort
           ? (buildUpstreamUrl({ strategy, ip, hostPort, containerPort: route.targetPort }) ??
@@ -459,10 +499,7 @@ export async function updateService(
 
       // Authoritative port: the upstream above is rebuilt from the LIVE
       // deployment's published port on every publish, so reconcileProjectRoutes
-      // OVERWRITES whatever the edge vhost currently forwards to — a manual (or
-      // migrated foreign-proxy) port edit can't survive. If a routable route
-      // still resolves NO upstream, the live port wasn't found — warn so the
-      // 502 cause is visible instead of a silently portless vhost.
+      // OVERWRITES whatever the edge vhost currently forwards to.
       for (const reg of registers) {
         if (reg.port && !reg.targetUrl) {
           console.warn(
@@ -471,41 +508,19 @@ export async function updateService(
           );
         }
       }
-
-      // Mint a verifiable PENDING domain row for each custom service route so it
-      // flows through the same DNS ownership flow as a single-app custom domain.
-      for (const route of nextRoutes) {
-        if (route.domainType === "custom") {
-          await ensurePendingServiceDomain({
-            projectId: project.id,
-            serviceId,
-            hostname: route.hostname,
-            targetPort: route.targetPort,
-          });
-        }
-      }
       // Drop the derived row for any custom hostname the service no longer
       // CONFIGURES (cleared / renamed / switched to free) — keyed on config,
       // not routing state, so a mere unexpose keeps a verified domain's row.
       const stillConfigured = new Set(serviceCustomHostnames(updated));
       for (const hostname of serviceCustomHostnames(svc)) {
         if (!stillConfigured.has(hostname)) {
-          await deleteDeploymentDnsRecord({
-            hostname,
-            organizationId: ctx.organizationId,
-          }).catch((err) => {
-            console.error(`[SERVICE] Failed to remove managed DNS for ${hostname}:`, err);
-          });
           await removeServiceDomain({ serviceId, hostname });
         }
       }
 
       // Single reused path: cloud → page/workspace primitives, self-hosted →
       // the deployment's own routing (local box or remote server/sandbox).
-      const dep =
-        !project.cloudWorkspaceId && project.activeDeploymentId
-          ? await repos.deployment.findById(project.activeDeploymentId)
-          : null;
+      const routeDeployment = project.cloudWorkspaceId ? null : dep;
 
       // Best-effort route reconciliation may run over SSH to the serving box.
       // When that box is REMOTE (desktop mode) the write+reload can be slow — and
@@ -515,13 +530,37 @@ export async function updateService(
       // the background. Otherwise the modal spins and times out on a change that
       // already applied (the reported "keeps loading, but it took effect").
       const applyEdge = (async () => {
-        await reconcileProjectRoutes(project, { deployment: dep, registers, removes });
+        await reconcileProjectRoutes(project, {
+          deployment: routeDeployment,
+          registers,
+          removes,
+        });
       })();
-      applyEdge.catch((err) => console.error(`[SERVICE] edge apply for ${svc.name}:`, err));
+      applyEdge.catch(async (err) => {
+        console.error(`[SERVICE] edge apply for ${svc.name}:`, err);
+        await markServiceRoutingWarning(
+          dep,
+          `Service routing sync failed for ${svc.name}: ${err instanceof Error ? err.message : "unknown edge error"}`,
+        ).catch((warningError) =>
+          console.error(`[SERVICE] Failed to persist routing warning for ${svc.name}:`, warningError),
+        );
+      });
       await Promise.race([
         applyEdge,
         new Promise<void>((resolve) => setTimeout(resolve, ROUTE_EDGE_APPLY_TIMEOUT_MS)),
       ]);
+
+      if (dnsFailures.length > 0) {
+        const detail = dnsFailures
+          .map((failure) => `${failure.operation} ${failure.hostname}: ${failure.message}`)
+          .join("; ");
+        await markServiceRoutingWarning(
+          dep,
+          `Service routing sync failed for ${svc.name}: ${detail}`,
+        );
+      } else {
+        await clearServiceRoutingWarning(dep);
+      }
     } catch (err) {
       console.error(`[SERVICE] Failed to update route for ${svc.name}:`, err);
     }

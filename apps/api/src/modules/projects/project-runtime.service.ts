@@ -9,6 +9,7 @@ import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
 import { managedDomainsUseCloudEdge, resolveManagedHostname } from "../../lib/routing-domains";
+import { getServiceRoutingWarning } from "../../lib/deployment-routing-warning";
 
 // ─── Runtime logs ────────────────────────────────────────────────────────────
 
@@ -148,6 +149,11 @@ export async function retryProjectRouting(
 
   const { ok, failures } = await syncProjectManagedEdge(p, organizationId);
   if (!ok) return { ok: false, warning: edgeUnsyncedWarning(failures, "retry") };
+  const dep = p.activeDeploymentId
+    ? await repos.deployment.findById(p.activeDeploymentId)
+    : null;
+  const serviceWarning = getServiceRoutingWarning(dep);
+  if (serviceWarning) return { ok: false, warning: serviceWarning };
   return { ok: true };
 }
 
@@ -214,6 +220,10 @@ async function clearRoutingWarning(
 ): Promise<void> {
   if (!dep) return;
   const meta = { ...((dep.meta as Record<string, unknown> | null) ?? {}) };
+  // A service edit owns this warning and must clear it only after its DNS and
+  // live-proxy reconciliation succeeds. The managed-edge retry must not hide a
+  // still-broken Cloudflare/Traefik service route.
+  if (typeof meta.serviceRoutingWarning === "string") return;
   if (!("edgeUnsynced" in meta) && !("deployWarning" in meta)) return;
   delete meta.edgeUnsynced;
   delete meta.deployWarning;
