@@ -1935,9 +1935,9 @@ export async function disable(c: Context) {
   }
 }
 
-/** Re-run the managed free-domain edge-proxy sync (no rebuild). Clears the
- *  "Action Required" routing warning on success; returns the failure text
- *  (200, ok:false) when it still can't sync so the UI re-surfaces guidance. */
+/** Re-run the complete live routing chain without rebuilding. Clears the
+ *  "Action Required" warning only after DNS and the service proxy route are
+ *  confirmed; returns precise failure text otherwise. */
 export async function retryRouting(c: Context) {
   const id = param(c, "id");
   await permission.assert(getRequestContext(c), {

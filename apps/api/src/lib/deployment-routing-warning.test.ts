@@ -6,6 +6,7 @@ vi.mock("@repo/db", () => ({
 }));
 
 import {
+  clearAllRoutingWarnings,
   clearServiceRoutingWarning,
   getServiceRoutingWarning,
   markServiceRoutingWarning,
@@ -65,5 +66,23 @@ describe("service routing warning metadata", () => {
       meta: { edgeUnsynced: true, deployWarning: "A separate deployment warning" },
     });
     expect(getServiceRoutingWarning(deployment)).toBe("DNS write failed");
+  });
+
+  it("clears a legacy deploy-time DNS propagation warning after a full retry", async () => {
+    const deployment = {
+      id: "dep_1",
+      status: "success",
+      meta: {
+        serverId: "server_1",
+        edgeUnsynced: true,
+        deployWarning: "DNS did not propagate before the TLS routing timeout",
+      },
+    } as any;
+
+    await clearAllRoutingWarnings(deployment);
+
+    expect(updateStatus).toHaveBeenCalledWith("dep_1", "success", {
+      meta: { serverId: "server_1" },
+    });
   });
 });

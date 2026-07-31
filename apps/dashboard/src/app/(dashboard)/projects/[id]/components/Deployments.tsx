@@ -35,9 +35,8 @@ export const Deployments = () => {
   // itself via the CLI — redeploy/self-update controls would only 403, so hide them.
   const isSelfApp = projectData?.appTemplateId === "openship";
 
-  /** Re-run just the free .vibrail.warpgateapi.com edge-route sync (no rebuild). On success the
-   *  routing warning clears and the project flips back to Live; on failure the
-   *  same guidance is re-surfaced as an error toast. */
+  /** Re-run DNS + live proxy routing without rebuilding containers. The API
+   *  clears the warning only after the route is confirmed. */
   const handleRetryRouting = async () => {
     if (!projectData?.id || isRetryingRoute) return;
     setIsRetryingRoute(true);
@@ -246,9 +245,8 @@ export const Deployments = () => {
 
   return (
     <div className="space-y-6">
-      {/* Routing-not-synced nudge — the release is live on the server but its
-          free .vibrail.warpgateapi.com edge route didn't sync. A dedicated Retry re-runs just
-          the edge sync (no rebuild); on success the warning clears. */}
+      {/* Routing-not-synced nudge — the release is live, but DNS propagation or
+          the live proxy route is incomplete. Retry repairs the full route chain. */}
       {projectData.routingUnsynced && !projectData.awaitingDecision && (
         <WarningCallout
           title={t.projects.routingRetry.title}

@@ -77,6 +77,9 @@ export async function reconcileProjectRoutes(
     routing?: Platform["routing"];
     registers?: RouteRegister[];
     removes?: RouteRemove[];
+    /** Retry actions need a truthful success/failure result so they do not
+     * clear "Action Required" while Traefik is still missing the route. */
+    strict?: boolean;
   },
 ): Promise<void> {
   let registers = opts.registers ?? [];
@@ -84,6 +87,13 @@ export async function reconcileProjectRoutes(
   if (registers.length > 0) {
     const currentProject = await repos.project.findById(project.id);
     if (!currentProject || currentProject.moderationStatus === "suspended") {
+      if (opts.strict) {
+        throw new Error(
+          !currentProject
+            ? `Project ${project.id} no longer exists`
+            : `Project ${project.id} is suspended; route registration is disabled`,
+        );
+      }
       console.warn(
         `[route-apply] project ${project.id} is suspended — skipped ${registers.length} route registration(s)`,
       );
@@ -125,11 +135,18 @@ export async function reconcileProjectRoutes(
         await local
           .removeRoute(r.hostname)
           .catch((err) =>
-            console.warn(`[route-apply] fallback removeRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`),
+            console.warn(
+              `[route-apply] fallback removeRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`,
+            ),
           );
       }
     }
     if (registers.length > 0) {
+      if (opts.strict) {
+        throw new Error(
+          `No deployment routing provider was resolved for ${registers.map((route) => route.hostname).join(", ")}`,
+        );
+      }
       console.warn(
         `[route-apply] no deployment routing resolved — ${registers.length} route(s) not applied (redeploy to re-sync)`,
       );
@@ -140,33 +157,49 @@ export async function reconcileProjectRoutes(
   const webhookHost = project.webhookDomain?.trim().toLowerCase() || null;
 
   for (const r of removes) {
-    await routing
-      .removeRoute(r.hostname)
-      .catch((err) =>
-        console.warn(`[route-apply] removeRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`),
-      );
+    if (opts.strict) {
+      await routing.removeRoute(r.hostname);
+    } else {
+      await routing
+        .removeRoute(r.hostname)
+        .catch((err) =>
+          console.warn(
+            `[route-apply] removeRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`,
+          ),
+        );
+    }
   }
 
   for (const r of registers) {
     if (!r.targetUrl) {
+      if (opts.strict) {
+        throw new Error(`No live upstream was resolved for ${r.hostname}`);
+      }
       console.warn(
         `[route-apply] no upstream resolved for ${r.hostname} — route not applied (redeploy to re-sync)`,
       );
       continue;
     }
     const isWebhook = r.webhook ?? (!!webhookHost && r.hostname.toLowerCase() === webhookHost);
-    await routing
-      .registerRoute({
-        domain: r.hostname,
-        tls: true,
-        targetUrl: r.targetUrl,
-        ...(isWebhook ? { webhookProxy: webhookProxyTarget } : {}),
-        ...(r.proxyLocations?.length ? { proxyLocations: r.proxyLocations } : {}),
-        ...(r.redirects?.length ? { redirects: r.redirects } : {}),
-        ...(r.headerRules?.length ? { headerRules: r.headerRules } : {}),
-      })
-      .catch((err) =>
-        console.warn(`[route-apply] registerRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`),
-      );
+    const input = {
+      domain: r.hostname,
+      tls: true,
+      targetUrl: r.targetUrl,
+      ...(isWebhook ? { webhookProxy: webhookProxyTarget } : {}),
+      ...(r.proxyLocations?.length ? { proxyLocations: r.proxyLocations } : {}),
+      ...(r.redirects?.length ? { redirects: r.redirects } : {}),
+      ...(r.headerRules?.length ? { headerRules: r.headerRules } : {}),
+    };
+    if (opts.strict) {
+      await routing.registerRoute(input);
+    } else {
+      await routing
+        .registerRoute(input)
+        .catch((err) =>
+          console.warn(
+            `[route-apply] registerRoute ${r.hostname} failed (non-fatal): ${safeErrorMessage(err)}`,
+          ),
+        );
+    }
   }
 }

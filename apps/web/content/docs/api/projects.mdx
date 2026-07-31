@@ -45,7 +45,7 @@ cloud transfer) and return `404` on the SaaS.
 | `POST /api/projects/:id/options` | `project:write` | Set build/deploy options. |
 | `POST /api/projects/:id/enable` | `project:write` | Enable the project (allow deploys / bring online). |
 | `POST /api/projects/:id/disable` | `project:write` | Disable the project (pause deploys / take offline). |
-| `POST /api/projects/:id/routing/retry` | `project:write` | Retry syncing the free `.vibrail.warpgateapi.com` edge route (no rebuild). |
+| `POST /api/projects/:id/routing/retry` | `project:write` | Retry DNS propagation and live service/Traefik routing without rebuilding containers. |
 | `GET /api/projects/:id/env` | `project:read` | List env vars (secret values masked). |
 | `PATCH /api/projects/:id/env` | `project:write` | Merge env var changes (upserts + deletes). |
 | `GET /api/projects/:id/clone-token` | `project:read` | Get the per-project git clone credential. |

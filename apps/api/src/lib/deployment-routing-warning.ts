@@ -39,3 +39,20 @@ export async function clearServiceRoutingWarning(deployment: DeploymentLike): Pr
   if (!("deployWarning" in meta)) delete meta.edgeUnsynced;
   await repos.deployment.updateStatus(deployment.id, deployment.status, { meta });
 }
+
+/** Clear every routing-owned marker after an explicit retry has successfully
+ * rebuilt DNS and the live proxy route. This is intentionally stronger than
+ * clearServiceRoutingWarning: deploy-time DNS propagation failures predate the
+ * structured service warning key and only carry edgeUnsynced/deployWarning. */
+export async function clearAllRoutingWarnings(deployment: DeploymentLike): Promise<void> {
+  if (!deployment) return;
+  const meta = { ...((deployment.meta as Record<string, unknown> | null) ?? {}) };
+  const hadWarning =
+    SERVICE_ROUTING_WARNING_KEY in meta || "edgeUnsynced" in meta || "deployWarning" in meta;
+  if (!hadWarning) return;
+
+  delete meta[SERVICE_ROUTING_WARNING_KEY];
+  delete meta.edgeUnsynced;
+  delete meta.deployWarning;
+  await repos.deployment.updateStatus(deployment.id, deployment.status, { meta });
+}

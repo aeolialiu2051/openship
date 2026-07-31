@@ -258,12 +258,12 @@
     "unknown": "未知"
   },
   "routingRetry": {
-    "title": "免费域名路由需要处理",
-    "description": "应用已在服务器上运行，但其免费的 .vibrail.warpgateapi.com URL 未通过 Openship Cloud 的边缘节点进行路由。请在服务器可从云端经 80 端口访问后重试。",
-    "retry": "重试路由",
+    "title": "域名路由尚未完成",
+    "description": "应用已经运行，但 DNS 传播或 Traefik 转发尚未完成。点击修复会重新检查 DNS、读取正在运行的服务地址并重建代理路由，不会重新构建容器。",
+    "retry": "修复域名路由",
     "retrying": "重试中……",
-    "success": "免费域名路由已同步。",
-    "failed": "无法同步免费域名路由。"
+    "success": "DNS 和代理路由已恢复。",
+    "failed": "域名路由仍未完成，请查看返回的具体原因。"
   },
   "redeploy": {
     "deployStartedLong": "部署已开始——耗时比平常更长，正在打开部署页面。",

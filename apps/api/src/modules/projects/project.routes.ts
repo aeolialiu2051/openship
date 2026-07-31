@@ -175,8 +175,8 @@ r.post("/:id/output-check", { tag: "project:read", readOnly: true, mcp: { descri
 r.post("/:id/enable", { tag: "project:write", mcp: { description: "Enable a project (allow deploys / bring online)." } }, cloudProjectProxy, ctrl.enable);
 r.post("/:id/disable", { tag: "project:write", mcp: { description: "Disable a project (pause deploys / take offline)." } }, cloudProjectProxy, ctrl.disable);
 
-/* ─── Retry free-domain edge routing (no rebuild) ──────────────────────── */
-r.post("/:id/routing/retry", { tag: "project:write", mcp: { description: "Retry syncing the project's free .vibrail.warpgateapi.com edge route (no rebuild); clears the routing 'Action Required' warning on success." } }, cloudProjectProxy, ctrl.retryRouting);
+/* ─── Retry live DNS + proxy routing (no rebuild) ──────────────────────── */
+r.post("/:id/routing/retry", { tag: "project:write", mcp: { description: "Retry the project's full live routing chain without rebuilding: managed edge, DNS propagation, service upstream resolution, and Traefik registration. Clears 'Action Required' only after routing is confirmed." } }, cloudProjectProxy, ctrl.retryRouting);
 
 /* ─── Environment variables ────────────────────────────────────────────── */
 // Project-scoped bulk routes (no per-env_var id in the URL) → gate on the

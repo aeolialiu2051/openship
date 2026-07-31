@@ -312,12 +312,12 @@
     "unknown": "Unknown"
   },
   "routingRetry": {
-    "title": "Free domain routing needs attention",
-    "description": "The app is live on the server, but its free .vibrail.warpgateapi.com URL didn't route through Openship Cloud's edge. Retry once the server is reachable from the cloud on port 80.",
-    "retry": "Retry routing",
+    "title": "Domain routing is incomplete",
+    "description": "The app is running, but DNS propagation or the Traefik route is incomplete. Repair rechecks DNS, resolves the live service, and rebuilds the proxy route without rebuilding containers.",
+    "retry": "Repair domain routing",
     "retrying": "Retrying…",
-    "success": "Free domain routing synced.",
-    "failed": "Couldn't sync the free domain routing."
+    "success": "DNS and proxy routing recovered.",
+    "failed": "Domain routing is still incomplete. Review the reported reason."
   },
   "redeploy": {
     "deployStartedLong": "Deploy started — taking longer than usual, opening deployments.",

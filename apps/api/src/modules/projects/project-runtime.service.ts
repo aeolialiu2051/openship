@@ -5,19 +5,23 @@
 import { repos } from "@repo/db";
 import { NotFoundError, ValidationError } from "@repo/core";
 import type { LogEntry } from "@repo/adapters";
-import { resolveDeploymentRuntimeOnly } from "../../lib/deployment-runtime";
-import { assertResourceInOrg } from "../../lib/controller-helpers";
+import {
+  resolveDeploymentRuntime,
+  resolveDeploymentRuntimeOnly,
+  usesManagedRouting,
+} from "../../lib/deployment-runtime";
+import { assertResourceInOrg, platform } from "../../lib/controller-helpers";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
 import { managedDomainsUseCloudEdge, resolveManagedHostname } from "../../lib/routing-domains";
-import { getServiceRoutingWarning } from "../../lib/deployment-routing-warning";
+import {
+  clearAllRoutingWarnings,
+  markServiceRoutingWarning,
+} from "../../lib/deployment-routing-warning";
+import { retryProjectServiceRoutes } from "../../lib/service-route-retry";
 
 // ─── Runtime logs ────────────────────────────────────────────────────────────
 
-export async function getRuntimeLogs(
-  projectId: string,
-  organizationId: string,
-  tail?: number,
-) {
+export async function getRuntimeLogs(projectId: string, organizationId: string, tail?: number) {
   const p = await repos.project.findById(projectId);
   assertResourceInOrg(p, "Project", organizationId, projectId);
 
@@ -129,17 +133,9 @@ export async function disableProject(projectId: string, organizationId: string) 
   return { success: true, message: "Project disabled" };
 }
 
-/**
- * Retry the managed free-domain (*.vibrail.warpgateapi.com) edge-proxy sync WITHOUT a rebuild.
- *
- * A deploy can come up live on the server yet fail to wire its free .vibrail.warpgateapi.com
- * URL through Openship Cloud's edge (target unreachable on :80, ownership not
- * yet verified, slug taken). That's surfaced as "Action Required"
- * (`meta.edgeUnsynced`); this re-runs just the edge sync for the project's
- * managed domains and, on full success, clears the warning so the project reads
- * "Live" again. Best-effort per domain — returns the failures instead of
- * throwing so the UI can re-surface the same guidance.
- */
+/** Retry the complete live routing chain WITHOUT rebuilding containers:
+ * managed cloud edge (when applicable), Cloudflare DNS/public propagation,
+ * live service upstream resolution, and Traefik registration. */
 export async function retryProjectRouting(
   projectId: string,
   organizationId: string,
@@ -147,14 +143,39 @@ export async function retryProjectRouting(
   const p = await repos.project.findById(projectId);
   assertResourceInOrg(p, "Project", organizationId, projectId);
 
-  const { ok, failures } = await syncProjectManagedEdge(p, organizationId);
+  const dep = p.activeDeploymentId ? await repos.deployment.findById(p.activeDeploymentId) : null;
+  if (!dep) {
+    return { ok: false, warning: "No active deployment is available to rebuild routing." };
+  }
+
+  const { ok, failures } = await syncProjectManagedEdge(p, organizationId, {
+    clearOnSuccess: false,
+  });
   if (!ok) return { ok: false, warning: edgeUnsyncedWarning(failures, "retry") };
-  const dep = p.activeDeploymentId
-    ? await repos.deployment.findById(p.activeDeploymentId)
-    : null;
-  const serviceWarning = getServiceRoutingWarning(dep);
-  if (serviceWarning) return { ok: false, warning: serviceWarning };
-  return { ok: true };
+
+  const resolved = await resolveDeploymentRuntime(dep);
+  try {
+    const serviceRetry = await retryProjectServiceRoutes({
+      project: p,
+      deployment: dep,
+      runtime: resolved.runtime,
+      routing: resolved.routing,
+      usesManagedRouting: usesManagedRouting(platform().target, resolved.effectiveTarget),
+      serverId: resolved.serverId ?? undefined,
+    });
+    if (serviceRetry.failures.length > 0) {
+      const warning = `Routing retry still needs attention: ${serviceRetry.failures
+        .map((failure) => `${failure.hostname}: ${failure.message}`)
+        .join("; ")}`;
+      await markServiceRoutingWarning(dep, warning);
+      return { ok: false, warning };
+    }
+
+    await clearAllRoutingWarnings(dep);
+    return { ok: true };
+  } finally {
+    await resolved.runtime.dispose?.();
+  }
 }
 
 /**
@@ -176,7 +197,7 @@ export async function retryProjectRouting(
 export async function syncProjectManagedEdge(
   project: NonNullable<Awaited<ReturnType<typeof repos.project.findById>>>,
   organizationId: string,
-  opts: { markOnFailure?: boolean } = {},
+  opts: { markOnFailure?: boolean; clearOnSuccess?: boolean } = {},
 ): Promise<{ ok: boolean; failures: string[] }> {
   const dep = project.activeDeploymentId
     ? await repos.deployment.findById(project.activeDeploymentId)
@@ -186,7 +207,7 @@ export async function syncProjectManagedEdge(
   // Operator-owned HOST_DOMAIN routes do not use the legacy Openship Cloud
   // edge bridge. Clear any warning left by an older deployment/configuration.
   if (!managedDomainsUseCloudEdge()) {
-    await clearRoutingWarning(dep);
+    if (opts.clearOnSuccess !== false) await clearRoutingWarning(dep);
     return { ok: true, failures: [] };
   }
 
@@ -197,7 +218,7 @@ export async function syncProjectManagedEdge(
 
   // No free .vibrail.warpgateapi.com routes → nothing to sync; treat as resolved.
   if (targets.length === 0) {
-    await clearRoutingWarning(dep);
+    if (opts.clearOnSuccess !== false) await clearRoutingWarning(dep);
     return { ok: true, failures: [] };
   }
 
@@ -209,7 +230,7 @@ export async function syncProjectManagedEdge(
     return { ok: false, failures };
   }
 
-  await clearRoutingWarning(dep);
+  if (opts.clearOnSuccess !== false) await clearRoutingWarning(dep);
   return { ok: true, failures: [] };
 }
 
