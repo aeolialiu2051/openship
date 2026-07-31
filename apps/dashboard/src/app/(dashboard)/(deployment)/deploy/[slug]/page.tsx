@@ -70,6 +70,7 @@ const DeployRepository: React.FC = () => {
     const uploadStack = searchParams.get("stack") || undefined;
     const uploadName = searchParams.get("name") || undefined;
     const uploadPackageManager = searchParams.get("packageManager") || undefined;
+    const uploadServerId = searchParams.get("serverId") || undefined;
     // Edit-from-Runtime-tab: hydrate from SAVED settings, skip repo re-detection.
     const isConfigEdit = searchParams.get("mode") === "config" && !!projectId;
     const canPickTarget = canChooseDeployTarget({ deployMode, userServers });
@@ -216,6 +217,7 @@ const DeployRepository: React.FC = () => {
                     stack: uploadStack,
                     name: uploadName,
                     packageManager: uploadPackageManager,
+                    serverId: uploadServerId,
                 });
             } else if (decoded.kind === "template") {
                 result = await initializeFromTemplate(decoded.stackId);
@@ -231,7 +233,7 @@ const DeployRepository: React.FC = () => {
             // defaults, which clobbers what useLayoutEffect set above. Reset
             // the guard and re-apply so the summary bar (and the rest of the
             // page) reflects the user's actual saved preference.
-            if (result.success) {
+            if (result.success && !(decoded.kind === "upload" && uploadServerId)) {
                 appliedLastPickRef.current = false;
                 applyLastPick();
             }
@@ -275,7 +277,7 @@ const DeployRepository: React.FC = () => {
         };
 
         initialize();
-    }, [slug, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromTemplate, initializeFromProject, isConfigEdit, force, projectId, branch, uploadStack, uploadName, uploadPackageManager, toast, t]);
+    }, [slug, initializeFromRepo, initializeFromLocal, initializeFromUpload, initializeFromTemplate, initializeFromProject, isConfigEdit, force, projectId, branch, uploadStack, uploadName, uploadPackageManager, uploadServerId, toast, t]);
 
     if (loading) {
         return <SkeletonLoader source={decodedSource} />;

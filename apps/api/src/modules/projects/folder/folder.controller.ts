@@ -1,29 +1,42 @@
 import type { Context } from "hono";
 import { safeErrorMessage } from "@repo/core";
 import { getRequestContext } from "../../../lib/request-context";
+import { isServerInOrg } from "../../../lib/controller-helpers";
+import { permission } from "../../../lib/permission";
 import { projectInfoToScanResponse } from "../../deployments/prepare.service";
 import { createFolderSession, acceptRelayUpload, scanFolderSession } from "./folder.service";
 import { getFolderSession } from "./session-store";
 
 /**
  * POST /projects/folder/session
- * Open a folder-upload session. Returns the upload target: an Oblien
- * workspace-scoped token (SaaS, direct upload) or a relay upload path +
- * single-use ticket (self-hosted).
+ * Open a folder-upload session. User-server uploads always use the API relay;
+ * cloud-workspace callers may receive a direct workspace upload target.
  */
 export async function createSession(c: Context) {
-  const { organizationId, userId } = getRequestContext(c);
+  const ctx = getRequestContext(c);
   const body = await c.req
-    .json<{ stack?: string; packageManager?: string; name?: string }>()
-    .catch(() => ({}) as { stack?: string; packageManager?: string; name?: string });
+    .json<{ stack?: string; packageManager?: string; name?: string; serverId?: string }>()
+    .catch(() => ({}) as { stack?: string; packageManager?: string; name?: string; serverId?: string });
+
+  if (body.serverId) {
+    await permission.assert(ctx, {
+      resourceType: "server",
+      resourceId: body.serverId,
+      action: "write",
+    });
+    if (!(await isServerInOrg(ctx, body.serverId))) {
+      return c.json({ error: "Server not found" }, 404);
+    }
+  }
 
   try {
     const result = await createFolderSession({
-      orgId: organizationId,
-      userId,
+      orgId: ctx.organizationId,
+      userId: ctx.userId,
       stack: body.stack,
       packageManager: body.packageManager,
       name: body.name,
+      serverId: body.serverId,
     });
     return c.json({ success: true, ...result });
   } catch (err) {
@@ -32,7 +45,8 @@ export async function createSession(c: Context) {
 }
 
 /**
- * POST /projects/folder/upload/:sessionId  (self-hosted only)
+ * POST /projects/folder/upload/:sessionId
+ * Accepts only sessions created with the api-relay transport.
  * Streamed tar.gz body → staging dir. Ticket-authorized. Binary body, so this
  * route is excluded from MCP tool generation (see mcp-tools DENY list).
  */

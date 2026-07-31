@@ -1368,6 +1368,19 @@ export async function runPreflightChecks(
 
   const effectiveBuildStrategy =
     opts?.buildStrategy ?? (snapshot.buildStrategy as "local" | "server" | undefined);
+  const sourceAlreadyAvailable = Boolean(snapshot.localPath || snapshot.sourceStaged);
+  const runtimeMode = snapshot.runtimeMode ?? "docker";
+  const clonePlan = resolveClonePlan({
+    effectiveTarget,
+    serverId: snapshot.serverId,
+    runtimeIsBare: runtimeMode === "bare",
+    cloneStrategy: snapshot.cloneStrategy,
+    buildStrategy: effectiveBuildStrategy,
+    isDesktop: plat.target === "desktop",
+    forwardGitCredentials: snapshot.forwardGitCredentials,
+    repoIsGithub: !!opts?.gitOwner,
+    sourceAlreadyAvailable,
+  });
 
   // A PUBLIC github.com repo clones with NO credential, so none of the
   // credential checks below should block it — this is how a public repo
@@ -1383,7 +1396,12 @@ export async function runPreflightChecks(
   // clones on the API host using local credentials (gh CLI / OAuth), so the
   // cloud App installation is irrelevant — skip it. This mirrors the
   // remote-clone-token check below, which already passes for local builds.
-  if (!repoIsPublic && getGitHubAuthMode() === "app" && effectiveBuildStrategy !== "local") {
+  if (
+    clonePlan.needsClone &&
+    !repoIsPublic &&
+    getGitHubAuthMode() === "app" &&
+    effectiveBuildStrategy !== "local"
+  ) {
     checks.push(
       await checkGitHubAppInstallation(githubCtx, opts?.gitOwner),
     );
@@ -1396,8 +1414,8 @@ export async function runPreflightChecks(
   // the API host), and cloud builds clone inside the workspace. So the two
   // credential checks below apply only to bare + server; otherwise the clone is
   // local and these checks would wrongly demand a remote/App/cloud credential.
-  const runtimeMode = snapshot.runtimeMode ?? "docker";
   const clonesOnRemote =
+    clonePlan.needsClone &&
     !repoIsPublic &&
     runtimeMode === "bare" &&
     // Static apps now BUILD in a temporary Docker container (see build-pipeline's static
@@ -1445,19 +1463,7 @@ export async function runPreflightChecks(
   // is already covered by the hard-fail clonesOnRemote checks above.
   // Same clone decision the build pipeline uses (resolveClonePlan) — so this
   // credential check verifies exactly the clone the pipeline will perform.
-  const dockerClonesOnServer = resolveClonePlan({
-    effectiveTarget,
-    serverId: snapshot.serverId,
-    runtimeIsBare: runtimeMode === "bare",
-    cloneStrategy: snapshot.cloneStrategy,
-    buildStrategy: effectiveBuildStrategy,
-    isDesktop: plat.target === "desktop",
-    forwardGitCredentials: snapshot.forwardGitCredentials,
-    // GitHub projects carry a parsed gitOwner; docker acquires the source
-    // tarball on the server for them. Same structured signal the pipeline uses
-    // (`!!project.gitOwner`) so the two decisions can't drift.
-    repoIsGithub: !!opts?.gitOwner,
-  }).dockerClonesOnServer;
+  const dockerClonesOnServer = clonePlan.dockerClonesOnServer;
   if (dockerClonesOnServer) {
     checks.push(
       await checkCloneOnServerCredential(

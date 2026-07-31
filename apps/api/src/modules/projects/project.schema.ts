@@ -309,6 +309,9 @@ export const FolderSessionBody = Type.Object(
     ),
     packageManager: Type.Optional(Type.String({ description: "npm | pnpm | yarn | bun." })),
     name: Type.Optional(Type.String({ description: "Project name." })),
+    serverId: Type.Optional(
+      Type.String({ description: "User-selected server that will receive and deploy this upload." }),
+    ),
   },
   { additionalProperties: true },
 );

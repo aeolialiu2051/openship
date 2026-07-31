@@ -736,7 +736,7 @@ export interface DeploymentContextType {
    *  (no auto-detection); falls back to the session scan when no stack given. */
   initializeFromUpload: (
     sessionId: string,
-    context?: { projectId?: string; stack?: string; packageManager?: string; name?: string },
+    context?: { projectId?: string; stack?: string; packageManager?: string; name?: string; serverId?: string },
   ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
   /** Built-in starter hydration — no network or workspace allocation. */
   initializeFromTemplate: (

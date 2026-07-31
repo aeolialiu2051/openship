@@ -1095,6 +1095,14 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   snapshot.serverId = resolvedTarget.serverId;
   snapshot.runtimeMode = composeFirst ? "docker" : resolvedTarget.runtimeMode;
 
+  // A folder upload whose target was selected before transfer is bound to that
+  // server for the life of the session. Do not let request parameters or a
+  // project's previous target redirect the uploaded source elsewhere.
+  if (uploadSession?.targetServerId) {
+    snapshot.deployTarget = "server";
+    snapshot.serverId = uploadSession.targetServerId;
+  }
+
   // Folder-upload: point this deploy at the source the browser uploaded.
   //   - cloud (oblien-direct): adopt the pre-provisioned workspace, skip clone.
   //   - self-hosted (api-relay): build from the staging dir like a local folder.

@@ -49,9 +49,14 @@ export interface ClonePlanInput {
    *  adapter re-validates the URL (github + https) before downloading and falls
    *  back to clone. Local/imported projects → false → unchanged. */
   repoIsGithub?: boolean;
+  /** Source already exists outside Git (folder upload/local path or a staged
+   *  workspace). Clone preferences must never override this source. */
+  sourceAlreadyAvailable?: boolean;
 }
 
 export interface ClonePlan {
+  /** False for uploaded/local/staged source: no Git credential or clone step is needed. */
+  needsClone: boolean;
   /** The clone runs directly on the deploy server — bare always, docker on the
    *  explicit "clone on the server" opt-in. (Pipeline's `cloneOnServer`.) */
   runsOnServer: boolean;
@@ -88,6 +93,7 @@ export function relayConfigEligible(input: {
 }
 
 export function resolveClonePlan(input: ClonePlanInput): ClonePlan {
+  const needsClone = input.sourceAlreadyAvailable !== true;
   const onServer = input.effectiveTarget === "server";
 
   // Docker acquires source ON THE SERVER when the deploy opted in
@@ -98,13 +104,14 @@ export function resolveClonePlan(input: ClonePlanInput): ClonePlan {
   // credential; effectiveCloneOnServer degrades to an api-host clone otherwise
   // (allowApiHostFallback is driven by dockerClonesOnServer).
   const dockerServerSide =
+    needsClone &&
     onServer &&
     !input.runtimeIsBare &&
     (input.cloneStrategy === "server" || input.repoIsGithub === true);
 
   // Pipeline: the clone runs on the server (bare always; docker per above).
   const runsOnServer =
-    onServer && !!input.serverId && (input.runtimeIsBare || dockerServerSide);
+    needsClone && onServer && !!input.serverId && (input.runtimeIsBare || dockerServerSide);
 
   // Preflight warn-case + api-host-fallback gate: DOCKER (non-bare) acquiring on
   // the server. Bare is handled by the separate hard-fail remote-build checks.
@@ -118,9 +125,10 @@ export function resolveClonePlan(input: ClonePlanInput): ClonePlan {
   // runsLocally MUST imply !runsOnServer — otherwise a contradictory config
   // (buildStrategy="local" + cloneStrategy="server") would tag an on-server clone
   // as local and ship the operator's local gh/OAuth token off-host to the remote.
-  const runsLocally = !runsOnServer && (input.buildStrategy === "local" || onServer);
+  const runsLocally = needsClone && !runsOnServer && (input.buildStrategy === "local" || onServer);
 
   return {
+    needsClone,
     runsOnServer,
     dockerClonesOnServer,
     runsLocally,

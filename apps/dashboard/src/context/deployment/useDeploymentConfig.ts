@@ -913,14 +913,14 @@ export function useDeploymentConfig() {
   );
 
   // ── Folder upload: seed from the uploaded source's scan ─────────────────────
-  // The folder was already uploaded (to an Oblien workspace or the API staging
-  // dir) before we got here. We re-run the authoritative scan for that session
+  // The folder was already uploaded through the API relay before we got here.
+  // We re-run the authoritative scan for that session
   // and feed it through the SAME buildPreparedConfig core as repo/local, then
   // carry `uploadSessionId` in the config so the deploy adopts that source.
   const initializeFromUpload = useCallback(
     async (
       sessionId: string,
-      context?: { projectId?: string; stack?: string; packageManager?: string; name?: string },
+      context?: { projectId?: string; stack?: string; packageManager?: string; name?: string; serverId?: string },
     ): Promise<{ success: boolean; error?: string; errorType?: string }> => {
       try {
         let project: PersistedProject = null;
@@ -1032,17 +1032,27 @@ export function useDeploymentConfig() {
           } as unknown as PrepareProjectResponse;
         }
 
-        setConfig((prev) => buildPreparedConfig(prev, {
-          response,
-          project,
-          repoName: name,
-          owner: "upload",
-          branch: "main",
-          branches: [],
-          projectId: context?.projectId,
-          uploadSessionId: sessionId,
-          sourceProvider: "upload",
-        }));
+        setConfig((prev) => {
+          const prepared = buildPreparedConfig(prev, {
+            response,
+            project,
+            repoName: name,
+            owner: "upload",
+            branch: "main",
+            branches: [],
+            projectId: context?.projectId,
+            uploadSessionId: sessionId,
+            sourceProvider: "upload",
+          });
+          return context?.serverId
+            ? {
+                ...prepared,
+                deployTarget: "server",
+                serverId: context.serverId,
+                buildStrategy: "server",
+              }
+            : prepared;
+        });
 
         return { success: true };
       } catch (err) {

@@ -32,7 +32,7 @@ export type FolderScanResponse = ScanProjectResponse & { sessionId: string };
 
 export const folderApi = {
   /** Open an upload session; server returns an opaque upload target. */
-  createSession: (body: { stack?: string; packageManager?: string; name?: string }) =>
+  createSession: (body: { stack?: string; packageManager?: string; name?: string; serverId?: string }) =>
     api.post<FolderSession>(endpoints.projects.folderSession, body),
 
   /** Authoritative framework detection on the uploaded source (fallback path;

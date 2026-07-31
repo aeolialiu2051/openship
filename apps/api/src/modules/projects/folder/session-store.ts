@@ -34,6 +34,8 @@ export interface FolderSession {
   uploaded: boolean;
   /** Detected/typed name hint for the project. */
   name?: string;
+  /** Server selected before upload; authoritative for the resulting deployment. */
+  targetServerId?: string;
   /** Compose services captured by folder/scan for the later headless deploy. */
   detectedServices?: DeployableService[];
 }

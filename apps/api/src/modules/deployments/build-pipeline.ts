@@ -624,6 +624,7 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       isDesktop: plat.target === "desktop",
       forwardGitCredentials: snapshot.forwardGitCredentials,
       repoIsGithub: !!project.gitOwner,
+      sourceAlreadyAvailable: Boolean(snapshot.localPath || snapshot.sourceStaged),
     });
     const cloneOnServer = clonePlan.runsOnServer;
     // The relay needs a real SSH reverse tunnel — `reverseForward` exists on every
@@ -648,7 +649,8 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
         ? enabledSvcs.some((s) => s.kind === "monorepo" || !!s.build || !!s.dockerfile)
         : snapshot.hasBuild !== false;
 
-    const gitCred: Awaited<ReturnType<typeof resolveBuildGitToken>> = needsGitSource
+    const gitCred: Awaited<ReturnType<typeof resolveBuildGitToken>> =
+      needsGitSource && clonePlan.needsClone
       ? await resolveBuildGitToken({
           ctx: buildBackgroundContext({
             userId: actorUserId,

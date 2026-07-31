@@ -6,8 +6,10 @@ import { Upload, Loader2, AlertCircle, Package, X, ArrowRight, ArrowLeft } from 
 import { buildFolderTarGz, collectFolderFiles } from "@/utils/tarGz";
 import { encodeUploadSlug } from "@/utils/repoSlug";
 import { folderApi } from "@/lib/api/folder";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { folderImportFrameworks, type FrameworkConfig } from "@/components/import-project/Frameworks";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import ServerSelector, { type ServerOption } from "@/components/shared/ServerSelector";
 
 type Phase = "idle" | "packing" | "uploading";
 
@@ -39,6 +41,7 @@ export function FolderUpload() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [stack, setStack] = useState<FrameworkConfig | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
+  const [server, setServer] = useState<ServerOption | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState("");
   const [dragging, setDragging] = useState(false);
@@ -75,7 +78,7 @@ export function FolderUpload() {
   }, []);
 
   const handleDeploy = async () => {
-    if (!picked || !stack) return;
+    if (!picked || !stack || !server) return;
     setError("");
     try {
       setPhase("packing");
@@ -86,6 +89,7 @@ export function FolderUpload() {
         stack: stack.id,
         packageManager: picked.packageManager,
         name: picked.name,
+        serverId: server.id,
       });
       await folderApi.upload(session, blob);
 
@@ -93,10 +97,11 @@ export function FolderUpload() {
         stack: stack.id,
         name: picked.name,
         packageManager: picked.packageManager,
+        serverId: server.id,
       });
       router.push(`/deploy/${encodeUploadSlug(session.sessionId)}?${params.toString()}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : t.library.folderUpload.uploadError);
+      setError(getApiErrorMessage(err, t.library.folderUpload.uploadError));
       setPhase("idle");
     }
   };
@@ -143,7 +148,7 @@ export function FolderUpload() {
       <div className="px-5 py-4 border-b border-border/50 flex items-center gap-3">
         {!busy && (
           <button
-            onClick={() => { setStack(null); setPicked(null); setError(""); }}
+            onClick={() => { setStack(null); setPicked(null); setServer(null); setError(""); }}
             className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
             aria-label={t.library.folderUpload.backToStack}
           >
@@ -213,9 +218,15 @@ export function FolderUpload() {
               )}
             </div>
 
+            <ServerSelector
+              value={server?.id ?? null}
+              onSelect={setServer}
+              autoSelectFirst
+            />
+
             <button
               onClick={handleDeploy}
-              disabled={busy}
+              disabled={busy || !server}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
             >
               {busy ? <Loader2 className="size-4 animate-spin" /> : <ArrowRight className="size-4 rtl:rotate-180" />}

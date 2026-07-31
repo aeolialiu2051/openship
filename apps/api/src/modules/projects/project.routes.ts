@@ -58,11 +58,9 @@ r.delete("/:id/route-rules/:ruleId", { tag: "project:write" }, routeRules.delete
 
 /* ─── Folder upload → deploy ─────────────────────────────────────────────
  * Browser-based folder deploy for clients with no filesystem-shared API.
- * `session` returns an opaque upload target: an Oblien workspace token (SaaS,
- * the browser uploads DIRECTLY to Oblien) or a relay path (self-hosted). The
- * binary /folder/upload route is excluded from MCP (see mcp-tools). */
-// session + scan run on BOTH SaaS and self-hosted (session provisions the
-// Oblien workspace / staging dir; scan detects on the uploaded source).
+ * `session` returns an opaque upload target. User-server uploads use the API
+ * relay; cloud-workspace uploads may go directly to Oblien. The binary
+ * /folder/upload route is excluded from MCP (see mcp-tools). */
 r.post(
   "/folder/session",
   {
@@ -88,12 +86,12 @@ r.post(
   },
   folder.scanSession,
 );
-// The relay upload is SELF-HOSTED ONLY: on the SaaS the browser uploads
-// straight to the Oblien workspace, so the API never receives bytes. localOnly
-// 404s this in CLOUD_MODE; the 300MB bodyLimit only runs once localOnly passes.
+// The relay route is available in every mode, but accepts bytes only for an
+// authenticated session whose transport is `api-relay`. This includes every
+// upload explicitly bound to a user-selected server.
 r.post(
   "/folder/upload/:sessionId",
-  { tag: "project:write", collection: true, localOnly: true },
+  { tag: "project:write", collection: true },
   bodyLimit({
     maxSize: 300_000_000,
     onError: (c) => c.json({ error: "Upload exceeds the 300MB limit.", code: "PAYLOAD_TOO_LARGE" }, 413),

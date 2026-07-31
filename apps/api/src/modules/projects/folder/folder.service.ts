@@ -37,6 +37,7 @@ import {
   sweepExpiredFolderSessions,
   type FolderSession,
 } from "./session-store";
+import { resolveFolderUploadTransport } from "./upload-transport";
 
 const execFileAsync = promisify(execFile);
 
@@ -70,6 +71,8 @@ export interface CreateFolderSessionInput {
   stack?: string;
   packageManager?: string;
   name?: string;
+  /** User-selected deployment server. Its presence forces the API relay path. */
+  serverId?: string;
 }
 
 /**
@@ -96,9 +99,8 @@ export interface FolderSessionResult {
 }
 
 /**
- * Open an upload session. On the SaaS this provisions the Oblien workspace and
- * mints a browser-safe workspace-scoped token; self-hosted just prepares a
- * staging dir + relay ticket.
+ * Open an upload session. Uploads bound to a user server always stage through
+ * this API; cloud-workspace uploads may provision an Oblien workspace.
  */
 export async function createFolderSession(
   input: CreateFolderSessionInput,
@@ -109,7 +111,14 @@ export async function createFolderSession(
   const id = newFolderSessionId();
   const expiresAt = now + SESSION_TTL_MS;
 
-  if (env.CLOUD_MODE) {
+  const uploadTransport = resolveFolderUploadTransport({
+    cloudMode: env.CLOUD_MODE,
+    nodeEnv: env.NODE_ENV,
+    hasOblienCredentials: Boolean(env.OBLIEN_CLIENT_ID && env.OBLIEN_CLIENT_SECRET),
+    hasServerTarget: Boolean(input.serverId),
+  });
+
+  if (uploadTransport === "oblien-direct") {
     // ── SaaS: direct browser → Oblien workspace ──
     // Use the org's NAMESPACE-scoped client (same as every other cloud service:
     // cloud-pages, cloud-edge-proxy, deploy). The master client can create a
@@ -185,7 +194,7 @@ export async function createFolderSession(
     };
   }
 
-  // ── Self-hosted: relay upload to a staging dir on this host ──
+  // ── User-server, self-hosted, or local SaaS dev: API staging relay. ──
   const stagingDir = await mkdtemp(join(tmpdir(), "openship-upload-"));
   const uploadTicket = randomBytes(24).toString("base64url");
 
@@ -200,6 +209,7 @@ export async function createFolderSession(
     uploadTicket,
     uploaded: false,
     name: input.name,
+    targetServerId: input.serverId,
   });
 
   return {

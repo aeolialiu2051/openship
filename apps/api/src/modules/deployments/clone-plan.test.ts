@@ -13,7 +13,9 @@ const base: ClonePlanInput = {
 
 describe("resolveClonePlan — relayEligible (forward is the default on desktop)", () => {
   it("is eligible for a desktop server clone when forwarding is unset (default-on)", () => {
-    expect(resolveClonePlan({ ...base, forwardGitCredentials: undefined }).relayEligible).toBe(true);
+    expect(resolveClonePlan({ ...base, forwardGitCredentials: undefined }).relayEligible).toBe(
+      true,
+    );
   });
 
   it("is eligible when forwarding is explicitly true", () => {
@@ -37,5 +39,29 @@ describe("resolveClonePlan — relayEligible (forward is the default on desktop)
         repoIsGithub: false,
       }).relayEligible,
     ).toBe(false);
+  });
+
+  it("never clones uploaded/local source even when server cloning is selected", () => {
+    const plan = resolveClonePlan({
+      ...base,
+      sourceAlreadyAvailable: true,
+    });
+
+    expect(plan.needsClone).toBe(false);
+    expect(plan.runsOnServer).toBe(false);
+    expect(plan.runsLocally).toBe(false);
+    expect(plan.dockerClonesOnServer).toBe(false);
+    expect(plan.relayEligible).toBe(false);
+  });
+
+  it("never clones uploaded/local source for a bare server runtime", () => {
+    const plan = resolveClonePlan({
+      ...base,
+      runtimeIsBare: true,
+      sourceAlreadyAvailable: true,
+    });
+
+    expect(plan.needsClone).toBe(false);
+    expect(plan.runsOnServer).toBe(false);
   });
 });
