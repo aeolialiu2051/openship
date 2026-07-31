@@ -520,6 +520,13 @@ export function getModeSwitchUpdates(
   config: DeploymentConfig,
   mode: DeploymentConfig["serviceDeploymentMode"],
 ): Partial<DeploymentConfig> {
+  // Compose is an explicit deployment contract. Framework selection may still
+  // choose a primary app for monorepos, but a detected Compose project cannot
+  // be collapsed into the single-app path.
+  if (config.projectType === "services" && mode === "single") {
+    mode = "services";
+  }
+
   // The mode switch supports two source shapes: compose services and
   // monorepo sub-apps. Both produce a `service` table row per item on
   // the backend, so the toggle's job is purely UI-side: rebuild the

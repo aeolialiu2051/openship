@@ -78,6 +78,10 @@ export async function scanSession(c: Context) {
 
   try {
     const result = await scanFolderSession(session);
+    // Preserve the scan's Compose shape inside the upload session. MCP/API
+    // callers should not have to echo a potentially large services array back
+    // into build/access for the backend to honor Compose-first deployment.
+    session.detectedServices = result.services;
     return c.json({ success: true, sessionId, ...projectInfoToScanResponse(result) });
   } catch (err) {
     return c.json({ error: safeErrorMessage(err) }, 500);

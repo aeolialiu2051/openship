@@ -81,6 +81,7 @@ import { resolveClonePlan } from "./clone-plan";
 import { collapseTerminalLogs } from "./terminal-logs";
 import {
   executeComposePipeline,
+  isMultiServiceProject,
   resolveProjectServicePreflightServices,
   shouldUseProjectServicePipeline,
 } from "./compose";
@@ -141,7 +142,15 @@ export async function resolveServicePipelineMode(
   // separates ADDED services from a NORMAL app deploy.
   const targetsSpecificServices = (snapshot.targetServiceIds?.length ?? 0) > 0;
 
-  if (snapshot.serviceDeploymentMode === "single" && !targetsSpecificServices) {
+  // Docker Compose is an explicit deployment contract, not a wizard hint.
+  // Never let a caller (dashboard, REST, MCP, or an older frozen snapshot)
+  // downgrade a compose project to the single-app pipeline. This mirrors the
+  // detector's Compose-first rule at the actual execution boundary.
+  if (
+    snapshot.serviceDeploymentMode === "single" &&
+    !targetsSpecificServices &&
+    !isMultiServiceProject(project)
+  ) {
     return { useSingleAppPipeline: true, useServicePipeline: false, servicePreflightServices: [] };
   }
 

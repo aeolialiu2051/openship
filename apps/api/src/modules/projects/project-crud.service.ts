@@ -14,6 +14,7 @@ import {
   compareSemver,
   isReleaseProvider,
   isTemplateProvider,
+  isServicesFramework,
   isBehind,
   GITHUB_REPO,
   type ReleaseSource,
@@ -346,7 +347,11 @@ function buildProductionProjectInput(
     // not supported on the bare runtime". Git apps/monorepos stay null (chosen at
     // deploy time).
     runtimeMode:
-      data.projectType === "services" || data.projectType === "docker" ? "docker" : null,
+      data.projectType === "services" ||
+      data.projectType === "docker" ||
+      isServicesFramework(data.framework)
+        ? "docker"
+        : null,
   };
 }
 
@@ -757,6 +762,16 @@ export async function ensureProject(
       }
     }
     if (data.hasBuild !== undefined) update.hasBuild = data.hasBuild;
+    // Compose is a deployment contract. Do not depend on a UI/MCP caller also
+    // remembering projectType/runtimeMode when framework detection already made
+    // the project shape unambiguous.
+    if (
+      data.projectType === "services" ||
+      data.projectType === "docker" ||
+      isServicesFramework(data.framework ?? project.framework)
+    ) {
+      update.runtimeMode = "docker";
+    }
     if (data.projectType === "monorepo" && data.monorepoWorkspace !== undefined) {
       update.workspacePrepareCommand = data.monorepoWorkspace.prepareCommand ?? null;
     }

@@ -14,6 +14,7 @@
  */
 
 import { randomBytes } from "node:crypto";
+import type { DeployableService } from "../../../lib/deployable-service";
 
 export type FolderUploadMode = "oblien-direct" | "api-relay";
 
@@ -33,6 +34,8 @@ export interface FolderSession {
   uploaded: boolean;
   /** Detected/typed name hint for the project. */
   name?: string;
+  /** Compose services captured by folder/scan for the later headless deploy. */
+  detectedServices?: DeployableService[];
 }
 
 const sessions = new Map<string, FolderSession>();

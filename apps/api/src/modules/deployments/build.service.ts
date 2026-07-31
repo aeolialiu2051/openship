@@ -512,14 +512,14 @@ export async function backfillComposeBaselinesFromActiveDeployment(
   );
 }
 
-async function reconcileComposeDrift(
+export async function reconcileComposeDrift(
   ctx: RequestContext,
   project: Project,
   branch: string,
   changedPaths?: string[] | null,
+  localSourcePath?: string,
 ) {
   try {
-    if (!project.gitOwner || !project.gitRepo) return; // local/no-git source → nothing to re-parse
     if (
       changedPaths &&
       changedPaths.length > 0 &&
@@ -528,15 +528,28 @@ async function reconcileComposeDrift(
       return; // this push didn't touch a compose input → no drift possible
     }
     const composeRows = await listProjectComposeServices(project.id);
-    if (!composeRows.some((s) => s.kind === "compose")) return; // not a compose project
-    await backfillComposeBaselinesFromActiveDeployment(project, composeRows);
-    const info = await resolveProjectInfo({
-      source: "github",
-      owner: project.gitOwner,
-      repo: project.gitRepo,
-      branch,
-      ctx,
-    });
+    const hasComposeRows = composeRows.some((s) => s.kind === "compose");
+    // A first MCP/API import has no service rows yet. The project framework is
+    // enough to prove it is Compose, so continue and seed the canonical rows
+    // from source instead of returning early.
+    if (!hasComposeRows && !isMultiServiceProject(project)) return;
+    if (hasComposeRows) {
+      await backfillComposeBaselinesFromActiveDeployment(project, composeRows);
+    }
+
+    const sourcePath = localSourcePath ?? project.localPath ?? undefined;
+    const info = project.gitOwner && project.gitRepo
+      ? await resolveProjectInfo({
+          source: "github",
+          owner: project.gitOwner,
+          repo: project.gitRepo,
+          branch,
+          ctx,
+        })
+      : sourcePath
+        ? await resolveProjectInfo({ source: "local", path: sourcePath })
+        : null;
+    if (!info) return;
     const services = info.services ?? [];
     if (services.length === 0) return;
     const { driftedNames } = await repos.service.reconcileFromCompose(project.id, services);
@@ -951,6 +964,17 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
 
   const resolvedBranch = await resolveProjectBranch(ctx, project, branch);
 
+  // Resolve the upload once and reuse it for both Compose discovery and the
+  // eventual snapshot. In the self-hosted upload flow the staging directory is
+  // the only source from which a first deploy can reconstruct compose services.
+  const uploadSession = input.uploadSessionId
+    ? getFolderSession(input.uploadSessionId)
+    : undefined;
+  if (input.uploadSessionId && (!uploadSession || uploadSession.orgId !== ctx.organizationId)) {
+    throw new AppError("Upload session not found or expired — re-upload the folder.", 400);
+  }
+  const effectiveServices = services ?? uploadSession?.detectedServices;
+
   // Reconcile the repo's compose BEFORE resolving the service set — the third
   // deploy entry point (alongside redeployBuildSession + triggerDeployment) that
   // must do this. Without it a deploy only ever sees the CURRENT service rows, so
@@ -959,8 +983,14 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // CREATES the missing ones (native) and, for freshly-adopted rows (importedSpec
   // null), bootstraps their baseline while KEEPING the adopted image — so mapped
   // services reuse their running image (no rebuild) and everything else in the
-  // compose is taken from the repo. Best-effort; self-guards to compose+git projects.
-  await reconcileComposeDrift(ctx, project, resolvedBranch);
+  // compose is taken from the repo. Best-effort; self-guards to Compose sources.
+  await reconcileComposeDrift(
+    ctx,
+    project,
+    resolvedBranch,
+    undefined,
+    uploadSession?.mode === "api-relay" ? uploadSession.stagingDir : undefined,
+  );
 
   const projectDomains = await listProjectRouteRows(project.id);
   let routeState = await resolveProjectRouteState(project, { projectDomains });
@@ -984,7 +1014,9 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // default. An internal-only services stack (e.g. a migrated postgres/redis)
   // must deploy with no public route — defaulting a free .opsh.io project domain
   // here made self-hosted migration fail preflight (free domains need cloud edge).
-  const isServicesDeploy = serviceDeploymentMode === "services" || !!services?.length;
+  const composeFirst = isMultiServiceProject(project);
+  const isServicesDeploy =
+    composeFirst || serviceDeploymentMode === "services" || !!effectiveServices?.length;
   let nextPublicEndpoints = publicEndpoints;
   if (
     nextPublicEndpoints === undefined &&
@@ -1004,9 +1036,11 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   }
 
   const requestedServiceMode =
-    serviceDeploymentMode === "single"
+    composeFirst
+      ? "services"
+      : serviceDeploymentMode === "single"
       ? "single"
-      : serviceDeploymentMode === "services" || services?.length
+      : serviceDeploymentMode === "services" || effectiveServices?.length
         ? "services"
         : undefined;
 
@@ -1019,8 +1053,8 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   if (handoverImages && Object.keys(handoverImages).length > 0) {
     snapshot.handoverImages = handoverImages;
   }
-  if (requestedServiceMode === "services" && services?.length) {
-    snapshot.composeServices = services;
+  if (requestedServiceMode === "services" && effectiveServices?.length) {
+    snapshot.composeServices = effectiveServices;
     // Persist compose services to the canonical service table NOW, at
     // deploy-request time — not only deep inside the compose pipeline. A build
     // that FAILS before the pipeline's own sync (clone/prepare error, image
@@ -1030,7 +1064,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     // is idempotent and strictly owns compose rows, so filter out monorepo
     // entries (they'd create ghost compose rows) exactly like the pipeline does.
     // Best-effort: a persist failure must never block the deploy.
-    const composeOnly = services.filter((s) => serviceKind(s) === "compose");
+    const composeOnly = effectiveServices.filter((s) => serviceKind(s) === "compose");
     if (composeOnly.length) {
       await repos.service
         .syncFromCompose(project.id, composeOnly)
@@ -1059,7 +1093,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   const resolvedTarget = await resolveSnapshotTarget(project, { deployTarget, serverId, runtimeMode });
   snapshot.deployTarget = resolvedTarget.deployTarget;
   snapshot.serverId = resolvedTarget.serverId;
-  snapshot.runtimeMode = resolvedTarget.runtimeMode;
+  snapshot.runtimeMode = composeFirst ? "docker" : resolvedTarget.runtimeMode;
 
   // Folder-upload: point this deploy at the source the browser uploaded.
   //   - cloud (oblien-direct): adopt the pre-provisioned workspace, skip clone.
@@ -1067,10 +1101,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // The session/workspace outlive this call (session TTL; workspace made
   // permanent on deploy), so nothing is disposed here.
   if (input.uploadSessionId) {
-    const session = getFolderSession(input.uploadSessionId);
-    if (!session || session.orgId !== ctx.organizationId) {
-      throw new AppError("Upload session not found or expired — re-upload the folder.", 400);
-    }
+    const session = uploadSession!;
     if (session.mode === "oblien-direct") {
       snapshot.uploadWorkspaceId = session.workspaceId;
       snapshot.sourceStaged = true;
@@ -1087,12 +1118,13 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // default, and a redeploy then resolves to that default (bare) — silently
   // flipping a docker/sandbox project to direct-on-host. Best-effort: a failed
   // persist must not block the deploy. Only write when it actually changed.
+  const runtimeModeToPersist = composeFirst ? "docker" : runtimeMode;
   if (
-    (runtimeMode === "bare" || runtimeMode === "docker") &&
-    runtimeMode !== project.runtimeMode
+    (runtimeModeToPersist === "bare" || runtimeModeToPersist === "docker") &&
+    runtimeModeToPersist !== project.runtimeMode
   ) {
     await repos.project
-      .update(project.id, { runtimeMode })
+      .update(project.id, { runtimeMode: runtimeModeToPersist })
       .catch((err) =>
         console.warn(`[requestBuildAccess] failed to persist runtimeMode: ${safeErrorMessage(err)}`),
       );
@@ -1642,6 +1674,14 @@ export async function triggerDeployment(
     snapshot.deployTarget = resolvedTarget.deployTarget;
     snapshot.serverId = resolvedTarget.serverId;
     snapshot.runtimeMode = resolvedTarget.runtimeMode;
+  }
+
+  // Compose remains authoritative for every headless/manual redeploy too. An
+  // old project row or frozen snapshot may carry bare/single from before this
+  // invariant existed; repair the deployment snapshot at the entry boundary.
+  if (isMultiServiceProject(project)) {
+    snapshot.serviceDeploymentMode = "services";
+    snapshot.runtimeMode = "docker";
   }
 
   // Release/dist source: resolve the version (webhook-supplied tag, else newest)

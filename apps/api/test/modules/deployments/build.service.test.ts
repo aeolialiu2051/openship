@@ -5,6 +5,7 @@ const {
   kickoffBuild,
   repos,
   resolveProjectRouteState,
+  resolveProjectInfo,
   resolveServicePipelineMode,
   resolveSmartRoute,
   resolveStrategy,
@@ -27,10 +28,13 @@ const {
       supersedePendingDecisions: vi.fn(),
     },
     service: {
+      listByProject: vi.fn(),
+      reconcileFromCompose: vi.fn(),
       update: vi.fn(),
     },
   },
   resolveProjectRouteState: vi.fn(),
+  resolveProjectInfo: vi.fn(),
   resolveServicePipelineMode: vi.fn(),
   resolveSmartRoute: vi.fn(),
   resolveStrategy: vi.fn(),
@@ -49,6 +53,10 @@ vi.mock("../../../src/modules/deployments/preflight", () => ({
 vi.mock("../../../src/modules/deployments/build-pipeline", () => ({
   kickoffBuild,
   resolveServicePipelineMode,
+}));
+
+vi.mock("../../../src/modules/deployments/prepare.service", () => ({
+  resolveProjectInfo,
 }));
 
 vi.mock("../../../src/modules/domains/project-route.service", () => ({
@@ -76,6 +84,7 @@ vi.mock("../../../src/modules/deployments/smart-route", () => ({
 
 import {
   backfillComposeBaselinesFromActiveDeployment,
+  reconcileComposeDrift,
   triggerDeployment,
   type DeploymentConfigSnapshot,
 } from "../../../src/modules/deployments/build.service";
@@ -169,6 +178,8 @@ describe("triggerDeployment", () => {
 
     repos.project.findById.mockResolvedValue(baseProject());
     repos.project.getEnvMap.mockResolvedValue({});
+    repos.service.listByProject.mockResolvedValue([]);
+    repos.service.reconcileFromCompose.mockResolvedValue({ driftedNames: [] });
     repos.deployment.listByProject.mockResolvedValue({ rows: [] });
     repos.deployment.getLatestSuccessfulForBranch.mockResolvedValue(null);
     repos.deployment.create.mockResolvedValue({ id: "dep-1", projectId: "project-1" });
@@ -189,6 +200,7 @@ describe("triggerDeployment", () => {
       useSingleAppPipeline: false,
     });
     resolveStrategy.mockResolvedValue("local");
+    resolveProjectInfo.mockResolvedValue({ services: composeServices });
     resolveSmartRoute.mockResolvedValue({
       forceAll: undefined,
       serviceIds: undefined,
@@ -218,7 +230,11 @@ describe("triggerDeployment", () => {
     );
     expect(repos.deployment.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        meta: expect.objectContaining({ composeServices }),
+        meta: expect.objectContaining({
+          composeServices,
+          runtimeMode: "docker",
+          serviceDeploymentMode: "services",
+        }),
       }),
     );
   });
@@ -244,6 +260,28 @@ describe("triggerDeployment", () => {
         multiService: true,
         composeServices,
       }),
+    );
+  });
+});
+
+describe("Compose source reconciliation", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    repos.service.listByProject.mockResolvedValue([]);
+    repos.service.reconcileFromCompose.mockResolvedValue({ driftedNames: [] });
+    resolveProjectInfo.mockResolvedValue({ services: composeServices });
+  });
+
+  it("seeds service rows for a first Compose deploy with an empty service table", async () => {
+    await reconcileComposeDrift(ctx, baseProject() as any, "main");
+
+    expect(resolveProjectInfo).toHaveBeenCalledWith({
+      source: "local",
+      path: "/srv/my-stack",
+    });
+    expect(repos.service.reconcileFromCompose).toHaveBeenCalledWith(
+      "project-1",
+      composeServices,
     );
   });
 });
