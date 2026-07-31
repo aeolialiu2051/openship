@@ -21,7 +21,7 @@
   <a href="#quick-start">Quick Start</a> ·
   <a href="#how-it-works">How It Works</a> ·
   <a href="#interfaces">Interfaces</a> ·
-  <a href="https://openship.io/docs">Docs</a> ·
+  <a href="https://docs.vibrail.warpgateapi.com/">Docs</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -112,7 +112,7 @@ openship init            # link this directory to a project
 openship deploy
 ```
 
-Full server guide + complete CLI reference: **[openship.io/docs](https://openship.io/docs)**.
+Full server guide + complete CLI reference: **[docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)**.
 
 <details>
 <summary>Self-host with raw Docker Compose (no CLI)</summary>
@@ -157,7 +157,7 @@ Three ways to drive the same backend:
 - **Web dashboard** — the same UI in the browser, built for teams.
 - **CLI** — scriptable and CI-friendly; also how you install and manage a self-hosted instance.
 
-An **MCP** endpoint (for AI agents) and a **REST API** round it out for automation. Only routes that opt in are exposed as MCP tools, every call re-checks your permissions, and credential/token routes can never become tools. Full reference at [openship.io/docs](https://openship.io/docs).
+An **MCP** endpoint (for AI agents) and a **REST API** round it out for automation. Only routes that opt in are exposed as MCP tools, every call re-checks your permissions, and credential/token routes can never become tools. Full reference at [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
 
 > [!NOTE]
 > The docs are actively being filled out. If something's missing or unclear, [contributions](CONTRIBUTING.md) are hugely welcome.

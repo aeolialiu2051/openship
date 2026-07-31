@@ -9,7 +9,7 @@ const developerResources = [
     description: 'Comprehensive API references and guides',
     details: 'Explore our REST APIs, WebSocket endpoints, and integration guides.',
     icon: Book,
-    href: '/docs',
+    href: 'https://docs.vibrail.warpgateapi.com/',
     linkText: 'View Documentation',
     color: 'text-blue-500',
     bgColor: 'bg-blue-500/10',

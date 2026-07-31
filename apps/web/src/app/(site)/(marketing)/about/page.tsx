@@ -134,7 +134,7 @@ export default function AboutPage() {
                     fastest with them.
                   </p>
                   <p className="legal-p">
-                    New here? Start with the <a href="/docs">documentation</a> or{" "}
+                    New here? Start with the <a href="https://docs.vibrail.warpgateapi.com/">documentation</a> or{" "}
                     <a href="/download">install in one command</a>.
                   </p>
                 </section>

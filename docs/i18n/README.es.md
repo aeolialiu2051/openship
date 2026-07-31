@@ -93,7 +93,7 @@ La misma interfaz sin importar dónde despliegues.
 - **Panel web** — la misma interfaz en el navegador, pensada para equipos.
 - **CLI** — programable y compatible con CI.
 
-Una **API REST** y **MCP** (protocolo para agentes de IA) completan el conjunto para la automatización e integración con herramientas. Referencia completa de comandos y API en [openship.io/docs](https://openship.io/docs).
+Una **API REST** y **MCP** (protocolo para agentes de IA) completan el conjunto para la automatización e integración con herramientas. Referencia completa de comandos y API en [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
 
 > [!NOTE]
 > La documentación aún está en desarrollo — la estamos completando activamente. Si algo falta o no queda claro, las [contribuciones](../../CONTRIBUTING.md) son muy bienvenidas y nos ayudan a llegar más rápido.

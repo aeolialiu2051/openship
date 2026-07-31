@@ -107,7 +107,7 @@ export default function FeaturesPage() {
               Get started
               <ArrowRight className="ml-1.5 -mr-1 size-4 transition-transform group-hover:translate-x-0.5" />
             </Link>
-            <Link href="/docs" className="th-btn-ghost group rounded-full px-7 py-3 text-[15px] font-medium">
+            <Link href="https://docs.vibrail.warpgateapi.com/" className="th-btn-ghost group rounded-full px-7 py-3 text-[15px] font-medium">
               Read the docs
             </Link>
           </div>

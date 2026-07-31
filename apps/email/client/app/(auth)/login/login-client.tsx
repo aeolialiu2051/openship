@@ -223,7 +223,7 @@ export function LoginClient() {
           </div>
           <nav className="flex items-center gap-6 text-[13px] text-muted-foreground">
             <a
-              href="https://openship.io/docs"
+              href="https://docs.vibrail.warpgateapi.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"

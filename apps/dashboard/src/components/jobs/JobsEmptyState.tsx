@@ -3,7 +3,7 @@
 import { Plus, BookOpen, ExternalLink } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 
-const DOCS_URL = "https://openship.io/docs";
+const DOCS_URL = "https://docs.vibrail.warpgateapi.com/";
 
 /**
  * Empty state for the custom-jobs section — same illustration language + theme

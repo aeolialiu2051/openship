@@ -96,7 +96,7 @@ docker compose up -d
 
 كما يوفر <bdi dir="ltr">Openship</bdi> واجهتي <strong><bdi dir="ltr">REST API</bdi></strong> و<strong><bdi dir="ltr">MCP (Model Context Protocol)</bdi></strong> لدعم الأتمتة والتكامل مع الأدوات الأخرى.
 
-للاطلاع على جميع الأوامر ومرجع <bdi dir="ltr">API</bdi>، راجع <a href="https://openship.io/docs"><bdi dir="ltr">openship.io/docs</bdi></a>.
+للاطلاع على جميع الأوامر ومرجع <bdi dir="ltr">API</bdi>، راجع <a href="https://docs.vibrail.warpgateapi.com/"><bdi dir="ltr">docs.vibrail.warpgateapi.com</bdi></a>.
 
 > **ملاحظة:** لا تزال الوثائق قيد التطوير. إذا وجدت أي جزء غير مكتمل أو غير واضح، فإن [مساهماتك](../../CONTRIBUTING.md) مرحب بها وستساعد في تحسين المشروع.
 

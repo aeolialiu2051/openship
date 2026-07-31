@@ -887,7 +887,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.documentation,
       icon: <BookOpen className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://openship.io/docs", "_blank");
+        window.open("https://docs.vibrail.warpgateapi.com/", "_blank");
       },
     },
     {

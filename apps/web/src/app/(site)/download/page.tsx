@@ -294,7 +294,7 @@ export default function DownloadPage() {
                 No daemons. No background services. No mystery.
               </p>
               <Link
-                href="/docs/cli"
+                href="https://docs.vibrail.warpgateapi.com/#/docs/cli"
                 className="mt-7 inline-flex items-center gap-1.5 text-[14px] font-medium"
                 style={{ color: "var(--th-text-heading)" }}
               >
@@ -730,7 +730,7 @@ export default function DownloadPage() {
                   {copied === "npm i -g openship" ? "copied" : "copy"}
                 </span>
               </button>
-              <Link href="/docs" className="th-btn-ghost group rounded-full px-7 py-3 text-[15px] font-medium">
+              <Link href="https://docs.vibrail.warpgateapi.com/" className="th-btn-ghost group rounded-full px-7 py-3 text-[15px] font-medium">
                 Read the docs
                 <svg className="ml-1.5 -mr-1.5 h-4 w-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />

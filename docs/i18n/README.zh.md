@@ -93,7 +93,7 @@ docker compose up -d
 - **Web 控制台** —— 浏览器中的同一套界面，为团队打造。
 - **CLI** —— 可脚本化、对 CI 友好。
 
-**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令与 API 参考见 [openship.io/docs](https://openship.io/docs)。
+**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令与 API 参考见 [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)。
 
 > [!NOTE]
 > 文档仍在完善中 —— 我们正在积极补充。如果有缺失或不清楚的地方，非常欢迎[贡献](../../CONTRIBUTING.md)，这能帮助我们更快完善。

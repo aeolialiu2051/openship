@@ -87,7 +87,7 @@ export default function ContactPage() {
 
                 <footer className="legal-foot">
                   <p>
-                    Prefer the docs? Read the <a href="/docs">documentation</a> or{" "}
+                    Prefer the docs? Read the <a href="https://docs.vibrail.warpgateapi.com/">documentation</a> or{" "}
                     <a href="/trust">Trust &amp; Security</a>.
                   </p>
                 </footer>

@@ -211,7 +211,7 @@ export default function PricingPage() {
                 <a href="/contact" className="pp-btn pp-btn--primary">
                   Get notified
                 </a>
-                <a href="/docs" className="pp-btn pp-btn--ghost">
+                <a href="https://docs.vibrail.warpgateapi.com/" className="pp-btn pp-btn--ghost">
                   Explore the platform
                 </a>
               </div>

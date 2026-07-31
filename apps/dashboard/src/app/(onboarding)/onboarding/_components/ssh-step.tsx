@@ -372,7 +372,7 @@ export function SshStep({ state, onUpdate, onNext, onBack }: StepProps) {
 
         <a
           className="ob-tutorial-link"
-          href="https://openship.io/docs/self-hosting"
+          href="https://docs.vibrail.warpgateapi.com/#/docs/deploy/server"
           target="_blank"
           rel="noopener noreferrer"
         >

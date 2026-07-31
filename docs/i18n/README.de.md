@@ -15,7 +15,7 @@
   <a href="#schnellstart">Schnellstart</a> ·
   <a href="#funktionen">Funktionen</a> ·
   <a href="#drei-oberflächen">Oberflächen</a> ·
-  <a href="https://openship.io/docs">Dokumentation</a> ·
+  <a href="https://docs.vibrail.warpgateapi.com/">Dokumentation</a> ·
   <a href="../../CONTRIBUTING.md">Mitwirken</a>
 </p>
 
@@ -109,7 +109,7 @@ Dieselbe Oberfläche, egal wo du deployst.
 - **Web-Dashboard** — dieselbe UI im Browser, für Teams gemacht.
 - **CLI** — skriptfähig und CI-freundlich.
 
-Eine **REST-API** und **MCP** (KI-Agenten-Protokoll) runden das Ganze für Automatisierung und Tool-Integration ab. Vollständige Befehls- und API-Referenz unter [openship.io/docs](https://openship.io/docs).
+Eine **REST-API** und **MCP** (KI-Agenten-Protokoll) runden das Ganze für Automatisierung und Tool-Integration ab. Vollständige Befehls- und API-Referenz unter [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
 
 > [!NOTE]
 > Die Dokumentation ist noch in Arbeit — wir füllen sie aktiv auf. Wenn etwas fehlt oder unklar ist, sind [Beiträge](../../CONTRIBUTING.md) sehr willkommen und helfen uns, schneller ans Ziel zu kommen.

@@ -15,7 +15,7 @@
   <a href="#hızlı-başlangıç">Hızlı Başlangıç</a> ·
   <a href="#özellikler">Özellikler</a> ·
   <a href="#üç-arayüz">Arayüzler</a> ·
-  <a href="https://openship.io/docs">Belgeler</a> ·
+  <a href="https://docs.vibrail.warpgateapi.com/">Belgeler</a> ·
   <a href="../../CONTRIBUTING.md">Katkıda Bulunma</a>
 </p>
 
@@ -142,7 +142,7 @@ Nereye dağıtırsanız dağıtın aynı arayüzü kullanırsınız.
 - **Web paneli** — ekipler için tasarlanmış, tarayıcıdaki aynı kullanıcı arayüzü.
 - **CLI** — betiklerle ve CI ortamlarıyla kullanıma uygun komut satırı arayüzü.
 
-Otomasyon ve araç entegrasyonu için ayrıca **REST API** ve **MCP** (yapay zekâ agent protokolü) sunulur. Tüm komut ve API başvuruları [openship.io/docs](https://openship.io/docs) adresindedir.
+Otomasyon ve araç entegrasyonu için ayrıca **REST API** ve **MCP** (yapay zekâ agent protokolü) sunulur. Tüm komut ve API başvuruları [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/) adresindedir.
 
 > [!NOTE]
 > Belgeler hâlâ geliştirilmektedir. Eksik veya anlaşılmayan bir bölüm görürseniz [katkılarınızı](../../CONTRIBUTING.md) bekliyoruz.

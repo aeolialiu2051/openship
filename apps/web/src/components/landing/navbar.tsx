@@ -6,7 +6,7 @@ import Link from "next/link";
 const NAV_ITEMS = [
   { label: "Features", href: "/features" },
   { label: "Emails", href: "/mail" },
-  { label: "Docs", href: "/docs" },
+  { label: "Docs", href: "https://docs.vibrail.warpgateapi.com/" },
   { label: "Roadmap", href: "/roadmap" },
   { label: "Changelog", href: "/changelog" },
   { label: "Pricing", href: "/pricing" },
@@ -198,4 +198,3 @@ export function Navbar() {
     </header>
   );
 }
-

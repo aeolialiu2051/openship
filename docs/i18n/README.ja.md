@@ -93,7 +93,7 @@ docker compose up -d
 - **Web ダッシュボード** — ブラウザ上の同じ UI、チーム向け。
 - **CLI** — スクリプト可能で CI にやさしい。
 
-**REST API** と **MCP**（AI エージェントプロトコル）が、自動化とツール連携を締めくくります。コマンドと API の完全なリファレンスは [openship.io/docs](https://openship.io/docs) にあります。
+**REST API** と **MCP**（AI エージェントプロトコル）が、自動化とツール連携を締めくくります。コマンドと API の完全なリファレンスは [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/) にあります。
 
 > [!NOTE]
 > ドキュメントはまだ作成中です — 現在積極的に拡充しています。不足や不明点があれば、[コントリビューション](../../CONTRIBUTING.md)を大歓迎します。完成が早まります。

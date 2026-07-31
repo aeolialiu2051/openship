@@ -127,7 +127,7 @@ export default function HomeContent() {
           transition={{ duration: 0.5, delay: 0.6 }}
           className="mb-6 lg:hidden"
         >
-          <Link href="/docs/install">
+          <Link href="https://docs.vibrail.warpgateapi.com/#/docs/quickstart">
             <Button>Install Openship</Button>
           </Link>
         </motion.div>
@@ -1620,7 +1620,7 @@ export default function HomeContent() {
               </div>
 
               <Link
-                href="/docs/clients"
+                href="https://docs.vibrail.warpgateapi.com/"
                 className="inline-flex items-center gap-1 text-xs text-[#8C8C8C] transition-colors hover:text-white"
               >
                 Setup guides for every client
