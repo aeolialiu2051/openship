@@ -406,10 +406,10 @@ export async function listUsers(
             (select max(l.created_at) from ${schema.userAccessLog} l where l.user_id = ${outerUserId}),
             (select max(s.updated_at) from ${schema.session} s where s.user_id = ${outerUserId})
           )
-        )`,
+        )`.mapWith(schema.userAccessLog.createdAt),
         lastActionAt: sql<Date | null>`(
           select max(a.created_at) from ${schema.auditEvent} a where a.actor_user_id = ${outerUserId}
-        )`,
+        )`.mapWith(schema.auditEvent.createdAt),
       })
       .from(schema.user)
       .where(where)
@@ -562,7 +562,7 @@ export async function listApplications(
           where latest_deployment.project_id = ${outerProjectId}
           order by latest_deployment.created_at desc
           limit 1
-        )`,
+        )`.mapWith(schema.deployment.createdAt),
         createdAt: schema.project.createdAt,
         updatedAt: schema.project.updatedAt,
       })

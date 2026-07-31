@@ -3,11 +3,11 @@
 import { Loader2, RefreshCw, Search } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 import { adminCopy } from "./admin-copy";
+import { parseAdminDate } from "./admin-date";
 
 export function formatDate(value: string | null | undefined, locale: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
+  const date = parseAdminDate(value);
+  if (!date) return "—";
   return new Intl.DateTimeFormat(locale, {
     dateStyle: "medium",
     timeStyle: "short",
