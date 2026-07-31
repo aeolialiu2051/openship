@@ -13,6 +13,7 @@ const PUBLIC_ROUTES = [
   "/verify-email",
   "/authorize",
   "/onboarding",
+  "/suspended",
 ];
 
 const SESSION_COOKIE_SUFFIX = ".session_token";

@@ -301,6 +301,10 @@ function explicitCertResolver(
 }
 
 export function isTraefikContainer(container: DockerContainerDetail): boolean {
+  // Suspension-route carriers reuse the small Traefik image only as a durable
+  // label host; they do not own the Docker socket or serve edge traffic and
+  // must not be considered candidate reverse proxies during edge discovery.
+  if (container.labels["openship.suspension-route"] === "true") return false;
   return (
     container.name === VIBRAIL_EDGE_CONTAINER ||
     container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ||
@@ -388,6 +392,67 @@ export function resolveExistingTraefik(
 
 function safeLabelValue(value: string): string {
   return value.replace(/[\r\n]/g, "");
+}
+
+function stableRouteSuffix(value: string): string {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+/** Labels for a route-only carrier container used after a project's workload
+ * has been stopped. The router is still owned by the same Traefik Docker
+ * provider, but redirects through noop@internal so no application backend is
+ * needed. One exact Host router is emitted per suspended domain; unrelated
+ * domains continue to hit Traefik's normal 404. */
+export function buildTraefikSuspensionLabels(
+  edge: ResolvedTraefikEdge,
+  projectId: string,
+  routes: Array<{ hostname: string; redirectUrl: string }>,
+): Record<string, string> {
+  const labels: Record<string, string> = {
+    "traefik.enable": "true",
+    "traefik.docker.network": edge.network,
+    "openship.project": projectId,
+    "openship.suspension-route": "true",
+  };
+
+  for (const route of routes) {
+    const suffix = stableRouteSuffix(`${projectId}:${route.hostname.toLowerCase()}`);
+    const name = `vibrail-suspended-${suffix}`;
+    const middleware = `${name}-redirect`;
+    const router = `traefik.http.routers.${name}`;
+    labels[`${router}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
+    labels[`${router}.entrypoints`] = edge.entrypoint;
+    // Win even if a runtime stop partially failed and an old exact-Host router
+    // is still advertised. Normal app routers rely on rule-length priority and
+    // remain far below this explicit moderation override.
+    labels[`${router}.priority`] = "100000";
+    labels[`${router}.tls`] = "true";
+    labels[`${router}.service`] = "noop@internal";
+    labels[`${router}.middlewares`] = `${middleware}@docker`;
+    labels[`traefik.http.middlewares.${middleware}.redirectregex.regex`] = "^https?://.*";
+    labels[`traefik.http.middlewares.${middleware}.redirectregex.replacement`] = safeLabelValue(
+      route.redirectUrl,
+    );
+    // A suspension can be lifted; never let browsers cache this redirect.
+    labels[`traefik.http.middlewares.${middleware}.redirectregex.permanent`] = "false";
+
+    if (edge.httpEntrypoint) {
+      const httpName = `${name}-http`;
+      const httpRouter = `traefik.http.routers.${httpName}`;
+      labels[`${httpRouter}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
+      labels[`${httpRouter}.entrypoints`] = edge.httpEntrypoint;
+      labels[`${httpRouter}.priority`] = "100000";
+      labels[`${httpRouter}.tls`] = "false";
+      labels[`${httpRouter}.service`] = "noop@internal";
+      labels[`${httpRouter}.middlewares`] = `${middleware}@docker`;
+    }
+  }
+  return labels;
 }
 
 function middlewareNames(rule: TraefikRouteRuleConfig): string[] {

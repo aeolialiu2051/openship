@@ -10,6 +10,8 @@ import {
   VIBRAIL_EDGE_NETWORK_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
   buildTraefikLabels,
+  buildTraefikSuspensionLabels,
+  isTraefikContainer,
   parseTraefikStaticConfig,
   resolveExistingTraefik,
   traefikConfigFromLabels,
@@ -20,6 +22,18 @@ describe("managed Traefik compatibility", () => {
   it("uses a Docker-29-compatible image and migrates older managed edges", () => {
     expect(VIBRAIL_EDGE_IMAGE).toBe("traefik:v3.6");
     expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(4);
+  });
+
+  it("does not mistake a suspension label carrier for the shared edge", () => {
+    expect(
+      isTraefikContainer(
+        container({
+          name: "openship-suspended-project-1",
+          labels: { "openship.suspension-route": "true" },
+          mounts: [],
+        }),
+      ),
+    ).toBe(false);
   });
 });
 
@@ -216,6 +230,42 @@ describe("buildTraefikLabels", () => {
       "traefik.http.routers.external.tls": "false",
     });
     expect(labels["traefik.http.routers.external.tls.certresolver"]).toBeUndefined();
+  });
+
+  it("builds exact-host, non-permanent redirects for a suspended project", () => {
+    const labels = buildTraefikSuspensionLabels(
+      {
+        network: "vibrail-edge",
+        entrypoint: "websecure",
+        httpEntrypoint: "web",
+        tls: true,
+        source: "vibrail",
+        containerId: "edge",
+      },
+      "project-1",
+      [
+        {
+          hostname: "app.example.com",
+          redirectUrl: "https://ops.example.com/suspended?site=app.example.com",
+        },
+      ],
+    );
+    const router = Object.keys(labels).find(
+      (key) => key.endsWith(".rule") && labels[key] === "Host(`app.example.com`)",
+    )!;
+    const name = router.split(".")[3]!;
+    expect(labels).toMatchObject({
+      "traefik.enable": "true",
+      "traefik.docker.network": "vibrail-edge",
+      "openship.project": "project-1",
+      [`traefik.http.routers.${name}.service`]: "noop@internal",
+      [`traefik.http.routers.${name}.entrypoints`]: "websecure",
+      [`traefik.http.routers.${name}.priority`]: "100000",
+      [`traefik.http.routers.${name}-http.entrypoints`]: "web",
+      [`traefik.http.middlewares.${name}-redirect.redirectregex.replacement`]:
+        "https://ops.example.com/suspended?site=app.example.com",
+      [`traefik.http.middlewares.${name}-redirect.redirectregex.permanent`]: "false",
+    });
   });
 
   it("prefixes static requests with the selected document-root path", () => {

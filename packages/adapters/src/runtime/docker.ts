@@ -124,6 +124,7 @@ import {
   VIBRAIL_EDGE_NETWORK_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
   buildTraefikLabels,
+  buildTraefikSuspensionLabels,
   isTraefikContainer,
   parseTraefikStaticConfig,
   resolveExistingTraefik,
@@ -964,6 +965,60 @@ export class DockerRuntime implements RuntimeAdapter {
       this.traefikEdgePromise = undefined;
       throw error;
     }
+  }
+
+  private suspensionRouteContainerName(projectId: string): string {
+    const safe = projectId.replace(/[^a-zA-Z0-9_.-]+/g, "-").slice(0, 40);
+    return `openship-suspended-${safe}`;
+  }
+
+  /** Publish exact-Host redirect routers that survive the suspended workload
+   * being stopped. The carrier runs Traefik's already-required image only to
+   * stay discoverable by the selected edge's Docker provider; request handling
+   * itself uses Traefik's noop@internal service. */
+  async publishSuspendedRoutes(opts: {
+    projectId: string;
+    routes: Array<{ hostname: string; redirectUrl: string }>;
+    manual?: TraefikManualConfig;
+  }): Promise<void> {
+    await this.removeSuspendedRoutes(opts.projectId);
+    if (opts.routes.length === 0) return;
+    const edge = await this.ensureSharedTraefik(opts.manual);
+    const name = this.suspensionRouteContainerName(opts.projectId);
+    const labels = buildTraefikSuspensionLabels(edge, opts.projectId, opts.routes);
+    await this.pullImage(VIBRAIL_EDGE_IMAGE);
+    const command = ["--api.dashboard=false", "--entrypoints.carrier.address=:8080"];
+
+    if (this.usesRemoteDockerCli()) {
+      const args = [
+        "run -d",
+        `--name ${sq(name)}`,
+        `--network ${sq(edge.network)}`,
+        ...Object.entries(labels).map(([key, value]) => `--label ${sq(`${key}=${value}`)}`),
+        `--restart ${sq("unless-stopped")}`,
+        sq(VIBRAIL_EDGE_IMAGE),
+        ...command.map(sq),
+      ];
+      await this.remoteDockerExec(args.join(" "), { timeout: 2 * 60_000 });
+      return;
+    }
+
+    const container = await this.docker.createContainer({
+      name,
+      Image: VIBRAIL_EDGE_IMAGE,
+      Cmd: command,
+      Labels: labels,
+      HostConfig: {
+        RestartPolicy: { Name: "unless-stopped" },
+        NetworkMode: edge.network,
+      },
+      NetworkingConfig: { EndpointsConfig: { [edge.network]: {} } },
+    });
+    await container.start();
+  }
+
+  async removeSuspendedRoutes(projectId: string): Promise<void> {
+    await this.destroy(this.suspensionRouteContainerName(projectId));
   }
 
   private async ensureNamedNetwork(name: string, labels: Record<string, string>): Promise<string> {

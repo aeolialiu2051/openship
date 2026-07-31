@@ -13,10 +13,13 @@ import {
 } from "drizzle-orm";
 import { ForbiddenError, NotFoundError, ValidationError, safeErrorMessage } from "@repo/core";
 import { db, repos, schema } from "@repo/db";
+import { DockerRuntime } from "@repo/adapters";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
 import { projectSuspendedEmail } from "../../lib/email-templates";
 import { sendMail } from "../../lib/mail";
+import { resolveDashboardPublicUrl } from "../../lib/public-url";
 import { getSupportEmail } from "../../lib/support-email";
+import { resolveTraefikManualConfig } from "../../lib/traefik-routing";
 
 const MAX_PAGE_SIZE = 200;
 const TREND_RANGE_DAYS = [7, 14, 30] as const;
@@ -607,6 +610,59 @@ async function activeDeploymentContainerIds(projectId: string, activeDeploymentI
   return { deployment, containerIds: [...containerIds] };
 }
 
+async function suspendedRouteOptions(
+  project: { id: string; organizationId: string },
+  serverId: string | null,
+) {
+  const domains = await repos.domain.listByProject(project.id);
+  const dashboard = resolveDashboardPublicUrl();
+  return {
+    projectId: project.id,
+    manual: await resolveTraefikManualConfig(project.organizationId, serverId ?? undefined),
+    routes: domains
+      .filter((domain) => domain.verified && domain.status === "active")
+      .map((domain) => {
+        const redirect = new URL("/suspended", dashboard);
+        redirect.searchParams.set("site", domain.hostname);
+        return { hostname: domain.hostname, redirectUrl: redirect.toString() };
+      }),
+  };
+}
+
+/** Rebuild route carriers after an API/host upgrade so projects that were
+ * already suspended before this feature was deployed stop falling through to
+ * Traefik's 404 without requiring an operator to resume+suspend them again. */
+export async function reconcileSuspendedApplicationRoutes() {
+  const projects = await db
+    .select({
+      id: schema.project.id,
+      organizationId: schema.project.organizationId,
+      activeDeploymentId: schema.project.activeDeploymentId,
+    })
+    .from(schema.project)
+    .where(eq(schema.project.moderationStatus, "suspended"));
+  let applied = 0;
+  const warnings: string[] = [];
+
+  for (const project of projects) {
+    if (!project.activeDeploymentId) continue;
+    try {
+      const { deployment } = await activeDeploymentContainerIds(
+        project.id,
+        project.activeDeploymentId,
+      );
+      if (!deployment) continue;
+      const { runtime, serverId } = await resolveDeploymentRuntime(deployment);
+      if (!(runtime instanceof DockerRuntime)) continue;
+      await runtime.publishSuspendedRoutes(await suspendedRouteOptions(project, serverId));
+      applied += 1;
+    } catch (err) {
+      warnings.push(`${project.id}: ${safeErrorMessage(err)}`);
+    }
+  }
+  return { total: projects.length, applied, warnings };
+}
+
 export async function suspendApplication(projectId: string, reason?: string) {
   const project = await repos.project.findById(projectId);
   if (!project) throw new NotFoundError("Project", projectId);
@@ -633,12 +689,30 @@ export async function suspendApplication(projectId: string, reason?: string) {
     project.activeDeploymentId,
   );
   let warning: string | null = null;
-  if (deployment && containerIds.length > 0) {
+  if (deployment) {
     try {
-      const { runtime } = await resolveDeploymentRuntime(deployment);
-      for (const containerId of containerIds) await runtime.stop(containerId);
+      const { runtime, serverId } = await resolveDeploymentRuntime(deployment);
+      const routeWarnings: string[] = [];
+      for (const containerId of containerIds) {
+        await runtime.stop(containerId).catch((err) => {
+          routeWarnings.push(
+            `could not stop ${containerId.slice(0, 12)}: ${safeErrorMessage(err)}`,
+          );
+        });
+      }
+      if (runtime instanceof DockerRuntime) {
+        await runtime
+          .publishSuspendedRoutes(await suspendedRouteOptions(project, serverId))
+          .catch((err) =>
+            routeWarnings.push(`could not publish suspension routes: ${safeErrorMessage(err)}`),
+          );
+      }
+      if (routeWarnings.length > 0) {
+        warning = `Project was marked suspended, but its public suspension route could not be fully applied: ${routeWarnings.join("; ")}`;
+        console.warn(`[admin] ${project.id}: ${warning}`);
+      }
     } catch (err) {
-      warning = `Project was marked suspended, but its runtime could not be stopped: ${safeErrorMessage(err)}`;
+      warning = `Project was marked suspended, but its public suspension route could not be fully applied: ${safeErrorMessage(err)}`;
       console.warn(`[admin] ${project.id}: ${warning}`);
     }
   }
@@ -698,9 +772,17 @@ export async function resumeApplication(projectId: string) {
     project.id,
     project.activeDeploymentId,
   );
-  if (deployment && containerIds.length > 0) {
+  if (deployment) {
     const { runtime } = await resolveDeploymentRuntime(deployment);
     for (const containerId of containerIds) await runtime.start(containerId);
+    if (runtime instanceof DockerRuntime) {
+      try {
+        await runtime.removeSuspendedRoutes(project.id);
+      } catch (err) {
+        for (const containerId of containerIds) await runtime.stop(containerId).catch(() => {});
+        throw err;
+      }
+    }
   }
 
   await repos.project.update(project.id, {
