@@ -1,5 +1,8 @@
 import { describe, expect, test } from "vitest";
-import { storedPublicEndpointsNeedCloud } from "./public-endpoints";
+import {
+  inheritSoleProjectRouteForService,
+  storedPublicEndpointsNeedCloud,
+} from "./public-endpoints";
 import { getRoutingBaseDomain } from "./routing-domains";
 
 // The Cloud gate must classify by the HOSTNAME's physical truth, not a bare
@@ -64,5 +67,53 @@ describe("storedPublicEndpointsNeedCloud", () => {
         { customDomain: "app.clincai.com", domainType: "custom" },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("inheritSoleProjectRouteForService", () => {
+  const routeLessService = {
+    id: "svc_3xui",
+    enabled: true,
+    exposed: true,
+    exposedPort: "2053",
+    ports: ["2053:2053"],
+    domain: null,
+    customDomain: null,
+    domainType: "free",
+    publicEndpoints: [],
+  };
+  const projectRoute = {
+    hostname: "3x-ui-jgq7ab.vibrail.warpgateapi.com",
+    isPrimary: true,
+    verified: true,
+    serviceId: null,
+    targetPort: 2053,
+    targetPath: null,
+    domainType: "free",
+  };
+
+  test("inherits the sole matching project route for a production service", () => {
+    expect(inheritSoleProjectRouteForService([routeLessService], [projectRoute])).toEqual({
+      serviceId: "svc_3xui",
+      endpoint: { port: 2053, domain: "3x-ui-jgq7ab", domainType: "free" },
+    });
+  });
+
+  test("does not guess when multiple services could own the route", () => {
+    expect(
+      inheritSoleProjectRouteForService(
+        [routeLessService, { ...routeLessService, id: "svc_other" }],
+        [projectRoute],
+      ),
+    ).toBeNull();
+  });
+
+  test("does not inherit a project route targeting a different port", () => {
+    expect(
+      inheritSoleProjectRouteForService(
+        [routeLessService],
+        [{ ...projectRoute, targetPort: 8080 }],
+      ),
+    ).toBeNull();
   });
 });

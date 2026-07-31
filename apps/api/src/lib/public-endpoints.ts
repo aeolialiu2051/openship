@@ -448,6 +448,59 @@ export function resolveServicePublicEndpoints(
   ]);
 }
 
+export interface InheritedServiceRoute {
+  serviceId: string;
+  endpoint: StoredPublicEndpoint & { port: number };
+}
+
+/**
+ * Repair the legacy/wizard shape where a services project stored its only
+ * public route on the project domain row while the actual exposed service had
+ * no domain. Local deployments can appear healthy through a published port,
+ * but a remote production deploy then creates neither Cloudflare DNS nor a
+ * Traefik router because service routing is the canonical compose path.
+ *
+ * The inheritance is deliberately conservative: exactly one route-less,
+ * enabled exposed service must match exactly one unassigned project-level port
+ * route. Multi-service ambiguity is left untouched for the operator to resolve.
+ */
+export function inheritSoleProjectRouteForService(
+  services: Array<
+    Pick<
+      Service,
+      | "id"
+      | "enabled"
+      | "exposed"
+      | "exposedPort"
+      | "ports"
+      | "domain"
+      | "customDomain"
+      | "domainType"
+      | "publicEndpoints"
+    >
+  >,
+  projectDomains: ProjectDomainRow[],
+): InheritedServiceRoute | null {
+  const candidates = services.filter(
+    (service) =>
+      service.enabled &&
+      service.exposed &&
+      resolveServicePublicEndpoints(service).length === 0 &&
+      resolveServicePort(service) !== null,
+  );
+  if (candidates.length !== 1) return null;
+
+  const service = candidates[0]!;
+  const servicePort = resolveServicePort(service);
+  const endpoints = routeRowsToPublicEndpoints(projectDomains).filter(
+    (endpoint): endpoint is StoredPublicEndpoint & { port: number } =>
+      endpoint.port !== undefined && endpoint.port === servicePort,
+  );
+  if (endpoints.length !== 1) return null;
+
+  return { serviceId: service.id, endpoint: endpoints[0]! };
+}
+
 /**
  * Every public endpoint's assigned domain URL for a service, keyed by container
  * port. Free → https://<slug>.<cloud>, custom → https://<customDomain>. The

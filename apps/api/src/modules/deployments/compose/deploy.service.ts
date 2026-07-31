@@ -54,6 +54,7 @@ import {
   type PlannedRouteDomain,
 } from "../../../lib/routing-domains";
 import {
+  inheritSoleProjectRouteForService,
   resolveServiceEndpointUrls,
   resolveServicePublicEndpoints,
 } from "../../../lib/public-endpoints";
@@ -478,7 +479,41 @@ export async function deployComposeServices(
     executor?: CommandExecutor | null;
   },
 ): Promise<ComposeDeployResult> {
-  const services = await repos.service.listByProject(project.id);
+  let services = await repos.service.listByProject(project.id);
+  const projectDomains = await repos.domain.listByProject(project.id);
+
+  // Production-only regression repair: some app/deploy wizard paths persisted
+  // the selected domain as a project route but left the sole exposed compose
+  // service with domain=null/publicEndpoints=[]. Local runs could still appear
+  // healthy through their published port; remote deploys then skipped both DNS
+  // and Traefik because compose routing is service-owned. Adopt the route only
+  // when ownership is unambiguous, and persist it so later redeploys use the
+  // canonical service shape without relying on this compatibility bridge.
+  const inheritedRoute = inheritSoleProjectRouteForService(services, projectDomains);
+  if (inheritedRoute) {
+    const endpoint = inheritedRoute.endpoint;
+    const routingPatch = {
+      exposed: true,
+      exposedPort: String(endpoint.port),
+      domain: endpoint.domainType === "free" ? (endpoint.domain ?? null) : null,
+      customDomain: endpoint.domainType === "custom" ? (endpoint.customDomain ?? null) : null,
+      domainType: endpoint.domainType,
+      publicEndpoints: [endpoint],
+    };
+    await repos.service.update(inheritedRoute.serviceId, routingPatch);
+    services = services.map((service) =>
+      service.id === inheritedRoute.serviceId
+        ? ({ ...service, ...routingPatch } as Service)
+        : service,
+    );
+    logger.log(
+      `Adopted project route for service ${inheritedRoute.serviceId}: ${
+        endpoint.domainType === "free" ? endpoint.domain : endpoint.customDomain
+      } → ${endpoint.port}.\n`,
+      "info",
+    );
+  }
+
   const enabled = services.filter((s) => s.enabled);
 
   if (enabled.length === 0) {
@@ -524,9 +559,7 @@ export async function deployComposeServices(
     !!opts?.system ||
     (!!opts?.routing && !!opts.ssl && typeof opts?.usesManagedRouting === "boolean");
   const domainByHostname: Map<string, Domain> = needsDomainMap
-    ? new Map(
-        (await repos.domain.listByProject(project.id)).map((d) => [d.hostname.toLowerCase(), d]),
-      )
+    ? new Map(projectDomains.map((d) => [d.hostname.toLowerCase(), d]))
     : new Map();
 
   // Ensure the server has the components this deploy needs — ONCE, before the
