@@ -223,6 +223,86 @@ services:
       EMBEDDED: "postgres://user:p$ss@db:5432/app",
     });
   });
+
+  it("interpolates long-syntax volume source and target fields", () => {
+    const parsed = parseComposeFile(`
+services:
+  gateway:
+    image: openclaw:local
+    volumes:
+      - type: bind
+        source: \${HOME:-/tmp/.openclaw}
+        target: \${OPENCLAW_HOME:-/home/node/.openclaw}
+      - type: bind
+        source: \${AUTH_DIR:-/tmp/.openclaw-auth-profile-secrets}
+        target: /home/node/.config/openclaw
+        read_only: true
+`);
+
+    expect(parsed.services[0]?.volumes).toEqual([
+      "/tmp/.openclaw:/home/node/.openclaw",
+      "/tmp/.openclaw-auth-profile-secrets:/home/node/.config/openclaw:ro",
+    ]);
+  });
+
+  it("uses .env values for long-syntax volume interpolation", () => {
+    const parsed = parseComposeFile(
+      `
+services:
+  app:
+    image: example
+    volumes:
+      - type: bind
+        source: \${APP_DATA_DIR:-/tmp/app-data}
+        target: /data
+`,
+      { envFileContent: "APP_DATA_DIR=/srv/app-data\n" },
+    );
+
+    expect(parsed.services[0]?.volumes).toEqual(["/srv/app-data:/data"]);
+  });
+
+  it("resolves nested defaults in OpenClaw-style volume paths", () => {
+    const parsed = parseComposeFile(`
+services:
+  gateway:
+    image: openclaw:local
+    volumes:
+      - "\${OPENCLAW_CONFIG_DIR:-\${HOME:-/tmp}/.openclaw}:/home/node/.openclaw"
+      - "\${OPENCLAW_WORKSPACE_DIR:-\${HOME:-/tmp}/.openclaw/workspace}:/home/node/.openclaw/workspace"
+      - "\${OPENCLAW_AUTH_PROFILE_SECRET_DIR:-\${HOME:-/tmp}/.openclaw-auth-profile-secrets}:/home/node/.config/openclaw"
+`);
+
+    expect(parsed.services[0]?.volumes).toEqual([
+      "/tmp/.openclaw:/home/node/.openclaw",
+      "/tmp/.openclaw/workspace:/home/node/.openclaw/workspace",
+      "/tmp/.openclaw-auth-profile-secrets:/home/node/.config/openclaw",
+    ]);
+  });
+
+  it("honors inner and outer .env values in nested interpolation", () => {
+    const fromHome = parseComposeFile(
+      `
+services:
+  app:
+    volumes:
+      - "\${APP_DATA_DIR:-\${HOME:-/tmp}/app-data}:/data"
+`,
+      { envFileContent: "HOME=/srv/user\n" },
+    );
+    const fromOuter = parseComposeFile(
+      `
+services:
+  app:
+    volumes:
+      - "\${APP_DATA_DIR:-\${HOME:-/tmp}/app-data}:/data"
+`,
+      { envFileContent: "HOME=/srv/user\nAPP_DATA_DIR=/mnt/app\n" },
+    );
+
+    expect(fromHome.services[0]?.volumes).toEqual(["/srv/user/app-data:/data"]);
+    expect(fromOuter.services[0]?.volumes).toEqual(["/mnt/app:/data"]);
+  });
 });
 
 // ─── parseComposeEnvFile - direct .env content scenarios ─────────────────────

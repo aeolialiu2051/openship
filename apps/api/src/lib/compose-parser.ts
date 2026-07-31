@@ -260,8 +260,17 @@ function parseVolumes(vols: unknown, env: Record<string, string>): string[] {
     if (typeof v === "string") return interpolateComposeString(v, env);
     if (v && typeof v === "object") {
       const vol = v as Record<string, unknown>;
-      const src = vol.source ?? vol.name;
-      const tgt = vol.target;
+      const rawSrc = vol.source ?? vol.name;
+      const rawTgt = vol.target;
+      // Compose interpolation applies to every YAML value, including the
+      // source/target fields of long-syntax mounts. Leaving `source` raw turns
+      // a valid value such as `${HOME:-/tmp/.openclaw}` into a Docker bind
+      // string containing an extra `:`, which Docker then misreads as the mount
+      // mode (`invalid mode: /home/node/.openclaw`).
+      const src =
+        typeof rawSrc === "string" ? interpolateComposeString(rawSrc, env) : rawSrc;
+      const tgt =
+        typeof rawTgt === "string" ? interpolateComposeString(rawTgt, env) : rawTgt;
       // Long form carries read-only/selinux/nocopy intent as separate nested
       // fields; fold them back into the single mode suffix the short-form
       // string spells (the downstream MODE_SUFFIX regex in volume-namespace.ts
@@ -462,16 +471,67 @@ function interpolateComposeString(
 ): string {
   const escapedDollar = "\0COMPOSE_ESCAPED_DOLLAR\0";
   const protectedInput = input.replace(/\$\$/g, escapedDollar);
+  let output = "";
 
-  return protectedInput
-    .replace(
-      /\$(?:\{([^}]+)\}|([A-Za-z_][A-Za-z0-9_]*))/g,
-      (_match, braced: string | undefined, bare: string | undefined) =>
-        braced !== undefined
-          ? resolveInterpolationExpression(braced, env, requiredInterpolation).value
-          : (env[bare!] ?? ""),
-    )
-    .replaceAll(escapedDollar, "$");
+  for (let i = 0; i < protectedInput.length; ) {
+    if (protectedInput[i] !== "$") {
+      output += protectedInput[i];
+      i += 1;
+      continue;
+    }
+
+    if (protectedInput[i + 1] === "{") {
+      const end = findInterpolationClosingBrace(protectedInput, i + 2);
+      // Compose treats malformed interpolation as invalid syntax. Preserve the
+      // unmatched text here so the caller gets a lossless value rather than a
+      // silently truncated mount/path.
+      if (end < 0) {
+        output += protectedInput.slice(i);
+        break;
+      }
+
+      const expression = protectedInput.slice(i + 2, end);
+      output += resolveInterpolationExpression(
+        expression,
+        env,
+        requiredInterpolation,
+      ).value;
+      i = end + 1;
+      continue;
+    }
+
+    const bare = protectedInput.slice(i + 1).match(/^([A-Za-z_][A-Za-z0-9_]*)/);
+    if (bare) {
+      output += env[bare[1]!] ?? "";
+      i += bare[0].length + 1;
+      continue;
+    }
+
+    output += "$";
+    i += 1;
+  }
+
+  return output.replaceAll(escapedDollar, "$");
+}
+
+/** Find the matching `}` for a `${...}` expression, including nested Compose
+ * interpolation in the operator word (for example
+ * `${OUTER:-${HOME:-/tmp}/data}`). A regex stopping at the first `}` corrupts
+ * exactly this valid syntax. */
+function findInterpolationClosingBrace(input: string, expressionStart: number): number {
+  let depth = 1;
+  for (let i = expressionStart; i < input.length; i++) {
+    if (input[i] === "$" && input[i + 1] === "{") {
+      depth += 1;
+      i += 1;
+      continue;
+    }
+    if (input[i] === "}") {
+      depth -= 1;
+      if (depth === 0) return i;
+    }
+  }
+  return -1;
 }
 
 function resolveComposeValue(
