@@ -7,23 +7,22 @@
  *   - apps/api/src/modules/deployments/preflight.ts — pre-deploy
  *     DNS sanity check (A / AAAA / CNAME).
  *
- * Resolution strategy:
- *   1. Google DNS-over-HTTPS (`https://dns.google/resolve`) first.
- *      Cache- and topology-friendly: bypasses the host's resolver and
- *      gives a globally consistent answer in regions where the local
- *      ISP resolver is slow or wrong. Bounded by AbortSignal.timeout.
- *   2. node:dns local resolver as fallback. Wrapped in
- *      Promise.race(timeout) so a black-holed resolver can't stall a
- *      preflight modal.
+ * Resolution strategy: query Google DNS-over-HTTPS, Cloudflare
+ * DNS-over-HTTPS, and node:dns concurrently, then accept records returned by
+ * any source. A newly-created hostname can be stuck in one recursive
+ * resolver's NXDOMAIN cache while another resolver already sees the record;
+ * no single cache is allowed to block deployment routing.
  *
- * Returns `[]` on any failure. Callers decide whether empty results
- * mean "no records exist" or "DNS unreachable" — typically both
- * outcomes warrant the same user-facing "DNS isn't ready" message.
+ * Returns `[]` when every source fails or has no answer. Callers decide
+ * whether empty results mean "no records exist" or "DNS unreachable" —
+ * typically both outcomes warrant the same user-facing "DNS isn't ready"
+ * message.
  */
 
 import dns from "node:dns/promises";
 
 const GOOGLE_DNS = "https://dns.google/resolve";
+const CLOUDFLARE_DNS = "https://cloudflare-dns.com/dns-query";
 const DEFAULT_TIMEOUT_MS = 5_000;
 
 const RRTYPE: Record<DnsRecordType, number> = {
@@ -35,25 +34,29 @@ const RRTYPE: Record<DnsRecordType, number> = {
 
 export type DnsRecordType = "A" | "AAAA" | "CNAME" | "TXT";
 
-interface GoogleDnsAnswer {
+interface DnsJsonAnswer {
   name: string;
   type: number;
   data: string;
 }
 
 export interface ResolveOptions {
-  /** Per-source timeout. Google DoH gets this via AbortSignal; the
-   *  node:dns fallback gets it via Promise.race. */
+  /** Per-source timeout for both DoH providers and node:dns. */
   timeoutMs?: number;
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return Promise.race<T>([
-    promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`dns_timeout:${label}`)), ms),
-    ),
-  ]);
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race<T>([
+      promise,
+      new Promise<T>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`dns_timeout:${label}`)), ms);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 async function resolveViaLocal(name: string, type: DnsRecordType): Promise<string[]> {
@@ -71,10 +74,31 @@ async function resolveViaLocal(name: string, type: DnsRecordType): Promise<strin
   }
 }
 
+async function resolveViaDoh(
+  endpoint: string,
+  name: string,
+  type: DnsRecordType,
+  timeoutMs: number,
+): Promise<string[]> {
+  try {
+    const url = `${endpoint}?name=${encodeURIComponent(name)}&type=${RRTYPE[type]}`;
+    const response = await fetch(url, {
+      headers: { accept: "application/dns-json" },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) return [];
+    const json = (await response.json()) as { Answer?: DnsJsonAnswer[] };
+    return (json.Answer ?? []).map((answer) => answer.data.replace(/^"|"$/g, ""));
+  } catch {
+    return [];
+  }
+}
+
 /**
- * Resolve a DNS record. Prefers Google DoH, falls back to node:dns,
- * returns `[]` on any error or timeout. Both sources are bounded by
- * `timeoutMs` (default 5s).
+ * Resolve a DNS record through independent public and local sources. Results
+ * are merged and deduplicated; an empty/NXDOMAIN response from one resolver
+ * does not suppress a valid answer from another. Every source is bounded by
+ * `timeoutMs` (default 5s), and they run concurrently.
  */
 export async function resolveRecords(
   name: string,
@@ -83,27 +107,12 @@ export async function resolveRecords(
 ): Promise<string[]> {
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
-  // 1) Google DoH
-  try {
-    const url = `${GOOGLE_DNS}?name=${encodeURIComponent(name)}&type=${RRTYPE[type]}`;
-    const res = await fetch(url, {
-      headers: { accept: "application/dns-json" },
-      signal: AbortSignal.timeout(timeoutMs),
-    });
-    if (res.ok) {
-      const json = (await res.json()) as { Answer?: GoogleDnsAnswer[] };
-      return (json.Answer ?? []).map((a) => a.data.replace(/^"|"$/g, ""));
-    }
-  } catch {
-    // DoH unreachable / blocked — fall through to node:dns.
-  }
-
-  // 2) node:dns fallback with bounded timeout
-  try {
-    return await withTimeout(resolveViaLocal(name, type), timeoutMs, type);
-  } catch {
-    return [];
-  }
+  const results = await Promise.all([
+    resolveViaDoh(GOOGLE_DNS, name, type, timeoutMs),
+    resolveViaDoh(CLOUDFLARE_DNS, name, type, timeoutMs),
+    withTimeout(resolveViaLocal(name, type), timeoutMs, type).catch(() => []),
+  ]);
+  return [...new Set(results.flat())];
 }
 
 /**

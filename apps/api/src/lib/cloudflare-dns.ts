@@ -85,8 +85,9 @@ export async function waitForDeploymentDnsPropagation(
   // DNS egress policy can disagree with public DNS long after Cloudflare has
   // accepted the record. That false negative is especially harmful here: the
   // caller omits the Traefik labels entirely, leaving a healthy container
-  // permanently unreachable. The shared resolver asks public Google DoH first
-  // and only uses node:dns as a bounded fallback.
+  // permanently unreachable. The shared resolver checks Google DoH,
+  // Cloudflare DoH, and node:dns concurrently so one stale negative cache
+  // cannot suppress a record already visible elsewhere.
   const resolver =
     options.resolve ??
     ((name: string) =>
