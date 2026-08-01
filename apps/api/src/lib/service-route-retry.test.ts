@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   syncDns: vi.fn(),
   waitForDns: vi.fn(),
   reconcile: vi.fn(),
+  recreateDockerServices: vi.fn(),
   inherit: vi.fn(),
 }));
 
@@ -75,9 +76,10 @@ describe("retryProjectServiceRoutes", () => {
     mocks.syncDns.mockResolvedValue({ publishableRoutes: [route], failures: [] });
     mocks.waitForDns.mockResolvedValue(true);
     mocks.reconcile.mockResolvedValue(undefined);
+    mocks.recreateDockerServices.mockResolvedValue(undefined);
   });
 
-  it("rebuilds DNS and Traefik without redeploying the container", async () => {
+  it("rebuilds DNS and refreshes Docker labels without rebuilding the image", async () => {
     const result = await retryProjectServiceRoutes({
       project,
       deployment,
@@ -85,6 +87,7 @@ describe("retryProjectServiceRoutes", () => {
       routing: {} as any,
       usesManagedRouting: true,
       serverId: "server_1",
+      recreateDockerServices: mocks.recreateDockerServices,
     });
 
     expect(result.failures).toEqual([]);
@@ -95,6 +98,40 @@ describe("retryProjectServiceRoutes", () => {
       attempts: 60,
       intervalMs: 1_000,
     });
+    expect(mocks.recreateDockerServices).toHaveBeenCalledWith(["svc_1"]);
+    expect(mocks.reconcile).not.toHaveBeenCalled();
+  });
+
+  it("does not report Docker repair success when no label refresh is available", async () => {
+    const result = await retryProjectServiceRoutes({
+      project,
+      deployment,
+      runtime: { name: "docker" } as any,
+      routing: {} as any,
+      usesManagedRouting: true,
+      serverId: "server_1",
+    });
+
+    expect(result.failures).toEqual([
+      {
+        hostname: route.hostname,
+        message: "Docker route repair could not refresh the container labels",
+      },
+    ]);
+    expect(mocks.reconcile).not.toHaveBeenCalled();
+  });
+
+  it("keeps live registerRoute repair for non-Docker routing providers", async () => {
+    const result = await retryProjectServiceRoutes({
+      project,
+      deployment,
+      runtime: { name: "bare" } as any,
+      routing: {} as any,
+      usesManagedRouting: true,
+      serverId: "server_1",
+    });
+
+    expect(result.failures).toEqual([]);
     expect(mocks.reconcile).toHaveBeenCalledWith(
       project,
       expect.objectContaining({
@@ -147,6 +184,7 @@ describe("retryProjectServiceRoutes", () => {
       routing: {} as any,
       usesManagedRouting: true,
       serverId: "server_1",
+      recreateDockerServices: mocks.recreateDockerServices,
     });
 
     await vi.waitFor(() => expect(mocks.waitForDns).toHaveBeenCalledTimes(2));

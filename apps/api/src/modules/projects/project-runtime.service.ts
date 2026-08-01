@@ -4,11 +4,12 @@
 
 import { repos } from "@repo/db";
 import { NotFoundError, ValidationError } from "@repo/core";
-import type { LogEntry } from "@repo/adapters";
+import { BuildLogger, isMultiServiceRuntime, type LogEntry } from "@repo/adapters";
 import {
-  resolveDeploymentRuntime,
+  resolveDeploymentPlatform,
   resolveDeploymentRuntimeOnly,
   usesManagedRouting,
+  type DeploymentMeta,
 } from "../../lib/deployment-runtime";
 import { assertResourceInOrg, platform } from "../../lib/controller-helpers";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
@@ -18,6 +19,7 @@ import {
   markServiceRoutingWarning,
 } from "../../lib/deployment-routing-warning";
 import { retryProjectServiceRoutes } from "../../lib/service-route-retry";
+import { deployComposeServices } from "../deployments/compose/deploy.service";
 
 // ─── Runtime logs ────────────────────────────────────────────────────────────
 
@@ -133,9 +135,10 @@ export async function disableProject(projectId: string, organizationId: string) 
   return { success: true, message: "Project disabled" };
 }
 
-/** Retry the complete live routing chain WITHOUT rebuilding containers:
- * managed cloud edge (when applicable), Cloudflare DNS/public propagation,
- * live service upstream resolution, and Traefik registration. */
+/** Retry the complete live routing chain WITHOUT rebuilding images: managed
+ * cloud edge (when applicable), Cloudflare DNS/public propagation, and
+ * Traefik publication. Docker recreates only affected service containers
+ * because its routing labels are immutable; persistent volumes are preserved. */
 export async function retryProjectRouting(
   projectId: string,
   organizationId: string,
@@ -153,15 +156,51 @@ export async function retryProjectRouting(
   });
   if (!ok) return { ok: false, warning: edgeUnsyncedWarning(failures, "retry") };
 
-  const resolved = await resolveDeploymentRuntime(dep);
+  const snapshot = (dep.meta ?? {}) as DeploymentMeta;
+  const resolved = await resolveDeploymentPlatform(snapshot, {
+    organizationId: dep.organizationId,
+  });
+  const runtime = resolved.platform.runtime;
   try {
     const serviceRetry = await retryProjectServiceRoutes({
       project: p,
       deployment: dep,
-      runtime: resolved.runtime,
-      routing: resolved.routing,
+      runtime,
+      routing: resolved.platform.routing,
       usesManagedRouting: usesManagedRouting(platform().target, resolved.effectiveTarget),
       serverId: resolved.serverId ?? undefined,
+      ...(runtime.name === "docker" && isMultiServiceRuntime(runtime)
+        ? {
+            recreateDockerServices: async (serviceIds: string[]) => {
+              const logger = new BuildLogger((entry) => {
+                const line = entry.message.replace(/\n$/, "");
+                if (!line) return;
+                const prefix = "[routing-repair]";
+                if (entry.level === "error" || entry.level === "warn") {
+                  console.error(prefix, line);
+                } else {
+                  console.log(prefix, line);
+                }
+              });
+              const result = await deployComposeServices(p, dep, runtime, logger, {
+                targetServiceIds: new Set(serviceIds),
+                strictScope: true,
+                routing: resolved.platform.routing,
+                ssl: resolved.platform.ssl,
+                system: resolved.platform.system,
+                executor: resolved.platform.executor,
+                usesManagedRouting: true,
+                serverId: resolved.serverId ?? undefined,
+              });
+              if (result.status === "failed") {
+                throw new Error(result.error ?? "Docker service refresh failed");
+              }
+              if (result.routeWarnings?.length) {
+                throw new Error(result.routeWarnings.join("; "));
+              }
+            },
+          }
+        : {}),
     });
     if (serviceRetry.failures.length > 0) {
       const warning = `Routing retry still needs attention: ${serviceRetry.failures
@@ -174,7 +213,7 @@ export async function retryProjectRouting(
     await clearAllRoutingWarnings(dep);
     return { ok: true };
   } finally {
-    await resolved.runtime.dispose?.();
+    await runtime.dispose?.();
   }
 }
 

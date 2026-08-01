@@ -15,10 +15,11 @@ export interface ServiceRouteRetryFailure {
 }
 
 /**
- * Retry the complete service routing chain without rebuilding containers:
- * persist an unambiguous legacy project→service route, upsert DNS, wait for
- * public resolution, resolve the live service upstream, then register Traefik.
- * A successful return therefore means it is safe to clear Action Required.
+ * Retry the complete service routing chain without rebuilding images: persist
+ * an unambiguous legacy project→service route, upsert DNS, wait for public
+ * resolution, then publish Traefik. Docker routes live in immutable container
+ * labels, so affected Docker service containers are recreated from their
+ * existing images; other runtimes use their live routing provider.
  */
 export async function retryProjectServiceRoutes(opts: {
   project: Project;
@@ -27,6 +28,10 @@ export async function retryProjectServiceRoutes(opts: {
   routing: Platform["routing"];
   usesManagedRouting: boolean;
   serverId?: string;
+  /** Docker publishes Traefik routes through immutable container labels. A
+   *  repair must therefore recreate only the affected service containers from
+   *  their existing images; registerRoute is intentionally a no-op there. */
+  recreateDockerServices?: (serviceIds: string[]) => Promise<void>;
 }): Promise<{ failures: ServiceRouteRetryFailure[] }> {
   if (!opts.usesManagedRouting) return { failures: [] };
 
@@ -57,6 +62,7 @@ export async function retryProjectServiceRoutes(opts: {
   const strategy = resolveRouteStrategy(opts.project.routeStrategy);
   const failures: ServiceRouteRetryFailure[] = [];
   const registers: RouteRegister[] = [];
+  const dockerRoutes: Array<{ serviceId: string; hostname: string }> = [];
   const pendingRoutes: Array<{
     service: Service;
     route: ReturnType<typeof buildServiceRouteDomains>[number];
@@ -117,6 +123,10 @@ export async function retryProjectServiceRoutes(opts: {
       continue;
     }
     if (route.targetPort === undefined) continue;
+    if (opts.runtime.name === "docker") {
+      dockerRoutes.push({ serviceId: service.id, hostname: route.hostname });
+      continue;
+    }
     const targetUrl = buildUpstreamUrl({
       strategy,
       ip: live?.ip,
@@ -136,6 +146,26 @@ export async function retryProjectServiceRoutes(opts: {
       port: route.targetPort,
       isCustomDomain: route.domainType === "custom",
     });
+  }
+
+  if (dockerRoutes.length > 0) {
+    if (!opts.recreateDockerServices) {
+      for (const route of dockerRoutes) {
+        failures.push({
+          hostname: route.hostname,
+          message: "Docker route repair could not refresh the container labels",
+        });
+      }
+    } else {
+      try {
+        await opts.recreateDockerServices([
+          ...new Set(dockerRoutes.map((route) => route.serviceId)),
+        ]);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "unknown Docker route repair error";
+        for (const route of dockerRoutes) failures.push({ hostname: route.hostname, message });
+      }
+    }
   }
 
   if (registers.length > 0) {
