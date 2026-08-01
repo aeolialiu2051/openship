@@ -44,11 +44,12 @@ export function DomainSwitcher({ domains, value, onChange, className = "" }: Dom
     <DropdownMenu
       actions={actions}
       align="right"
-      className={className}
-      triggerClassName="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
+      className={`min-w-0 max-w-full ${className}`}
+      matchTriggerWidth
+      triggerClassName="flex w-full min-w-0 items-center gap-1.5 rounded-lg border border-border/50 bg-muted/30 px-3 py-1.5 text-sm font-medium text-foreground transition-colors hover:bg-muted/50"
       trigger={
         <>
-          <span className="truncate">{current || w.selectDomain}</span>
+          <span className="min-w-0 flex-1 truncate">{current || w.selectDomain}</span>
           <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" />
         </>
       }

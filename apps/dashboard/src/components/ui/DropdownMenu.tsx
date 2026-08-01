@@ -23,6 +23,8 @@ interface DropdownMenuProps {
   align?: "left" | "right";
   className?: string;
   triggerClassName?: string;
+  /** Keep the menu within the trigger's available width instead of sizing to its longest label. */
+  matchTriggerWidth?: boolean;
   disabled?: boolean;
 }
 
@@ -33,6 +35,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
   align = "right",
   className = "",
   triggerClassName = "",
+  matchTriggerWidth = false,
   disabled = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -106,7 +109,8 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
             // Frosted-glass surface: `bg-popover/70` (Tailwind v4 color-mix) tints
             // it translucent and `backdrop-blur-xl` blurs the content behind it.
             // Elevation via `shadow-xl shadow-black/[0.08]` — matches CustomSelect.
-            minWidth: "220px",
+            width: matchTriggerWidth ? "100%" : undefined,
+            minWidth: matchTriggerWidth ? "100%" : "220px",
           }}
         >
           <div className="py-2 px-2 flex flex-col">
@@ -136,7 +140,7 @@ const DropdownMenu: React.FC<DropdownMenuProps> = ({
                         {action.icon}
                       </div>
                     )}
-                    <span className="text-[14px] font-medium truncate">
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-medium">
                       {action.label}
                     </span>
                   </button>
