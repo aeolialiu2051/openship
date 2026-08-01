@@ -4,6 +4,7 @@ import { repos } from "@repo/db";
 import { env } from "../config/env";
 import { decrypt } from "./encryption";
 import { isNonPublicHost, resolveEdgeTargetHost } from "./edge-target";
+import { resolveRecords } from "./dns-resolver";
 
 interface CloudflareRecord {
   id: string;
@@ -79,7 +80,19 @@ export async function waitForDeploymentDnsPropagation(
   // not leave an otherwise healthy deployment without a Traefik router.
   const attempts = Math.max(1, Math.floor(options.attempts ?? 60));
   const intervalMs = Math.max(0, Math.floor(options.intervalMs ?? 1_000));
-  const resolver = options.resolve ?? resolve4;
+  // Do not use node:dns directly for the propagation gate. In production the
+  // API commonly runs behind a container/host resolver whose negative cache or
+  // DNS egress policy can disagree with public DNS long after Cloudflare has
+  // accepted the record. That false negative is especially harmful here: the
+  // caller omits the Traefik labels entirely, leaving a healthy container
+  // permanently unreachable. The shared resolver asks public Google DoH first
+  // and only uses node:dns as a bounded fallback.
+  const resolver =
+    options.resolve ??
+    ((name: string) =>
+      resolveRecords(name, "A", {
+        timeoutMs: 2_000,
+      }));
   const sleep =
     options.sleep ??
     ((delayMs: number) => new Promise<void>((resolve) => setTimeout(resolve, delayMs)));
