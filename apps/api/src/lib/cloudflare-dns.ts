@@ -74,7 +74,10 @@ export async function waitForDeploymentDnsPropagation(
 ): Promise<boolean> {
   const normalized = normalizeDnsZoneDomain(hostname);
   if (!normalized) return false;
-  const attempts = Math.max(1, Math.floor(options.attempts ?? 30));
+  // Deployment routing is installed only after public DNS resolves. Give new
+  // Cloudflare records a full minute so temporary resolver/NXDOMAIN caches do
+  // not leave an otherwise healthy deployment without a Traefik router.
+  const attempts = Math.max(1, Math.floor(options.attempts ?? 60));
   const intervalMs = Math.max(0, Math.floor(options.intervalMs ?? 1_000));
   const resolver = options.resolve ?? resolve4;
   const sleep =

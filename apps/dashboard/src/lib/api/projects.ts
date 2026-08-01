@@ -309,10 +309,15 @@ export const projectsApi = {
   toggle: (id: string | number, enable: boolean) =>
     api.post<any>(endpoints.projects.toggle(id, enable ? "enable" : "disable")),
 
-  /** Retry the free .vibrail.warpgateapi.com edge-route sync (no rebuild). ok:false + warning
-   *  when it still can't sync; clears the routing warning on success. */
+  /** Retry DNS + live proxy routing without rebuilding. DNS propagation alone
+   *  can legitimately take 60 seconds, so this request must outlive the API
+   *  client's generic 15-second timeout. */
   retryRouting: (id: string | number) =>
-    api.post<{ ok: boolean; warning?: string; error?: string }>(endpoints.projects.retryRouting(id)),
+    api.post<{ ok: boolean; warning?: string; error?: string }>(
+      endpoints.projects.retryRouting(id),
+      undefined,
+      { timeout: 120_000 },
+    ),
 
   /** Clear CDN / proxy cache */
   clearCache: (id: string | number) => api.post<any>(endpoints.projects.clearCache(id)),

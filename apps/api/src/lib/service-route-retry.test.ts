@@ -91,6 +91,10 @@ describe("retryProjectServiceRoutes", () => {
     expect(mocks.syncDns).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "proj_1", serverId: "server_1" }),
     );
+    expect(mocks.waitForDns).toHaveBeenCalledWith(route.hostname, {
+      attempts: 60,
+      intervalMs: 1_000,
+    });
     expect(mocks.reconcile).toHaveBeenCalledWith(
       project,
       expect.objectContaining({
@@ -121,5 +125,33 @@ describe("retryProjectServiceRoutes", () => {
       { hostname: route.hostname, message: "DNS is still not publicly resolvable" },
     ]);
     expect(mocks.reconcile).not.toHaveBeenCalled();
+  });
+
+  it("checks multiple domain propagation windows concurrently", async () => {
+    const secondRoute = {
+      ...route,
+      hostname: "api-secondary-abc.vibrail.warpgateapi.com",
+      targetPort: 8318,
+    };
+    const resolvers: Array<(value: boolean) => void> = [];
+    mocks.buildRoutes.mockReturnValue([route, secondRoute]);
+    mocks.syncDns.mockResolvedValue({ publishableRoutes: [route, secondRoute], failures: [] });
+    mocks.waitForDns.mockImplementation(
+      () => new Promise<boolean>((resolve) => resolvers.push(resolve)),
+    );
+
+    const retry = retryProjectServiceRoutes({
+      project,
+      deployment,
+      runtime: { name: "docker" } as any,
+      routing: {} as any,
+      usesManagedRouting: true,
+      serverId: "server_1",
+    });
+
+    await vi.waitFor(() => expect(mocks.waitForDns).toHaveBeenCalledTimes(2));
+    for (const resolve of resolvers) resolve(true);
+
+    expect((await retry).failures).toEqual([]);
   });
 });

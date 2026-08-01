@@ -7,6 +7,8 @@ import { buildUpstreamUrl, resolveRouteStrategy } from "./upstream-url";
 import { reconcileProjectRoutes, type RouteRegister } from "./route-apply.service";
 import { inheritSoleProjectRouteForService } from "./public-endpoints";
 
+const ROUTING_RETRY_DNS_ATTEMPTS = 60;
+
 export interface ServiceRouteRetryFailure {
   hostname: string;
   message: string;
@@ -55,6 +57,11 @@ export async function retryProjectServiceRoutes(opts: {
   const strategy = resolveRouteStrategy(opts.project.routeStrategy);
   const failures: ServiceRouteRetryFailure[] = [];
   const registers: RouteRegister[] = [];
+  const pendingRoutes: Array<{
+    service: Service;
+    route: ReturnType<typeof buildServiceRouteDomains>[number];
+    live: (typeof liveRows)[number] | undefined;
+  }> = [];
 
   for (const service of services.filter((candidate) => candidate.enabled && candidate.exposed)) {
     const routes = buildServiceRouteDomains({
@@ -81,36 +88,54 @@ export async function retryProjectServiceRoutes(opts: {
       })),
     );
 
-    const live = liveByService.get(service.id);
     for (const route of dns.publishableRoutes) {
-      if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
-        failures.push({
-          hostname: route.hostname,
-          message: "DNS is still not publicly resolvable",
-        });
-        continue;
-      }
-      if (route.targetPort === undefined) continue;
-      const targetUrl = buildUpstreamUrl({
-        strategy,
-        ip: live?.ip,
-        hostPort: live?.hostPort,
-        containerPort: route.targetPort,
-      });
-      if (!targetUrl) {
-        failures.push({
-          hostname: route.hostname,
-          message: `no live upstream found for service ${service.name} on port ${route.targetPort}`,
-        });
-        continue;
-      }
-      registers.push({
-        hostname: route.hostname,
-        targetUrl,
-        port: route.targetPort,
-        isCustomDomain: route.domainType === "custom",
-      });
+      pendingRoutes.push({ service, route, live: liveByService.get(service.id) });
     }
+  }
+
+  // One route may need the full propagation window. Waiting serially made the
+  // repair request scale as 30s × domain count and caused the dashboard/proxy
+  // request to abort. Probe every published hostname concurrently instead.
+  const propagatedRoutes = await Promise.all(
+    pendingRoutes.map(async (pending) => ({
+      ...pending,
+      // Allow a full minute so temporary resolver/NXDOMAIN caches do not make
+      // the manual repair fail before the public record becomes visible.
+      propagated: await waitForDeploymentDnsPropagation(pending.route.hostname, {
+        attempts: ROUTING_RETRY_DNS_ATTEMPTS,
+        intervalMs: 1_000,
+      }),
+    })),
+  );
+
+  for (const { service, route, live, propagated } of propagatedRoutes) {
+    if (!propagated) {
+      failures.push({
+        hostname: route.hostname,
+        message: "DNS is still not publicly resolvable",
+      });
+      continue;
+    }
+    if (route.targetPort === undefined) continue;
+    const targetUrl = buildUpstreamUrl({
+      strategy,
+      ip: live?.ip,
+      hostPort: live?.hostPort,
+      containerPort: route.targetPort,
+    });
+    if (!targetUrl) {
+      failures.push({
+        hostname: route.hostname,
+        message: `no live upstream found for service ${service.name} on port ${route.targetPort}`,
+      });
+      continue;
+    }
+    registers.push({
+      hostname: route.hostname,
+      targetUrl,
+      port: route.targetPort,
+      isCustomDomain: route.domainType === "custom",
+    });
   }
 
   if (registers.length > 0) {
