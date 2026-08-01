@@ -382,6 +382,7 @@ export async function upsertDeploymentDnsRecord(opts: {
     content,
     ttl: 1,
     proxied: credentials.proxied,
+    ...(env.HOST_DOMAIN?.trim() ? { comment: env.HOST_DOMAIN.trim() } : {}),
   });
   const record = existing
     ? await cloudflare<CloudflareRecord>(credentials, `/dns_records/${existing.id}`, {

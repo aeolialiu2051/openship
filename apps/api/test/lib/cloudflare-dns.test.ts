@@ -17,6 +17,7 @@ vi.mock("../../src/config/env", () => ({
     VIBRAIL_CLOUDFLARE_API_TOKEN: "backend-only-token",
     VIBRAIL_CLOUDFLARE_ZONE_ID: "zone-1",
     VIBRAIL_CLOUDFLARE_PROXY: true,
+    HOST_DOMAIN: "openship.example.com",
   },
 }));
 
@@ -127,6 +128,7 @@ describe("Vibrail Cloudflare DNS", () => {
       type: "A",
       content: "203.0.113.10",
       proxied: true,
+      comment: "openship.example.com",
     });
   });
 
@@ -145,6 +147,9 @@ describe("Vibrail Cloudflare DNS", () => {
     ).resolves.toBe("updated");
     expect(fetchMock.mock.calls[1]![0]).toContain("/dns_records/dns-1");
     expect(fetchMock.mock.calls[1]![1]).toMatchObject({ method: "PUT" });
+    expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toMatchObject({
+      comment: "openship.example.com",
+    });
   });
 
   it("deletes exact-name records idempotently", async () => {
