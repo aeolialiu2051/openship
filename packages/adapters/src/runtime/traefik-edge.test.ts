@@ -8,7 +8,9 @@ import {
   VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_IMAGE,
   VIBRAIL_EDGE_NETWORK_LABEL,
+  VIBRAIL_EDGE_MANAGED_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
+  buildBareTraefikFileConfig,
   buildTraefikLabels,
   buildTraefikSuspensionLabels,
   isTraefikContainer,
@@ -21,7 +23,7 @@ import {
 describe("managed Traefik compatibility", () => {
   it("uses a Docker-29-compatible image and migrates older managed edges", () => {
     expect(VIBRAIL_EDGE_IMAGE).toBe("traefik:v3.6");
-    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(4);
+    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(5);
   });
 
   it("does not mistake a suspension label carrier for the shared edge", () => {
@@ -118,6 +120,30 @@ certificatesResolvers:
       tls: true,
       certResolver: "letsencrypt",
     });
+  });
+
+  it("accepts the managed host-network edge while retaining its workload network", () => {
+    expect(
+      resolveExistingTraefik(
+        container({
+          name: "vibrail-edge",
+          networks: ["host"],
+          command: [
+            "--providers.docker=true",
+            "--providers.docker.network=vibrail-edge",
+            "--entrypoints.websecure.address=:443",
+          ],
+          labels: {
+            [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
+            [VIBRAIL_EDGE_COMPATIBLE_LABEL]: "true",
+            [VIBRAIL_EDGE_NETWORK_LABEL]: "vibrail-edge",
+            [VIBRAIL_EDGE_ENTRYPOINT_LABEL]: "websecure",
+            [VIBRAIL_EDGE_HTTP_ENTRYPOINT_LABEL]: "web",
+            [VIBRAIL_EDGE_TLS_LABEL]: "true",
+          },
+        }),
+      ),
+    ).toMatchObject({ network: "vibrail-edge", source: "vibrail" });
   });
 });
 
@@ -326,5 +352,35 @@ describe("buildTraefikLabels", () => {
         "vibrail-rr-global-rate@docker,vibrail-rr-global-flight@docker,vibrail-rr-admin-ip@docker",
       "traefik.http.routers.vibrail-api-rule-0.priority": "10006",
     });
+  });
+});
+
+describe("buildBareTraefikFileConfig", () => {
+  it("routes hostnames to host-native ports with TLS, redirects and middleware rules", () => {
+    const config = JSON.parse(
+      buildBareTraefikFileConfig({
+        network: "vibrail-edge",
+        entrypoint: "websecure",
+        httpEntrypoint: "web",
+        tls: true,
+        certResolver: "letsencrypt",
+        routes: [{ routerName: "bare-app", hostname: "app.example.com", port: 4321 }],
+        routeRules: {
+          "app.example.com": [{ name: "app-rate", rateLimit: { average: 20, burst: 5 } }],
+        },
+      }),
+    );
+
+    expect(config.http.services["bare-app"].loadBalancer.servers).toEqual([
+      { url: "http://127.0.0.1:4321" },
+    ]);
+    expect(config.http.routers["bare-app"]).toMatchObject({
+      rule: "Host(`app.example.com`)",
+      entryPoints: ["websecure"],
+      tls: { certResolver: "letsencrypt" },
+      middlewares: ["app-rate-rate"],
+    });
+    expect(config.http.routers["bare-app-redirect"].entryPoints).toEqual(["web"]);
+    expect(config.http.middlewares["app-rate-rate"].rateLimit.average).toBe(20);
   });
 });

@@ -12,7 +12,15 @@
  */
 
 import { repos, type Project, type Deployment } from "@repo/db";
-import { DockerRuntime, type RuntimeAdapter } from "@repo/adapters";
+import {
+  BareRuntime,
+  DockerRuntime,
+  bareTraefikDynamicConfigPath,
+  elevatedExecutor,
+  resolveEnvironment,
+  type CommandExecutor,
+  type RuntimeAdapter,
+} from "@repo/adapters";
 import { safeErrorMessage } from "@repo/core";
 import { platform } from "../../lib/controller-helpers";
 import {
@@ -39,6 +47,7 @@ export interface CleanupResource {
     | "container"
     | "image"
     | "artifact"
+    | "host_file"
     | "route"
     | "volume"
     | "network"
@@ -59,6 +68,9 @@ export interface CleanupResource {
   label: string;
   /** The runtime to use for destroy/removeImage/removeVolume - null for routes. */
   runtime: RuntimeAdapter | null;
+  /** Direct host filesystem cleanup for runtime-adjacent state such as Bare
+   * Traefik file-provider configs. */
+  executor?: CommandExecutor;
   /** Server the resource lives on (set on `unreachable` items) — carried into
    *  the orphaned_resource row so GC can probe + reclaim it later. */
   serverId?: string;
@@ -125,6 +137,7 @@ export async function collectProjectManifest(
   const services = await repos.service.listByProject(project.id).catch(() => []);
   const seenContainers = new Set<string>();
   const seenVolumes = new Set<string>();
+  const seenHostFiles = new Set<string>();
   const dockerRuntimes = new Set<DockerRuntime>();
   let usesTraefikRouting = false;
   // Op-scoped reachability memo (single source: sshManager). Lets us fast-fail
@@ -257,6 +270,22 @@ export async function collectProjectManifest(
 
     if (runtime instanceof DockerRuntime) {
       dockerRuntimes.add(runtime);
+    }
+    if (runtime instanceof BareRuntime) {
+      const routeFile = bareTraefikDynamicConfigPath(project.id);
+      if (!seenHostFiles.has(routeFile)) {
+        const executor = runtime.commandExecutor;
+        const environment = await resolveEnvironment(executor);
+        seenHostFiles.add(routeFile);
+        resources.push({
+          type: "host_file",
+          ref: routeFile,
+          label: `Bare Traefik route config ${routeFile}`,
+          runtime: null,
+          executor:
+            environment.isRoot || !environment.canSudo ? executor : elevatedExecutor(executor),
+        });
+      }
     }
 
     // Service containers - enumerate volumes BEFORE destroying the container
@@ -543,6 +572,7 @@ export async function collectProjectManifest(
   const TYPE_ORDER: Record<CleanupResource["type"], number> = {
     container: 0,
     artifact: 0,
+    host_file: 0,
     cloud_workspace: 0,
     unreachable: 0,
     image: 1,
@@ -863,6 +893,11 @@ async function destroyResourceOnce(
     case "artifact": {
       if (!resource.runtime) return;
       await resource.runtime.destroy(resource.ref);
+      return;
+    }
+    case "host_file": {
+      if (!resource.executor) return;
+      await resource.executor.rm(resource.ref);
       return;
     }
     case "route": {

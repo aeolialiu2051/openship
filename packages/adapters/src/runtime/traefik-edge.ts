@@ -6,6 +6,8 @@ export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
+export const VIBRAIL_EDGE_DYNAMIC_HOST_DIR = "/var/lib/openship/traefik/dynamic";
+export const VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR = "/etc/traefik/dynamic";
 // Traefik 3.3 uses Docker API v1.24 even when DOCKER_API_VERSION is set. Docker
 // 29 rejects that client, leaving the Docker provider offline and every managed
 // domain on Traefik's default 404/self-signed certificate. Traefik 3.6 uses a
@@ -13,7 +15,7 @@ export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
 export const VIBRAIL_EDGE_IMAGE = "traefik:v3.6";
 export const VIBRAIL_EDGE_MANAGED_LABEL = "vibrail.edge.managed";
 export const VIBRAIL_EDGE_CONFIG_VERSION_LABEL = "vibrail.edge.config-version";
-export const VIBRAIL_EDGE_CONFIG_VERSION = "4";
+export const VIBRAIL_EDGE_CONFIG_VERSION = "5";
 export const VIBRAIL_EDGE_COMPATIBLE_LABEL = "vibrail.edge.compatible";
 export const VIBRAIL_EDGE_NETWORK_LABEL = "vibrail.edge.network";
 export const VIBRAIL_EDGE_ENTRYPOINT_LABEL = "vibrail.edge.entrypoint";
@@ -356,7 +358,13 @@ export function resolveExistingTraefik(
     configuredNetwork ||
     detected.network ||
     (userNetworks.length === 1 ? userNetworks[0] : undefined);
-  if (!network || !SAFE_NAME.test(network) || !container.networks.includes(network)) {
+  const managedHostNetwork =
+    container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" && container.networks.includes("host");
+  if (
+    !network ||
+    !SAFE_NAME.test(network) ||
+    (!container.networks.includes(network) && !managedHostNetwork)
+  ) {
     throw new Error(
       `Could not safely identify a Docker network shared with Traefik "${container.name}". ` +
         "Set traefikNetwork on this Vibrail server to a network already attached to that Traefik container.",
@@ -388,6 +396,12 @@ export function resolveExistingTraefik(
     source: container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ? "vibrail" : "existing",
     containerId: container.id,
   };
+}
+
+/** Stable per-project file consumed by the managed edge's file provider. */
+export function bareTraefikDynamicConfigPath(projectId: string): string {
+  const safe = projectId.replace(/[^a-zA-Z0-9_.-]+/g, "-").slice(0, 80);
+  return `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}/bare-${safe}.json`;
 }
 
 function safeLabelValue(value: string): string {
@@ -573,4 +587,137 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
     }
   }
   return labels;
+}
+
+/** Compile the same router/middleware surface as Docker labels, but point each
+ * service at a host-native Bare process. The managed edge runs in the host
+ * network namespace, so 127.0.0.1 is the deployment host rather than the
+ * Traefik container itself. JSON is used because Traefik's file provider
+ * accepts it natively and JSON.stringify gives us safe escaping. */
+export function buildBareTraefikFileConfig(
+  config: TraefikEdgeConfig,
+  targetHost = "127.0.0.1",
+): string {
+  const routers: Record<string, Record<string, unknown>> = {};
+  const services: Record<string, Record<string, unknown>> = {};
+  const middlewares: Record<string, Record<string, unknown>> = {};
+
+  const addRuleMiddlewares = (rule: TraefikRouteRuleConfig): string[] => {
+    if (!SAFE_NAME.test(rule.name)) throw new Error(`Invalid Traefik rule name: ${rule.name}`);
+    const names: string[] = [];
+    if (rule.rateLimit) {
+      const name = `${rule.name}-rate`;
+      middlewares[name] = {
+        rateLimit: {
+          average: rule.rateLimit.average,
+          period: "1s",
+          burst: rule.rateLimit.burst,
+        },
+      };
+      names.push(name);
+    }
+    if (rule.ipAllowList) {
+      const name = `${rule.name}-ip`;
+      middlewares[name] = {
+        ipAllowList: { sourceRange: rule.ipAllowList.sourceRange.map(safeLabelValue) },
+      };
+      names.push(name);
+    }
+    if (rule.inFlightReq) {
+      const name = `${rule.name}-flight`;
+      middlewares[name] = { inFlightReq: { amount: rule.inFlightReq.amount } };
+      names.push(name);
+    }
+    return names;
+  };
+
+  for (const route of config.routes) {
+    if (!SAFE_NAME.test(route.routerName)) {
+      throw new Error(`Invalid Traefik router name: ${route.routerName}`);
+    }
+    if (!Number.isInteger(route.port) || route.port <= 0 || route.port > 65_535) {
+      throw new Error(`Invalid Traefik target port: ${route.port}`);
+    }
+    const tls = route.tls ?? config.tls;
+    const entrypoint = tls ? config.entrypoint : config.httpEntrypoint;
+    if (!entrypoint) {
+      throw new Error(
+        `Traefik route ${route.hostname} requires a plain-HTTP entrypoint, but none was detected.`,
+      );
+    }
+    services[route.routerName] = {
+      loadBalancer: { servers: [{ url: `http://${targetHost}:${route.port}` }] },
+    };
+
+    const rootMiddleware =
+      route.targetPath && route.targetPath !== "/" ? `${route.routerName}-root` : null;
+    if (rootMiddleware) {
+      middlewares[rootMiddleware] = { addPrefix: { prefix: route.targetPath } };
+    }
+    const rules = config.routeRules?.[route.hostname.trim().toLowerCase()] ?? [];
+    const ruleMiddlewareNames = new Map<TraefikRouteRuleConfig, string[]>();
+    for (const rule of rules) ruleMiddlewareNames.set(rule, addRuleMiddlewares(rule));
+    const hostRules = rules.filter((rule) => !rule.pathPrefix);
+    const hostMiddlewares = [
+      ...(rootMiddleware ? [rootMiddleware] : []),
+      ...hostRules.flatMap((rule) => ruleMiddlewareNames.get(rule) ?? []),
+    ];
+
+    routers[route.routerName] = {
+      rule: `Host(\`${safeLabelValue(route.hostname)}\`)`,
+      entryPoints: [entrypoint],
+      service: route.routerName,
+      ...(tls ? { tls: config.certResolver ? { certResolver: config.certResolver } : {} } : {}),
+      ...(hostMiddlewares.length > 0 ? { middlewares: hostMiddlewares } : {}),
+    };
+
+    if (tls && config.httpEntrypoint) {
+      const redirectName = `${route.routerName}-https`;
+      middlewares[redirectName] = { redirectScheme: { scheme: "https", permanent: true } };
+      routers[`${route.routerName}-redirect`] = {
+        rule: `Host(\`${safeLabelValue(route.hostname)}\`)`,
+        entryPoints: [config.httpEntrypoint],
+        service: route.routerName,
+        middlewares: [redirectName],
+      };
+    }
+
+    let pathIndex = 0;
+    const pathGroups = new Map<string, TraefikRouteRuleConfig[]>();
+    for (const rule of rules) {
+      if (!rule.pathPrefix) continue;
+      const group = pathGroups.get(rule.pathPrefix) ?? [];
+      group.push(rule);
+      pathGroups.set(rule.pathPrefix, group);
+    }
+    for (const [pathPrefix, pathRules] of pathGroups) {
+      const name = `${route.routerName}-rule-${pathIndex++}`;
+      const names = [
+        ...(rootMiddleware ? [rootMiddleware] : []),
+        ...[...hostRules, ...pathRules].flatMap((rule) => ruleMiddlewareNames.get(rule) ?? []),
+      ];
+      routers[name] = {
+        rule:
+          `Host(\`${safeLabelValue(route.hostname)}\`) && ` +
+          `PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`,
+        entryPoints: [entrypoint],
+        service: route.routerName,
+        priority: 10_000 + pathPrefix.length,
+        ...(tls ? { tls: config.certResolver ? { certResolver: config.certResolver } : {} } : {}),
+        ...(names.length > 0 ? { middlewares: names } : {}),
+      };
+    }
+  }
+
+  return `${JSON.stringify(
+    {
+      http: {
+        routers,
+        services,
+        ...(Object.keys(middlewares).length > 0 ? { middlewares } : {}),
+      },
+    },
+    null,
+    2,
+  )}\n`;
 }

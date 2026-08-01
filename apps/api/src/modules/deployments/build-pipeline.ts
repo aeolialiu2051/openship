@@ -22,16 +22,20 @@ import {
   STATIC_RELEASE_BASE,
   DEFAULT_BUILD_RESOURCE_CONFIG,
   ensurePortAvailable,
+  elevatedExecutor,
   allocateHostPort,
+  bareTraefikDynamicConfigPath,
   createHostExecutor,
   runDeployPipeline,
   isMultiServiceRuntime,
+  resolveEnvironment,
   waitForReady,
 } from "@repo/adapters";
 import { platform } from "../../lib/controller-helpers";
 import { resolveUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
 import { webhookProxyTarget } from "../../config";
 import {
+  createServerDockerRuntime,
   resolveDeploymentRuntime,
   resolveDeploymentPlatform,
   resolveEffectiveTarget,
@@ -651,31 +655,31 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
 
     const gitCred: Awaited<ReturnType<typeof resolveBuildGitToken>> =
       needsGitSource && clonePlan.needsClone
-      ? await resolveBuildGitToken({
-          ctx: buildBackgroundContext({
-            userId: actorUserId,
-            organizationId: dep.organizationId,
-            label: "build:resolve-git-token",
-          }),
-          projectId: project.id,
-          owner: project.gitOwner ?? undefined,
-          repo: project.gitRepo ?? undefined,
-          buildStrategy: clonePlan.cloneBuildStrategy,
-          // Only meaningful for an on-server clone — lets a per-server GitHub auth
-          // config (device token / PAT / SSH key) win for that server.
-          serverId: clonePlan.runsOnServer ? resolved.serverId : null,
-          allowRelayFallback,
-          // Docker clone-on-server can degrade to an api-host clone, so resolve
-          // gracefully (a LOCAL fallback credential, flagged apiHostFallback) instead
-          // of hard-failing at token resolution after the server is provisioned.
-          allowApiHostFallback: clonePlan.dockerClonesOnServer,
-          // Lets the chain ask the target server whether it already reaches this
-          // repo on its own — only consulted for a clone that runs THERE.
-          serverExecutor: clonePlan.runsOnServer ? targetExecutor : null,
-          repoUrl: snapshot.repoUrl,
-          onLog: (message) => logger.log(message),
-        })
-      : {};
+        ? await resolveBuildGitToken({
+            ctx: buildBackgroundContext({
+              userId: actorUserId,
+              organizationId: dep.organizationId,
+              label: "build:resolve-git-token",
+            }),
+            projectId: project.id,
+            owner: project.gitOwner ?? undefined,
+            repo: project.gitRepo ?? undefined,
+            buildStrategy: clonePlan.cloneBuildStrategy,
+            // Only meaningful for an on-server clone — lets a per-server GitHub auth
+            // config (device token / PAT / SSH key) win for that server.
+            serverId: clonePlan.runsOnServer ? resolved.serverId : null,
+            allowRelayFallback,
+            // Docker clone-on-server can degrade to an api-host clone, so resolve
+            // gracefully (a LOCAL fallback credential, flagged apiHostFallback) instead
+            // of hard-failing at token resolution after the server is provisioned.
+            allowApiHostFallback: clonePlan.dockerClonesOnServer,
+            // Lets the chain ask the target server whether it already reaches this
+            // repo on its own — only consulted for a clone that runs THERE.
+            serverExecutor: clonePlan.runsOnServer ? targetExecutor : null,
+            repoUrl: snapshot.repoUrl,
+            onLog: (message) => logger.log(message),
+          })
+        : {};
 
     // Clone-on-server needs a credential the build host can actually AUTHENTICATE
     // WITH. Four qualify: the server's own ambient git access (nothing moves), an
@@ -984,6 +988,61 @@ interface DeployPhaseInputs {
   /** Build/deploy routing decided once from the resolved runtime (static-bare /
    *  static-container / static-file-serve / server / static-edge). */
   deployRouting: DeployRouting;
+}
+
+async function publishBareRuntimeTraefikRoutes(
+  phase: DeployPhaseInputs,
+  routes: Array<{
+    routerName: string;
+    hostname: string;
+    port: number;
+    tls: boolean;
+    targetPath?: string;
+  }>,
+): Promise<void> {
+  const executor = phase.targetExecutor;
+  if (!executor) throw new Error("Bare Traefik routing requires a target host executor");
+
+  const environment = await resolveEnvironment(executor);
+  const configExecutor = environment.isRoot
+    ? executor
+    : environment.canSudo
+      ? elevatedExecutor(executor)
+      : executor;
+
+  // An empty authoritative route set removes the previous file without
+  // provisioning Docker just to delete stale hostnames.
+  if (routes.length === 0) {
+    await configExecutor.rm(bareTraefikDynamicConfigPath(phase.project.id));
+    return;
+  }
+
+  await phase.system?.ensureComponents(["docker"], (entry) =>
+    phase.logger.log(`${entry.message}\n`, entry.level),
+  );
+  const edgeRuntime = phase.snapshot.serverId
+    ? await createServerDockerRuntime(phase.snapshot.serverId, phase.dep.organizationId)
+    : await DockerRuntime.create({ transport: "socket" });
+  try {
+    const config = await prepareTraefikConfig({
+      runtime: edgeRuntime,
+      organizationId: phase.dep.organizationId,
+      serverId: phase.snapshot.serverId,
+      projectId: phase.project.id,
+      routes,
+      onLog: (message) => phase.logger.log(message),
+    });
+    await edgeRuntime.publishBareTraefikRoutes({
+      projectId: phase.project.id,
+      config,
+      executor: configExecutor,
+    });
+    phase.logger.log(
+      `Published ${routes.length} Bare Runtime route${routes.length === 1 ? "" : "s"} through Traefik.\n`,
+    );
+  } finally {
+    await edgeRuntime.dispose().catch(() => {});
+  }
 }
 
 /** Static edge deploy via CloudRuntime (Oblien Pages). */
@@ -1629,6 +1688,45 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     return;
   }
 
+  const bareRouteIssues: string[] = [];
+  if (runtime.name === "bare" && !isStaticFileServe) {
+    const bareRoutes = routableDomains
+      .map((route) => ({
+        ...route,
+        effectivePort: resolveTraefikRoutePort({
+          targetPort: route.targetPort,
+          targetPath: route.targetPath,
+          isStaticContainer: false,
+          runtimePort: snapshot.port,
+        }),
+      }))
+      .filter(
+        (route): route is typeof route & { effectivePort: number } =>
+          route.effectivePort !== undefined,
+      )
+      .map((route) => ({
+        routerName: vibrailRouterName(
+          project.routeKey ?? project.id,
+          String(route.effectivePort),
+          route.hostname,
+        ),
+        hostname: route.hostname,
+        port: route.effectivePort,
+        tls: route.tls,
+        ...(route.targetPath ? { targetPath: route.targetPath } : {}),
+      }));
+    try {
+      await publishBareRuntimeTraefikRoutes(phase, bareRoutes);
+    } catch (error) {
+      const message = safeErrorMessage(error);
+      logger.log(
+        `Bare Runtime Traefik routing could not be published (the app remains running): ${message}\n`,
+        "warn",
+      );
+      bareRouteIssues.push(message);
+    }
+  }
+
   // Stable Traefik router names require stop-before-start. Keep the previous
   // Docker container only when snapshot rollback needs it; git rollback can
   // rebuild, so remove the now-stopped predecessor after the new route is live.
@@ -1695,7 +1793,11 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   // SAME "Action Required" signal so an unrouted domain shows a routing warning
   // + the Domains-tab dot instead of failing an otherwise-good deploy. Cleared
   // by Retry routing / the next clean deploy.
-  const routeIssues = [...domainClaimWarnings, ...(deployResult.routeWarnings ?? [])];
+  const routeIssues = [
+    ...domainClaimWarnings,
+    ...(deployResult.routeWarnings ?? []),
+    ...bareRouteIssues,
+  ];
   if (routeIssues.length) {
     const msg =
       `Some domains aren't routed yet — the app is deployed and running; fix DNS/routing and ` +

@@ -114,6 +114,8 @@ import {
   VIBRAIL_EDGE_CONFIG_VERSION,
   VIBRAIL_EDGE_CONFIG_VERSION_LABEL,
   VIBRAIL_EDGE_CONTAINER,
+  VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR,
+  VIBRAIL_EDGE_DYNAMIC_HOST_DIR,
   VIBRAIL_EDGE_ENTRYPOINT,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_HTTP_ENTRYPOINT,
@@ -123,6 +125,8 @@ import {
   VIBRAIL_EDGE_NETWORK,
   VIBRAIL_EDGE_NETWORK_LABEL,
   VIBRAIL_EDGE_TLS_LABEL,
+  bareTraefikDynamicConfigPath,
+  buildBareTraefikFileConfig,
   buildTraefikLabels,
   buildTraefikSuspensionLabels,
   isTraefikContainer,
@@ -784,7 +788,7 @@ export class DockerRuntime implements RuntimeAdapter {
   async ensureSharedTraefik(manual: TraefikManualConfig = {}): Promise<ResolvedTraefikEdge> {
     if (this.traefikEdgePromise) return this.traefikEdgePromise;
     const run = async (): Promise<ResolvedTraefikEdge> => {
-      const summaries = await this.listAllContainers();
+      let summaries = await this.listAllContainers();
       let details = (
         await Promise.all(
           summaries.map((container) => this.inspectContainer(container.id).catch(() => null)),
@@ -808,6 +812,7 @@ export class DockerRuntime implements RuntimeAdapter {
           // safely replace only the proxy container. The named ACME volume
           // survives, so certificates are preserved across the migration.
           await this.destroy(owned.id);
+          summaries = summaries.filter((container) => container.id !== owned!.id);
           details = details.filter((container) => container.id !== owned!.id);
           owned = undefined;
         }
@@ -858,7 +863,7 @@ export class DockerRuntime implements RuntimeAdapter {
         );
       }
 
-      const networkId = await this.ensureNamedNetwork(VIBRAIL_EDGE_NETWORK, {
+      await this.ensureNamedNetwork(VIBRAIL_EDGE_NETWORK, {
         [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
       });
       const args = [
@@ -871,6 +876,8 @@ export class DockerRuntime implements RuntimeAdapter {
         "--providers.docker=true",
         "--providers.docker.exposedbydefault=false",
         `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
+        `--providers.file.directory=${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}`,
+        "--providers.file.watch=true",
         "--entrypoints.web.address=:80",
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.http.tls.certresolver=${VIBRAIL_EDGE_CERT_RESOLVER}`,
@@ -898,12 +905,11 @@ export class DockerRuntime implements RuntimeAdapter {
         const command = [
           "run -d",
           `--name ${sq(VIBRAIL_EDGE_CONTAINER)}`,
-          `--network ${sq(VIBRAIL_EDGE_NETWORK)}`,
+          "--network host",
           ...Object.entries(edgeLabels).map(([key, value]) => `--label ${sq(`${key}=${value}`)}`),
-          `--publish ${sq("80:80")}`,
-          `--publish ${sq("443:443")}`,
           `--volume ${sq(`${socketPath}:/var/run/docker.sock:ro`)}`,
           `--volume ${sq("vibrail-edge-acme:/letsencrypt")}`,
+          `--volume ${sq(`${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`)}`,
           `--restart ${sq("unless-stopped")}`,
           sq(VIBRAIL_EDGE_IMAGE),
           ...args.map(sq),
@@ -923,20 +929,18 @@ export class DockerRuntime implements RuntimeAdapter {
             Image: VIBRAIL_EDGE_IMAGE,
             Cmd: args,
             Labels: edgeLabels,
-            ExposedPorts: { "80/tcp": {}, "443/tcp": {} },
             HostConfig: {
               RestartPolicy: { Name: "unless-stopped" },
               Binds: [
                 "/var/run/docker.sock:/var/run/docker.sock:ro",
                 "vibrail-edge-acme:/letsencrypt",
+                `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`,
               ],
-              NetworkMode: networkId,
-              PortBindings: {
-                "80/tcp": [{ HostIp: "0.0.0.0", HostPort: "80" }],
-                "443/tcp": [{ HostIp: "0.0.0.0", HostPort: "443" }],
-              },
+              // Host networking lets file-provider routes reach Bare processes
+              // at 127.0.0.1 while Docker-provider routes still resolve the
+              // selected vibrail-edge bridge IP for container workloads.
+              NetworkMode: "host",
             },
-            NetworkingConfig: { EndpointsConfig: { [networkId]: {} } },
           });
           await container.start();
           containerId = container.id;
@@ -965,6 +969,33 @@ export class DockerRuntime implements RuntimeAdapter {
       this.traefikEdgePromise = undefined;
       throw error;
     }
+  }
+
+  /** Atomically publish all public routes for one host-native Bare workload.
+   * The managed edge watches one JSON file per project, so replacing the file
+   * updates routes in-place and automatically drops hostnames removed since the
+   * previous deploy. Existing user-managed Traefik is never modified. */
+  async publishBareTraefikRoutes(opts: {
+    projectId: string;
+    config: import("../types").TraefikEdgeConfig;
+    executor: CommandExecutor;
+  }): Promise<void> {
+    const edge = await this.ensureSharedTraefik();
+    if (edge.source !== "vibrail") {
+      throw new Error(
+        "Bare Runtime automatic routing requires the managed vibrail-edge Traefik. " +
+          "The detected user-managed Traefik was left unchanged.",
+      );
+    }
+    await opts.executor.mkdir(VIBRAIL_EDGE_DYNAMIC_HOST_DIR);
+    const path = bareTraefikDynamicConfigPath(opts.projectId);
+    const temp = `${path}.tmp`;
+    await opts.executor.writeFile(temp, buildBareTraefikFileConfig(opts.config));
+    await opts.executor.exec(`mv ${sq(temp)} ${sq(path)}`);
+  }
+
+  async removeBareTraefikRoutes(projectId: string, executor: CommandExecutor): Promise<void> {
+    await executor.rm(bareTraefikDynamicConfigPath(projectId));
   }
 
   private suspensionRouteContainerName(projectId: string): string {

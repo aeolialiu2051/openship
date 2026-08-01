@@ -9,9 +9,9 @@
  *   │              │              │  docker      │  bare        │                │
  *   ├──────────────┼──────────────┼──────────────┼──────────────┼────────────────┤
  *   │  Runtime     │  CloudAPI    │  Docker      │  Bare        │  Bare          │
- *   │  Routing     │  CloudAPI    │  Traefik     │  No-op       │  No-op         │
- *   │  SSL         │  CloudAPI    │  Traefik     │  No-op       │  No-op         │
- *   │  System      │  -           │  docker, git │  git         │  -             │
+ *   │  Routing     │  CloudAPI    │  Traefik     │  Traefik file│  No-op         │
+ *   │  SSL         │  CloudAPI    │  Traefik     │  Traefik     │  No-op         │
+ *   │  System      │  -           │  docker, git │  git, docker │  -             │
  *   │  Toolchain   │  -           │  -           │  per-stack   │  -             │
  *   └──────────────┴──────────────┴──────────────┴──────────────┴────────────────┘
  *
@@ -59,11 +59,11 @@ export interface PlatformConfig {
    * Runtime mode for self-hosted (ignored for cloud/desktop).
    *
    * This is the ONLY choice for self-hosted - everything else follows:
-  *   - "docker" → Docker containers + Traefik (default)
-  *   - "bare"   → Node.js processes without managed public routing
+   *   - "docker" → Docker containers + Traefik (default)
+   *   - "bare"   → host-native processes with managed Traefik routing
    */
   runtime?: "docker" | "bare";
-  /** Docker connection options (only for docker runtime) */
+  /** Docker connection options (Docker workloads and the Bare Traefik edge) */
   docker?: DockerConnectionOptions;
   /** Bare runtime options (only for bare runtime) */
   bare?: BareRuntimeOptions;
@@ -281,9 +281,7 @@ export async function initPlatform(config: PlatformConfig): Promise<Platform> {
  */
 export function getPlatform(): Platform {
   if (!_platform) {
-    throw new Error(
-      "Platform not initialized. Call initPlatform() at server startup.",
-    );
+    throw new Error("Platform not initialized. Call initPlatform() at server startup.");
   }
   return _platform;
 }
