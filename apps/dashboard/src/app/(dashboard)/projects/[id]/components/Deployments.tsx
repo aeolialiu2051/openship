@@ -256,8 +256,9 @@ export const Deployments = () => {
               type="button"
               onClick={handleRetryRouting}
               disabled={isRetryingRoute}
-              className="rounded-lg bg-warning-solid px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-warning-solid/90 disabled:opacity-60"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-warning-solid px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-warning-solid/90 disabled:opacity-60"
             >
+              {isRetryingRoute && <RefreshCw className="size-3 animate-spin" />}
               {isRetryingRoute ? t.projects.routingRetry.retrying : t.projects.routingRetry.retry}
             </button>
           }
