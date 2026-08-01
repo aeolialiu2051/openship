@@ -39,6 +39,8 @@
     "successRate": "Erfolgsquote",
     "recentTitle": "Neueste",
     "activityEmpty": "Ihre Aktivitäten werden hier angezeigt",
+    "appsEmptyTitle": "Noch keine Apps",
+    "appsEmptyDesc": "Mit einem Klick vollständig selbst gehostet: Datenbanken, Automatisierung, Analysen, Passwort-Tresore und mehr auf Ihren eigenen Servern.",
     "allSystemsOperational": "Alle Systeme betriebsbereit",
     "runningSmoothly": "Ihre Projekte laufen reibungslos",
     "time": {

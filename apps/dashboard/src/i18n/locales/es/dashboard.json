@@ -39,6 +39,8 @@
     "successRate": "Tasa de éxito",
     "recentTitle": "Reciente",
     "activityEmpty": "Tu actividad aparecerá aquí",
+    "appsEmptyTitle": "Aún no hay aplicaciones",
+    "appsEmptyDesc": "Con un clic, ejecuta bases de datos, automatización, analítica, gestores de contraseñas y más, totalmente autoalojados en tus propios servidores.",
     "allSystemsOperational": "Todos los sistemas operativos",
     "runningSmoothly": "Tus proyectos funcionan sin problemas",
     "time": {

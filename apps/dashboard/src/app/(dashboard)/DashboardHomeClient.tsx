@@ -28,6 +28,7 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import ProjectCard from "./projects/components/ProjectCard";
 import { type Project } from "@/constants/mock";
 import { AppLogo } from "@/components/AppLogo";
+import { FEATURED_APPS } from "./apps/featured-apps";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                             */
@@ -335,14 +336,14 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                   <p className="mt-0.5 text-xs text-muted-foreground/70">{t.dashboard.home.appsEmptyDesc}</p>
                   {/* Overlapping logo stack — the full catalog at a glance, on-theme. */}
                   <div className="mt-3.5 flex items-center justify-center">
-                    {["supabase", "convex", "n8n", "ghost", "vaultwarden", "metabase"].map((id, i) => (
+                    {FEATURED_APPS.slice(0, 6).map((app, i) => (
                       <div
-                        key={id}
+                        key={app.id}
                         className={`flex size-7 items-center justify-center rounded-full border border-border/60 bg-card ${
                           i > 0 ? "-ml-2" : ""
                         }`}
                       >
-                        <AppLogo appId={id} className="size-3.5" />
+                        <AppLogo appId={app.id} icon={app.icon} className="size-3.5" />
                       </div>
                     ))}
                   </div>

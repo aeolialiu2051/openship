@@ -39,6 +39,8 @@
     "successRate": "成功率",
     "recentTitle": "最近",
     "activityEmpty": "你的动态将显示在这里",
+    "appsEmptyTitle": "还没有应用",
+    "appsEmptyDesc": "一键运行完全自托管的数据库、自动化、数据分析、密码库等服务，全部部署在你自己的服务器上。",
     "allSystemsOperational": "所有系统运行正常",
     "runningSmoothly": "你的项目运行顺畅",
     "time": {

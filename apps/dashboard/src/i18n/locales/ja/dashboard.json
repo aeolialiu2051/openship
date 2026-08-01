@@ -39,6 +39,8 @@
     "successRate": "成功率",
     "recentTitle": "最近",
     "activityEmpty": "アクティビティはここに表示されます",
+    "appsEmptyTitle": "アプリはまだありません",
+    "appsEmptyDesc": "データベース、自動化、分析、パスワード保管庫などをワンクリックで、あなたのサーバーに完全セルフホストできます。",
     "allSystemsOperational": "すべてのシステムが正常に稼働中",
     "runningSmoothly": "プロジェクトは順調に稼働しています",
     "time": {

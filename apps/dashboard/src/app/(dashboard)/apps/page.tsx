@@ -9,19 +9,12 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import { AVAILABLE_APP_IDS } from "@repo/core";
 import {
   Plus,
-  Mail,
-  Database,
-  Workflow,
-  FileText,
-  Activity,
-  KeyRound,
-  BarChart3,
   ArrowRight,
-  type LucideIcon,
 } from "lucide-react";
 import { PageContainer } from "@/components/ui/PageContainer";
 import { AppLogo } from "@/components/AppLogo";
 import { useProjectsHome } from "@/hooks/useProjectsHome";
+import { FEATURED_APPS } from "./featured-apps";
 
 /**
  * Apps tab — catalog-installed managed services. Shares `projects/home` data with
@@ -30,28 +23,6 @@ import { useProjectsHome } from "@/hooks/useProjectsHome";
  * per featured app. The featured list is static so the showcase never renders
  * empty; install always routes into the real /apps/new flow.
  */
-
-interface FeaturedApp {
-  id: string;
-  name: string;
-  /** Fallback icon if the brand logo can't load. */
-  icon: LucideIcon;
-}
-
-// Product-priority order for the /apps showcase. Availability still comes from
-// the single source of truth in @repo/core.
-const FEATURED_APPS: FeaturedApp[] = [
-  { id: "mail", name: "OpenShipMail", icon: Mail },
-  { id: "cli-proxy-api", name: "CLIProxyAPI", icon: Activity },
-  { id: "n8n", name: "n8n", icon: Workflow },
-  { id: "supabase", name: "Supabase", icon: Database },
-  { id: "convex", name: "Convex", icon: Database },
-  { id: "mongodb", name: "MongoDB", icon: Database },
-  { id: "ghost", name: "Ghost", icon: FileText },
-  { id: "uptime-kuma", name: "Uptime Kuma", icon: Activity },
-  { id: "vaultwarden", name: "Vaultwarden", icon: KeyRound },
-  { id: "metabase", name: "Metabase", icon: BarChart3 },
-];
 
 /** Installable this version? Drives the dimmed "coming soon" treatment. */
 const isAppEnabled = (id: string) => AVAILABLE_APP_IDS.has(id);

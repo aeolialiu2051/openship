@@ -39,6 +39,8 @@
     "successRate": "Taxa de sucesso",
     "recentTitle": "Recente",
     "activityEmpty": "Sua atividade aparecerá aqui",
+    "appsEmptyTitle": "Ainda não há aplicações",
+    "appsEmptyDesc": "Com um clique, execute bancos de dados, automação, análises, cofres de senhas e muito mais, totalmente auto-hospedados nos seus próprios servidores.",
     "allSystemsOperational": "Todos os sistemas operacionais",
     "runningSmoothly": "Seus projetos estão funcionando perfeitamente",
     "time": {
