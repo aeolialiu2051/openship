@@ -55,7 +55,7 @@ export interface CloudPreflightData {
 /**
  * Cloud deployment preflight.
  *
- * Runs only inside the SaaS API (mounted via `cloudSaasRoutes`), so we
+ * Runs only inside the SaaS API (mounted via `vibrailSaasRoutes`), so we
  * always have master credentials on hand. Each check uses the right
  * scope:
  *

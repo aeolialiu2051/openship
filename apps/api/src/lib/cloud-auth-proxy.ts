@@ -461,7 +461,7 @@ function getActiveNonce(): string | null {
 
 // ─── Desktop + connect handoff URL validation + construction ────────────────
 //
-// Extracted from cloud-saas.controller's desktopHandoff / connectHandoff
+// Extracted from vibrail-saas.controller's desktopHandoff / connectHandoff
 // handlers so the URL-validation policy (localhost-only for desktop,
 // HTTPS-or-localhost for connect, ≥1024 port for both) lives in one
 // testable place. The handlers themselves become thin: validate →

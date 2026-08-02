@@ -93,8 +93,8 @@ export function ServerForm({
     const trimmedServerName = serverName.trim();
     const trimmedHost = sshHost.trim();
     const trimmedUser = sshUser.trim() || "root";
-    const trimmedJumpHost = jumpHost.trim();
-    const trimmedExtraArgs = extraArgs.trim();
+    const trimmedJumpHost = selfHosted ? jumpHost.trim() : "";
+    const trimmedExtraArgs = selfHosted ? extraArgs.trim() : "";
 
     // When editing and not switching auth method, the stored secret is reused -
     // so a blank password/key is only an error on create or when switching.
@@ -441,42 +441,44 @@ export function ServerForm({
 
         {showAdvanced && (
           <div className="space-y-[18px]">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className={LABEL}>
-                  {t.servers.form.jumpHost}{" "}
-                  <span className="text-muted-foreground/50 font-normal">
-                    {t.servers.form.optional}
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={jumpHost}
-                  onChange={(e) => setJumpHost(e.target.value)}
-                  placeholder="user@bastion.example.com"
-                  spellCheck={false}
-                  autoComplete="off"
-                  className={INPUT}
-                />
+            {selfHosted && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={LABEL}>
+                    {t.servers.form.jumpHost}{" "}
+                    <span className="text-muted-foreground/50 font-normal">
+                      {t.servers.form.optional}
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={jumpHost}
+                    onChange={(e) => setJumpHost(e.target.value)}
+                    placeholder="user@bastion.example.com"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className={INPUT}
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>
+                    {t.servers.form.extraArgs}{" "}
+                    <span className="text-muted-foreground/50 font-normal">
+                      {t.servers.form.optional}
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={extraArgs}
+                    onChange={(e) => setExtraArgs(e.target.value)}
+                    placeholder="-o StrictHostKeyChecking=no"
+                    spellCheck={false}
+                    autoComplete="off"
+                    className={INPUT}
+                  />
+                </div>
               </div>
-              <div>
-                <label className={LABEL}>
-                  {t.servers.form.extraArgs}{" "}
-                  <span className="text-muted-foreground/50 font-normal">
-                    {t.servers.form.optional}
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={extraArgs}
-                  onChange={(e) => setExtraArgs(e.target.value)}
-                  placeholder="-o StrictHostKeyChecking=no"
-                  spellCheck={false}
-                  autoComplete="off"
-                  className={INPUT}
-                />
-              </div>
-            </div>
+            )}
             <div className="rounded-xl border border-border/50 bg-muted/20 p-4 space-y-3">
               <div>
                 <p className="text-sm font-medium text-foreground">

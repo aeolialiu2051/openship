@@ -131,8 +131,11 @@ export function NavigationProgress() {
       className="pointer-events-none fixed inset-x-0 top-0 z-[100000] h-0.5 overflow-hidden"
     >
       <div
-        className="h-full origin-left bg-primary shadow-[0_0_10px_hsl(var(--primary)/0.55)] transition-transform duration-150 ease-out"
-        style={{ transform: `scaleX(${progress / 100})` }}
+        className="h-full origin-left bg-primary transition-transform duration-150 ease-out"
+        style={{
+          boxShadow: "0 0 10px hsl(var(--primary) / 0.55)",
+          transform: `scaleX(${progress / 100})`,
+        }}
       />
     </div>
   );

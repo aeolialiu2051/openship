@@ -6,6 +6,7 @@ node_modules/
 dist/
 .next/
 .next-saas/
+.next-vibrail-saas/
 .turbo/
 out/
 .tmp/
@@ -24,8 +25,7 @@ apps/cli/LICENSE
 .env
 .env.local
 .env.*.local
-.env.saas
-.env.local-saas
+.env.vibrail-saas
 
 # Dev-only generated secrets (per-machine, not for prod)
 .dev-secrets.json

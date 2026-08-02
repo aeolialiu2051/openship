@@ -61,8 +61,8 @@ healthRoutes.get("/", (c) => {
 healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
   // authMode tells the dashboard which login flow to use:
   //   "none"   → zero-auth, auto-provisioned local user (desktop default)
-  //   "cloud"  → external auth on Vibrail Cloud
-  //   "local"  → local Better Auth (self-hosted server / SaaS)
+  //   "cloud"  → external auth on Vibrail Cloud (cloud-connected desktop)
+  //   "local"  → this API's Better Auth (self-hosted server or the SaaS itself)
   let authMode: string;
   // teamMode tells the dashboard whether this instance has been
   // migrated to a multi-user deployment. When non-default, the

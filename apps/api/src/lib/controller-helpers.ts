@@ -69,7 +69,7 @@
  *     org from the webhook payload, fall back via `memberships[0]?…?? "org_<userId>"`
  *     for unattributable installs (each carries a FOLLOW-UP comment).
  *   - `lib/cloud-session-auth.ts` + cloud Bearer routes
- *     (`cloud-saas.controller.ts`) — read `c.get("user")` / `c.get("session")`
+ *     (`vibrail-saas.controller.ts`) — read `c.get("user")` / `c.get("session")`
  *     populated by the Bearer middleware, not by authMiddleware. The
  *     SaaS surface doesn't run authMiddleware on Bearer routes.
  *   - `modules/system/setup.controller.ts` (bootstrap path) — runs under

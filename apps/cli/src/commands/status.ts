@@ -109,7 +109,10 @@ export const statusCommand = new Command("status")
         row("Mode", envInfo.selfHosted ? "self-hosted" : "cloud") +
         row("User servers", envInfo.userServers ? "enabled" : "disabled") +
         row("Deploy", envInfo.deployMode) +
-        row("Auth", envInfo.authMode) +
+        // On the hosted SaaS, authMode="local" means the SaaS API's own Better
+        // Auth instance (not a self-hosted/local platform). Report the platform
+        // identity here without changing the protocol field consumed by the UI.
+        row("Auth", envInfo.selfHosted ? envInfo.authMode : "cloud") +
         row("Team", envInfo.teamMode) +
         (envInfo.hostDomain ? row("Host domain", envInfo.hostDomain) : "") +
         (envInfo.machineName ? row("Machine", envInfo.machineName) : "");

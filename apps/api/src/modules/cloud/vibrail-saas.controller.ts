@@ -1129,7 +1129,7 @@ export async function githubUserStatus(c: Context) {
   const status = await githubAuth.getUserStatusWithDiagnostics(ctx.userId);
   if (!status.connected) {
     console.log(
-      `[cloud-saas:githubUserStatus] connected=false userId=${ctx.userId} githubAccountRowsForUser=${status.githubAccountRowsForUser}`,
+      `[vibrail-saas:githubUserStatus] connected=false userId=${ctx.userId} githubAccountRowsForUser=${status.githubAccountRowsForUser}`,
     );
     return c.json({ data: { connected: false as const } });
   }

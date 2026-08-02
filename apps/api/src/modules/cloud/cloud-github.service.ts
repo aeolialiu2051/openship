@@ -3,7 +3,7 @@
  * App flows (OAuth bridge, install URL, install callback attribution,
  * installation list, installation token mint).
  *
- * Extracted from cloud-saas.controller. The handlers in that file now
+ * Extracted from vibrail-saas.controller. The handlers in that file now
  * only do HTML/JSON rendering — every policy decision (cookie allowlist,
  * org-owner binding, install-state attribution, installation lookup
  * with 404 mapping) lives here and is unit-testable in isolation.
@@ -31,7 +31,7 @@ import { resolveOrgOwner } from "../../lib/org-actor";
 //
 // Single-use bridge tokens stashing (userId, sessionToken) for the
 // browser-side popup that completes GitHub OAuth on the SaaS. See
-// cloud-saas.controller's `githubOauthHandoff` for the issue path —
+// vibrail-saas.controller's `githubOauthHandoff` for the issue path —
 // `startGithubLinkFromBridgeToken` below is the consume path.
 
 interface OauthBridgeRow {

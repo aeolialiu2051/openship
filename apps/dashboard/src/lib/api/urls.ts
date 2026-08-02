@@ -182,7 +182,10 @@ export function getMarketingOrigin() {
   if (typeof window === "undefined") return "https://vibrail.warpgateapi.com";
   const { protocol, hostname, port } = window.location;
   if (hostname.startsWith("app.")) return `${protocol}//${hostname.slice(4)}`;
-  if (port === String(DEFAULT_PORT.dashboard) || port === String(DEFAULT_PORT.saasDashboard)) {
+  if (
+    port === String(DEFAULT_PORT.dashboard) ||
+    port === String(DEFAULT_PORT.vibrailSaasDashboard)
+  ) {
     return `${protocol}//${hostname}:${DEFAULT_PORT.web}`;
   }
   return "https://vibrail.warpgateapi.com";

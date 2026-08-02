@@ -106,8 +106,8 @@ Modes (a per-server switch, in the server detail → Security → GitHub card):
   (needs repo Administration on the resolved token; 403 → actionable error). Revoked on disconnect.
 
 Precedence: a configured server credential wins for THAT server's clones; App / project-PAT / user-PAT /
-relay remain the fallback when it has none. Production `cloud-saas` has no user-server capability and
-therefore remains App-token only; `local-saas` may use per-server credentials but not device flow.
+relay remain the fallback when it has none. `vibrail-saas` may use per-server credentials but not
+device flow.
 
 Security: all secrets encrypted at rest (`lib/encryption.ts`), decrypted only at clone time, written to
 0600 files removed in `finally`, and never logged (SSH keys go through `writeSecretFile` / `executor.writeFile`,

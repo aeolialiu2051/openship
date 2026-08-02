@@ -3,11 +3,11 @@ import { bodyLimit } from "hono/body-limit";
 import { rateLimiter } from "../../middleware/rate-limiter";
 import { secureRouter } from "../../lib/secure-router";
 import { cloudSessionAuth } from "./cloud-session-auth";
-import * as saas from "./cloud-saas.controller";
+import * as saas from "./vibrail-saas.controller";
 
 /** SaaS-only cloud routes. */
 const r = secureRouter(new Hono(), {
-  module: "cloud-saas",
+  module: "vibrail-saas",
   basePath: "/api/cloud",
 });
 
@@ -108,5 +108,4 @@ r.get("/github/installations", { tag: "cloud:read" }, saas.githubInstallations);
 r.post("/github/installation-token", { tag: "cloud:write" }, saas.githubInstallationToken);
 r.get("/github/user-status", { tag: "cloud:read" }, saas.githubUserStatus);
 
-export const cloudSaasRoutes = r.hono;
-
+export const vibrailSaasRoutes = r.hono;

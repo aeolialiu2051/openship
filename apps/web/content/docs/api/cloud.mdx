@@ -8,7 +8,7 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 The Cloud API links a self-hosted Vibrail instance to **Vibrail Cloud** (the managed control plane) so it can deploy to cloud runtimes, use managed domains and pages, and borrow the central GitHub App. It has **two disjoint halves** and which one is mounted depends on the process mode:
 
 - **Self-hosted set** (`cloud-local`) — connect/disconnect, status, and the workspaces/drift listing. Mounted only when the instance is *not* in cloud mode. This is what you call on your own box.
-- **Cloud control-plane set** (`cloud-saas`) — handoff/OAuth, namespace token minting, edge-proxy/pages/analytics proxies, subgraph transfer, and the GitHub App proxy. Mounted only in cloud mode (`CLOUD_MODE`). Your self-hosted instance calls these machine-to-machine over its stored cloud session; you rarely call them by hand.
+- **Vibrail SaaS control-plane set** (`vibrail-saas`) — handoff/OAuth, namespace token minting, edge-proxy/pages/analytics proxies, subgraph transfer, and the GitHub App proxy. Mounted only in cloud mode (`CLOUD_MODE`). Your self-hosted instance calls these machine-to-machine over its stored cloud session; you rarely call them by hand.
 
 Both halves share the base path `/api/cloud`, but only one is present in any given process.
 

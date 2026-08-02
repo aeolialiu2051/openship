@@ -1,7 +1,7 @@
 /**
  * Mail setup controller - HTTP endpoints for the iRedMail setup wizard.
  *
- * User-owned-server only (self-hosted and local-saas).
+ * User-owned-server only (self-hosted and vibrail-saas).
  *
  * Endpoints:
  *   GET  /mail/steps                → list all setup steps

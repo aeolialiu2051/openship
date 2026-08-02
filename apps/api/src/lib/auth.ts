@@ -72,7 +72,7 @@ export const COOKIE_PREFIX = env.CLOUD_MODE ? "vibrail-cloud" : "vibrail";
 // runs with both; keying off either avoids missing it if only one is set. Used
 // to force email verification before login on SaaS only (self-hosted/desktop
 // keep the env-SMTP-gated behavior).
-export const isSaasDeployment = runtimeTargetId === "cloud-saas" || env.CLOUD_MODE;
+export const isSaasDeployment = runtimeTargetId === "vibrail-saas" || env.CLOUD_MODE;
 
 function getSharedCookieDomain() {
   // A localhost / single-label host (dev — including the local SaaS on :4100)
@@ -360,7 +360,7 @@ export const auth = betterAuth({
      * an alternative to the session cookie. Needed for server-to-server
      * calls into `auth.api.*` from contexts where we hold the raw
      * session token but not a signed cookie (e.g., the GitHub OAuth
-     * bridge in cloud-saas.controller.ts that takes a cloud_session_token
+     * bridge in vibrail-saas.controller.ts that takes a cloud_session_token
      * and calls linkSocialAccount on behalf of the user).
      *
      * Internally signs the token to a cookie format that Better Auth's

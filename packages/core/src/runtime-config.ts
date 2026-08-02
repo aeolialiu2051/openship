@@ -2,8 +2,8 @@ export const DEFAULT_PORT = {
   web: 3000,
   dashboard: 3001,
   api: 4000,
-  saasDashboard: 3002,
-  saasApi: 4100,
+  vibrailSaasDashboard: 3002,
+  vibrailSaasApi: 4100,
 } as const;
 
 const localhost = (port: number) => `http://localhost:${port}`;
@@ -60,11 +60,8 @@ export const CLOUD_API_URL =
  * redundant `id` field on the row. To enable a runtime target,
  * uncomment its entry. VIBRAIL_TARGET picks one row.
  *
- *   VIBRAIL_TARGET=local        (default — self-hosted; talks to cloud-saas)
- *   VIBRAIL_TARGET=cloud-saas   (the SaaS — vibrail.warpgateapi.com in prod, or a
- *                                tunneled localhost during dev:saas)
- *   VIBRAIL_TARGET=local-saas   (a localhost-only SaaS for dev without
- *                                tunneling vibrail.warpgateapi.com)
+ *   VIBRAIL_TARGET=local         (default — self-hosted; talks to vibrail-saas)
+ *   VIBRAIL_TARGET=vibrail-saas  (Vibrail's hosted SaaS)
  *
  * No NODE_ENV magic, no CLOUD_MODE-based inference. Invalid value
  * throws — fail-loud beats silently picking the wrong URL.
@@ -74,30 +71,23 @@ export const DASHBOARD_RUNTIME_TARGETS = {
     dashboard: LOCAL_DASHBOARD_URL,
     api: LOCAL_API_URL,
     ports: { dashboard: DEFAULT_PORT.dashboard, api: DEFAULT_PORT.api },
-    cloudTargetId: "cloud-saas",
+    cloudTargetId: "vibrail-saas",
     selfHosted: true,
     userServers: true,
   },
-  "local-saas": {
-    dashboard: localhost(DEFAULT_PORT.saasDashboard),
-    api: localhost(DEFAULT_PORT.saasApi),
-    ports: { dashboard: DEFAULT_PORT.saasDashboard, api: DEFAULT_PORT.saasApi },
-    // Self-referential — dev:saas IS the SaaS when this row is active,
-    // so cloud calls land back on itself at localhost:4100 instead of
-    // round-tripping to vibrail.warpgateapi.com.
-    cloudTargetId: "local-saas",
-    selfHosted: false,
-    // This development SaaS also orchestrates user-owned VPS targets. Keep
-    // the capability explicit so production cloud SaaS remains locked down.
-    userServers: true,
-  },
-  "cloud-saas": {
+  "vibrail-saas": {
     dashboard: CLOUD_DASHBOARD_URL,
     api: CLOUD_API_URL,
-    ports: { dashboard: DEFAULT_PORT.saasDashboard, api: DEFAULT_PORT.saasApi },
-    cloudTargetId: "cloud-saas",
+    ports: {
+      dashboard: DEFAULT_PORT.vibrailSaasDashboard,
+      api: DEFAULT_PORT.vibrailSaasApi,
+    },
+    // Self-referential: Vibrail Cloud owns its managed deployment runtime.
+    // Local development overrides VIBRAIL_CLOUD_* to localhost explicitly.
+    cloudTargetId: "vibrail-saas",
     selfHosted: false,
-    userServers: false,
+    // Vibrail Cloud can orchestrate connected user-owned VPS targets.
+    userServers: true,
   },
 } as const;
 
@@ -128,10 +118,9 @@ export const runtimeTargetId = rawTarget as DashboardRuntimeTargetId;
 export const runtimeTarget = DASHBOARD_RUNTIME_TARGETS[runtimeTargetId];
 
 // Optional override for WHERE "cloud" points. A self-hosted instance normally
-// talks to cloud-saas (vibrail.warpgateapi.com); set VIBRAIL_CLOUD_TARGET=local-saas to
-// point it at a localhost SaaS (localhost:4100) for end-to-end local testing.
-// Unset/invalid → falls back to the active target's own cloudTargetId, so
-// production self-hosted is unaffected (no env = cloud-saas as before).
+// talks to vibrail-saas. Local development keeps the same target id and
+// overrides VIBRAIL_CLOUD_DASHBOARD_URL / VIBRAIL_CLOUD_API_URL to localhost.
+// Unset/invalid → falls back to the active target's own cloudTargetId.
 const rawCloudTarget =
   typeof process !== "undefined" ? process.env?.VIBRAIL_CLOUD_TARGET : undefined;
 export const cloudRuntimeTargetId: DashboardRuntimeTargetId =

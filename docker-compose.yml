@@ -8,7 +8,7 @@
 # runs postgres + redis. It's what we deploy for the vibrail.warpgateapi.com SaaS, and what
 # a from-source contributor runs locally. The MODE is decided entirely by .env —
 # no profiles, no per-mode service variants:
-#   • SaaS (our env):   CLOUD_MODE=true + VIBRAIL_TARGET=cloud-saas + Oblien /
+#   • SaaS (our env):   CLOUD_MODE=true + VIBRAIL_TARGET=vibrail-saas + Oblien /
 #                       GitHub App / secrets. Deployed apps run in Oblien
 #                       sandboxes — the control plane never runs them here, so
 #                       there is deliberately NO Docker socket and NO edge.

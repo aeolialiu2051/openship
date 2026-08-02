@@ -1,7 +1,7 @@
 /**
  * User-server subset of /api/system.
  *
- * Mounted by local-saas only when CLOUD_MODE is enabled. It intentionally
+ * Mounted by vibrail-saas only when CLOUD_MODE is enabled. It intentionally
  * excludes filesystem, instance setup, migration, tunnels, and data-transfer
  * routes from the full self-hosted system router.
  */

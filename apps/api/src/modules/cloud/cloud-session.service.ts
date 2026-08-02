@@ -1,7 +1,7 @@
 /**
  * Cloud session service - cloud-side session revocation + audit emit.
  *
- * Extracted from cloud-saas.controller so the DELETE-session + audit
+ * Extracted from vibrail-saas.controller so the DELETE-session + audit
  * sequence (and its idempotent "no session id → ok" branch) is unit-
  * testable independent of the HTTP layer.
  */

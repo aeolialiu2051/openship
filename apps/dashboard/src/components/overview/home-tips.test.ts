@@ -13,16 +13,16 @@ describe("product tip capabilities", () => {
     requires: "selfHosted",
   };
 
-  it("shows user-owned VPS features on local SaaS", () => {
-    const localSaas = { selfHosted: false, userServers: true };
+  it("shows user-owned VPS features when the runtime enables them", () => {
+    const vibrailSaas = { selfHosted: false, userServers: true };
 
-    expect(isProductTipAvailable(serversTip, localSaas)).toBe(true);
-    expect(isProductTipAvailable(jobsTip, localSaas)).toBe(false);
+    expect(isProductTipAvailable(serversTip, vibrailSaas)).toBe(true);
+    expect(isProductTipAvailable(jobsTip, vibrailSaas)).toBe(false);
   });
 
-  it("hides user-owned VPS features on production cloud SaaS", () => {
-    const cloudSaas = { selfHosted: false, userServers: false };
+  it("hides user-owned VPS features when the runtime disables them", () => {
+    const cloudWithoutUserServers = { selfHosted: false, userServers: false };
 
-    expect(isProductTipAvailable(serversTip, cloudSaas)).toBe(false);
+    expect(isProductTipAvailable(serversTip, cloudWithoutUserServers)).toBe(false);
   });
 });

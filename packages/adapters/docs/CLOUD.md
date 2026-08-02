@@ -62,7 +62,7 @@ POST /api/cloud/token  (requires auth)
 |---|---|
 | `apps/api/src/lib/vibrail-cloud.ts` | `ensureNamespace()` + `issueNamespaceToken()` |
 | `apps/api/src/modules/cloud/cloud.controller.ts` | `getToken()` handler |
-| `apps/api/src/modules/cloud/cloud.routes.ts` | `cloudSaasRoutes` → `POST /token` |
+| `apps/api/src/modules/cloud/vibrail-saas.routes.ts` | `vibrailSaasRoutes` → `POST /token` |
 
 ## Mode 2: Local (`CLOUD_MODE=false`)
 
@@ -221,7 +221,7 @@ cloudApi.status()                  // GET  /api/cloud/status
 ```typescript
 if (env.CLOUD_MODE) {
   // SaaS: mint tokens for local instances
-  app.route("/api/cloud", cloudSaasRoutes);
+  app.route("/api/cloud", vibrailSaasRoutes);
 } else {
   // Local: manage connection to Vibrail Cloud
   app.route("/api/cloud", cloudLocalRoutes);

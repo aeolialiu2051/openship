@@ -196,13 +196,13 @@ setupWebSocket(app);
 
 /* ---------- Cloud-only routes (gated by CLOUD_MODE) ---------- */
 if (env.CLOUD_MODE) {
-  const { cloudSaasRoutes } = await import("./modules/cloud/cloud-saas.routes");
-  app.route("/api/cloud", cloudSaasRoutes);
+  const { vibrailSaasRoutes } = await import("./modules/cloud/vibrail-saas.routes");
+  app.route("/api/cloud", vibrailSaasRoutes);
 
   const { billingSaasRoutes } = await import("./modules/billing/billing.routes");
   app.route("/api/billing", billingSaasRoutes);
 
-  // local-saas is allowed to orchestrate user-owned VPS targets, but it must
+  // vibrail-saas is allowed to orchestrate user-owned VPS targets, but it must
   // not inherit the full self-hosted /api/system surface (filesystem, instance
   // migration, data transfer, etc.). Mount only the server-focused subset.
   if (USER_SERVERS_ENABLED) {
@@ -255,9 +255,8 @@ if (env.CLOUD_MODE) {
   // (analytics.controller → scrapeServerIfStale) — no background interval.
 }
 
-// Mail remains a user-owned-VPS product. Local SaaS can orchestrate it because
-// it has the same explicit user-server capability; production cloud SaaS does
-// not mount this module at all.
+// Mail remains a user-owned-VPS product and is mounted only for runtime targets
+// that explicitly support orchestrating user-owned servers.
 if (USER_SERVERS_ENABLED) {
   const { mailRoutes } = await import("./modules/mail/mail.routes");
   app.route("/api/mail", mailRoutes);

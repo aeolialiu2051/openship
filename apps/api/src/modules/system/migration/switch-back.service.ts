@@ -153,7 +153,7 @@ async function pullDumpFromVps(serverId: string): Promise<DatabaseDump> {
 
 /**
  * Path B: ask the SaaS for a dump of the team org's data via the
- * mirror endpoint we just added on cloud-saas.
+ * mirror endpoint we just added on vibrail-saas.
  */
 async function pullDumpFromCloud(organizationId: string): Promise<DatabaseDump> {
   const result = await cloudClient({ organizationId }).exportSubgraph({

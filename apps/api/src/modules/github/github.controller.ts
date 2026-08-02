@@ -417,7 +417,7 @@ export async function connectRedirect(c: Context) {
   // split-origin SaaS (app.* vs api.*) a relative path would resolve against
   // the API host and dead-end, so absolutize against the dashboard origin.
   // Self-hosted keeps the relative path (resolves against its single origin).
-  // A local-saas process can still be production-served behind a configured
+  // A vibrail-saas process can still be production-served behind a configured
   // public domain. Use the shared resolver so VIBRAIL_PUBLIC_URL (or the
   // verified self-app domain) wins over the localhost runtime-target fallback.
   const dashOrigin = env.CLOUD_MODE ? resolveDashboardPublicUrl() : "";

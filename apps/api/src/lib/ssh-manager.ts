@@ -47,6 +47,8 @@ import {
 import { resolveSafeSshKeyPath } from "@/lib/ssh-key-path";
 import { VIBRAIL_DIR } from "@/lib/vibrail-server-store";
 import { safeErrorMessage } from "@repo/core";
+import { env } from "@/config/env";
+import { resolvePublicHost } from "@/lib/ssrf-guard";
 
 const execFileAsync = promisify(execFile);
 
@@ -113,6 +115,16 @@ export interface SshSettingsInput {
   sshArgs?: string | null;
 }
 
+/** Whether tenant-provided SSH settings are safe to honor on the SaaS host. */
+export function isCloudSafeSshSettings(settings: SshSettingsInput): boolean {
+  return !(
+    settings.sshAuthMethod === "agent" ||
+    (settings.sshKeyPath && !isInlinePrivateKey(settings.sshKeyPath)) ||
+    settings.sshJumpHost?.trim() ||
+    settings.sshArgs?.trim()
+  );
+}
+
 /**
  * Map a settings object → `SshConfig`.  Works for both DB rows and
  * plain request-body objects.  Returns `null` when the input is
@@ -124,8 +136,24 @@ export async function buildSshConfig(
 ): Promise<SshConfig | null> {
   if (!settings.sshHost) return null;
 
+  // A multi-tenant SaaS must never let a tenant borrow the control plane's
+  // local SSH agent, read an operator-owned key path, or inject OpenSSH
+  // options such as ProxyCommand. Passwords and uploaded inline private keys
+  // are tenant-owned and remain supported. Pin the validated public address
+  // so ssh2 does not perform a second, potentially rebound DNS lookup.
+  if (env.CLOUD_MODE && !isCloudSafeSshSettings(settings)) return null;
+
+  let host = settings.sshHost;
+  if (env.CLOUD_MODE) {
+    try {
+      host = await resolvePublicHost(host);
+    } catch {
+      return null;
+    }
+  }
+
   const config: SshConfig = {
-    host: settings.sshHost,
+    host,
     port: settings.sshPort ?? 22,
     username: settings.sshUser ?? "root",
   };
@@ -497,7 +525,17 @@ export class SshConnectionManager {
     const server = await repos.server.get(serverId).catch(() => undefined);
     if (!server?.sshHost) return false;
 
-    const ok = await probeTcp(server.sshHost, server.sshPort ?? 22, timeoutMs);
+    let probeHost = server.sshHost;
+    if (env.CLOUD_MODE) {
+      try {
+        probeHost = await resolvePublicHost(probeHost);
+      } catch {
+        this.recordFailure(serverId);
+        return false;
+      }
+    }
+
+    const ok = await probeTcp(probeHost, server.sshPort ?? 22, timeoutMs);
     if (ok) this.recordSuccess(serverId);
     else this.recordFailure(serverId);
     return ok;

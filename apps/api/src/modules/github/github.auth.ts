@@ -762,7 +762,7 @@ export async function getUserStatus(userId: string) {
 
 /**
  * Wrap `getUserStatus` with a diagnostic DB-row count on the disconnected
- * branch. Extracted from cloud-saas.controller's githubUserStatus handler
+ * branch. Extracted from vibrail-saas.controller's githubUserStatus handler
  * so the diagnostic lookup stays in sync with the auth resolution above
  * for every caller — the controller used to ad-hoc the same query.
  *
@@ -791,7 +791,7 @@ export async function getUserStatusWithDiagnostics(
       githubRowCount = rows.length;
     } catch (err) {
       console.log(
-        `[cloud-saas:githubUserStatus] account lookup failed: ${safeErrorMessage(err)}`,
+        `[vibrail-saas:githubUserStatus] account lookup failed: ${safeErrorMessage(err)}`,
       );
     }
     return { connected: false, githubAccountRowsForUser: githubRowCount };

@@ -181,7 +181,7 @@ export function resolveEffectiveTarget(
   // (over SSH), not silently fall back to the laptop's noop provider.
   if (base !== "cloud" && snapshot.serverId) return "server";
   if (base === "desktop") return snapshot.deployTarget ?? "cloud";
-  // local-saas is cloud-backed for managed deployments, but explicitly chosen
+  // vibrail-saas is cloud-backed for managed deployments, but explicitly chosen
   // user VPS targets are orchestrated over SSH from this control plane.
   if (
     base === "cloud" &&

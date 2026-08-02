@@ -1,7 +1,7 @@
 /**
  * Cloud edge proxy service - sync a namespaced edge proxy on Oblien.
  *
- * Extracted from cloud-saas.controller so slug normalization +
+ * Extracted from vibrail-saas.controller so slug normalization +
  * hostname construction stay in one place and are unit-testable
  * independent of the HTTP layer.
  */

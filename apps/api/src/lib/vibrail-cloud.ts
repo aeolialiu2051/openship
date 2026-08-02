@@ -33,7 +33,7 @@ export function getOblienClient(): Oblien {
   // (env-var typo, copied .env from cloud, etc.) and called this
   // function, the resulting client would have multi-tenant authority
   // — refuse to instantiate. CLOUD_MODE is the same flag every other
-  // SaaS-only code path checks (cloud-saas.controller, namespace
+  // SaaS-only code path checks (vibrail-saas.controller, namespace
   // minting), so this stays in lockstep with the rest of the boundary.
   if (!env.CLOUD_MODE) {
     throw new Error(

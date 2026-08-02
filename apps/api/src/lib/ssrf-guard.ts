@@ -90,12 +90,14 @@ export function assertPublicUrlLiteral(raw: string, opts: { allowHttp?: boolean 
   assertPublicHostLiteral(url.hostname);
 }
 
-/** Async host guard: literal check + DNS-resolve and reject if ANY resolved
- *  address is private (DNS-rebinding defense). Use at connect/fetch time. */
-export async function assertPublicHost(hostRaw: string): Promise<void> {
+/** Resolve a public host once and return the validated address to connect to.
+ * Callers that open a socket should use the returned IP instead of resolving
+ * the original hostname again, otherwise a DNS change between validation and
+ * connection can bypass the policy. */
+export async function resolvePublicHost(hostRaw: string): Promise<string> {
   const host = normalizeHost(hostRaw);
   assertPublicHostLiteral(host);
-  if (net.isIP(host)) return; // already validated as a public literal
+  if (net.isIP(host)) return host; // already validated as a public literal
   let addrs: { address: string }[];
   try {
     addrs = await lookup(host, { all: true });
@@ -108,6 +110,14 @@ export async function assertPublicHost(hostRaw: string): Promise<void> {
       throw new SsrfError(`Host ${host} resolves to a private/loopback IP (${a.address})`);
     }
   }
+  return addrs[0]!.address;
+}
+
+/** Async host guard: literal check + DNS-resolve and reject if ANY resolved
+ *  address is private (DNS-rebinding defense). Use when only validation is
+ *  needed; socket-opening callers should prefer `resolvePublicHost`. */
+export async function assertPublicHost(hostRaw: string): Promise<void> {
+  await resolvePublicHost(hostRaw);
 }
 
 /** Async URL guard: protocol + literal + DNS-pin. Use at fetch time. */
