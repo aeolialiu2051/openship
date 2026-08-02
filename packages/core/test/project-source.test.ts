@@ -36,12 +36,12 @@ describe("isTemplateProvider", () => {
 describe("renderAssetName", () => {
   it("substitutes {tag}/{version}/{os}/{arch}", () => {
     expect(
-      renderAssetName("openship-{tag}-{os}-{arch}.tar.gz", {
+      renderAssetName("vibrail-{tag}-{os}-{arch}.tar.gz", {
         version: "1.2.3",
         os: "darwin",
         arch: "arm64",
       }),
-    ).toBe("openship-v1.2.3-darwin-arm64.tar.gz");
+    ).toBe("vibrail-v1.2.3-darwin-arm64.tar.gz");
   });
 
   it("defaults os→linux and arch→amd64", () => {

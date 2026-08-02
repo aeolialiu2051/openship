@@ -76,7 +76,7 @@ export interface MailCredentials {
  * deploy has happened against this mail server. Absent or `installed=false`
  * means the overview tab should show the Deploy CTA instead of an Open
  * webmail button. The `brandingToken` is NEVER exposed here - that secret
- * lives between the openship API and the Zero server only.
+ * lives between the vibrail API and the Zero server only.
  */
 export interface MailWebmailSummary {
   installed: boolean;
@@ -131,7 +131,7 @@ export interface MailSetupStatus {
 // ─── Webmail deploy types ────────────────────────────────────────────────────
 
 export interface WebmailTargetOption {
-  kind: "mail" | "server" | "opshcloud";
+  kind: "mail" | "server" | "cloud";
   serverId: string;
   label: string;
   description?: string;
@@ -289,7 +289,7 @@ export const mailApi = {
 
   /**
    * Get current setup status for a server. State lives ON the target
-   * VPS now (not in openship's DB), so a serverId is required to know
+   * VPS now (not in vibrail's DB), so a serverId is required to know
    * whose state we're reading. Returns the "no install" shape if the
    * server can't be reached or the state file doesn't exist.
    */
@@ -533,7 +533,7 @@ export const mailApi = {
 
   // ── Webmail deploy ────────────────────────────────────────────────────────
   webmail: {
-    /** Hosts the webmail can be deployed to (mail server + other openship servers). */
+    /** Hosts the webmail can be deployed to (mail server + other vibrail servers). */
     listTargets: (serverId: string) =>
       api.get<{ options: WebmailTargetOption[] }>(
         `${endpoints.mail.webmail.targets}?serverId=${encodeURIComponent(serverId)}`,
@@ -545,8 +545,8 @@ export const mailApi = {
      * /build/[deploymentId] and subscribes to the standard SSE endpoint.
      *
      * `target` discriminator:
-     *   { kind: "self", serverId } - host on an openship-managed server
-     *   { kind: "cloud" }          - host on Opshcloud
+     *   { kind: "self", serverId } - host on a Vibrail-managed server
+     *   { kind: "cloud" }          - host on Vibrail Cloud
      */
     deployAsProject: (input: {
       mailServerId: string;

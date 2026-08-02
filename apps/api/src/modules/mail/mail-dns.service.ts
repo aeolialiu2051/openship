@@ -5,7 +5,7 @@ import {
 } from "../../lib/cloudflare-dns";
 
 function ownerTag(serverId: string): string {
-  return `openship:mail:${serverId}`;
+  return `vibrail:mail:${serverId}`;
 }
 
 function asDnsRecord(value: unknown): ManagedDnsRecordInput | null {

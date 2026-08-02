@@ -44,7 +44,7 @@ import { installCommand } from "./commands/install";
 import { updateCommand } from "./commands/update";
 import { cacheCommand } from "./commands/cache";
 
-// Interactive setup / control (bare `openship`)
+// Interactive setup / control (bare `vibrail`)
 import { runWizard, runControl, isSetupInProgress } from "./commands/wizard";
 import { serviceStatus } from "./lib/service";
 
@@ -54,14 +54,14 @@ declare const __CLI_VERSION__: string;
 const program = new Command();
 
 program
-  .name("openship")
-  .description("Openship CLI — install, run, and manage Openship from your terminal")
+  .name("vibrail")
+  .description("Vibrail CLI — install, run, and manage Vibrail from your terminal")
   .version(__CLI_VERSION__)
   .option("--json", "Machine-readable JSON output (stdout data only)")
   .hook("preAction", (thisCommand) => {
     if (thisCommand.opts().json) setJsonMode(true);
   })
-  // Bare `openship` (no subcommand): setup wizard on a fresh box, or the control
+  // Bare `vibrail` (no subcommand): setup wizard on a fresh box, or the control
   // panel once a service is already installed (manage instead of starting over).
   .action(async () => {
     // A service is installed AND setup finished → manage it. If a prior setup

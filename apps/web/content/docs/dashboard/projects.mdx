@@ -3,7 +3,7 @@ title: Projects
 description: The Projects list and the nine-tab project detail screen — where you find every app you've deployed and manage its domains, deploys, config, logs, and backups.
 ---
 
-A **project** is one app Openship knows how to build and run. This is where you find every app
+A **project** is one app Vibrail knows how to build and run. This is where you find every app
 you've deployed and go into any one of them to change how it runs. There are two screens: the
 **Projects list** (everything at a glance) and the **project detail** screen (one project, nine
 tabs).
@@ -36,7 +36,7 @@ Once you have more than three projects, a search box appears above the list. It 
 ### Filter by target
 
 When your projects span more than one deploy target, a **Filter by target** card appears in the
-right column. It groups projects by where they run — **All projects**, **Openship Cloud**, each
+right column. It groups projects by where they run — **All projects**, **Vibrail Cloud**, each
 connected **server** (by its name), and **Local** — with a count beside each. If you have no
 server-hosted projects yet, that column instead shows a **Connect a server** prompt (see
 [Custom servers](/docs/guides/custom-servers)).
@@ -59,7 +59,7 @@ analytics reflect.
 
 The pill in the top-right shows the current **environment** (for example **Production**) and its
 git branch. Click it to switch between environments, or use the **+** button next to it to spin a
-new one up from a branch — pick a branch and Openship creates a matching environment (a `main`
+new one up from a branch — pick a branch and Vibrail creates a matching environment (a `main`
 or `master` branch becomes production, anything else a preview). **Manual environment** lets you
 name one yourself. Full walkthrough: [Preview environments](/docs/guides/preview-environments).
 
@@ -142,7 +142,7 @@ pauses or resumes the project.
 
 The red **Danger Zone** at the bottom holds **Delete Project**. The full delete permanently removes the
 project's deployments, domains, environment variables, and analytics. On **self-hosted** instances you also
-get a **record-only** option that drops Openship's record of the project but **leaves the running
+get a **record-only** option that drops Vibrail's record of the project but **leaves the running
 workload, its data, and its on-server manifest in place** — so you can re-import it later. (Cloud projects
 are always fully deleted.)
 

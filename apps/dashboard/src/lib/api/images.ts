@@ -27,14 +27,14 @@ export interface ImageCatalogEntry {
 export interface ListImagesResponse {
   success: boolean;
   images: ImageCatalogEntry[];
-  /** False when the local instance has no Openship Cloud connection. */
+  /** False when the local instance has no Vibrail Cloud connection. */
   cloudConnected?: boolean;
 }
 
 export const imagesApi = {
   /**
    * Fetch the catalog. Returns an empty `images` array when the local
-   * instance isn't linked to Openship Cloud (the modal falls back to
+   * instance isn't linked to Vibrail Cloud (the modal falls back to
    * the Custom Image tile in that case). Server-side caches for ~5 min.
    */
   list: (params?: { search?: string; category?: string }) => {

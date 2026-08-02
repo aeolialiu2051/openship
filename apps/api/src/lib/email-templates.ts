@@ -1,5 +1,5 @@
 /**
- * Email templates for Openship.
+ * Email templates for Vibrail.
  *
  * Each template returns { subject, html, text } so they can be
  * passed directly to sendMail(). Keep all copy and markup here
@@ -10,7 +10,7 @@
 /*  Shared layout                                                      */
 /* ------------------------------------------------------------------ */
 
-const BRAND = "Openship";
+const BRAND = "Vibrail";
 
 /**
  * Escape a value for interpolation into HTML text/attribute content
@@ -79,7 +79,7 @@ export function resetPasswordEmail(user: { name?: string | null; email: string }
   `);
 
   return {
-    subject: "Reset your Openship password",
+    subject: "Reset your Vibrail password",
     html,
     text: `Hi ${user.name || "there"},\n\nReset your password: ${url}\n\nIf you didn't request this, ignore this email. The link expires in 1 hour.`,
   };
@@ -102,7 +102,7 @@ export function verifyEmailTemplate(user: { name?: string | null; email: string 
   `);
 
   return {
-    subject: "Verify your Openship email",
+    subject: "Verify your Vibrail email",
     html,
     text: `Hi ${user.name || "there"},\n\nVerify your email: ${url}\n\nIf you didn't create an account, ignore this email.`,
   };
@@ -173,7 +173,7 @@ export function organizationInviteEmail(opts: {
     </p>
     ${ctaButton(opts.url, "Accept invitation")}
     <p style="color:#9ca3af;font-size:13px;margin:0">
-      If you don't have an Openship account yet, you'll be asked to create one with this email
+      If you don't have a Vibrail account yet, you'll be asked to create one with this email
       (${htmlEscape(opts.invitee.email)}). The invitation expires in 7 days.
     </p>
   `);

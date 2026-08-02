@@ -8,12 +8,12 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 The Audit API is a read-only feed of the append-only audit log for your active organization: an event per
 significant action (logins, member changes, deployments, settings edits, and more), newest first. In the
 dashboard this is the **Audit** page; there's no dedicated CLI command — reach it through
-[`openship api`](/docs/cli/access).
+[`vibrail api`](/docs/cli/access).
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/audit`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model.
 </Callout>
 
@@ -67,7 +67,7 @@ The pagination envelope depends on the mode:
 ```bash
 # Cursor mode — newest 50 deployment-failure events
 curl -G https://your-host/api/audit \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   --data-urlencode "cursor=" \
   --data-urlencode "limit=50" \
   --data-urlencode "eventType=deployment.failed"
@@ -75,7 +75,7 @@ curl -G https://your-host/api/audit \
 
 ```bash
 # Same thing via the CLI escape hatch (path is relative to /api):
-openship api /audit -q eventType=deployment.failed -q limit=50
+vibrail api /audit -q eventType=deployment.failed -q limit=50
 ```
 
 ## Errors you might see

@@ -193,7 +193,7 @@ export interface MappedRepository {
   updated_at: string;
   pushed_at: string;
   /**
-   * Where openship learned about this repo:
+   * Where vibrail learned about this repo:
    *   - "app"  → covered by a GitHub App installation. Deployable anywhere
    *              (local + remote) via short-lived install tokens.
    *   - "cli"  → seen by the local `gh` CLI but NOT covered by an App
@@ -219,7 +219,7 @@ export interface MappedAccount {
    * memberships — they look identical otherwise, and the settings card
    * MUST NOT claim the App is connected to a CLI-only org. Without an
    * explicit source, callers must assume "cli" and gate any App claims
-   * behind state.sources.openshipApp.connected.
+   * behind state.sources.vibrailApp.connected.
    *
    *  - "app" → real GitHub App installation (deployable anywhere via
    *            short-lived install tokens)
@@ -265,7 +265,7 @@ export interface GitHubConnectionState {
   sources: {
     /** Vibrail GitHub App. In SaaS mode this is the local installation;
      *  in self-hosted+cloud-connected this is the cloud-proxied install. */
-    openshipApp: {
+    vibrailApp: {
       connected: boolean;
       login?: string;
       avatarUrl?: string;
@@ -285,11 +285,11 @@ export interface GitHubConnectionState {
   };
   /**
    * Which source listings + cloning prefer. The priority is:
-   *   1. openship-app (when connected) — safest, short-lived install tokens
+   *   1. vibrail-app (when connected) — safest, short-lived install tokens
    *   2. gh-cli (when available) — local builds only
    *   3. null — nothing connected
    *
    * `null` is the "show the connect prompt" signal.
    */
-  primary: "openship-app" | "gh-cli" | null;
+  primary: "vibrail-app" | "gh-cli" | null;
 }

@@ -10,9 +10,9 @@ import { attachTunnelingLifecycle, type TunnelingLifecycle } from "./modules/tun
 
 const port = env.PORT;
 // Bind host. Unset → @hono/node-server listens on 0.0.0.0 (unchanged default).
-// `openship up --public-url` sets 127.0.0.1 so ONLY the same-box dashboard proxy
+// `vibrail up --public-url` sets 127.0.0.1 so ONLY the same-box dashboard proxy
 // reaches the API — the API itself is never publicly exposed.
-const hostname = process.env.OPENSHIP_API_HOST?.trim() || undefined;
+const hostname = process.env.VIBRAIL_API_HOST?.trim() || undefined;
 
 // Hand the adapters' backup-credential decrypt the SAME resolved secret the API
 // encrypts with (env applies the BETTER_AUTH_SECRET default; process.env may
@@ -25,9 +25,9 @@ setBackupCredentialSecret(env.BETTER_AUTH_SECRET);
 enforceRouteScanAtBoot(app);
 
 const server = serve({ fetch: app.fetch, port, ...(hostname ? { hostname } : {}) }, (info) => {
-  console.log(`Openship API running on http://${hostname ?? "localhost"}:${info.port}`);
+  console.log(`Vibrail API running on http://${hostname ?? "localhost"}:${info.port}`);
   // Visible echo of the resolved runtime + cloud target. The full
-  // `[env]` line at module load already prints OPENSHIP_TARGET + the
+  // `[env]` line at module load already prints VIBRAIL_TARGET + the
   // resolved URLs; this second line confirms the SAME resolution at
   // serve-time so anyone seeing a wrong URL can immediately tell
   // whether the process picked the right row.

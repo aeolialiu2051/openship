@@ -859,7 +859,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.contactSupport,
       icon: <HelpCircle className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://openship.io/support", "_blank");
+        window.open("https://vibrail.warpgateapi.com/support", "_blank");
       },
     },
     {
@@ -867,7 +867,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.reportIssue,
       icon: <Bug className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://github.com/oblien/openship/deployments/issues/new", "_blank");
+        window.open("https://github.com/aeolialiu2051/vibrail/deployments/issues/new", "_blank");
       },
     },
     {
@@ -875,7 +875,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.sendFeedback,
       icon: <MessageSquare className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://openship.io/contact", "_blank");
+        window.open("https://vibrail.warpgateapi.com/contact", "_blank");
       },
     },
     {
@@ -895,7 +895,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.joinCommunity,
       icon: <ExternalLink className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://discord.gg/openship", "_blank");
+        window.open("https://discord.gg/vibrail", "_blank");
       },
     },
   ];

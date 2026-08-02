@@ -6,19 +6,19 @@ description: Put an app online straight from a folder on your computer — no Gi
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 Not everything lives on GitHub. Sometimes the code is just a folder on your laptop — one you cloned ages
-ago, downloaded, or started from scratch. Openship can take that folder and put it online, no git remote
+ago, downloaded, or started from scratch. Vibrail can take that folder and put it online, no git remote
 needed. Think of it like mailing a parcel instead of a letter: you hand over the whole box of files, and
-Openship unpacks it, figures out what's inside, builds it, and gives you back a real web address.
+Vibrail unpacks it, figures out what's inside, builds it, and gives you back a real web address.
 
 <Callout title="What you need first">
-- Openship up and running (you can see the dashboard). If not, start with [Installation](/docs/getting-started/installation).
+- Vibrail up and running (you can see the dashboard). If not, start with [Installation](/docs/getting-started/installation).
 - A folder on disk with your app in it — a website, an API, anything.
-- You do **not** need Docker, a server config, or any special files. Openship reads your folder and works out the rest.
+- You do **not** need Docker, a server config, or any special files. Vibrail reads your folder and works out the rest.
 </Callout>
 
 ## What actually gets uploaded
 
-Openship sends your **source files** — the code you wrote — and nothing else. The heavy, rebuildable stuff
+Vibrail sends your **source files** — the code you wrote — and nothing else. The heavy, rebuildable stuff
 is skipped: `node_modules`, `.git`, and build output like `dist` and `.next` never go over the wire. Your
 dependencies get reinstalled fresh during the build, so leaving them behind is exactly what you want. It
 keeps the upload small and your build clean.
@@ -29,7 +29,7 @@ The **desktop app** is the exception: it reads your folder straight from disk an
 
 Open the **Library** page (the **New project** button lands you here too) and choose the **Folder** tab.
 
-What you see next depends on how you're using Openship. The **desktop app** can read a folder directly off
+What you see next depends on how you're using Vibrail. The **desktop app** can read a folder directly off
 your computer. A **web browser** (talking to a self-hosted or cloud instance) can't peek at your filesystem,
 so it uploads a copy of the folder instead. Pick the tab that matches you.
 
@@ -58,12 +58,12 @@ projects yet" and an **Import Project** button. Once you've added some, the pane
 
 ### Pick your folder
 
-A folder picker opens. Browse to your project folder and select it — that's all Openship needs.
+A folder picker opens. Browse to your project folder and select it — that's all Vibrail needs.
 
 <Callout title="No folder picker?" type="info">
 On some setups the native picker isn't available. Instead you'll see an **Import from folder** form: type the
 folder's full absolute path (like `/Users/you/projects/my-app`), or press **Browse**, then press **Scan**.
-Openship shows the **Detected** stack and an editable **Project name** — press **Import Project** to add it to
+Vibrail shows the **Detected** stack and an editable **Project name** — press **Import Project** to add it to
 your Local Projects list, then deploy it from there.
 </Callout>
 
@@ -73,7 +73,7 @@ your Local Projects list, then deploy it from there.
 
 ### Press Deploy and watch it go live
 
-Openship takes you to the deploy screen with the detected stack already filled in — the framework, the
+Vibrail takes you to the deploy screen with the detected stack already filled in — the framework, the
 package manager, and the build and start commands. For most apps there's nothing to change. Press **Deploy**
 and the build screen streams the logs live. When it finishes, you get a link — click it and your app is
 online. 🎉
@@ -88,7 +88,7 @@ online. 🎉
 
 <Tab value="Web browser">
 
-In a browser, Openship can't see your disk — so you tell it what you're deploying, then hand it the folder
+In a browser, Vibrail can't see your disk — so you tell it what you're deploying, then hand it the folder
 and it packs and uploads a copy.
 
 <Steps>
@@ -98,7 +98,7 @@ and it packs and uploads a copy.
 ### Pick your stack
 
 The Folder tab asks **"What are you deploying?"** Choose the tile that matches your app (for example Next.js,
-Vite, or Express). This tells Openship which build environment to prepare.
+Vite, or Express). This tells Vibrail which build environment to prepare.
 
 <Callout title="Screenshot">Library page, **Folder** tab in a browser — the "What are you deploying?" stack grid. *(screenshot pending)*</Callout>
 
@@ -120,7 +120,7 @@ folder name and how many files it contains.
 
 ### Press Continue
 
-Openship packs the folder **in your browser** and uploads it, then takes you to the deploy screen. The button
+Vibrail packs the folder **in your browser** and uploads it, then takes you to the deploy screen. The button
 shows a short **Packing folder…** then **Uploading…** while it works — bigger folders take a little longer.
 
 </Step>
@@ -142,42 +142,42 @@ get a live link. 🎉
 
 ## Prefer the terminal?
 
-The CLI does the whole thing in one command. When you run `openship deploy` in a folder that **isn't** a git
+The CLI does the whole thing in one command. When you run `vibrail deploy` in a folder that **isn't** a git
 repository, it automatically packages that folder, uploads it, auto-detects the stack, creates the project
 (or reuses one that already has the same name), and deploys it — the same pipeline as the browser upload
 above.
 
 ```bash
 # From inside your project folder:
-openship deploy --name my-app --watch
+vibrail deploy --name my-app --watch
 ```
 
 - `--name` sets the project's name (without it, the folder's name is used).
-- `--watch` follows the build logs in your terminal until it finishes. Leave it off and Openship prints a
+- `--watch` follows the build logs in your terminal until it finishes. Leave it off and Vibrail prints a
   command to follow the logs later.
 
 <Callout title="Deploying inside a git repo?" type="info">
-If the folder **is** a git repository, `openship deploy` deploys from git instead of uploading the folder.
+If the folder **is** a git repository, `vibrail deploy` deploys from git instead of uploading the folder.
 To upload the files directly, run it from a folder without a `.git` — or use [Deploy from GitHub](/docs/guides/deploy-from-github) for the git flow.
 </Callout>
 
 ### Deploy to the same project again
 
-Openship matches your folder to a project by **name**. Run `openship deploy --name my-app` a second time from
+Vibrail matches your folder to a project by **name**. Run `vibrail deploy --name my-app` a second time from
 the same folder and it updates *that* project instead of making a new one — so repeat deploys just ship new
 versions.
 
 To pin the folder to one exact project — even if you rename it or forget the `--name` flag — link it once
-with `openship init`:
+with `vibrail init`:
 
 ```bash
-openship init          # pick a project to link this folder to
-openship deploy        # from now on, deploys to the linked project
+vibrail init          # pick a project to link this folder to
+vibrail deploy        # from now on, deploys to the linked project
 ```
 
-`openship init` writes a small `.openship/project.json` file so later commands know which project this folder
+`vibrail init` writes a small `.vibrail/project.json` file so later commands know which project this folder
 belongs to. It links to a project that **already exists**, so create one first — with a folder deploy, or in
-the dashboard — then run `openship init` to pin future deploys to it.
+the dashboard — then run `vibrail init` to pin future deploys to it.
 
 ## If something goes wrong
 
@@ -188,7 +188,7 @@ no source in it. Choose the folder that actually contains your app's code — th
 </Callout>
 
 <Callout title="The browser upload can't find your folder's path" type="warn">
-A web browser only gives Openship the folder's **name**, not its full location on disk. When the form asks
+A web browser only gives Vibrail the folder's **name**, not its full location on disk. When the form asks
 for a path, type the full absolute path (like `/Users/you/projects/my-app`) and press **Scan**. Or use the
 desktop app, which can open the folder directly.
 </Callout>

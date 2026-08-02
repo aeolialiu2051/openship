@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { generateDockerfile, withOpenshipRuntimeBanner } from "./docker-build-plan";
+import { generateDockerfile, withVibrailRuntimeBanner } from "./docker-build-plan";
 import type { BuildConfig } from "../types";
 
 // generateDockerfile reads only a handful of fields; a partial cast keeps the
@@ -59,19 +59,19 @@ describe("generateDockerfile — non-PHP is unaffected", () => {
     expect(df).toContain("FROM node:22");
     expect(df).not.toContain("nginx");
     expect(df).not.toContain("AS builder"); // single stage
-    expect(df).toContain("[openship] Application starting on port 3000");
+    expect(df).toContain("[vibrail] Application starting on port 3000");
     expect(df).toContain("exec sh -c");
   });
 });
 
-describe("withOpenshipRuntimeBanner", () => {
+describe("withVibrailRuntimeBanner", () => {
   it("shell-quotes apostrophes in both the log message and start command", () => {
-    const wrapped = withOpenshipRuntimeBanner(
+    const wrapped = withVibrailRuntimeBanner(
       `python -c "print('ready')" && echo $PORT`,
       `App's runtime is ready`,
     );
 
-    expect(wrapped).toContain(`'[openship] App'\\''s runtime is ready'`);
+    expect(wrapped).toContain(`'[vibrail] App'\\''s runtime is ready'`);
     expect(wrapped).toContain(`exec sh -c 'python -c "print('\\''ready'\\'')" && echo $PORT'`);
   });
 });
@@ -94,7 +94,7 @@ describe("generateDockerfile — static document roots", () => {
 
     expect(df).toContain("location /docs/ { try_files $uri $uri/ /docs/index.html; }");
     expect(df).toContain("location / { try_files $uri $uri/ /index.html; }");
-    expect(df).toContain("[openship] Static server listening on port 3000");
+    expect(df).toContain("[vibrail] Static server listening on port 3000");
     expect(df).toContain("nginx -g");
   });
 });

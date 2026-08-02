@@ -100,7 +100,7 @@ export async function listWorkspaces(c: Context) {
     return c.json(
       {
         connected: true,
-        error: "Could not list workspaces from Openship Cloud",
+        error: "Could not list workspaces from Vibrail Cloud",
         workspaces: [],
         orphanedCloud: [],
         orphanedLocal: [],
@@ -200,7 +200,7 @@ export async function connectFinalize(c: Context) {
     const data = await exchangeCodeWithCloud(body.code, body.codeVerifier);
     if (!data) {
       return c.json(
-        { error: "Could not verify with Openship Cloud" },
+        { error: "Could not verify with Vibrail Cloud" },
         401,
       );
     }

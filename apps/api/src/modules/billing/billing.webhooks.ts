@@ -674,7 +674,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
  * not a quota state — the user still has whatever allowance they had a
  * second ago. The only thing that stops workloads is Oblien itself, when
  * credit usage crosses the quota overdraft (`onOverdraftAction:
- * "stop_workspaces"`) — openship never suspends namespaces for billing.
+ * "stop_workspaces"`) — vibrail never suspends namespaces for billing.
  */
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice): Promise<void> {
   const subRef = (invoice as unknown as { subscription?: string | { id: string } })
@@ -826,7 +826,7 @@ async function notifyPastDue(
       <p>We weren't able to charge your card for invoice <strong>${invoice.number ?? invoice.id}</strong> (${amount} ${(invoice.currency ?? "usd").toUpperCase()}).</p>
       <p>Your workspace is now in <strong>past_due</strong> — please update your payment method to restore full access.</p>
       ${hostedInvoiceUrl ? `<p><a href="${hostedInvoiceUrl}">Update payment method</a></p>` : ""}
-      <p>— Openship</p>
+      <p>— Vibrail</p>
     `,
     text: `We weren't able to charge your card for invoice ${invoice.number ?? invoice.id} (${amount}). Update payment to restore access: ${hostedInvoiceUrl}`,
     organizationId,

@@ -1,13 +1,13 @@
-# Openship installer (Windows) — https://get.openship.io
+# Vibrail installer (Windows) — https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh
 #
-#   irm https://git.openship.io/windows | iex
+#   irm https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.ps1 | iex
 #
-# Installs the Openship CLI. Then `openship up` runs Openship locally (API +
-# dashboard), or `openship install` fetches the desktop app. Bun is the runtime;
+# Installs the Vibrail CLI. Then `vibrail up` runs Vibrail locally (API +
+# dashboard), or `vibrail install` fetches the desktop app. Bun is the runtime;
 # this installs it for you if it's missing (no Node or npm needed).
 #
 # Env overrides:
-#   $env:OPENSHIP_VERSION = "0.1.9"   # pin a specific CLI version
+#   $env:VIBRAIL_VERSION = "0.1.9"   # pin a specific CLI version
 
 $ErrorActionPreference = "Stop"
 function Info($m) { Write-Host "==> $m" -ForegroundColor Cyan }
@@ -24,17 +24,17 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
   exit 1
 }
 
-# 2. Install the Openship CLI globally (Bun fetches it from the registry —
+# 2. Install the Vibrail CLI globally (Bun fetches it from the registry —
 #    the npm CLI itself is never invoked).
-$pkg = "openship"
-if ($env:OPENSHIP_VERSION) { $pkg = "openship@$($env:OPENSHIP_VERSION)" }
-Info "Installing the Openship CLI ($pkg)..."
+$pkg = "vibrail"
+if ($env:VIBRAIL_VERSION) { $pkg = "vibrail@$($env:VIBRAIL_VERSION)" }
+Info "Installing the Vibrail CLI ($pkg)..."
 bun add -g $pkg
 
 Write-Host ""
-Write-Host "Openship installed." -ForegroundColor Green
-Write-Host "  openship up        # run Openship locally (API + dashboard)"
-Write-Host "  openship install   # or install the desktop app"
-Write-Host "  openship --help    # all commands"
+Write-Host "Vibrail installed." -ForegroundColor Green
+Write-Host "  vibrail up        # run Vibrail locally (API + dashboard)"
+Write-Host "  vibrail install   # or install the desktop app"
+Write-Host "  vibrail --help    # all commands"
 Write-Host ""
-Write-Host "If 'openship' isn't found, restart your terminal (PATH was updated)."
+Write-Host "If 'vibrail' isn't found, restart your terminal (PATH was updated)."

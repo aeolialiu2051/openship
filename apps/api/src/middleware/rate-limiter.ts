@@ -66,13 +66,13 @@ async function enforce(c: Context, policyId: PolicyId): Promise<Response | null>
   // client, so this can't fire there.
   //
   // CRITICAL: NEVER exempt the auth/login gate. Behind a same-host reverse proxy
-  // that forwards over loopback without TRUST_PROXY/OPENSHIP_PUBLIC_URL set (an
+  // that forwards over loopback without TRUST_PROXY/VIBRAIL_PUBLIC_URL set (an
   // easy operator misconfig), EVERY internet request arrives as a loopback peer
   // — exempting `auth-tight`/`auth-loose` would silently disable sign-in
   // brute-force throttling. The auth gate always enforces (proxied traffic
   // buckets under one loopback key when no client IP is trustable).
   const isAuthGate = policyId === "auth-tight" || policyId === "auth-loose";
-  if (!isAuthGate && !env.TRUST_PROXY && !env.OPENSHIP_PUBLIC_URL && isLoopbackPeer(peerAddress(c))) {
+  if (!isAuthGate && !env.TRUST_PROXY && !env.VIBRAIL_PUBLIC_URL && isLoopbackPeer(peerAddress(c))) {
     return null;
   }
 

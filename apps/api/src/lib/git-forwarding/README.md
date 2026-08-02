@@ -1,7 +1,7 @@
 # Git credential forwarding (desktop-only)
 
 Lets a **server build clone on a remote server using the operator's LOCAL `gh` identity** — so you
-don't have to use the Vibrail GitHub App token from Openship Cloud *and* don't have to build locally then upload —
+don't have to use the Vibrail GitHub App token from Vibrail Cloud *and* don't have to build locally then upload —
 **without persisting any credential on the remote**. One consumer:
 
 | Consumer | Entry point | Use |
@@ -27,7 +27,7 @@ On-demand, never-persisted. Flow:
 1. **Reverse tunnel** — `reverseForward` asks the remote to listen on an ephemeral `127.0.0.1` port
    and pipe each connection back to this process over the existing SSH connection.
 2. **Helper script** — `writeHelperScript` ([relay.ts](./relay.ts)) drops a `0700` bash script at
-   `~/.openship/cred-<session>.sh`. It holds **no secret** — just `/dev/tcp/127.0.0.1/<port>` + a
+   `~/.vibrail/cred-<session>.sh`. It holds **no secret** — just `/dev/tcp/127.0.0.1/<port>` + a
    per-session nonce. git is pointed at it via `GIT_CONFIG_*` env (no `~/.gitconfig` write), and the
    clone uses a **plain URL** (no token in the remote `.git/config`).
 3. **Relay** — `openRelay` + `handleConnection` ([relay.ts](./relay.ts)) speak git's credential

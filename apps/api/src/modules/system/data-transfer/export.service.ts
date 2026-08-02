@@ -41,7 +41,7 @@ export async function exportInstance(opts: { passphrase?: string }): Promise<Dat
     opts.passphrase && entries.length > 0 ? sealSecretBundle(bundle, opts.passphrase) : null;
 
   return {
-    kind: "openship-instance-export",
+    kind: "vibrail-instance-export",
     envelopeVersion: 1,
     createdAt: new Date().toISOString(),
     sourceDriver: dump.sourceDriver,

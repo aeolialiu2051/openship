@@ -16,11 +16,11 @@ export async function setSessionCookie(
   expiresAt: Date,
 ): Promise<void> {
   // Secure ONLY when actually served over TLS — SaaS (CLOUD_MODE) or a self-host
-  // behind https (OPENSHIP_PUBLIC_URL). A loopback/LAN http instance (desktop,
-  // dev, `openship up` without --public-url) MUST NOT set Secure, or the browser
+  // behind https (VIBRAIL_PUBLIC_URL). A loopback/LAN http instance (desktop,
+  // dev, `vibrail up` without --public-url) MUST NOT set Secure, or the browser
   // silently drops the cookie and the user gets a "logged in → /login" loop.
   const secure =
-    env.CLOUD_MODE || (env.OPENSHIP_PUBLIC_URL?.trim().toLowerCase().startsWith("https://") ?? false);
+    env.CLOUD_MODE || (env.VIBRAIL_PUBLIC_URL?.trim().toLowerCase().startsWith("https://") ?? false);
   await setSignedCookie(c, `${COOKIE_PREFIX}.session_token`, token, env.BETTER_AUTH_SECRET, {
     httpOnly: true,
     secure,

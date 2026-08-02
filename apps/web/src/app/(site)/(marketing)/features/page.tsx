@@ -14,8 +14,8 @@ export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/features" },
-  openGraph: { title: `${PAGE_TITLE} — Openship`, description: PAGE_DESCRIPTION, url: "/features", type: "website" },
-  twitter: { card: "summary_large_image", title: `${PAGE_TITLE} — Openship`, description: PAGE_DESCRIPTION },
+  openGraph: { title: `${PAGE_TITLE} — Vibrail`, description: PAGE_DESCRIPTION, url: "/features", type: "website" },
+  twitter: { card: "summary_large_image", title: `${PAGE_TITLE} — Vibrail`, description: PAGE_DESCRIPTION },
 };
 
 export default function FeaturesPage() {
@@ -100,7 +100,7 @@ export default function FeaturesPage() {
             Deploy your first app in minutes.
           </h2>
           <p className="mx-auto mt-5 max-w-md text-[16px] leading-[1.6]" style={{ color: "var(--th-text-body)" }}>
-            Self-hosted and free, or managed on Openship Cloud. Same workflow either way.
+            Self-hosted and free, or managed on Vibrail Cloud. Same workflow either way.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
             <Link href="/download" className="th-btn group rounded-full px-7 py-3 text-[15px] font-medium">

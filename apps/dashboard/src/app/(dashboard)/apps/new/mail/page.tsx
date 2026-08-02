@@ -21,7 +21,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
 /**
- * Mail provider wizard — the app-catalog entry point for Openship Mail. A clean
+ * Mail provider wizard — the app-catalog entry point for Vibrail Mail. A clean
  * provider chooser that WRAPS the existing machinery, no duplication:
  *
  *   • Self-host        → the existing iRedMail provisioning flow at /emails.

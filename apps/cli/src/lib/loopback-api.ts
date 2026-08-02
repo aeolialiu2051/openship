@@ -1,7 +1,7 @@
 /**
  * Loopback control-plane helpers, shared by the interactive install wizard
  * (commands/wizard.ts), the headless installer (lib/instance-provision.ts), and
- * `openship up` (commands/up.ts). Single home for the internal-token file + the
+ * `vibrail up` (commands/up.ts). Single home for the internal-token file + the
  * internal-token-gated POST/GET + the boot/health polls, so there's exactly ONE
  * copy (no per-command duplication).
  *
@@ -16,8 +16,8 @@ import { join } from "node:path";
 
 import { OS_DIR } from "./paths";
 
-/** The CLI's state dir (internal-token, auth-secret, data, logs); ~/.openship
- *  by default, or OPENSHIP_HOME for a from-source install. Re-exported for the
+/** The CLI's state dir (internal-token, auth-secret, data, logs); ~/.vibrail
+ *  by default, or VIBRAIL_HOME for a from-source install. Re-exported for the
  *  many callers that import it from here. */
 export { OS_DIR };
 
@@ -37,7 +37,7 @@ export function ensureInternalToken(): string {
 }
 
 // The internal token differs by install method: the bare service reads/writes
-// `~/.openship/internal-token` (ensureInternalToken); the Compose stack boots the
+// `~/.vibrail/internal-token` (ensureInternalToken); the Compose stack boots the
 // api container with the token from `compose/.env` (composeInternalToken). Callers
 // provisioning the Compose stack pass that token explicitly so these loopback
 // calls authenticate against the RIGHT api — hence the optional `token` arg.

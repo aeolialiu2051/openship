@@ -109,7 +109,7 @@ export type DeploymentInfo = {
   selfHosted: boolean;
   userServers: boolean;
   deployMode: string;
-  /** True when OpenShip runs ON a server (self-hosted, non-desktop) — the host
+  /** True when Vibrail runs ON a server (self-hosted, non-desktop) — the host
    *  is itself a deployable target, auto-registered as an isLocal server. */
   isServerHost?: boolean;
   authMode: "cloud" | "local" | "none";

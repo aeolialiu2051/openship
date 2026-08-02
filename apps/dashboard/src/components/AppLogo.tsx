@@ -51,13 +51,13 @@ export const APP_LOGO: Record<
   buzz: { slug: undefined, src: "/app-logos/buzz.svg", darkInvert: true },
   // code-server / IT-Tools / Stirling-PDF have no reliable simpleicons mark →
   // they fall back to the monochrome Boxes glyph.
-  // openship-native mail stack — its own brand mark, a full-bleed square icon.
+  // vibrail-native mail stack — its own brand mark, a full-bleed square icon.
   // Both the catalog id ("mail") and the installed-app id ("mail-webmail").
-  "mail-webmail": { src: "https://app.openship.io/apple-touch-icon.png", fill: true },
-  mail: { src: "https://app.openship.io/apple-touch-icon.png", fill: true },
-  // The control plane self-registered as an app (CLI self-deploy) — Openship's
+  "mail-webmail": { src: "https://vibrail.warpgateapi.com/apple-touch-icon.png", fill: true },
+  mail: { src: "https://vibrail.warpgateapi.com/apple-touch-icon.png", fill: true },
+  // The control plane self-registered as an app (CLI self-deploy) — Vibrail's
   // own brand mark, a full-bleed square icon.
-  openship: { src: "/apple-touch-icon.png", fill: true },
+  vibrail: { src: "/apple-touch-icon.png", fill: true },
 };
 
 /**

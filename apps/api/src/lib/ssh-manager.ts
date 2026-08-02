@@ -45,7 +45,7 @@ import {
   isInlinePrivateKey,
 } from "@/lib/credential-encryption";
 import { resolveSafeSshKeyPath } from "@/lib/ssh-key-path";
-import { OPENSHIP_DIR } from "@/lib/openship-server-store";
+import { VIBRAIL_DIR } from "@/lib/vibrail-server-store";
 import { safeErrorMessage } from "@repo/core";
 
 const execFileAsync = promisify(execFile);
@@ -149,7 +149,7 @@ export async function buildSshConfig(
     } else {
       // Centralised allowlist + traversal check — see lib/ssh-key-path.ts.
       // homedir() is the operator's home, used as the default convenient
-      // root so `~/.ssh/openship` works without explicit env config.
+      // root so `~/.ssh/vibrail` works without explicit env config.
       let keyPath: string;
       try {
         keyPath = resolveSafeSshKeyPath(settings.sshKeyPath!, {
@@ -665,7 +665,7 @@ export class SshConnectionManager {
    */
   private executeJournaledOp(serverId: string, op: QueuedOp): Promise<RunResult> {
     return runReliable(() => this.acquire(serverId), op.opId, op.command, {
-      baseDir: OPENSHIP_DIR,
+      baseDir: VIBRAIL_DIR,
       timeoutMs: op.opts.timeoutMs ?? DEFAULT_RUN_TIMEOUT_MS,
       waitSecs: op.opts.waitSecs,
       envPrefix: op.opts.envPrefix,

@@ -104,7 +104,7 @@ export class SystemdSupervisor implements ProcessSupervisor {
       .join("\n");
 
     return `[Unit]
-Description=Openship deployment ${opts.deploymentId}
+Description=Vibrail deployment ${opts.deploymentId}
 After=network.target
 
 [Service]

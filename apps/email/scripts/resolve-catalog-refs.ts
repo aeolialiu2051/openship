@@ -8,7 +8,7 @@
  * This script rewrites every such reference to a concrete version, in-place.
  * Run it once after extraction (or any time we re-pull Zero upstream).
  *
- * Versions chosen to match openship's existing pinned versions where the dep
+ * Versions chosen to match vibrail's existing pinned versions where the dep
  * is shared (drizzle, react, zod, typescript), and to recent stable releases
  * for Zero-specific deps (tRPC, wrangler, autumn-js).
  *
@@ -27,19 +27,19 @@ const CATALOG: Record<string, string> = {
   "@trpc/server": "^11.4.4",
   "@trpc/tanstack-react-query": "^11.4.4",
 
-  // Auth - same as the rest of openship
+  // Auth - same as the rest of vibrail
   "better-auth": "^1.5.4",
 
-  // ORM - pinned to match openship's packages/db + packages/db-email
+  // ORM - pinned to match vibrail's packages/db + packages/db-email
   "drizzle-orm": "^0.45.1",
   "drizzle-kit": "^0.31.9",
 
-  // UI - same as openship's dashboard
+  // UI - same as vibrail's dashboard
   react: "^19.1.0",
   "react-dom": "^19.1.0",
   typescript: "^5.9.3",
 
-  // Validation - same as openship's packages/core
+  // Validation - same as vibrail's packages/core
   zod: "^4.3.6",
 
   // Cloudflare Workers tooling
@@ -102,7 +102,7 @@ async function rewriteCatalogRefs(packageJsonPath: string): Promise<void> {
 async function main(): Promise<void> {
   const here = new URL(".", import.meta.url).pathname;
   const emailDir = resolve(here, "..");
-  console.log("Resolving Zero catalog references against the openship catalog map:");
+  console.log("Resolving Zero catalog references against the vibrail catalog map:");
   await rewriteCatalogRefs(resolve(emailDir, "server", "package.json"));
   await rewriteCatalogRefs(resolve(emailDir, "client", "package.json"));
   console.log("\nNext step: `cd server && bun install`  (then same for client)\n");

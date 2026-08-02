@@ -7,8 +7,8 @@ interface Author {
 }
 
 const AUTHORS: Record<string, Author> = {
-  "Openship Team": {
-    name: "Openship Team",
+  "Vibrail Team": {
+    name: "Vibrail Team",
     role: "Core Team",
     bio: "Building open-source deployment infrastructure for everyone.",
     github: "oblien",
@@ -16,12 +16,12 @@ const AUTHORS: Record<string, Author> = {
 };
 
 function getAuthor(name?: string): Author {
-  if (!name) return AUTHORS["Openship Team"];
+  if (!name) return AUTHORS["Vibrail Team"];
   return (
     AUTHORS[name] ?? {
       name,
       role: "Contributor",
-      bio: "Contributing to Openship.",
+      bio: "Contributing to Vibrail.",
     }
   );
 }

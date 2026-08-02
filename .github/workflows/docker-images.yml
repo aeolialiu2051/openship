@@ -1,6 +1,6 @@
 name: Docker images
 
-# Publishes the official pull-based images (openship-api + openship-dashboard)
+# Publishes the official pull-based images (vibrail-api + vibrail-dashboard)
 # to GHCR. Deliberately SEPARATE from release.yml (the bun
 # binary / npm CLI / desktop installers / GitHub release) so image publishing
 # can be iterated + tested on its own.
@@ -66,7 +66,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/openship-${{ matrix.image }}
+          images: ghcr.io/${{ github.repository_owner }}/vibrail-${{ matrix.image }}
 
       - name: Build and push by digest
         id: build
@@ -76,7 +76,7 @@ jobs:
           file: apps/${{ matrix.image }}/Dockerfile
           platforms: linux/${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/openship-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/vibrail-${{ matrix.image }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.image }}-${{ matrix.platform }}
           cache-to: type=gha,mode=max,scope=${{ matrix.image }}-${{ matrix.platform }}
 
@@ -127,7 +127,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/openship-${{ matrix.image }}
+          images: ghcr.io/${{ github.repository_owner }}/vibrail-${{ matrix.image }}
           tags: |
             type=semver,pattern={{version}},enable=${{ github.event_name == 'push' }}
             type=semver,pattern={{major}}.{{minor}},enable=${{ github.event_name == 'push' }}
@@ -141,7 +141,7 @@ jobs:
         working-directory: /tmp/digests
         env:
           METADATA_JSON: ${{ steps.meta.outputs.json }}
-          SRC: ghcr.io/${{ github.repository_owner }}/openship-${{ matrix.image }}
+          SRC: ghcr.io/${{ github.repository_owner }}/vibrail-${{ matrix.image }}
         run: |
           set -euo pipefail
           docker buildx imagetools create \
@@ -151,4 +151,4 @@ jobs:
       - name: Inspect
         run: |
           docker buildx imagetools inspect \
-            "ghcr.io/${{ github.repository_owner }}/openship-${{ matrix.image }}:${{ steps.meta.outputs.version }}" || true
+            "ghcr.io/${{ github.repository_owner }}/vibrail-${{ matrix.image }}:${{ steps.meta.outputs.version }}" || true

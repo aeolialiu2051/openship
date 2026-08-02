@@ -2,14 +2,14 @@
  * Mail-server routing types.
  *
  * Replaces the per-VPS nginx routing that iRedMail used to set up. Now the
- * routes live in Openship's routing layer (Traefik or Cloud
+ * routes live in Vibrail's routing layer (Traefik or Cloud
  * - whichever the deploy target uses), and the mail VPS has zero HTTP
  * listeners locally (only raw SMTP/IMAP/POP3 TCP).
  *
  * This module is the contract between:
  *   - The mail-server provisioning flow (creates a mail VPS, returns its IP)
- *   - openship's routing layer (registers public hostnames → backend origins)
- *   - The user's DNS provider (records the user must set, or that openship
+ *   - vibrail's routing layer (registers public hostnames → backend origins)
+ *   - The user's DNS provider (records the user must set, or that vibrail
  *     can set on their behalf if it integrates with their DNS provider)
  *
  * The shape is intentionally backend-agnostic - `buildMailServerRoutes()`
@@ -19,7 +19,7 @@
 /**
  * Inputs needed to compute the routing plan for one mail server instance.
  *
- * Each mail server in openship corresponds to one of these (a user can have
+ * Each mail server in vibrail corresponds to one of these (a user can have
  * multiple - one per mail domain - though typically one).
  */
 export interface MailServerRouteInput {
@@ -34,7 +34,7 @@ export interface MailServerRouteInput {
 
   /**
    * Hostname (and optional port) where the Zero server listens on the mail
-   * VPS, reachable from openship's routing layer. Examples:
+   * VPS, reachable from vibrail's routing layer. Examples:
    *   - "10.0.5.12:3001" (private network)
    *   - "mail-vps-1.internal:3001" (DNS-registered internal host)
    */
@@ -42,26 +42,26 @@ export interface MailServerRouteInput {
 
   /**
    * Where the Zero web client is served from. Could be:
-   *   - An openship app deployment URL ("https://zero-client-xyz.vibrail.warpgateapi.com")
+   *   - A Vibrail app deployment URL ("https://zero-client-xyz.vibrail.warpgateapi.com")
    *   - A Cloudflare Workers URL
    *   - A static-asset CDN URL
    *
-   * Openship's routing layer proxies `mail.<userDomain>` here.
+   * Vibrail's routing layer proxies `mail.<userDomain>` here.
    */
   zeroClientOrigin: string;
 
   /**
-   * Origin for openship's API ingress - where `autodiscover.<userDomain>`
-   * is proxied to. The openship API serves the autodiscover XML controller
+   * Origin for vibrail's API ingress - where `autodiscover.<userDomain>`
+   * is proxied to. The vibrail API serves the autodiscover XML controller
    * (see `apps/api/src/modules/mail-server/autodiscover.controller.ts`).
    */
-  openshipApiOrigin: string;
+  vibrailApiOrigin: string;
 }
 
 /**
- * One public HTTP route the openship routing layer must serve.
+ * One public HTTP route the vibrail routing layer must serve.
  *
- * Maps 1:1 to openship's adapters `RouteConfig` - `buildMailServerRoutes`
+ * Maps 1:1 to vibrail's adapters `RouteConfig` - `buildMailServerRoutes`
  * keeps this layer protocol-light so it can be unit-tested without booting
  * the platform.
  */
@@ -73,7 +73,7 @@ export interface MailRoute {
   id: MailRouteId;
   /** Public hostname (e.g. "mail.acme.com"). */
   hostname: string;
-  /** Where openship's routing layer should proxy this to. */
+  /** Where vibrail's routing layer should proxy this to. */
   targetUrl: string;
   /** Always true for mail - every public surface is TLS-required. */
   tls: true;
@@ -84,17 +84,17 @@ export interface MailRoute {
 export type MailRouteId =
   | "mail-client"      // mail.<userDomain>          → Zero web UI
   | "mail-api"         // api.mail.<userDomain>      → Zero server (tRPC, user-facing only)
-  | "autodiscover";    // autodiscover.<userDomain>  → openship API XML
+  | "autodiscover";    // autodiscover.<userDomain>  → vibrail API XML
 
 // NOTE: There is intentionally NO public "admin" subdomain.
-// Mailbox / domain / alias management happens inside openship's dashboard:
-// openship's own API writes to the mail-server Postgres directly via
+// Mailbox / domain / alias management happens inside vibrail's dashboard:
+// vibrail's own API writes to the mail-server Postgres directly via
 // @repo/db-email. Postfix/Dovecot pick up the new rows on their next query.
 // Consequences: no HTTP admin endpoints on the mail VPS, no public admin
 // hostname to firewall, no shared-secret bearer token to leak or rotate.
 
 /**
- * DNS record the user (or openship's DNS integration) must publish for the
+ * DNS record the user (or vibrail's DNS integration) must publish for the
  * mail server to actually receive mail and be discoverable.
  *
  * `value` is left literal - SPF/DMARC/DKIM strings included verbatim - so
@@ -130,24 +130,24 @@ export type MailDnsRecordId =
   | "spf"               // <userDomain> TXT v=spf1
   | "dkim"              // dkim._domainkey.<userDomain> TXT (filled post-install)
   | "dmarc"             // _dmarc.<userDomain> TXT v=DMARC1
-  | "autodiscover-cname" // autodiscover.<userDomain> CNAME → openship api ingress
+  | "autodiscover-cname" // autodiscover.<userDomain> CNAME → vibrail api ingress
   | "mail-client-cname" // mail.<userDomain> CNAME → Zero client origin
-  | "mail-api-cname";   // api.mail.<userDomain> CNAME → openship routing ingress
+  | "mail-api-cname";   // api.mail.<userDomain> CNAME → vibrail routing ingress
 
 /**
  * Complete routing+DNS plan for one mail server.
  *
  * Consumers:
- *   - `register.service.ts` registers `routes` with openship's routing layer.
+ *   - `register.service.ts` registers `routes` with vibrail's routing layer.
  *   - Dashboard UI renders `dns` as instructions for the admin to publish
- *     (or feeds them into openship's DNS provisioning if integrated with
+ *     (or feeds them into vibrail's DNS provisioning if integrated with
  *     the user's DNS provider).
  */
 export interface MailServerRoutePlan {
   /** Inputs the plan was generated from - useful for re-derivation + audit. */
   input: MailServerRouteInput;
-  /** Public HTTP routes the openship routing layer must register. */
+  /** Public HTTP routes the vibrail routing layer must register. */
   routes: MailRoute[];
-  /** DNS records the user (or openship) must publish. */
+  /** DNS records the user (or vibrail) must publish. */
   dns: MailDnsRecord[];
 }

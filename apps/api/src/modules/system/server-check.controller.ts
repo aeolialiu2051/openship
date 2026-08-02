@@ -182,7 +182,7 @@ export async function onboardingTestConnection(c: Context) {
   // UNauthenticated SSH prober here is an SSRF / port-scan oracle. Those
   // instances must be configured through the authenticated flow — disable the
   // pre-auth variant for them entirely.
-  if (env.OPENSHIP_PUBLIC_URL || env.OPENSHIP_REQUIRE_AUTH) {
+  if (env.VIBRAIL_PUBLIC_URL || env.VIBRAIL_REQUIRE_AUTH) {
     return c.json({ error: "Not available" }, 404);
   }
 

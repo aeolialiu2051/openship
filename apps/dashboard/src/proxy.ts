@@ -50,8 +50,8 @@ export function proxy(req: NextRequest) {
   // flash on reload). `cookies()` / `headers().get("cookie")` can come back
   // empty in the SSR render path, but request cookies are always available
   // here in the proxy — so we inject a header the layout can read reliably.
-  const locale = req.cookies.get("openship-locale")?.value;
-  if (locale) requestHeaders.set("x-openship-locale", locale);
+  const locale = req.cookies.get("vibrail-locale")?.value;
+  if (locale) requestHeaders.set("x-vibrail-locale", locale);
 
   return NextResponse.next({ request: { headers: requestHeaders } });
 }

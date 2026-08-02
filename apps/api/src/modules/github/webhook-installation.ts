@@ -14,10 +14,10 @@ import type { GitHubInstallationPayload } from "./github.types";
 export async function handleInstallation(
   payload: GitHubInstallationPayload,
 ): Promise<WebhookHandlerResult> {
-  // SaaS-only contract: the GitHub App is owned by openship.io, so
+  // SaaS-only contract: the GitHub App is owned by vibrail.warpgateapi.com, so
   // installation events ONLY have authoritative meaning on the SaaS
   // (env.CLOUD_MODE=true). On a self-hosted instance the App's webhook
-  // is configured to point at api.openship.io — an installation event
+  // is configured to point at vibrail.warpgateapi.com — an installation event
   // arriving here means a misconfiguration. The local DB MUST NOT
   // become a parallel source of truth for installations: cloud-app mode
   // reads installations strictly from SaaS, and a stale local row would
@@ -30,7 +30,7 @@ export async function handleInstallation(
   // and no SaaS proxy. There the webhook IS the authoritative source.
   if (!env.CLOUD_MODE && env.GITHUB_AUTH_MODE !== "app") {
     console.log(
-      `[GitHub Webhook] Ignoring installation.${payload.action} on self-hosted instance — SaaS (api.openship.io) is the authoritative source for GitHub App installations.`,
+      `[GitHub Webhook] Ignoring installation.${payload.action} on self-hosted instance — SaaS (vibrail.warpgateapi.com) is the authoritative source for GitHub App installations.`,
     );
     return {
       success: true,
@@ -76,7 +76,7 @@ async function handleInstallationCreated(
     return {
       success: true,
       event: "installation",
-      message: "No linked Openship user - ignored (OAuth required first)",
+      message: "No linked Vibrail user - ignored (OAuth required first)",
     };
   }
 

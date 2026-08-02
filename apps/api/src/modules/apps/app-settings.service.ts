@@ -202,9 +202,9 @@ export interface AppConnectionView {
 
 /**
  * Host to reach a no-domain (port-only) service at. Prefers the project's own
- * server (SSH host / SERVER_IP); falls back to the openship instance's own
+ * server (SSH host / SERVER_IP); falls back to the vibrail instance's own
  * public host (so a same-box install resolves to the address the user already
- * reaches openship on, e.g. localhost in dev). Null only if nothing is known.
+ * reaches vibrail on, e.g. localhost in dev). Null only if nothing is known.
  */
 async function resolvePortOnlyHost(project: Project): Promise<string | null> {
   const serverHost = await resolveProjectServerHost(project).catch(() => null);

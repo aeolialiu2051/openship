@@ -1,5 +1,5 @@
 /**
- * `openship cache` — inspect and manage ~/.openship/cache, where `install`
+ * `vibrail cache` — inspect and manage ~/.vibrail/cache, where `install`
  * stores downloaded desktop-app release assets and their .sha256 sidecars
  * (see lib/cache.ts). No API calls.
  *

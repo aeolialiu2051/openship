@@ -1,6 +1,6 @@
 ---
 title: OCI Email Delivery
-description: Route your Openship mail server's outbound mail through Oracle Cloud (OCI) Email Delivery — free tier, good IP reputation, no PTR chores.
+description: Route your Vibrail mail server's outbound mail through Oracle Cloud (OCI) Email Delivery — free tier, good IP reputation, no PTR chores.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
@@ -12,7 +12,7 @@ brand-new cloud IP nobody trusts yet), inbox providers are far less likely to bo
 <Callout title="What you need first">
 - An **OCI account** (Oracle's free tier covers this).
 - A **domain name** you control, where you can add DNS records.
-- An **Openship mail server** already set up. If you haven't done that yet, start with
+- An **Vibrail mail server** already set up. If you haven't done that yet, start with
   [Email & webmail](/docs/guides/email-webmail) — you'll need it running before there's anything to relay.
 </Callout>
 
@@ -68,23 +68,23 @@ view it again later.
 
 <Step>
 
-### Point Openship's relay at OCI
+### Point Vibrail's relay at OCI
 
-In Openship, go to **Emails → Sending → "Relay via Amazon SES (or any SMTP relay)"** and choose provider
+In Vibrail, go to **Emails → Sending → "Relay via Amazon SES (or any SMTP relay)"** and choose provider
 **Custom**. Fill in:
 
 - **Host** — `smtp.email.<region>.oci.oraclecloud.com` (swap in your OCI region)
 - **Port** — `587`
 - **Username / Password** — the SMTP credential you just created
 
-The same host, port, and credential also work under **Settings → Email**, if you'd rather relay Openship's own
+The same host, port, and credential also work under **Settings → Email**, if you'd rather relay Vibrail's own
 notification emails through OCI too.
 
 </Step>
 
 </Steps>
 
-<img src="/docs/relay-oci-form.png" alt="Openship Emails -> Sending relay form configured for OCI Email Delivery (provider Custom, port 587)" width="720" />
+<img src="/docs/relay-oci-form.png" alt="Vibrail Emails -> Sending relay form configured for OCI Email Delivery (provider Custom, port 587)" width="720" />
 
 ## Gotchas / good to know
 

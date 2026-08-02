@@ -1,16 +1,16 @@
-# Oblien edge-routing requirements (for openship cloud / SaaS)
+# Oblien edge-routing requirements (for vibrail cloud / SaaS)
 
 **Audience:** Oblien platform team.
-**Why:** openship parses each repo's `vercel.json` routing config and, on **self-hosted**,
+**Why:** vibrail parses each repo's `vercel.json` routing config and, on **self-hosted**,
 compiles it to Traefik so a deployment behaves like Vercel — one domain serving static
 assets at `/` and reverse-proxying a backend at `/api/*`, plus redirects/headers. On **cloud
 (Oblien)** there is no Traefik, so this config is currently **persisted but not applied**.
-This doc specifies the edge capabilities Oblien needs so openship can compile the *same* config
-to Oblien and reach parity. openship already has the parser, the persisted config, and a pure
+This doc specifies the edge capabilities Oblien needs so vibrail can compile the *same* config
+to Oblien and reach parity. vibrail already has the parser, the persisted config, and a pure
 compiler abstraction; only a **cloud emitter** is missing on our side, gated on the API below.
 
 **Scope note:** this reproduces the documented `vercel.json`/Netlify **routing config**
-semantics — NOT a serverless-functions runtime. openship proxies a long-running backend
+semantics — NOT a serverless-functions runtime. vibrail proxies a long-running backend
 service; it does not run per-file functions.
 
 ---
@@ -18,7 +18,7 @@ service; it does not run per-file functions.
 ## IMPORTANT: this is DOMAIN/DEPLOYMENT-level routing, not a "Pages" feature
 
 The routing table must attach to a **domain / deployment**, not only to a static Page.
-openship cloud deployments come in several shapes, and all of them need edge routing:
+vibrail cloud deployments come in several shapes, and all of them need edge routing:
 
 | Deployment shape | Entry | Routing need |
 |---|---|---|
@@ -51,7 +51,7 @@ secondary.
 
 ### A. Per-deployment routing table
 An **ordered** list of rules attached to a Page/deployment, evaluated at the edge per request.
-openship sets it at deploy time. Requirements:
+vibrail sets it at deploy time. Requirements:
 - **Atomic replace** on redeploy — a deploy's rules fully supersede the prior set (no partial state).
 - **Scoped to the deployment** so rollback restores that deployment's rules.
 - Idempotent; returns the applied config.
@@ -82,17 +82,17 @@ automatic TLS (Pages already does TLS — it just needs to coexist with proxy ru
 ### E. Matching semantics — documented + deterministic
 State the evaluation order (first-match-wins vs longest-prefix) and the precedence between
 redirects / rewrites / filesystem (Vercel: redirects → rewrites → filesystem → catch-all).
-openship will emit rules in whatever order you specify.
+vibrail will emit rules in whatever order you specify.
 
 ### F. Non-functional
 - Rule-count + value-length limits.
-- Treat rule values as **data, not config** — they originate from untrusted repos. openship
+- Treat rule values as **data, not config** — they originate from untrusted repos. vibrail
   sanitizes at compile time, but the edge should too (reject control chars / injection).
 - Per-rule hit logging is a nice-to-have.
 
 ---
 
-## Suggested API shape (openship-facing)
+## Suggested API shape (vibrail-facing)
 
 Key the routing table on the **deployment / domain**, not on a Page:
 
@@ -118,13 +118,13 @@ PUT deployments/{id}/routes          // (or domains/{host}/routes) — atomic fu
 Action `kind` is one of `proxy` (→ any origin URL), `static` (→ a Page/CDN artifact),
 `redirect`, `rewrite`, `headers` — so the SAME table works for static-only, server-only,
 monorepo, and compose deployments. Return the applied config; idempotent; a version pinned to
-the openship deployment so rollback restores that deployment's routes.
+the vibrail deployment so rollback restores that deployment's routes.
 
 ---
 
-## How openship maps to it (already built on our side)
+## How vibrail maps to it (already built on our side)
 
-openship parses `vercel.json` → a normalized `RoutingConfig`
+vibrail parses `vercel.json` → a normalized `RoutingConfig`
 (`rewrites`/`redirects`/`headers`/`cleanUrls`/`trailingSlash`), persists it on the project, and
 compiles it — today to Traefik (`compileVercelRouting`, self-hosted). To light up cloud we add
 one **cloud emitter** over the SAME `RoutingConfig`, mapping:
@@ -154,20 +154,20 @@ rounds out the common `vercel.json`.
 Separate from edge routing: a multi-service deployment (docker-compose, or a monorepo whose
 frontend proxies to a backend) needs its workspaces to reach **each other** internally — e.g. the
 frontend calling `http://api:3000`. On native Docker this is automatic (embedded DNS + shared
-network). On Oblien each service is its own workspace on the internal `10.x` network, so openship
+network). On Oblien each service is its own workspace on the internal `10.x` network, so vibrail
 must wire three things, and **all three are required** for a call to connect:
 
 1. **Source rule — `private_link_ids` (directed).** Adding workspace A to B's `private_link_ids`
-   authorizes **A → B** (one-way). openship sets every service's list to all its peers, so the
+   authorizes **A → B** (one-way). vibrail sets every service's list to all its peers, so the
    mesh is bidirectional.
 2. **Port rule — `ingress_ports`.** A private link does **NOT** open any port. Per Oblien's
    firewall, *"traffic is dropped unless all match … Port is in the `ingress_ports` list — only
    ports you explicitly open are reachable."* So **each service's own listen port must also be in
-   its `ingress_ports`**, or a linked peer's connection is silently dropped. openship opens each
+   its `ingress_ports`**, or a linked peer's connection is silently dropped. vibrail opens each
    service's port here (`syncServiceDiscovery`) alongside the link — a link without the matching
    port open is the classic footgun.
 3. **Name resolution — `/etc/hosts`.** There is **no internal DNS**, so a hostname like `api`
-   does not resolve on its own. openship `exec`s into each workspace and writes
+   does not resolve on its own. vibrail `exec`s into each workspace and writes
    `<peer-ip> <service-name>` lines to `/etc/hosts` so `http://api:3000` resolves to the peer's
    internal IP.
 

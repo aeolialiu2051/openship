@@ -322,7 +322,7 @@ export async function verifyDomain(
         sslStatus,
       };
     }
-    const message = `Add TXT _openship-challenge.${domain.hostname} = ${token}, wait for DNS propagation, then verify again.`;
+    const message = `Add TXT _vibrail-challenge.${domain.hostname} = ${token}, wait for DNS propagation, then verify again.`;
     const attempts = await repos.domain.recordVerifyFailure(domainId, message);
     log(message);
     return {
@@ -562,9 +562,9 @@ async function verifyCname(hostname: string): Promise<boolean> {
   }
 }
 
-/** Check _openship-challenge.{hostname} TXT record for verification token. */
+/** Check _vibrail-challenge.{hostname} TXT record for verification token. */
 async function verifyTxt(hostname: string, token: string): Promise<boolean> {
-  const records = await resolveRecords(`_openship-challenge.${hostname}`, "TXT");
+  const records = await resolveRecords(`_vibrail-challenge.${hostname}`, "TXT");
   return records.some((v) => v === token);
 }
 
@@ -599,7 +599,7 @@ export function relativeSubdomain(hostname: string): string | null {
 /**
  * The route record (A/CNAME) + TXT ownership record host+name for a hostname.
  * `name` is the FQDN — EXACTLY what verifyARecord/verifyCname/verifyTxt resolve
- * (`hostname` and `_openship-challenge.${hostname}`), so "add the shown records
+ * (`hostname` and `_vibrail-challenge.${hostname}`), so "add the shown records
  * → verify passes" holds by construction. `host` is the zone-relative form.
  * Pure — the unit-test seam for the per-hostname record fix.
  */
@@ -613,8 +613,8 @@ export function dnsRecordHosts(hostname: string): {
   return {
     routeHost: sub ?? "@",
     routeName: hostname,
-    txtHost: sub ? `_openship-challenge.${sub}` : "_openship-challenge",
-    txtName: `_openship-challenge.${hostname}`,
+    txtHost: sub ? `_vibrail-challenge.${sub}` : "_vibrail-challenge",
+    txtName: `_vibrail-challenge.${hostname}`,
   };
 }
 
@@ -625,7 +625,7 @@ export function dnsRecordHosts(hostname: string): {
  *
  * Cloud       → CNAME <host> → <target from Oblien>
  * Self-hosted → A     <host> → <server public IP>
- * Both        → TXT _openship-challenge[.<sub>] → <verification hash>
+ * Both        → TXT _vibrail-challenge[.<sub>] → <verification hash>
  */
 async function buildRecords(
   hostname: string,
@@ -695,7 +695,7 @@ function verifyMessage(
   }
 
   if (!txtOk) {
-    parts.push(`TXT record _openship-challenge.${hostname} must equal "${token}"`);
+    parts.push(`TXT record _vibrail-challenge.${hostname} must equal "${token}"`);
   }
 
   return parts.join(". ");

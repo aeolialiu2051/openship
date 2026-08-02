@@ -294,7 +294,7 @@
     "noServersLink": "Sunucular",
     "noServersPost": ".",
     "fieldRemotePath": "Uzak sunucu yolu",
-    "hintRemotePath": "Sunucudaki mutlak dizin (örn. /backups/openship)",
+    "hintRemotePath": "Sunucudaki mutlak dizin (örn. /backups/vibrail)",
     "fieldAbsolutePath": "Mutlak yol",
     "hintAbsolutePath": "API sunucusundaki dosya sistemi yolu. Bulut modunda pasiftir.",
     "saving": "Kaydediliyor…",

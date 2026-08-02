@@ -69,7 +69,7 @@ export function UpdateCenter() {
   const updating = desktop && updatePhase !== "idle";
   const updatingVersion = state?.latestVersion ?? latest?.version ?? "";
   const pct = Math.round(Math.min(1, Math.max(0, updateProgress)) * 100);
-  const changelog = state?.latestChangelogUrl ?? "https://github.com/oblien/openship/releases";
+  const changelog = state?.latestChangelogUrl ?? "https://github.com/aeolialiu2051/vibrail/releases";
 
   return (
     <>

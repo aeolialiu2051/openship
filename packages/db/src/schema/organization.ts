@@ -29,7 +29,7 @@ export const organization = pgTable("organization", {
   // billing_subscription. The source of truth for subscription state is
   // billing_subscription; this column is kept in sync by the Stripe webhook
   // handler. `subscription_status` mirrors the Stripe status verbatim but
-  // adds the openship-internal `credit_exhausted` state for orgs whose
+  // adds the vibrail-internal `credit_exhausted` state for orgs whose
   // metered usage outran their balance (gating happens in middleware).
   /** 'free' | 'pro' | 'team' | 'enterprise' */
   planTierId: text("plan_tier_id").notNull().default("free"),

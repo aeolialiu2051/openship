@@ -38,7 +38,7 @@ import * as billingRepository from "./billing.repository";
 export function assertBillingEnabled(): void {
   if (!env.BILLING_ENABLED) {
     throw new AppError(
-      "Billing is not enabled yet. It's coming soon to Openship Cloud.",
+      "Billing is not enabled yet. It's coming soon to Vibrail Cloud.",
       403,
       "BILLING_NOT_ENABLED",
     );

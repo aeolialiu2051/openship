@@ -125,7 +125,7 @@ export function createDeploymentRepo(db: Database) {
      */
     async create(data: Omit<NewDeployment, "id"> & { id?: string }): Promise<Deployment | undefined> {
       // `id` is normally generated; re-import (live re-attach) passes the ORIGINAL
-      // deployment id so the still-running containers (labelled `openship.deployment=<id>`)
+      // deployment id so the still-running containers (labelled `vibrail.deployment=<id>`)
       // stay attached and the Services-tab live query matches them.
       const { id: providedId, ...rest } = data;
       const id = providedId ?? generateId("dep");
@@ -518,7 +518,7 @@ export function createDeploymentRepo(db: Database) {
 
     /**
      * Total build time (ms) an org consumed in a window — sum of build-session
-     * `durationMs` for the org's deployments started in [from, to]. Openship's
+     * `durationMs` for the org's deployments started in [from, to]. Vibrail's
      * own metric (Oblien does not meter build separately). Bounded by period.
      */
     async sumBuildMillisForOrg(organizationId: string, from: Date, to: Date): Promise<number> {

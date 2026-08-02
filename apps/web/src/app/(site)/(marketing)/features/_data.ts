@@ -59,14 +59,14 @@ export const FEATURES: Feature[] = [
     slug: "deploy-anywhere",
     title: "Deploy anywhere",
     category: "Deploy",
-    tagline: "Openship Cloud, your own VPS, or a homelab — one workflow.",
+    tagline: "Vibrail Cloud, your own VPS, or a homelab — one workflow.",
     icon: Rocket,
     screenshot: null,
     summary:
-      "The same deploy, wherever it runs. Ship to Openship Cloud, connect your own VPS, or point at a machine in your closet — the workflow never changes, and your servers stay yours.",
+      "The same deploy, wherever it runs. Ship to Vibrail Cloud, connect your own VPS, or point at a machine in your closet — the workflow never changes, and your servers stay yours.",
     body: [
       "Add a server with an SSH connection and it becomes a first-class deploy target: builds, routing, logs, rollbacks, and metrics all work identically to the managed cloud. No lock-in, no separate tooling per environment.",
-      "Start on one box and grow into many. As you add machines, Openship treats them as a fleet you can ship to as one — so moving from a single homelab node to a production cluster is a change of scale, not a rewrite.",
+      "Start on one box and grow into many. As you add machines, Vibrail treats them as a fleet you can ship to as one — so moving from a single homelab node to a production cluster is a change of scale, not a rewrite.",
     ],
     highlights: [
       { title: "Bring your own servers", desc: "Any Linux box over SSH becomes a target — cloud VPS, dedicated, or homelab." },
@@ -101,7 +101,7 @@ export const FEATURES: Feature[] = [
     icon: Boxes,
     screenshot: null,
     summary:
-      "Openship detects your framework, language, package manager, and commands — then builds and runs it. Node.js and Docker are fully native today; every other stack deploys through the universal pipeline with your own commands.",
+      "Vibrail detects your framework, language, package manager, and commands — then builds and runs it. Node.js and Docker are fully native today; every other stack deploys through the universal pipeline with your own commands.",
     body: [
       "For JavaScript/TypeScript and any Dockerfile or Compose file, there's nothing to configure: link the repo and ship. For Go, Rust, Python, Ruby, PHP, Java/Kotlin, .NET, and Elixir, bring your install/build/start commands (or a Dockerfile) and deploy the same way — with first-class native detection rolling out stack by stack.",
       "Monorepos are first-class: point each service at its subdirectory and share build caches across the workspace.",
@@ -120,7 +120,7 @@ export const FEATURES: Feature[] = [
     icon: Layers,
     screenshot: "/compose.png",
     summary:
-      "Bring a docker-compose file and Openship deploys every service as a managed, privately-networked project — the app, the worker, the queue, the database — coordinated as one.",
+      "Bring a docker-compose file and Vibrail deploys every service as a managed, privately-networked project — the app, the worker, the queue, the database — coordinated as one.",
     body: [
       "Each service gets its own build, logs, health checks, and scaling, while they talk to each other over a private network with no exposed ports. Partial-failure deploys are held for your decision rather than leaving the stack half-updated.",
       "Add, remove, or restart a single service without redeploying the whole project — the rest keep serving traffic.",
@@ -178,7 +178,7 @@ export const FEATURES: Feature[] = [
     icon: CalendarClock,
     screenshot: null,
     summary:
-      "Run scheduled or on-demand jobs with per-run logs and history — and fire deploys or jobs from an incoming webhook when something outside Openship happens.",
+      "Run scheduled or on-demand jobs with per-run logs and history — and fire deploys or jobs from an incoming webhook when something outside Vibrail happens.",
     body: [
       "Jobs run on a cron schedule, once at a set time, or manually with a Run-Now button, streaming their output live. Every run is recorded with its logs for later inspection.",
       "Incoming webhooks turn any external event into an action: each hook is a signed URL with its own token or HMAC that can redeploy a project or run a job.",
@@ -219,7 +219,7 @@ export const FEATURES: Feature[] = [
     summary:
       "Add as many custom domains as you like, with automatic Let's Encrypt certificates — including wildcards — that renew themselves. No add-ons, no caps, no per-domain metering.",
     body: [
-      "Point a domain, verify it in seconds, and Openship provisions and renews the certificate for you. Set a primary domain, add redirects, and manage records visually.",
+      "Point a domain, verify it in seconds, and Vibrail provisions and renews the certificate for you. Set a primary domain, add redirects, and manage records visually.",
       "Routing failures never fail a deploy — your build ships and any domain issue is surfaced separately so a DNS hiccup can't block a release.",
     ],
     highlights: [
@@ -294,7 +294,7 @@ export const FEATURES: Feature[] = [
     icon: Mail,
     screenshot: "/email-preview.png",
     summary:
-      "Send from your own domain with the authentication chain auto-configured — or connect Amazon SES or any SMTP relay and manage senders, domains, and deliverability from Openship.",
+      "Send from your own domain with the authentication chain auto-configured — or connect Amazon SES or any SMTP relay and manage senders, domains, and deliverability from Vibrail.",
     body: [
       "Provision a full mail stack with a built-in webmail client, or keep receiving self-hosted while relaying outbound through SES or SMTP for deliverability. One settings surface drives all system mail — password resets, invites, verification, and notifications.",
       "SPF, DKIM, and DMARC are wired for you, so mail from your domain lands where it should.",
@@ -333,7 +333,7 @@ export const FEATURES: Feature[] = [
     icon: Bot,
     screenshot: null,
     summary:
-      "Openship ships an MCP server, so AI agents can deploy, read logs, manage domains, and more — through standard, authenticated tools, scoped to exactly what you allow.",
+      "Vibrail ships an MCP server, so AI agents can deploy, read logs, manage domains, and more — through standard, authenticated tools, scoped to exactly what you allow.",
     body: [
       "Connect Claude, Cursor, or any MCP client and let it operate your infrastructure with the same permissions model as a human — including narrow scopes like \"only projects it creates.\"",
       "Every agent action runs through the same authorization and audit path as the dashboard and CLI, so AI access is powerful without being a back door.",

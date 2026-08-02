@@ -29,7 +29,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 
 function resolveDataDir(): string {
-  return process.env.PGLITE_DATA_DIR ?? join(homedir(), ".openship", "data");
+  return process.env.PGLITE_DATA_DIR ?? join(homedir(), ".vibrail", "data");
 }
 
 function copyDirRecursive(src: string, dest: string): void {

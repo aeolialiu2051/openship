@@ -78,7 +78,7 @@ export interface GitHubRepo {
  */
 export interface GitHubConnectionState {
   sources: {
-    openshipApp: {
+    vibrailApp: {
       connected: boolean;
       login?: string;
       avatarUrl?: string;
@@ -90,7 +90,7 @@ export interface GitHubConnectionState {
       avatarUrl?: string;
     };
   };
-  primary: "openship-app" | "gh-cli" | null;
+  primary: "vibrail-app" | "gh-cli" | null;
 }
 
 interface GitHubContextValue {
@@ -149,7 +149,7 @@ interface GitHubProviderProps {
 
 const EMPTY_STATE: GitHubConnectionState = {
   sources: {
-    openshipApp: { connected: false },
+    vibrailApp: { connected: false },
     ghCli: { available: false },
   },
   primary: null,
@@ -170,7 +170,7 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
   const [cliAction, setCliAction] = useState<CliAction | null>(null);
   const [accounts, setAccounts] = useState<GitHubAccount[]>(initialData?.accounts || []);
   const [userLogin, setUserLogin] = useState(
-    initialData?.state?.sources?.openshipApp?.login ||
+    initialData?.state?.sources?.vibrailApp?.login ||
       initialData?.state?.sources?.ghCli?.login ||
       "",
   );
@@ -213,7 +213,7 @@ export function GitHubProvider({ children, initialData }: GitHubProviderProps) {
         setCliAction(null);
         setAccounts(res.accounts ?? []);
         const primaryLogin =
-          nextState.sources.openshipApp.login ??
+          nextState.sources.vibrailApp.login ??
           nextState.sources.ghCli.login ??
           "";
         setUserLogin(primaryLogin);

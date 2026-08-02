@@ -1,9 +1,9 @@
 /**
  * "Installed from source" plumbing shared by the from-source installer
- * (scripts/install-source.sh) and `openship update`'s quick-rebuild path.
+ * (scripts/install-source.sh) and `vibrail update`'s quick-rebuild path.
  *
- * A source install is marked by ~/.openship/source-install.json. Its presence
- * is what flips `openship update` from "reinstall the published npm package" to
+ * A source install is marked by ~/.vibrail/source-install.json. Its presence
+ * is what flips `vibrail update` from "reinstall the published npm package" to
  * "pull the git checkout and rebuild the CLI like `bun dev`" — a quick update
  * with no npm release in the loop. Reuses the clone/build primitives from
  * from-source.ts so the two code paths can't drift.

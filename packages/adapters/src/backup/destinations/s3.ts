@@ -93,7 +93,7 @@ class S3DestinationImpl implements BackupDestination {
 
   async preflight(): Promise<{ ok: true } | { ok: false; reason: string }> {
     const probeKey = this.fullKey(
-      `.openship-probe-${Math.random().toString(36).slice(2, 10)}`,
+      `.vibrail-probe-${Math.random().toString(36).slice(2, 10)}`,
     );
     try {
       await this.client.send(

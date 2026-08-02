@@ -35,7 +35,7 @@ interface AddServiceModalProps {
   open: boolean;
   projectName: string;
   routeKey?: string;
-  // True when the *project itself* deploys to openship cloud, regardless of
+  // True when the *project itself* deploys to vibrail cloud, regardless of
   // the dashboard install mode. A self-hosted dashboard can still manage a
   // cloud project — in that case only cloud (Oblien) images are valid and
   // the local upstream-image catalog must be hidden.
@@ -215,7 +215,7 @@ export function AddServiceModal({ open, projectName, routeKey, isCloudProject, o
   const cloud = useCloud();
   // Cloud-only catalog when EITHER the install is the SaaS dashboard
   // (deployMode === "cloud") OR this specific project is deployed to
-  // openship cloud (isCloudProject). In either case the local upstream-
+  // vibrail cloud (isCloudProject). In either case the local upstream-
   // image catalog isn't applicable and we pin the source to "cloud".
   const cloudOnly = deployMode === "cloud" || !!isCloudProject;
 
@@ -755,7 +755,7 @@ function SourceSwitcher({
   const m = t.projectDetail.services.addModal;
   const options: Array<{ value: "local" | "cloud"; label: string; icon: React.ElementType }> = [
     { value: "local", label: m.localImages, icon: Cpu },
-    { value: "cloud", label: m.openshipCloud, icon: Cloud },
+    { value: "cloud", label: m.vibrailCloud, icon: Cloud },
   ];
   return (
     <div className="inline-flex w-fit items-center gap-0.5 rounded-xl border border-border/60 bg-muted/60 p-0.5">
@@ -1170,7 +1170,7 @@ function ModeBadge({ mode }: { mode: "cloud" | "local" }) {
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
       <Icon className="size-3" />
-      {mode === "cloud" ? m.openshipCloud : m.localDocker}
+      {mode === "cloud" ? m.vibrailCloud : m.localDocker}
       {mode === "cloud" && (
         <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary">
           {m.comingSoon}

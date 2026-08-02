@@ -261,13 +261,13 @@ const MCP_CLIENTS: McpClientDef[] = [
   },
 ];
 
-/** Client picker: pick your agent, get the exact command/config to add Openship,
+/** Client picker: pick your agent, get the exact command/config to add Vibrail,
  *  pre-filled with this instance's endpoint. */
 function McpClientSetup({ endpoint }: { endpoint: string }) {
   const { t } = useI18n();
   const [activeId, setActiveId] = useState(MCP_CLIENTS[0].id);
   const active = MCP_CLIENTS.find((c) => c.id === activeId) ?? MCP_CLIENTS[0];
-  const setup = active.setup(endpoint || "https://<your-openship>/api/mcp");
+  const setup = active.setup(endpoint || "https://<your-vibrail>/api/mcp");
 
   return (
     <div className="space-y-3">
@@ -385,8 +385,8 @@ export function McpConnection() {
     "{",
     '  "mcpServers": {',
     '    "vibrail": {',
-    `      "url": "${endpoint || "https://<your-openship>/api/mcp"}",`,
-    '      "headers": { "Authorization": "Bearer opsh_pat_…" }',
+    `      "url": "${endpoint || "https://<your-vibrail>/api/mcp"}",`,
+    '      "headers": { "Authorization": "Bearer vibrail_pat_…" }',
     "    }",
     "  }",
     "}",
@@ -656,7 +656,7 @@ function StaticTokenSetup({ endpoint, configSnippet }: { endpoint: string; confi
           >
             {t.settings.mcp.tokensTab}
           </Link>{" "}
-          {t.settings.mcp.createTokenMid} <code className="font-mono">opsh_pat_…</code>{t.settings.mcp.createTokenSuffix}
+          {t.settings.mcp.createTokenMid} <code className="font-mono">vibrail_pat_…</code>{t.settings.mcp.createTokenSuffix}
         </p>
       </div>
 

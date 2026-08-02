@@ -312,7 +312,7 @@ export interface DeployConfig {
    * runtime that supports adoption (currently Bare) skips build promotion and
    * the supervisor start entirely — it only health-probes `port` and returns a
    * running result. Used to model an externally-supervised process (e.g. the
-   * Openship control plane launched by `openship up`) as a real deployment so
+   * Vibrail control plane launched by `vibrail up`) as a real deployment so
    * the normal routing/SSL pipeline owns it, without a second process binding
    * the port. No-op for runtimes that don't advertise adoption.
    */
@@ -446,8 +446,8 @@ interface BaseRouteConfig {
   /** Whether TLS is enabled */
   tls: boolean;
   /**
-   * When set, adds a `/_openship/hooks/` location that proxies
-   * webhook requests to the Openship API at this URL.
+   * When set, adds a `/_vibrail/hooks/` location that proxies
+   * webhook requests to the Vibrail API at this URL.
    * Example: "http://127.0.0.1:4000/api/webhooks/"
    */
   webhookProxy?: string;

@@ -15,8 +15,8 @@
  * The Chunk 2 retention-prune sweep batches deletes through
  * `deleteMany` so we don't spin up N connections for N deletions.
  *
- * Used by BOTH `sftp` and `openship_server` destination kinds — the
- * apps/api layer translates `openship_server` rows into SFTP rows
+ * Used by BOTH `sftp` and `vibrail_server` destination kinds — the
+ * apps/api layer translates `vibrail_server` rows into SFTP rows
  * (hydrating creds from the user's `servers` table) before
  * resolveDestination sees them.
  */
@@ -54,14 +54,14 @@ interface ConnectionConfig {
 }
 
 class SftpDestinationImpl implements BackupDestination {
-  readonly kind: "sftp" | "openship_server";
+  readonly kind: "sftp" | "vibrail_server";
   readonly capabilities = CAPS;
 
   private readonly conn: ConnectionConfig;
   private readonly rootPath: string;
 
   constructor(row: BackupDestinationRow) {
-    this.kind = row.kind === "openship_server" ? "openship_server" : "sftp";
+    this.kind = row.kind === "vibrail_server" ? "vibrail_server" : "sftp";
 
     if (!row.sshHost) {
       throw new Error(`SFTP destination "${row.name}" missing sshHost`);
@@ -179,7 +179,7 @@ class SftpDestinationImpl implements BackupDestination {
 
   async preflight(): Promise<{ ok: true } | { ok: false; reason: string }> {
     try {
-      const probeName = `.openship-probe-${randomBytes(6).toString("hex")}`;
+      const probeName = `.vibrail-probe-${randomBytes(6).toString("hex")}`;
       await this.withSftp(async (sftp) => {
         await this.ensureDir(sftp, this.rootPath);
         const probePath = posix.join(this.rootPath, probeName);
@@ -401,9 +401,9 @@ class SftpDestinationImpl implements BackupDestination {
   }
 }
 
-// Both `sftp` and `openship_server` resolve to the SAME implementation —
-// the apps/api layer hydrates openship_server rows with the user's
+// Both `sftp` and `vibrail_server` resolve to the SAME implementation —
+// the apps/api layer hydrates vibrail_server rows with the user's
 // `servers` table credentials before reaching this point, so the
 // adapter sees a normal SFTP row in both cases.
 registerDestination("sftp", (row) => new SftpDestinationImpl(row));
-registerDestination("openship_server", (row) => new SftpDestinationImpl(row));
+registerDestination("vibrail_server", (row) => new SftpDestinationImpl(row));

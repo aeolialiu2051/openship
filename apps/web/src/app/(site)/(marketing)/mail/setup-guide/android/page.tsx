@@ -17,7 +17,7 @@ export default function AndroidGuidePage() {
     >
       <GuideSection title="Before you start">
         <p className="text-sm leading-relaxed text-white/70">
-          You need the username and password from your Openship admin Overview tab,
+          You need the username and password from your Vibrail admin Overview tab,
           plus the IMAP / SMTP host and port shown in the right rail. Tap{" "}
           <em>"Manual setup"</em> when offered - auto-detection often picks
           the wrong port.

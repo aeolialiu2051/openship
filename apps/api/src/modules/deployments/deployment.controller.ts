@@ -413,7 +413,7 @@ export async function buildAccess(c: Context) {
   // EXCEPTION — local build: when the operator chose "Build on this machine",
   // we deliberately KEEP the project local-canonical and orchestrate the cloud
   // deploy from here (build locally with the host's credentials, upload the
-  // output to an Openship Cloud workspace, deploy it). No promote/transfer, so
+  // output to a Vibrail Cloud workspace, deploy it). No promote/transfer, so
   // no duplicate/leftover cloud copy, and redeploys re-run this same local
   // pipeline. That path falls through to requestBuildAccess below, where
   // resolveEffectiveTarget keeps the cloud target for a local build.
@@ -436,7 +436,7 @@ export async function buildAccess(c: Context) {
             {
               success: false,
               code: "CLOUD_SLUG_TAKEN",
-              message: `The name "${err.conflictValue}" is already taken on Openship Cloud. Rename this project and try again.`,
+              message: `The name "${err.conflictValue}" is already taken on Vibrail Cloud. Rename this project and try again.`,
             },
             409,
           );
@@ -447,13 +447,13 @@ export async function buildAccess(c: Context) {
             success: false,
             code: "CLOUD_PROMOTE_CONFLICT",
             message:
-              "This project already has a copy on Openship Cloud (leftover from an earlier transfer). Clean it up and retry to promote this local copy.",
+              "This project already has a copy on Vibrail Cloud (leftover from an earlier transfer). Clean it up and retry to promote this local copy.",
           },
           409,
         );
       }
       const message =
-        err instanceof Error ? err.message : "Failed to move project to Openship Cloud";
+        err instanceof Error ? err.message : "Failed to move project to Vibrail Cloud";
       return c.json({ success: false, message }, 400);
     }
     return proxyToSaaS(c, getRequestContext(c).organizationId, { body: JSON.stringify(body) });

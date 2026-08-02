@@ -46,7 +46,7 @@ export function ApiUnavailable() {
           Can&rsquo;t reach the API
         </h1>
         <p style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.7, margin: "0 0 20px" }}>
-          The dashboard can&rsquo;t load until the Openship API is running. Make
+          The dashboard can&rsquo;t load until the Vibrail API is running. Make
           sure it&rsquo;s up, then retry.
         </p>
         <button

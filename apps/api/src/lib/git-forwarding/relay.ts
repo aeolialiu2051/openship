@@ -95,7 +95,7 @@ function parseRequest(block: string): Record<string, string> {
 export function buildHelperScript(port: number, nonce: string): string {
   return [
     "#!/usr/bin/env bash",
-    "# Openship git credential relay (desktop-only). No credential is stored here.",
+    "# Vibrail git credential relay (desktop-only). No credential is stored here.",
     'if [ "$1" != "get" ]; then exit 0; fi',
     `exec 3<>/dev/tcp/127.0.0.1/${port} || exit 1`,
     `printf '%s\\n' '${nonce}' >&3`,
@@ -257,7 +257,7 @@ export async function writeHelperScript(
 ): Promise<string> {
   const home = (await executor.exec('printf %s "$HOME"')).trim();
   if (!home) throw new Error("could not resolve remote $HOME");
-  const scriptPath = `${home}/.openship/cred-${sessionId}.sh`;
+  const scriptPath = `${home}/.vibrail/cred-${sessionId}.sh`;
   await executor.writeFile(scriptPath, buildHelperScript(port, nonce));
   // The caller only learns scriptPath on success, so its teardown can't remove a
   // partial write. If chmod (a separate SSH channel) fails after the file landed,

@@ -13,12 +13,12 @@ import {
   Footer,
 } from "@/components/landing";
 
-const SITE_URL = "https://openship.io";
+const SITE_URL = "https://vibrail.warpgateapi.com";
 
 const softwareLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "Openship",
+  name: "Vibrail",
   applicationCategory: "DeveloperApplication",
   applicationSubCategory: "Deployment Platform",
   operatingSystem: "macOS, Windows, Linux, Web",
@@ -27,7 +27,7 @@ const softwareLd = {
   softwareVersion: "latest",
   publisher: {
     "@type": "Organization",
-    name: "Openship",
+    name: "Vibrail",
     url: SITE_URL,
   },
   description:

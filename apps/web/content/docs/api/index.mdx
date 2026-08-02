@@ -1,36 +1,36 @@
 ---
 title: API overview
-description: The Openship HTTP API — base URL, authentication, permissions, rate limits, and the standard JSON error shape.
+description: The Vibrail HTTP API — base URL, authentication, permissions, rate limits, and the standard JSON error shape.
 ---
 
-Everything the dashboard and the [`openship`](/docs/cli) CLI can do is a call to the same HTTP API: create
+Everything the dashboard and the [`vibrail`](/docs/cli) CLI can do is a call to the same HTTP API: create
 projects, trigger deployments, attach domains, read analytics, manage backups. It's a plain JSON API built on
 [Hono](https://hono.dev), so you can drive it from a script, a CI job, or an AI agent exactly the way the
 first-party clients do.
 
 <Callout title="Base URL & auth">
 Every route lives under **`/api`** on your own instance — e.g. `https://your-host/api/projects`. There is no
-hosted `/v1` gateway and no separate key format: the base URL is wherever you run Openship. Authenticate with a
+hosted `/v1` gateway and no separate key format: the base URL is wherever you run Vibrail. Authenticate with a
 personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access); the dashboard uses a session cookie instead. Full details in
+[`vibrail token create`](/docs/cli/access); the dashboard uses a session cookie instead. Full details in
 [Authentication](/docs/security/auth).
 </Callout>
 
 ## Authentication
 
-A request proves who it is in exactly one of four ways. Openship checks for a `Bearer` token first, then a
+A request proves who it is in exactly one of four ways. Vibrail checks for a `Bearer` token first, then a
 session cookie, then the loopback fallback (only if that mode is enabled).
 
 | Method | What you send | Who uses it |
 |---|---|---|
-| **Personal access token** | `Authorization: Bearer opsh_pat_…` | CLI, scripts, server-to-server |
+| **Personal access token** | `Authorization: Bearer vibrail_pat_…` | CLI, scripts, server-to-server |
 | **Session cookie** | httpOnly cookie set at login | The dashboard, in a browser |
 | **MCP OAuth** | An OAuth 2.1 access token bound at consent | AI agents connecting to `/api/mcp` |
 | **Zero-auth loopback** | Nothing (request from `127.0.0.1`) | Desktop app / opt-in single-user instance |
 
 ```bash
 curl https://your-host/api/projects \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 <Callout title="Bearer is for non-browser clients only" type="info">
@@ -48,9 +48,9 @@ Once you're authenticated, every route runs one permission check. Each route dec
 (`project:service:write`). The action lines up with the HTTP method: `read` (GET one), `write`
 (POST/PUT/PATCH), `admin` (DELETE and destructive), `list` (GET a collection).
 
-Access is decided **per organization**. Openship resolves which org you mean from the `X-Organization-Id`
+Access is decided **per organization**. Vibrail resolves which org you mean from the `X-Organization-Id`
 header (falling back to your session default), then checks your role there — `owner`, `admin`, `member`, or
-`restricted` (grant-only). Openship refuses to boot if any route is missing a tag, so there is no accidentally
+`restricted` (grant-only). Vibrail refuses to boot if any route is missing a tag, so there is no accidentally
 unprotected endpoint. The per-endpoint tables on the module pages list the tag for every route; see
 [Permissions & roles](/docs/security/permissions) for the full model.
 
@@ -71,7 +71,7 @@ are per rolling minute.
 
 Every response carries `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and `X-RateLimit-Reset`. `/api/health` is
 never limited (load balancers and SSR poll it). On a self-hosted instance with neither `TRUST_PROXY` nor
-`OPENSHIP_PUBLIC_URL` set, requests arriving over loopback skip the ordinary limits — the `auth-tight` login
+`VIBRAIL_PUBLIC_URL` set, requests arriving over loopback skip the ordinary limits — the `auth-tight` login
 gate always enforces.
 
 <Callout title="429 — Too many requests" type="warn">
@@ -160,7 +160,7 @@ route set by mode.
   <Card title="MCP" href="/docs/api/mcp" description="The Model Context Protocol endpoint for AI agents." />
   <Card title="Images" href="/docs/api/images" description="Browse the build-image catalog for services." />
   <Card title="Service terminal" href="/docs/api/service-terminal" description="Open a shell into a running service container." />
-  <Card title="Cloud" href="/docs/api/cloud" description="Link an instance to Openship Cloud and its control-plane endpoints." />
+  <Card title="Cloud" href="/docs/api/cloud" description="Link an instance to Vibrail Cloud and its control-plane endpoints." />
   <Card title="System" href="/docs/api/system" description="Self-hosted instance administration (self-hosted only)." />
   <Card title="Mail" href="/docs/api/mail" description="Install and run a self-hosted mail stack (self-hosted only)." />
   <Card title="Migration" href="/docs/api/migration" description="Adopt an existing Docker host as a project (self-hosted only)." />

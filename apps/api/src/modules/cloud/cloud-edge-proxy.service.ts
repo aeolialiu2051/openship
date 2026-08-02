@@ -6,7 +6,7 @@
  * independent of the HTTP layer.
  */
 
-import { getNamespaceClient } from "../../lib/openship-cloud";
+import { getNamespaceClient } from "../../lib/vibrail-cloud";
 import { getRoutingBaseDomain } from "../../lib/routing-domains";
 
 /** Canonicalize a slug the same way for sync and delete so both look up the

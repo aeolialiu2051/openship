@@ -1,6 +1,6 @@
 /**
  * Cloud transport — the authenticated wire from a self-hosted instance to
- * api.openship.io. Auth is fully server-side: the user's Openship Cloud
+ * vibrail.warpgateapi.com. Auth is fully server-side: the user's Vibrail Cloud
  * session lives (encrypted) in `user_settings.cloud_session_token`; this layer
  * reads it, presents it as a Bearer, and forwards the call.
  *
@@ -19,8 +19,8 @@ import { cloudRuntimeTarget, cloudRuntimeTargetId, env } from "../../config/env"
 import { decrypt } from "../encryption";
 import {
   APP_VERSION,
-  OPENSHIP_VERSION_HEADER,
-  OPENSHIP_PLATFORM_HEADER,
+  VIBRAIL_VERSION_HEADER,
+  VIBRAIL_PLATFORM_HEADER,
 } from "../app-version";
 
 /** Max wait for the SaaS to send response headers before we give up (503).
@@ -81,8 +81,8 @@ export async function cloudFetch(
         // old wire formats, nudge/force upgrades, etc.). Set AFTER the caller's
         // headers so they can't be spoofed/overridden by a request, and BEFORE
         // Authorization which is likewise authoritative.
-        [OPENSHIP_VERSION_HEADER]: APP_VERSION,
-        [OPENSHIP_PLATFORM_HEADER]: env.DEPLOY_MODE,
+        [VIBRAIL_VERSION_HEADER]: APP_VERSION,
+        [VIBRAIL_PLATFORM_HEADER]: env.DEPLOY_MODE,
         Authorization: `Bearer ${sessionToken}`,
       },
       signal: controller.signal,
@@ -106,7 +106,7 @@ export async function cloudFetch(
 
 /**
  * THE org→cloud-owner resolver: the userId of the org owner who has linked
- * Openship Cloud (`findOrgOwnerCloudLink` filters on a non-empty session
+ * Vibrail Cloud (`findOrgOwnerCloudLink` filters on a non-empty session
  * token), or null. Every org-scoped cloud path — the proxied fetch, the
  * cache-key resolution, the token mint, and the connection check — goes
  * through this single function so they all agree on the SAME owner identity.
@@ -131,7 +131,7 @@ export async function resolveOrgCloudUserId(organizationId: string): Promise<str
  * cloud bridge function uses this — "any member of the org gets to act with the
  * owner's SaaS identity for org-scoped operations".
  *
- * Returns null when no member of the org has linked Openship Cloud.
+ * Returns null when no member of the org has linked Vibrail Cloud.
  */
 export async function cloudFetchAsOrgOwner(
   organizationId: string,

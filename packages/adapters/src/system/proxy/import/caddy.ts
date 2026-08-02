@@ -83,7 +83,7 @@ function parseCaddyJson(raw: string): { sites: ImportedSite[]; warnings: string[
       if (hosts.length === 0) continue; // catch-all / no host matcher
       const target = targetFromRoute(route);
       if (!target) continue; // redirect-only or unsupported — nothing to migrate
-      // Certs: Caddy auto-provisions, and openship re-issues via Let's Encrypt on
+      // Certs: Caddy auto-provisions, and vibrail re-issues via Let's Encrypt on
       // takeover, so we carry only the ssl flag here (no fragile cert→SNI mapping).
       sites.push({ serverNames: hosts, ssl, target, source: "caddy (adapt)" });
     }

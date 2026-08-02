@@ -5,8 +5,8 @@
  * TARGET's env: it opens the passphrase-sealed bundle, wipe-restores under the
  * migration lock, and re-encrypts every secret under THIS box's key.
  *
- *   OPENSHIP_IMPORT_PASSPHRASE=… bun --cwd apps/api scripts/import-instance.ts \
- *     --in /tmp/openship-export.osx --mode wipe
+ *   VIBRAIL_IMPORT_PASSPHRASE=… bun --cwd apps/api scripts/import-instance.ts \
+ *     --in /tmp/vibrail-export.osx --mode wipe
  *
  * The passphrase comes from the environment, NEVER argv (keeps it out of the
  * process table / shell history — the orchestrator sets it via a 0600 env-file).
@@ -24,7 +24,7 @@ async function main() {
   const inPath = inIdx >= 0 ? args[inIdx + 1] : null;
   const modeIdx = args.indexOf("--mode");
   const mode: ImportMode = args[modeIdx + 1] === "merge" ? "merge" : "wipe";
-  const passphrase = process.env.OPENSHIP_IMPORT_PASSPHRASE || undefined;
+  const passphrase = process.env.VIBRAIL_IMPORT_PASSPHRASE || undefined;
 
   if (!inPath) {
     console.error("[import-instance] --in <path/to/export.osx> is required.");
@@ -45,7 +45,7 @@ async function main() {
     console.log(`[import-instance] ${JSON.stringify(result)}`);
     if (result.secretsSkipped && file.secrets) {
       console.error(
-        "[import-instance] WARNING: secrets present but not restored — supply OPENSHIP_IMPORT_PASSPHRASE.",
+        "[import-instance] WARNING: secrets present but not restored — supply VIBRAIL_IMPORT_PASSPHRASE.",
       );
     }
     process.exit(0);

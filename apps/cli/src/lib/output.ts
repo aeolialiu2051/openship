@@ -1,12 +1,12 @@
 /**
  * Output helpers. A single process-wide "JSON mode" flag switches structured
- * output on (set by the global --json flag in index.ts, or the OPENSHIP_JSON
+ * output on (set by the global --json flag in index.ts, or the VIBRAIL_JSON
  * env var). In JSON mode, stdout is reserved for machine-readable data only —
  * ok/info/err always go to stderr so they never corrupt a piped JSON stream.
  */
 import chalk from "chalk";
 
-let jsonMode = process.env.OPENSHIP_JSON === "1" || process.env.OPENSHIP_JSON === "true";
+let jsonMode = process.env.VIBRAIL_JSON === "1" || process.env.VIBRAIL_JSON === "true";
 
 export function setJsonMode(on: boolean): void {
   jsonMode = on;

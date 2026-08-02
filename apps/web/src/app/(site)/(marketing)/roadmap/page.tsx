@@ -12,14 +12,14 @@ import "./roadmap.css";
 
 const PAGE_TITLE = "Roadmap";
 const PAGE_DESCRIPTION =
-  "Where Openship is going — native build pipelines for every stack, clustering and load balancing with a one-click UI, webhook-triggered jobs, a durable queue, a managed WAF, a self-hosted CDN, GitLab and Cloudflare, and a mobile app. Built in the open.";
+  "Where Vibrail is going — native build pipelines for every stack, clustering and load balancing with a one-click UI, webhook-triggered jobs, a durable queue, a managed WAF, a self-hosted CDN, GitLab and Cloudflare, and a mobile app. Built in the open.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/roadmap" },
-  openGraph: { title: `${PAGE_TITLE} — Openship`, description: PAGE_DESCRIPTION, url: "/roadmap", type: "website" },
-  twitter: { card: "summary_large_image", title: `${PAGE_TITLE} — Openship`, description: PAGE_DESCRIPTION },
+  openGraph: { title: `${PAGE_TITLE} — Vibrail`, description: PAGE_DESCRIPTION, url: "/roadmap", type: "website" },
+  twitter: { card: "summary_large_image", title: `${PAGE_TITLE} — Vibrail`, description: PAGE_DESCRIPTION },
 };
 
 type Status = "shipped" | "progress" | "next" | "planned" | "exploring";
@@ -49,10 +49,10 @@ const PHASES: Phase[] = [
     name: "Deploy anything",
     blurb: "native pipelines for every stack.",
     pitch:
-      "Node.js and Docker deploy natively today — Openship auto-detects them, builds them, and runs them with zero config. Every other stack — Go, Rust, Python, Ruby, PHP, Java & Kotlin, .NET, Elixir — already ships through the universal pipeline: bring your install, build, and start commands (or a Dockerfile) and deploy. Next, we're promoting each language to first-class, auto-detected native support — one stack at a time, and faster with your help.",
+      "Node.js and Docker deploy natively today — Vibrail auto-detects them, builds them, and runs them with zero config. Every other stack — Go, Rust, Python, Ruby, PHP, Java & Kotlin, .NET, Elixir — already ships through the universal pipeline: bring your install, build, and start commands (or a Dockerfile) and deploy. Next, we're promoting each language to first-class, auto-detected native support — one stack at a time, and faster with your help.",
     cta: {
       label: "Contribute a stack pipeline",
-      href: "https://github.com/oblien/openship/contribute",
+      href: "https://github.com/aeolialiu2051/vibrail/contribute",
     },
     items: [
       {
@@ -78,7 +78,7 @@ const PHASES: Phase[] = [
         icon: Boxes,
         title: "Clustering & multi-node",
         status: "progress",
-        desc: "Group your servers into a cluster and ship to it as one. Add a node from the dashboard and Openship spreads containers across the fleet, health-checks them, and reschedules failures automatically — no control plane to babysit, no YAML to hand-write.",
+        desc: "Group your servers into a cluster and ship to it as one. Add a node from the dashboard and Vibrail spreads containers across the fleet, health-checks them, and reschedules failures automatically — no control plane to babysit, no YAML to hand-write.",
       },
       {
         icon: FolderSync,
@@ -96,7 +96,7 @@ const PHASES: Phase[] = [
         icon: Container,
         title: "Docker Swarm",
         status: "planned",
-        desc: "Prefer Swarm? Point Openship at a Swarm cluster and deploy services, scale replicas, and roll updates across the swarm from the same dashboard — your orchestrator of choice, our interface.",
+        desc: "Prefer Swarm? Point Vibrail at a Swarm cluster and deploy services, scale replicas, and roll updates across the swarm from the same dashboard — your orchestrator of choice, our interface.",
       },
       {
         icon: Scale,
@@ -168,13 +168,13 @@ const PHASES: Phase[] = [
     name: "Command the cloud",
     blurb: "AWS & Azure, finally pleasant.",
     flagship: true,
-    pitch: "AWS and Azure are extraordinarily powerful — and extraordinarily complex. Hundreds of services, a maze of consoles, and a bill you need a degree to read. If you don't want all that — if you just need to see what's running, spin something up, and get on with your day — Openship becomes a clean, opinionated layer over both: the 20% you actually use, without the 80% you don't. Connect your account and manage it from the same place you deploy.",
+    pitch: "AWS and Azure are extraordinarily powerful — and extraordinarily complex. Hundreds of services, a maze of consoles, and a bill you need a degree to read. If you don't want all that — if you just need to see what's running, spin something up, and get on with your day — Vibrail becomes a clean, opinionated layer over both: the 20% you actually use, without the 80% you don't. Connect your account and manage it from the same place you deploy.",
     items: [
       {
         icon: CloudCog,
         title: "AWS console & control",
         status: "exploring",
-        desc: "Connect your AWS account and run it from Openship — EC2, S3, RDS, IAM and more — through an interface that's actually fast and clean. A better console for the services you touch every day, right next to your deploys.",
+        desc: "Connect your AWS account and run it from Vibrail — EC2, S3, RDS, IAM and more — through an interface that's actually fast and clean. A better console for the services you touch every day, right next to your deploys.",
       },
       {
         icon: Cloudy,
@@ -199,13 +199,13 @@ const PHASES: Phase[] = [
         icon: Cloud,
         title: "Cloudflare integration",
         status: "planned",
-        desc: "Manage Cloudflare DNS, proxying, and origin certificates straight from Openship, so your domains and edge stay in sync with every deploy — no tab-hopping to keep records straight.",
+        desc: "Manage Cloudflare DNS, proxying, and origin certificates straight from Vibrail, so your domains and edge stay in sync with every deploy — no tab-hopping to keep records straight.",
       },
       {
         icon: Send,
         title: "Amazon SES & SMTP mail",
         status: "shipped",
-        desc: "Beyond self-hosted mail: connect Amazon SES or any SMTP relay and manage senders, domains, and deliverability from Openship — pick the mail engine that fits the job, hosted or your own. Live today.",
+        desc: "Beyond self-hosted mail: connect Amazon SES or any SMTP relay and manage senders, domains, and deliverability from Vibrail — pick the mail engine that fits the job, hosted or your own. Live today.",
       },
     ],
   },
@@ -275,7 +275,7 @@ export default function RoadmapPage() {
           </p>
           <h1 className="animate-fade-in-up animate-delay-100 mt-5">
             <span className="block text-[clamp(2.5rem,5.5vw,4.25rem)] font-medium leading-[1.08] tracking-[-0.02em] th-text-heading">
-              Where Openship is going.
+              Where Vibrail is going.
             </span>
             <span className="hero-headline-second block text-[clamp(2.5rem,5.5vw,4.25rem)] font-light italic leading-[1.08] tracking-[-0.015em]">
               Built in the open.
@@ -389,7 +389,7 @@ export default function RoadmapPage() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
               <a
-                href="https://github.com/oblien/openship"
+                href="https://github.com/aeolialiu2051/vibrail"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="th-btn group rounded-full px-7 py-3 text-[15px] font-medium"

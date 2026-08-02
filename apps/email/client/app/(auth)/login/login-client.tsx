@@ -18,8 +18,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTRPC } from '@/providers/query-provider';
 
-/** OpenShip mark - a hollow ring. Matches packages/dashboard's `<Logo>`. */
-function OpenshipLogo({ size = 44 }: { size?: number }) {
+/** Vibrail mark - a hollow ring. Matches packages/dashboard's `<Logo>`. */
+function VibrailLogo({ size = 44 }: { size?: number }) {
   return (
     <div
       aria-hidden
@@ -39,7 +39,7 @@ function GitHubMark(props: React.SVGProps<SVGSVGElement>) {
 }
 
 const FALLBACK_BRANDING = {
-  loginHeading: 'OpenShip Mail',
+  loginHeading: 'Vibrail Mail',
   loginSubtext: 'Sign in with your mailbox credentials',
   loginFooter: 'Self-hosted on your own mail server. No third parties.',
 };
@@ -102,9 +102,9 @@ export function LoginClient() {
       {/* Main */}
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-[440px]">
-          {/* Brand mark - OpenShip ring above the heading. */}
+          {/* Brand mark - Vibrail ring above the heading. */}
           <div className="mb-10 flex flex-col items-center text-center">
-            <OpenshipLogo size={44} />
+            <VibrailLogo size={44} />
             <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-[34px]">
               {heading}
             </h1>
@@ -213,12 +213,12 @@ export function LoginClient() {
           <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <span>Powered by</span>
             <a
-              href="https://openship.io"
+              href="https://vibrail.warpgateapi.com"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground transition-colors hover:text-foreground/70"
             >
-              OpenShip
+              Vibrail
             </a>
           </div>
           <nav className="flex items-center gap-6 text-[13px] text-muted-foreground">
@@ -231,7 +231,7 @@ export function LoginClient() {
               Docs
             </a>
             <a
-              href="https://openship.io/privacy"
+              href="https://vibrail.warpgateapi.com/privacy"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"
@@ -239,7 +239,7 @@ export function LoginClient() {
               Privacy
             </a>
             <a
-              href="https://openship.io/terms"
+              href="https://vibrail.warpgateapi.com/terms"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"
@@ -247,7 +247,7 @@ export function LoginClient() {
               Terms
             </a>
             <a
-              href="https://github.com/oblien/openship"
+              href="https://github.com/aeolialiu2051/vibrail"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="GitHub"

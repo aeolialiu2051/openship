@@ -5,28 +5,28 @@ import { Footer } from "@/components/landing/footer";
 import { ChangelogEntries } from "./_components/changelog-entries";
 import "./changelog.css";
 
-const CHANGELOG_DESC = "New features, fixes, and improvements to Openship.";
+const CHANGELOG_DESC = "New features, fixes, and improvements to Vibrail.";
 
 // Driven by the repo CHANGELOG.md + GitHub releases; refresh on a short cache.
 export const revalidate = 600;
 
 export const metadata: Metadata = {
-  // Plain string — the root layout's "%s - Openship" template adds the suffix
-  // (the old value double-suffixed to "Changelog – Openship - Openship").
+  // Plain string — the root layout's "%s - Vibrail" template adds the suffix
+  // (the old value double-suffixed to "Changelog – Vibrail - Vibrail").
   title: "Changelog",
   description: CHANGELOG_DESC,
   alternates: { canonical: "/changelog" },
   openGraph: {
-    title: "Changelog - Openship",
+    title: "Changelog - Vibrail",
     description: CHANGELOG_DESC,
     url: "/changelog",
     type: "website",
-    siteName: "Openship",
+    siteName: "Vibrail",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Changelog - Openship",
+    title: "Changelog - Vibrail",
     description: CHANGELOG_DESC,
   },
 };
@@ -46,7 +46,7 @@ export default async function ChangelogPage() {
             What&apos;s new
           </h1>
           <p className="th-text-body mt-5 text-lg leading-relaxed">
-            Features, fixes, and improvements shipping in Openship.
+            Features, fixes, and improvements shipping in Vibrail.
           </p>
         </header>
 
@@ -56,7 +56,7 @@ export default async function ChangelogPage() {
           <p className="th-text-muted border-t py-12 text-[15px]" style={{ borderColor: "var(--th-bd-subtle)" }}>
             Release notes are momentarily unavailable — check back shortly, or see{" "}
             <a
-              href="https://github.com/oblien/openship/releases"
+              href="https://github.com/aeolialiu2051/vibrail/releases"
               className="underline"
               target="_blank"
               rel="noreferrer"

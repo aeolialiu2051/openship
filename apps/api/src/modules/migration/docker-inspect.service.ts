@@ -2,7 +2,7 @@
  * Docker discovery for the "migrate an existing deployment" flow — the IO shell.
  *
  * Read-only. Points a DockerRuntime at a server's daemon over SSH, enumerates
- * every container/volume/network (label-agnostic — not just openship.*), reads
+ * every container/volume/network (label-agnostic — not just vibrail.*), reads
  * any docker-compose files those containers were started from, and hands the
  * raw data to the pure `reconcileStack` (docker-reconcile.ts) which merges it
  * into one normalized `DiscoveredStack`. Nothing here mutates the server.
@@ -13,26 +13,26 @@ import { safeErrorMessage, withTimeout } from "@repo/core";
 import { repos } from "@repo/db";
 import { createServerDockerRuntime } from "../../lib/deployment-runtime";
 import { sshManager } from "../../lib/ssh-manager";
-import { pruneOrphanManifestArtifacts } from "../../lib/openship-manifest-sync";
+import { pruneOrphanManifestArtifacts } from "../../lib/vibrail-manifest-sync";
 import { parseComposeFile, type ComposeService } from "../../lib/compose-parser";
-import { readManifest, projectSnapshotExists, type ManifestProjectEntry } from "../../lib/openship-manifest";
+import { readManifest, projectSnapshotExists, type ManifestProjectEntry } from "../../lib/vibrail-manifest";
 import {
   reconcileStack,
-  reconcileOpenshipProjects,
+  reconcileVibrailProjects,
   isBuildHelper,
   type DiscoveredStack,
 } from "./docker-reconcile";
 import { scanProxyRoutes } from "./proxy-route-scan";
 
-/** Openship project-id shape — used to reject crafted `openship.project` labels
+/** Vibrail project-id shape — used to reject crafted `vibrail.project` labels
  *  before they reach the remote snapshot probe (same shape migrate.service uses). */
-const OPENSHIP_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
+const VIBRAIL_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
 
 export type {
   DiscoveredStack,
   DiscoveredService,
   DiscoveredVolumeMount,
-  OpenshipProjectGroup,
+  VibrailProjectGroup,
 } from "./docker-reconcile";
 export { reconcileStack } from "./docker-reconcile";
 
@@ -158,9 +158,9 @@ export async function discoverServerStack(
   organizationId: string,
   onProgress?: (message: string) => void,
   opts?: {
-    /** "Flat Docker" mode: ignore `openship.*` labels entirely so Openship-managed
+    /** "Flat Docker" mode: ignore `vibrail.*` labels entirely so Vibrail-managed
      *  deploy containers are adopted as PLAIN compose/standalone (no re-import,
-     *  no snapshot restore). The one filter (`isOpenshipOwned`) is bypassed. */
+     *  no snapshot restore). The one filter (`isVibrailOwned`) is bypassed. */
     flatDocker?: boolean;
   },
 ): Promise<DiscoveredStack> {
@@ -206,21 +206,21 @@ export async function discoverServerStack(
       `timed out after ${RESOURCE_LIST_TIMEOUT_MS / 1000}s listing Docker containers, volumes and networks`,
     );
 
-    // Split by ownership. GENERIC candidates (no openship.* label) feed the
-    // normal adopt grid. OPENSHIP-owned deploy containers are recovered as their
-    // own projects (re-import) — build helpers (`openship.build`) are neither.
+    // Split by ownership. GENERIC candidates (no vibrail.* label) feed the
+    // normal adopt grid. VIBRAIL-owned deploy containers are recovered as their
+    // own projects (re-import) — build helpers (`vibrail.build`) are neither.
     //
-    // FLAT DOCKER mode ignores the openship.* namespace: every container (minus
-    // transient build helpers) is a generic candidate, so Openship-managed
+    // FLAT DOCKER mode ignores the vibrail.* namespace: every container (minus
+    // transient build helpers) is a generic candidate, so Vibrail-managed
     // workloads adopt as plain compose/standalone — no managed set, no re-import.
-    const isOpenshipOwned = (labels: Record<string, string>) =>
-      Object.keys(labels).some((k) => k === "openship" || k.startsWith("openship."));
-    const managed = flatDocker ? [] : containers.filter((c) => isOpenshipOwned(c.labels));
+    const isVibrailOwned = (labels: Record<string, string>) =>
+      Object.keys(labels).some((k) => k === "vibrail" || k.startsWith("vibrail."));
+    const managed = flatDocker ? [] : containers.filter((c) => isVibrailOwned(c.labels));
     const candidates = flatDocker
       ? containers.filter((c) => !isBuildHelper(c.labels))
-      : containers.filter((c) => !isOpenshipOwned(c.labels));
+      : containers.filter((c) => !isVibrailOwned(c.labels));
     const managedApp = managed.filter(
-      (c) => c.labels["openship.project"] && !isBuildHelper(c.labels),
+      (c) => c.labels["vibrail.project"] && !isBuildHelper(c.labels),
     );
 
     const {
@@ -255,7 +255,7 @@ export async function discoverServerStack(
     step("Scanning existing reverse proxy…");
     const proxyRoutesByPort = await scanProxyRoutes(serverId);
 
-    // Fetch each distinct image's baked-in env once (candidates AND openship
+    // Fetch each distinct image's baked-in env once (candidates AND vibrail
     // containers), so discovery can subtract image defaults and import only the
     // vars the operator actually set.
     const uniqueImages = [
@@ -268,23 +268,23 @@ export async function discoverServerStack(
     const imageDefaults = new Map(imageInfoPairs.map(([ref, v]) => [ref, v.env]));
     const imageCmds = new Map(imageInfoPairs.map(([ref, v]) => [ref, v.cmd]));
 
-    // Recover Openship projects: read the on-server manifest (rich, faithful
-    // recipe) and cross-reference each openship.project id against THIS org's DB.
+    // Recover Vibrail projects: read the on-server manifest (rich, faithful
+    // recipe) and cross-reference each vibrail.project id against THIS org's DB.
     // Present here = genuinely managed → counted; absent = orphaned → re-importable.
-    let openshipProjects: DiscoveredStack["openshipProjects"] = [];
+    let vibrailProjects: DiscoveredStack["vibrailProjects"] = [];
     let alreadyManaged = 0;
-    // SECURITY: `openship.project` is a container LABEL — attacker-controllable
+    // SECURITY: `vibrail.project` is a container LABEL — attacker-controllable
     // via a malicious image's LABEL, inherited onto the container. It flows into
     // a remote root shell (`projectSnapshotExists` → `test -f …snapshot-<id>…`),
     // so validate the id shape BEFORE the probe; a crafted `x$(cmd)` label is
     // dropped here (belt-and-braces with the store's own quoting).
     const projectIds = [
-      ...new Set(managedApp.map((c) => c.labels["openship.project"]!).filter((id) => id && OPENSHIP_PROJECT_ID_RE.test(id))),
+      ...new Set(managedApp.map((c) => c.labels["vibrail.project"]!).filter((id) => id && VIBRAIL_PROJECT_ID_RE.test(id))),
     ];
 
     // Self-heal the on-server recovery state before recovering from it: every
     // re-migration mints a NEW project id, so dead entries + snapshots pile up
-    // in .openship/manifest.json (the file we're about to read) and it grows
+    // in .vibrail/manifest.json (the file we're about to read) and it grows
     // unbounded. Drop THIS org's entries that are neither a live DB project nor
     // backed by a running container — i.e. true orphans. A running container's
     // id is kept so a soft-deleted (record-only) workload stays re-importable.
@@ -299,7 +299,7 @@ export async function discoverServerStack(
     }
 
     if (projectIds.length > 0) {
-      step("Recovering Openship projects…");
+      step("Recovering Vibrail projects…");
       // One SSH session: read the manifest AND check which projects have a full
       // recovery snapshot (cheap `test -f`, no read — the dump is read only at
       // re-import time, for one project).
@@ -327,7 +327,7 @@ export async function discoverServerStack(
           if (row) knownHereIds.add(id);
         }),
       );
-      openshipProjects = reconcileOpenshipProjects({
+      vibrailProjects = reconcileVibrailProjects({
         managedDetails,
         manifestById,
         knownHereIds,
@@ -335,7 +335,7 @@ export async function discoverServerStack(
         imageDefaults,
         imageCmds,
       });
-      alreadyManaged = managedApp.filter((c) => knownHereIds.has(c.labels["openship.project"]!)).length;
+      alreadyManaged = managedApp.filter((c) => knownHereIds.has(c.labels["vibrail.project"]!)).length;
     }
 
     const stack = reconcileStack({
@@ -347,7 +347,7 @@ export async function discoverServerStack(
       alreadyManaged,
       imageDefaults,
       imageCmds,
-      openshipProjects,
+      vibrailProjects,
       proxyRoutesByPort,
     });
     if (inspectFailures.length > 0) {

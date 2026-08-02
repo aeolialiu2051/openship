@@ -30,7 +30,7 @@ async function resolveRequestLocale(): Promise<Locale> {
   // Accept-Language, then the default.
   const cookieStore = await cookies();
   const fromCookie =
-    hdrs.get("x-openship-locale") ?? cookieStore.get(LOCALE_COOKIE)?.value;
+    hdrs.get("x-vibrail-locale") ?? cookieStore.get(LOCALE_COOKIE)?.value;
   if (fromCookie && (locales as readonly string[]).includes(fromCookie)) {
     return fromCookie as Locale;
   }
@@ -74,10 +74,10 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   // Desktop runs the API on a dynamic free port. Mirror the server-side
-  // OPENSHIP_LOCAL_API_URL into the browser so the client bundle's API base
+  // VIBRAIL_LOCAL_API_URL into the browser so the client bundle's API base
   // (a module-load constant that can't read a runtime env) targets it. Read
   // per-request thanks to `force-dynamic` above.
-  const localApiOrigin = process.env.OPENSHIP_LOCAL_API_URL;
+  const localApiOrigin = process.env.VIBRAIL_LOCAL_API_URL;
   const deploymentInfo = await getDeploymentInfoOrNull();
   const supportEmail = deploymentInfo?.supportEmail || getSupportEmail();
 
@@ -102,13 +102,13 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         {localApiOrigin ? (
           <script
             dangerouslySetInnerHTML={{
-              __html: `window.__OPENSHIP_API_ORIGIN__=${JSON.stringify(localApiOrigin)}`,
+              __html: `window.__VIBRAIL_API_ORIGIN__=${JSON.stringify(localApiOrigin)}`,
             }}
           />
         ) : null}
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__OPENSHIP_SUPPORT_EMAIL__=${JSON.stringify(supportEmail)}`,
+            __html: `window.__VIBRAIL_SUPPORT_EMAIL__=${JSON.stringify(supportEmail)}`,
           }}
         />
       </head>

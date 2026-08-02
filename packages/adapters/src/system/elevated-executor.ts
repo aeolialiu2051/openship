@@ -36,7 +36,7 @@ export function elevatedExecutor(inner: CommandExecutor): CommandExecutor {
   const writeFileElevated = async (path: string, content: string): Promise<void> => {
     // Stage into a user-writable temp, then move into place as root — avoids
     // piping large config/Lua content through the command line.
-    const tmp = `/tmp/.openship-elev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    const tmp = `/tmp/.vibrail-elev-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
     await inner.writeFile(tmp, content);
     await inner.exec(
       elevateCommand(`mkdir -p ${sq(dirOf(path))} && mv -f ${sq(tmp)} ${sq(path)}`),

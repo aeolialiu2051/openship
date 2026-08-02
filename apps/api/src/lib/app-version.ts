@@ -2,7 +2,7 @@ import apiPackage from "../../package.json";
 
 /**
  * The running self-hosted app version, from `apps/api/package.json`. Single
- * source of truth — surfaced by `/api/health` and sent to Openship Cloud on
+ * source of truth — surfaced by `/api/health` and sent to Vibrail Cloud on
  * every self-hosted → SaaS request (see the version header below).
  *
  * Desktop reports this same API version; the dashboard shell separately knows
@@ -16,11 +16,11 @@ export const APP_VERSION: string = apiPackage.version;
  * is outdated (deprecate old wire formats, nudge upgrades, block incompatible
  * clients, etc.). Lowercase because Hono normalizes header names on read.
  */
-export const OPENSHIP_VERSION_HEADER = "x-openship-version";
+export const VIBRAIL_VERSION_HEADER = "x-vibrail-version";
 
 /**
  * Companion header naming the caller's deploy platform (docker / bare /
  * desktop). Lets the cloud target update guidance by install type — a desktop
  * app and a server install update through different channels.
  */
-export const OPENSHIP_PLATFORM_HEADER = "x-openship-platform";
+export const VIBRAIL_PLATFORM_HEADER = "x-vibrail-platform";

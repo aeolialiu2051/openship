@@ -65,7 +65,7 @@ const PROJECT_NAME = "Webmail";
  * per-deploy workspace on every redeploy, so anything that must survive
  * (branding config, the SQLite session DB) lives under this dir instead.
  */
-const REMOTE_PERSIST_DIR = "/var/lib/openship-webmail";
+const REMOTE_PERSIST_DIR = "/var/lib/vibrail-webmail";
 const REMOTE_BRANDING_DIR = `${REMOTE_PERSIST_DIR}/branding`;
 const REMOTE_SQLITE_PATH = `${REMOTE_PERSIST_DIR}/zero.db`;
 
@@ -73,14 +73,14 @@ const REMOTE_SQLITE_PATH = `${REMOTE_PERSIST_DIR}/zero.db`;
 const DEFAULT_INTERNAL_PORT = 4080;
 
 /**
- * Webmail (Zero) release source. Same repo/tag as openship — mono-version —
+ * Webmail (Zero) release source. Same repo/tag as vibrail — mono-version —
  * but a distinct per-arch asset. The shared resolver (release-dist.ts) does
  * the actual 3-slot resolution + download; this only pins the spec.
  */
 const WEBMAIL_SOURCE: ReleaseSource = {
   mode: "github",
-  repo: "oblien/openship",
-  assetTemplate: "openship-email-{tag}-linux-amd64.tar.gz",
+  repo: "aeolialiu2051/vibrail",
+  assetTemplate: "vibrail-email-{tag}-linux-amd64.tar.gz",
 };
 
 function webmailDistSpec(): ReleaseDistSpec {
@@ -177,7 +177,7 @@ async function readExistingWebmailBlock(
  *
  * For cloud deploys to the mail server's own `mail.<install>` subdomain
  * we ALSO register an Traefik proxy route on the mail VPS that points
- * `mail.<install>` → the Opshcloud URL. Operators can't change DNS for
+ * `mail.<install>` → the Vibrail Cloud URL. Operators can't change DNS for
  * that subdomain (it's pinned to the mail VPS for IMAP/SMTP), so the
  * mail VPS proxies it for them.
  *
@@ -199,7 +199,7 @@ export async function markWebmailInstalled(
       await mutateState(exec, mailServerId, (state) => {
         if (!state.webmail) return state; // nothing to flip — leave as-is
 
-        // Detect: was this deploy on Opshcloud, targeted at the mail server's
+        // Detect: was this deploy on Vibrail Cloud, targeted at the mail server's
         // own mail.<install> subdomain? If so we'll register the proxy AFTER
         // the (locked) state write returns.
         const installDomain = state.domain;
@@ -304,7 +304,7 @@ export function mailServerIdFromWebmailSlug(slug: string): string | null {
  * Called from project-cleanup.service after the standard manifest cleanup
  * (containers, routes, artifacts) has finished. All failures are swallowed
  * - the project rows are already soft-deleted, so a failing branding-dir
- * remove can't strand the user; it just leaves /var/lib/openship-webmail
+ * remove can't strand the user; it just leaves /var/lib/vibrail-webmail
  * behind until the next deploy reuses it.
  */
 export async function cleanupWebmailInstall(input: {
@@ -529,7 +529,7 @@ export async function ensureExternalWebmailProject(
 
 /**
  * Where to run the webmail. Discriminated union - `self` for a
- * user-managed openship server, `cloud` for Opshcloud.
+ * user-managed vibrail server, `cloud` for Vibrail Cloud.
  */
 export type WebmailDeployTarget =
   | { kind: "self"; serverId: string }
@@ -555,7 +555,7 @@ export interface StartWebmailDeployResult {
  *   2. Reconcile the project row to that dist + the fixed webmail config.
  *   3. Sync the project route (hostname → Traefik + Let's Encrypt).
  *   4. Mint / reuse the branding token + session key in mail-state.
- *   5. Ensure persistent dirs on the target (/var/lib/openship-webmail).
+ *   5. Ensure persistent dirs on the target (/var/lib/vibrail-webmail).
  *   6. Build the env map (PORT, COOKIE_DOMAIN, IMAP/SMTP, secrets…).
  *   7. Snapshot from the project, resolve the deploy target via
  *      resolveSnapshotTarget (webmail intent as the override) and the
@@ -626,7 +626,7 @@ export async function startWebmailDeploy(
   // When the chosen hostname is the mail VPS's own `mail.<install>`
   // subdomain, the DNS A record already pins it to the mail server (for
   // IMAP / SMTP). The operator CAN'T change that record without breaking
-  // mail. So if they pick Opshcloud as the target, the cloud workload
+  // mail. So if they pick Vibrail Cloud as the target, the cloud workload
   // gets a default *.vibrail.warpgateapi.com URL and the mail server's Traefik proxies
   // `mail.<install>` → that URL. No DNS work for the operator.
   //
@@ -676,13 +676,13 @@ export async function startWebmailDeploy(
 
   // ── 6. Persistent dirs on the target - only meaningful for self-hosted
   //       deploys. Cloud runs in an ephemeral container managed by
-  //       Opshcloud; persistence there is handled by the cloud platform. ─
+  //       Vibrail Cloud; persistence there is handled by the cloud platform. ─
   if (input.target.kind === "self") {
     await prepareTarget(input.target.serverId);
   }
 
   // ── 7. Build the env map in memory. Webmail env vars are fixed by
-  //       openship (not user-editable in the project Env Vars UI), so we
+  //       vibrail (not user-editable in the project Env Vars UI), so we
   //       bypass the project envVar table and pass them straight to the
   //       deployment - same direct path requestBuildAccess uses for
   //       caller-supplied vars. ACME_EMAIL is read by the SSL feature

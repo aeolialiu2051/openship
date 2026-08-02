@@ -18,7 +18,7 @@ import { Clock3, X } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
 
 const WARMUP_WINDOW_DAYS = 7;
-export const REPUTATION_STORAGE_PREFIX = "openship:mail:reputation:";
+export const REPUTATION_STORAGE_PREFIX = "vibrail:mail:reputation:";
 
 /**
  * Per-domain localStorage key used by `ReputationBanner`. Exported so the

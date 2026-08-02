@@ -1,5 +1,5 @@
 /**
- * Local cache under ~/.openship/cache. Downloaded desktop-app release assets
+ * Local cache under ~/.vibrail/cache. Downloaded desktop-app release assets
  * live at cache/releases/<tag>/<asset> alongside their <asset>.sha256 sidecar,
  * so `install` can skip a re-download and `cache verify` can re-check integrity
  * offline. Downloads and verification stream through node:crypto — release
@@ -41,7 +41,7 @@ export async function downloadToFile(
   dest: string,
   onProgress?: (received: number, total: number) => void,
 ): Promise<{ sha256: string; size: number }> {
-  const res = await fetch(url, { headers: { "User-Agent": "openship-cli" } });
+  const res = await fetch(url, { headers: { "User-Agent": "vibrail-cli" } });
   if (!res.ok || !res.body) throw new Error(`HTTP ${res.status} for ${url}`);
 
   mkdirSync(dirname(dest), { recursive: true });

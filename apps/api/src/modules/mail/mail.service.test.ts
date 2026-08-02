@@ -19,7 +19,7 @@ describe("mail setup command safety", () => {
   });
 
   it("stages the engine outside /root so a non-root SSH user can upload it", async () => {
-    expect(MAIL_ENGINE_REMOTE_DIR).toBe("/tmp/openship-iredmail-engine");
+    expect(MAIL_ENGINE_REMOTE_DIR).toBe("/tmp/vibrail-iredmail-engine");
     expect(MAIL_ENGINE_REMOTE_DIR.startsWith("/root/")).toBe(false);
   });
 
@@ -101,12 +101,12 @@ describe("mail setup command safety", () => {
       "utf8",
     );
 
-    expect(serviceSource).toContain('"OPENSHIP_VENDORED_ENGINE=YES"');
+    expect(serviceSource).toContain('"VIBRAIL_VENDORED_ENGINE=YES"');
     expect(serviceSource).toContain(
-      "The staged mail engine is older than the current Openship build.",
+      "The staged mail engine is older than the current Vibrail build.",
     );
     expect(serviceSource).toContain("await stepTransferEngine(exec, domain");
-    expect(versionGate).toContain("[ X\"${OPENSHIP_VENDORED_ENGINE}\" == X'YES' ]");
+    expect(versionGate).toContain("[ X\"${VIBRAIL_VENDORED_ENGINE}\" == X'YES' ]");
     expect(versionGate).toContain('status_check_new_iredmail="DONE"');
   });
 });

@@ -441,7 +441,7 @@ async function checkCloneOnServerCredential(
     ...baseCheck,
     status: "warn",
     message:
-      `"Clone on the server" is selected, but Openship holds no GitHub credential for the build host. ` +
+      `"Clone on the server" is selected, but Vibrail holds no GitHub credential for the build host. ` +
       `The deploy will check whether the server already reaches this repo with its own git credentials ` +
       `(a \`gh\` login, a credential helper, or its ssh key) and clone there if it does — otherwise it ` +
       `falls back to cloning on the API host and transferring the context. To make the on-server clone ` +
@@ -618,7 +618,7 @@ async function checkPublicEndpoints(
     }
     seenHostnames.add(hostname);
     // User-VPS deployments under an operator-owned HOST_DOMAIN are routed by
-    // the operator, so there is no Openship Cloud shared-zone availability
+    // the operator, so there is no Vibrail Cloud shared-zone availability
     // lookup. Cloud-target deployments still ask their runtime provider.
     if (canBridgeCloud && (effectiveTarget === "cloud" || managedDomainsUseCloudEdge())) {
       lookups.push({ kind: "slug", index, label, slug });
@@ -712,7 +712,7 @@ async function checkComposeServiceDomains(
 
     // HOST_DOMAIN means the operator owns this managed zone. Validate the
     // hostname locally and let the operator's wildcard DNS / ingress route it;
-    // do not require or warn about Openship Cloud for a user-owned VPS.
+    // do not require or warn about Vibrail Cloud for a user-owned VPS.
     if (!managedDomainsUseCloudEdge() && effectiveTarget !== "cloud") {
       if (seen.has(fqdn)) {
         checks.push({
@@ -746,8 +746,8 @@ async function checkComposeServiceDomains(
           : {}),
         message:
           effectiveTarget === "cloud"
-            ? `Free subdomain "${fqdn}" requires Openship Cloud. Connect your account or switch to a custom domain.`
-            : `The VPS deployment can continue, but "${fqdn}" needs Openship Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
+            ? `Free subdomain "${fqdn}" requires Vibrail Cloud. Connect your account or switch to a custom domain.`
+            : `The VPS deployment can continue, but "${fqdn}" needs Vibrail Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
       });
       continue;
     }
@@ -815,7 +815,7 @@ async function resolveCloudPreflight(
   const effectiveTarget = resolveEffectiveTarget(plat.target, snapshot);
 
   // Managed routing = "the deploy lands on the operator's own server,
-  // but the public hostname is a free .openship.io slug served by
+  // but the public hostname is a free .vibrail.warpgateapi.com slug served by
   // cloud edge". That's the only reason a server-target deploy needs
   // to ping cloud preflight. Cloud-target deploys obviously need it
   // too (cloud IS doing the deploy). Single authority shared with the pipeline.
@@ -1064,7 +1064,7 @@ async function checkSlug(slug: string, cloud: CloudPreflightData | null): Promis
   return { id: "slug-available", label: "Subdomain availability", status: "pass" };
 }
 
-const CLOUD_EDGE_CNAME = "edge.openship.io";
+const CLOUD_EDGE_CNAME = "edge.vibrail.warpgateapi.com";
 const DOMAIN_CHECK_TIMEOUT_MS = 4_000;
 
 /**
@@ -1242,7 +1242,7 @@ async function checkCloudRuntime(
         id: "runtime",
         label: "Free domain routing",
         status: "warn",
-        message: `The VPS deployment will continue, but the free .${getRoutingBaseDomain()} URL needs Openship Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
+        message: `The VPS deployment will continue, but the free .${getRoutingBaseDomain()} URL needs Vibrail Cloud routing. Connect cloud later or use a custom domain pointing to the VPS.`,
       };
     }
 
@@ -1251,35 +1251,35 @@ async function checkCloudRuntime(
         id: "runtime",
         label: "Free domain routing",
         status: "warn",
-        message: `The VPS deployment will continue, but exposed services using free .${getRoutingBaseDomain()} domains need Openship Cloud routing. Connect cloud later or use custom domains pointing to the VPS.`,
+        message: `The VPS deployment will continue, but exposed services using free .${getRoutingBaseDomain()} domains need Vibrail Cloud routing. Connect cloud later or use custom domains pointing to the VPS.`,
       };
     }
 
     if (connected) {
       return {
         id: "runtime",
-        label: "Openship Cloud",
+        label: "Vibrail Cloud",
         status: "fail",
         code: PREFLIGHT_ERROR_CODES.CLOUD_UNREACHABLE,
         message:
-          "Openship Cloud is connected, but the cloud API didn't respond just now. This is usually transient — retry the deploy in a moment.",
+          "Vibrail Cloud is connected, but the cloud API didn't respond just now. This is usually transient — retry the deploy in a moment.",
       };
     }
 
     return {
       id: "runtime",
-      label: "Openship Cloud",
+      label: "Vibrail Cloud",
       status: "fail",
       code: PREFLIGHT_ERROR_CODES.CLOUD_REQUIRED_TARGET,
       message:
-        "This deployment target runs on Openship Cloud, but no cloud account is connected. Connect your account first.",
+        "This deployment target runs on Vibrail Cloud, but no cloud account is connected. Connect your account first.",
     };
   }
 
   if (cloud.runtime.ok) {
     return {
       id: "runtime",
-      label: requirement === "cloud-runtime" ? "Openship Cloud" : "Free domain routing",
+      label: requirement === "cloud-runtime" ? "Vibrail Cloud" : "Free domain routing",
       status: "pass",
     };
   }
@@ -1295,7 +1295,7 @@ async function checkCloudRuntime(
 
   return {
     id: "runtime",
-    label: requirement === "cloud-runtime" ? "Openship Cloud" : "Free domain routing",
+    label: requirement === "cloud-runtime" ? "Vibrail Cloud" : "Free domain routing",
     status: "fail",
     message: cloud.runtime.message,
   };
@@ -1530,7 +1530,7 @@ export async function runPreflightChecks(
       label: "Public URL",
       status: "warn",
       message:
-        "This deploy has no public domain attached. It will build and start but nothing will route to it. Add a custom domain on the Domains tab or connect Openship Cloud to get a free .vibrail.warpgateapi.com subdomain.",
+        "This deploy has no public domain attached. It will build and start but nothing will route to it. Add a custom domain on the Domains tab or connect Vibrail Cloud to get a free .vibrail.warpgateapi.com subdomain.",
     });
   }
 

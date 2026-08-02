@@ -62,7 +62,7 @@ class LocalDestinationImpl implements BackupDestination {
   async preflight(): Promise<{ ok: true } | { ok: false; reason: string }> {
     try {
       await fs.mkdir(this.root, { recursive: true });
-      const probeKey = `.openship-probe-${randomBytes(6).toString("hex")}`;
+      const probeKey = `.vibrail-probe-${randomBytes(6).toString("hex")}`;
       const probePath = join(this.root, probeKey);
       await fs.writeFile(probePath, "ok");
       await fs.readFile(probePath);

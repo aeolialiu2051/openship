@@ -1,5 +1,5 @@
 /**
- * `openship logs [deploymentId]` — deployment logs.
+ * `vibrail logs [deploymentId]` — deployment logs.
  *
  *   default:   GET /api/deployments/:id/logs  → { data: LogEntry[] } (snapshot)
  *   --follow:  GET /api/deployments/:id/stream → SSE build-session stream
@@ -52,7 +52,7 @@ export const logsCommand = new Command("logs")
       if (!deploymentId) {
         err(
           "No deployment ID given and none could be resolved. Pass one explicitly " +
-            "(openship logs <deploymentId>), or run inside a linked project directory.",
+            "(vibrail logs <deploymentId>), or run inside a linked project directory.",
         );
         process.exit(1);
       }

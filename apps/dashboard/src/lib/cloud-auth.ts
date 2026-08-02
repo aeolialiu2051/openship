@@ -34,9 +34,9 @@ export function buildDesktopAuthorizeUrl(options: {
 
 export function getCloudConnectHandoffUrl(
   callbackUrl: string,
-  // cloudApiUrl: the API-provided cloud origin (respects OPENSHIP_CLOUD_TARGET).
+  // cloudApiUrl: the API-provided cloud origin (respects VIBRAIL_CLOUD_TARGET).
   // Pass it so self-hosted → cloud connect hits the configured cloud, not the
-  // static table default (api.openship.io).
+  // static table default (vibrail.warpgateapi.com).
   options?: { state?: string | null; codeChallenge?: string | null; cloudApiUrl?: string },
 ) {
   const params = new URLSearchParams({ redirect: callbackUrl });
@@ -78,7 +78,7 @@ export function generateConnectFlowId(): string {
 /** Storage key for the in-flight verifier. localStorage (not sessionStorage)
  *  because the popup runs in a different tab/window and sessionStorage is
  *  per-tab — localStorage is shared across same-origin windows. */
-export const CONNECT_PKCE_STORAGE_PREFIX = "openship.cloud-connect.pkce.";
+export const CONNECT_PKCE_STORAGE_PREFIX = "vibrail.cloud-connect.pkce.";
 
 /**
  * Generate a fresh PKCE pair, stash the verifier under a random flow id

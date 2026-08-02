@@ -21,7 +21,7 @@ describe("requireSelfHost", () => {
     expect(() => requireSelfHost(caps(true))).not.toThrow();
   });
 
-  it("throws a 400 ApiError on Openship Cloud", () => {
+  it("throws a 400 ApiError on Vibrail Cloud", () => {
     try {
       requireSelfHost(caps(false));
       expect.unreachable("should have thrown");

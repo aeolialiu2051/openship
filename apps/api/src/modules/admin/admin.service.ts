@@ -666,8 +666,8 @@ export async function reconcileSuspendedApplicationRoutes() {
 export async function suspendApplication(projectId: string, reason?: string) {
   const project = await repos.project.findById(projectId);
   if (!project) throw new NotFoundError("Project", projectId);
-  if (project.appTemplateId === "openship") {
-    throw new ForbiddenError("The Openship control plane cannot be suspended");
+  if (project.appTemplateId === "vibrail") {
+    throw new ForbiddenError("The Vibrail control plane cannot be suspended");
   }
 
   const normalizedReason = reason?.trim().slice(0, 500) || "";

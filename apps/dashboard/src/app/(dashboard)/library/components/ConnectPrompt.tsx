@@ -74,7 +74,7 @@ export function ConnectPrompt({
   onRefresh: () => void;
   selfHosted: boolean;
   cloudConnected: boolean;
-  /** Start the Openship Cloud connect flow (needed before the App on self-hosted). */
+  /** Start the Vibrail Cloud connect flow (needed before the App on self-hosted). */
   onConnectCloud: () => void;
 }) {
   const { t } = useI18n();

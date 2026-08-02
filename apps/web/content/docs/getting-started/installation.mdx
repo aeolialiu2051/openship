@@ -1,9 +1,9 @@
 ---
 title: Installation
-description: Every way to get Openship running — the one-line install script, the npm CLI, the desktop app, or a Docker Compose stack.
+description: Every way to get Vibrail running — the one-line install script, the npm CLI, the desktop app, or a Docker Compose stack.
 ---
 
-Openship has a few different front doors, and they all lead to the same place. Think of it like getting a
+Vibrail has a few different front doors, and they all lead to the same place. Think of it like getting a
 new appliance: you can grab the quick-start cable (the install script), unpack it with tools you already
 own (npm), buy the ready-to-use boxed version (the desktop app), or wire it into your workshop for good
 (Docker Compose). Pick the one that fits you — you can always switch later.
@@ -22,29 +22,29 @@ own (npm), buy the ready-to-use boxed version (the desktop app), or wire it into
 <Tab value="Install script">
 
 The fastest way. One command downloads the **Bun** runtime (if you don't already have it) and installs
-the `openship` command — no Node or npm required.
+the `vibrail` command — no Node or npm required.
 
 ```bash
-curl -fsSL https://get.openship.io | sh
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh
 ```
 
 On **Windows**, run this in PowerShell instead:
 
 ```powershell
-irm https://git.openship.io/windows | iex
+irm https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.ps1 | iex
 ```
 
 <Callout title="Pin a version" type="info">
-Want a specific release instead of the latest? Set `OPENSHIP_VERSION` before running the script, e.g.
-`OPENSHIP_VERSION=0.1.9 curl -fsSL https://get.openship.io | sh`.
+Want a specific release instead of the latest? Set `VIBRAIL_VERSION` before running the script, e.g.
+`VIBRAIL_VERSION=0.1.9 curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh`.
 </Callout>
 
-<Callout title="Can't find the openship command afterward?" type="info">
-The installer adds Bun's global bin folder to your `PATH`. If your shell still can't find `openship`,
+<Callout title="Can't find the vibrail command afterward?" type="info">
+The installer adds Bun's global bin folder to your `PATH`. If your shell still can't find `vibrail`,
 open a new terminal — or on macOS/Linux run `export PATH="$HOME/.bun/bin:$PATH"` — and try again.
 </Callout>
 
-When it finishes you'll have the `openship` command. Now jump to [Run Openship](#run-openship) below.
+When it finishes you'll have the `vibrail` command. Now jump to [Run Vibrail](#run-vibrail) below.
 
 </Tab>
 
@@ -53,48 +53,48 @@ When it finishes you'll have the `openship` command. Now jump to [Run Openship](
 Already have Node.js and a package manager? Install the CLI globally with whichever one you use:
 
 ```bash
-npm i -g openship
+npm i -g vibrail
 ```
 
 ```bash
-pnpm add -g openship     # pnpm
-yarn global add openship  # yarn
-bun add -g openship       # bun
+pnpm add -g vibrail     # pnpm
+yarn global add vibrail  # yarn
+bun add -g vibrail       # bun
 ```
 
-That gives you the same `openship` command as the install script. Head to [Run Openship](#run-openship).
+That gives you the same `vibrail` command as the install script. Head to [Run Vibrail](#run-vibrail).
 
 </Tab>
 
 <Tab value="From source (dev)">
 
 Want to preview an unreleased build — a branch, a tag, or `main` ahead of the next release? This builds the
-CLI **from source** (the same way `bun dev` does) and installs it as a **separate `openship-dev` command**:
+CLI **from source** (the same way `bun dev` does) and installs it as a **separate `vibrail-dev` command**:
 
 ```bash
-curl -fsSL https://get.openship.io/dev | sh
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh | sh
 ```
 
-Pick a branch/tag with `OPENSHIP_REF` (default `main`):
+Pick a branch/tag with `VIBRAIL_REF` (default `main`):
 
 ```bash
-OPENSHIP_REF=my-branch curl -fsSL https://get.openship.io/dev | sh
+VIBRAIL_REF=my-branch curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh | sh
 ```
 
-The from-source build runs **fully isolated** from a production install — its own home (`~/.openship-dev`),
-its own tokens/ports/data, and its own boot service — so your production `openship` is never touched. Use it
-just like the normal CLI, under the `openship-dev` name:
+The from-source build runs **fully isolated** from a production install — its own home (`~/.vibrail-dev`),
+its own tokens/ports/data, and its own boot service — so your production `vibrail` is never touched. Use it
+just like the normal CLI, under the `vibrail-dev` name:
 
 ```bash
-openship-dev            # interactive setup + control panel
-openship-dev up         # run locally
-openship-dev update     # pull the latest source + rebuild in place (no npm release needed)
+vibrail-dev            # interactive setup + control panel
+vibrail-dev up         # run locally
+vibrail-dev update     # pull the latest source + rebuild in place (no npm release needed)
 ```
 
 <Callout title="It's a dev/preview build" type="warn">
 The build is unverified (no signed release asset) and compiling the dashboard needs real RAM/CPU — small
 boxes can OOM. It requires **Bun** and **git**. Not a production path; for production use the install script
-or npm above. Remove it with `rm -f "$(command -v openship-dev)" && rm -rf ~/.openship-dev`.
+or npm above. Remove it with `rm -f "$(command -v vibrail-dev)" && rm -rf ~/.vibrail-dev`.
 </Callout>
 
 </Tab>
@@ -108,31 +108,31 @@ straight from a folder on your disk.
 If you already have the CLI, one command fetches and launches it:
 
 ```bash
-openship install
+vibrail install
 ```
 
 Or download it directly for your system:
 
-- **macOS** — [Apple Silicon](https://github.com/oblien/openship/releases/latest/download/Openship-arm64.dmg) · [Intel](https://github.com/oblien/openship/releases/latest/download/Openship-x64.dmg)
-- **Windows** — [Openship-win32-x64.zip](https://github.com/oblien/openship/releases/latest/download/Openship-win32-x64.zip)
-- **Linux** — [Openship.AppImage](https://github.com/oblien/openship/releases/latest/download/Openship.AppImage)
+- **macOS** — [Apple Silicon](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-arm64.dmg) · [Intel](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-x64.dmg)
+- **Windows** — [Vibrail-win32-x64.zip](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-win32-x64.zip)
+- **Linux** — [Vibrail.AppImage](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail.AppImage)
 
 You can also grab them from the [download page](/download).
 
 On **Linux**, make the AppImage runnable, then start it — no installer, no root:
 
 ```bash
-chmod +x Openship.AppImage
-./Openship.AppImage
+chmod +x Vibrail.AppImage
+./Vibrail.AppImage
 ```
 
 <Callout title="AppImage needs FUSE" type="info">
 Most Linux distros ship it already. If the AppImage won't start, either install FUSE
 (`sudo apt-get install -y libfuse2` on Debian/Ubuntu) or run it self-extracting:
-`./Openship.AppImage --appimage-extract-and-run`.
+`./Vibrail.AppImage --appimage-extract-and-run`.
 </Callout>
 
-<Callout title="Screenshot">The Openship desktop app open on its home screen right after first launch. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">The Vibrail desktop app open on its home screen right after first launch. *(screenshot pending)*</Callout>
 
 </Tab>
 
@@ -143,8 +143,8 @@ Prefer to run the containers on a server yourself? The self-hosted stack lives i
 tooling required. Run it from the repo root:
 
 ```bash
-git clone https://github.com/oblien/openship.git
-cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git
+cd vibrail
 cp .env.example .env          # then edit the secrets inside
 docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
@@ -152,12 +152,12 @@ docker compose --env-file .env -f docker/docker-compose.yml up -d
 It runs five services: **Postgres**, **Redis**, the **API** (`:4000`), the **dashboard** (`:3001`), and an
 **Traefik edge** on **:80/:443** — a container (host networking) that handles routing and Let's Encrypt TLS.
 The API mounts the host Docker socket so it can build and run your deployed apps as host containers.
-**Linux only** (the edge needs host networking); on macOS/Windows use the CLI (`openship up`) instead.
+**Linux only** (the edge needs host networking); on macOS/Windows use the CLI (`vibrail up`) instead.
 
 When it's up, open the dashboard at `http://localhost:3001`.
 
 <Callout title="Pull-based — pin a version" type="info">
-The stack pulls published images (`ghcr.io/oblien/*`), so it comes up without a build. Pin `OPENSHIP_VERSION`
+The stack pulls published images (`ghcr.io/aeolialiu2051/*`), so it comes up without a build. Pin `VIBRAIL_VERSION`
 in `.env` (e.g. `0.2.3`) for reproducible upgrades, then
 `docker compose --env-file .env -f docker/docker-compose.yml pull` and `… up -d`. To build from source
 instead, add `-f docker/docker-compose.build.yml … up -d --build`.
@@ -165,81 +165,81 @@ instead, add `-f docker/docker-compose.build.yml … up -d --build`.
 
 <Callout title="Edit .env first" type="warn">
 Copy `.env.example` to `.env` and fill in the secrets **before** you start the stack. To reach it from another
-machine, also set `OPENSHIP_PUBLIC_URL` (and `TRUST_PROXY=true` behind a reverse proxy) — otherwise the
+machine, also set `VIBRAIL_PUBLIC_URL` (and `TRUST_PROXY=true` behind a reverse proxy) — otherwise the
 dashboard loads but login is rejected.
 </Callout>
 
 <Callout title="The root docker-compose.yml is a different file" type="info">
 The compose file at the repo **root** is the SaaS / from-source **control plane** — it builds from source and
 ships the marketing site, with no edge and no Docker socket. It does **not** self-host your apps. For
-self-hosting, use `docker/docker-compose.yml` above (or just `openship up`).
+self-hosting, use `docker/docker-compose.yml` above (or just `vibrail up`).
 </Callout>
 
 </Tab>
 
 </Tabs>
 
-## Run Openship
+## Run Vibrail
 
 If you installed the CLI (the install script or npm), the quickest start is the **guided setup** — run:
 
 ```bash
-openship
+vibrail
 ```
 
-With no arguments, `openship` walks you through it: private or public, your domain (if public), and your
+With no arguments, `vibrail` walks you through it: private or public, your domain (if public), and your
 **admin name, email, and password**. It then deploys, creates your admin account, and prints the URL to sign
 in. This is the recommended way to stand up a new instance.
 
-Prefer to skip the prompts? `openship up` starts the same background service directly:
+Prefer to skip the prompts? `vibrail up` starts the same background service directly:
 
 ```bash
-openship up
+vibrail up
 ```
 
 <Callout title="Compose vs bare — picked automatically" type="info">
-However you start it, on **Linux with Docker** Openship installs the container stack (Postgres, Redis, API,
+However you start it, on **Linux with Docker** Vibrail installs the container stack (Postgres, Redis, API,
 dashboard, and the Traefik edge on :80/:443 — the same stack as the Docker Compose tab above), which can
 **host your deployed apps on this box** with domains and TLS. Everywhere else (macOS, Windows, or Linux without
 Docker) it installs a single lightweight process with a built-in database — an always-on control plane that
-deploys apps out to a server or the cloud. To force the choice, run `openship up --compose` or `openship up --bare`.
+deploys apps out to a server or the cloud. To force the choice, run `vibrail up --compose` or `vibrail up --bare`.
 </Callout>
 
-Either way, Openship runs as a **background service that starts on boot and restarts itself if it crashes** —
+Either way, Vibrail runs as a **background service that starts on boot and restarts itself if it crashes** —
 like a delivery truck that always comes back to the depot. It runs the API on `:4000` and the dashboard on
 `:3001`, backed by a built-in database in bare mode (or Postgres + Redis in Compose mode). A CLI instance
-always requires a login — the admin you create during `openship` setup, or the first account you register in
-the dashboard when you run `openship up` directly.
+always requires a login — the admin you create during `vibrail` setup, or the first account you register in
+the dashboard when you run `vibrail up` directly.
 
 ```bash
-openship stop              # stop the service — it won't restart or come back on reboot
-openship up --foreground   # run it attached to this terminal instead (a one-off; stop with Ctrl-C)
-openship up --no-ui        # run the API only, without the dashboard
+vibrail stop              # stop the service — it won't restart or come back on reboot
+vibrail up --foreground   # run it attached to this terminal instead (a one-off; stop with Ctrl-C)
+vibrail up --no-ui        # run the API only, without the dashboard
 ```
 
 <Callout title="What --foreground is for" type="info">
-`openship up` keeps running after you close the terminal. `openship up --foreground` does the opposite: it
+`vibrail up` keeps running after you close the terminal. `vibrail up --foreground` does the opposite: it
 stays in your terminal and stops when you press Ctrl-C. Use it for a quick throwaway run, or on a system
 where the background service can't be installed.
 </Callout>
 
-Under the hood, `openship up` registers with your operating system's service manager so it can survive
+Under the hood, `vibrail up` registers with your operating system's service manager so it can survive
 reboots:
 
 - **Linux** — a **systemd** unit (`--user` with linger enabled, or a system unit when you run it as root).
 - **macOS** — a **launchd** agent that reloads at login.
-- **Windows** — a **Scheduled Task** at logon (best-effort; here `openship up --foreground` or the desktop
+- **Windows** — a **Scheduled Task** at logon (best-effort; here `vibrail up --foreground` or the desktop
   app are the more reliable options).
 
 <Callout title="No service manager found?" type="warn">
-On a Linux box without systemd, `openship up` can't install a persistent service. Run
-`openship up --foreground` instead, or use the Docker Compose stack for always-on.
+On a Linux box without systemd, `vibrail up` can't install a persistent service. Run
+`vibrail up --foreground` instead, or use the Docker Compose stack for always-on.
 </Callout>
 
 ### Fully unattended install (headless)
 
-`openship up` on its own installs only the *service* — the first admin is created in the dashboard (or via the
-interactive `openship` wizard). Add `--non-interactive` (alias `--yes`) plus the install flags to provision a box
+`vibrail up` on its own installs only the *service* — the first admin is created in the dashboard (or via the
+interactive `vibrail` wizard). Add `--non-interactive` (alias `--yes`) plus the install flags to provision a box
 **with no prompts** — admin account and (where supported) domain included. Ideal for CI, cloud-init, or scripted
 fleets.
 
@@ -249,17 +249,17 @@ bare). Public access to the control plane uses your existing ingress.
 Example headless install:
 
 ```bash
-OPENSHIP_ADMIN_PASSWORD='a-strong-password' openship up --non-interactive \
+VIBRAIL_ADMIN_PASSWORD='a-strong-password' vibrail up --non-interactive \
   --admin-email you@example.com --admin-name "You" \
   --domain-kind byo --hostname ops.example.com
 ```
 
 - **Admin** — `--admin-email` (required) + optional `--admin-name`. The password comes from
-  `--admin-password` or, preferably, the **`OPENSHIP_ADMIN_PASSWORD`** env var (keeps it out of your shell
+  `--admin-password` or, preferably, the **`VIBRAIL_ADMIN_PASSWORD`** env var (keeps it out of your shell
   history). Idempotent: re-running resets the existing admin's password instead of failing. Works on both methods.
 - **Domain** — `--domain-kind`:
-  - `byo` — front Openship with your own reverse proxy (`--hostname`, or derived from `--public-url`). Both methods.
-  - `free` — a `<slug>.vibrail.warpgateapi.com` subdomain (`--slug`). **Requires the box to already be connected to Openship
+  - `byo` — front Vibrail with your own reverse proxy (`--hostname`, or derived from `--public-url`). Both methods.
+  - `free` — a `<slug>.vibrail.warpgateapi.com` subdomain (`--slug`). **Requires the box to already be connected to Vibrail
     Cloud** (the free-domain connect is an interactive browser step) — connect first, then run the headless
     install, or use `byo`.
   - `none` (default when no domain flags) — a private box with no public domain.
@@ -273,26 +273,26 @@ On the Compose default, `--domain-kind custom` is not provisioned headlessly —
 With a local instance running, open the dashboard in your browser:
 
 ```bash
-openship open
+vibrail open
 ```
 
 Or check the API's health straight from the terminal:
 
 ```bash
-openship status
+vibrail status
 ```
 
-<Callout title="Screenshot">The Openship dashboard in a browser, freshly opened via `openship open` after `openship up`. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">The Vibrail dashboard in a browser, freshly opened via `vibrail open` after `vibrail up`. *(screenshot pending)*</Callout>
 
-## Openship Cloud
+## Vibrail Cloud
 
-Don't want to run a server at all? [Sign up for Openship Cloud](https://app.openship.io) — the same platform,
+Don't want to run a server at all? [Sign up for Vibrail Cloud](https://vibrail.warpgateapi.com) — the same platform,
 fully managed for you.
 
 ## Next steps
 
 <Cards>
-  <Card title="Deploy your first app" href="/docs/getting-started/first-deployment" description="Go from an installed Openship to a live, running project." />
+  <Card title="Deploy your first app" href="/docs/getting-started/first-deployment" description="Go from an installed Vibrail to a live, running project." />
   <Card title="Quickstart" href="/docs/getting-started/quickstart" description="The shortest path from zero to a deployed app." />
   <Card title="Deploy from GitHub" href="/docs/guides/deploy-from-github" description="Connect a repository and ship it — click-by-click or one command." />
 </Cards>

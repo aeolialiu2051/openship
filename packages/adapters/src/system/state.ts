@@ -58,7 +58,7 @@ export interface SetupStateStore {
 
 // ─── File-based state store ──────────────────────────────────────────────────
 
-const DEFAULT_STATE_PATH = "/etc/openship/setup-state.json";
+const DEFAULT_STATE_PATH = "/etc/vibrail/setup-state.json";
 
 /**
  * Persists setup state to a JSON file.

@@ -8,19 +8,19 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 The Deployments API drives a project's build-and-release lifecycle: it starts builds (from a linked git
 repo or an uploaded folder), reports status and logs, and handles the operations you run afterwards —
 redeploy, roll back, pin, cancel, restart, and resolve a partial-failure compose deploy. In the dashboard
-this is the deploy wizard and the **Deployments** tab; from the terminal it's [`openship deploy`](/docs/cli/projects)
-and [`openship deployment`](/docs/cli/projects).
+this is the deploy wizard and the **Deployments** tab; from the terminal it's [`vibrail deploy`](/docs/cli/projects)
+and [`vibrail deployment`](/docs/cli/projects).
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/deployments`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and [auth model](/docs/security/auth) for details.
 </Callout>
 
 <Callout title="Available on self-hosted and cloud" type="info">
 This module is mounted on every instance. When a deployment belongs to a **cloud** project, the
-per-deployment routes (`/:id/...`) transparently proxy to Openship Cloud; local deployments are handled
+per-deployment routes (`/:id/...`) transparently proxy to Vibrail Cloud; local deployments are handled
 in place. You use the same paths either way.
 </Callout>
 
@@ -75,14 +75,14 @@ POST /api/deployments
 
 ```bash
 curl -X POST https://your-host/api/deployments \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"projectId":"proj_123","branch":"main"}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship deploy --project proj_123 --branch main
+vibrail deploy --project proj_123 --branch main
 ```
 
 ## Prepare (detect build config)
@@ -145,7 +145,7 @@ optional per-app build fields).
 
 ```bash
 curl -X POST https://your-host/api/deployments/build/access \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"projectId":"proj_123","branch":"main","buildStrategy":"server"}'
 ```
@@ -168,7 +168,7 @@ build/runtime output; `/stream` is a Server-Sent Events feed of the live build �
 `?since=<seq>` cursor to resume where you left off.
 
 ```bash
-openship deployment get <deploymentId>
+vibrail deployment get <deploymentId>
 ```
 
 ## Redeploy
@@ -181,7 +181,7 @@ POST /api/deployments/:id/redeploy
 ```
 
 ```bash
-openship deployment redeploy <deploymentId>
+vibrail deployment redeploy <deploymentId>
 ```
 
 ## Rollback and pin
@@ -196,8 +196,8 @@ POST /api/deployments/:id/pin
 ```
 
 ```bash
-openship deployment rollback <deploymentId>
-openship deployment pin <deploymentId>
+vibrail deployment rollback <deploymentId>
+vibrail deployment pin <deploymentId>
 ```
 
 ## Cancel a running deploy
@@ -207,7 +207,7 @@ POST /api/deployments/:id/cancel
 ```
 
 ```bash
-openship deployment cancel <deploymentId>
+vibrail deployment cancel <deploymentId>
 ```
 
 ## Partial-failure compose deploys: keep or reject
@@ -224,8 +224,8 @@ POST /api/deployments/:id/reject
 ```
 
 ```bash
-openship deployment keep <deploymentId>
-openship deployment reject <deploymentId>
+vibrail deployment keep <deploymentId>
+vibrail deployment reject <deploymentId>
 ```
 
 ## Errors you might see
@@ -237,7 +237,7 @@ isn't awaiting a decision). The response body carries `{ success: false, error }
 </Callout>
 
 <Callout title="403 — local source in cloud mode" type="error">
-`prepare` with `source: "local"` (or a folder deploy) isn't available on Openship Cloud — there's no host
+`prepare` with `source: "local"` (or a folder deploy) isn't available on Vibrail Cloud — there's no host
 filesystem. Use a git source instead.
 </Callout>
 

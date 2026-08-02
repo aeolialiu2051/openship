@@ -1,5 +1,5 @@
 /**
- * Docker Compose install backend for `openship up`.
+ * Docker Compose install backend for `vibrail up`.
  *
  * The alternative to the "bare" process service (lib/service.ts): instead of
  * running the bundled API + downloaded dashboard as host processes (PGlite,
@@ -7,7 +7,7 @@
  * postgres + redis + api + dashboard. Public application routing is provided
  * by the shared Traefik runtime managed through the Docker socket.
  *
- * Lifecycle (up/stop/update/status) routes here when ~/.openship/install-method
+ * Lifecycle (up/stop/update/status) routes here when ~/.vibrail/install-method
  * is "compose"; otherwise the bare service backend handles it.
  */
 import { spawnSync } from "node:child_process";
@@ -126,19 +126,19 @@ export interface ComposeUpOpts {
 }
 
 /** Pinned compose stack. Vars come from the generated .env (env_file + interpolation). */
-const COMPOSE_YAML = `# Managed by \`openship up\` — do not edit; re-run \`openship up\` to regenerate.
+const COMPOSE_YAML = `# Managed by \`vibrail up\` — do not edit; re-run \`vibrail up\` to regenerate.
 services:
   postgres:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: \${POSTGRES_USER:-openship}
-      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?missing from .env — re-run openship up to regenerate it}
-      POSTGRES_DB: \${POSTGRES_DB:-openship}
+      POSTGRES_USER: \${POSTGRES_USER:-vibrail}
+      POSTGRES_PASSWORD: \${POSTGRES_PASSWORD:?missing from .env — re-run vibrail up to regenerate it}
+      POSTGRES_DB: \${POSTGRES_DB:-vibrail}
     expose: ["5432"]
     volumes: [postgres_data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-openship} -d \${POSTGRES_DB:-openship}"]
+      test: ["CMD-SHELL", "pg_isready -U \${POSTGRES_USER:-vibrail} -d \${POSTGRES_DB:-vibrail}"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -156,21 +156,21 @@ services:
       retries: 12
 
   api:
-    image: \${OPENSHIP_IMAGE_REGISTRY:-ghcr.io/oblien}/openship-api:\${OPENSHIP_VERSION:-latest}
+    image: \${VIBRAIL_IMAGE_REGISTRY:-ghcr.io/aeolialiu2051}/vibrail-api:\${VIBRAIL_VERSION:-latest}
     restart: unless-stopped
-    ports: ["\${OPENSHIP_BIND_ADDR:-0.0.0.0}:\${API_PORT:-4000}:\${API_PORT:-4000}"]
+    ports: ["\${VIBRAIL_BIND_ADDR:-0.0.0.0}:\${API_PORT:-4000}:\${API_PORT:-4000}"]
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       # Host-op SSH key (createHostExecutor → host.docker.internal). /dev/null
-      # when the host channel isn't provisioned → OPENSHIP_HOST_SSH_HOST stays
+      # when the host channel isn't provisioned → VIBRAIL_HOST_SSH_HOST stays
       # unset and the API falls back to LocalExecutor.
-      - \${OPENSHIP_HOST_KEY_PATH:-/dev/null}:/run/secrets/openship_host_key:ro
+      - \${VIBRAIL_HOST_KEY_PATH:-/dev/null}:/run/secrets/vibrail_host_key:ro
     extra_hosts: ["host.docker.internal:host-gateway"]
     env_file: [.env]
     environment:
       NODE_ENV: production
       PORT: "\${API_PORT:-4000}"
-      DATABASE_URL: postgresql://\${POSTGRES_USER:-openship}:\${POSTGRES_PASSWORD:?missing from .env — re-run openship up to regenerate it}@postgres:5432/\${POSTGRES_DB:-openship}
+      DATABASE_URL: postgresql://\${POSTGRES_USER:-vibrail}:\${POSTGRES_PASSWORD:?missing from .env — re-run vibrail up to regenerate it}@postgres:5432/\${POSTGRES_DB:-vibrail}
       REDIS_URL: redis://redis:6379
     depends_on:
       postgres: { condition: service_healthy }
@@ -183,9 +183,9 @@ services:
       start_period: 40s
 
   dashboard:
-    image: \${OPENSHIP_IMAGE_REGISTRY:-ghcr.io/oblien}/openship-dashboard:\${OPENSHIP_VERSION:-latest}
+    image: \${VIBRAIL_IMAGE_REGISTRY:-ghcr.io/aeolialiu2051}/vibrail-dashboard:\${VIBRAIL_VERSION:-latest}
     restart: unless-stopped
-    ports: ["\${OPENSHIP_BIND_ADDR:-0.0.0.0}:\${DASHBOARD_PORT:-3001}:\${DASHBOARD_PORT:-3001}"]
+    ports: ["\${VIBRAIL_BIND_ADDR:-0.0.0.0}:\${DASHBOARD_PORT:-3001}:\${DASHBOARD_PORT:-3001}"]
     env_file: [.env]
     environment:
       NODE_ENV: production
@@ -224,7 +224,7 @@ function readEnvFile(): Record<string, string> {
  * exactly what a bare install does locally. Best-effort + idempotent: generates
  * an ed25519 key under the compose dir, authorizes it for the invoking host user,
  * and returns (user, keyPath) for the .env + volume mount. Returns null on any
- * failure or non-Linux → OPENSHIP_HOST_SSH_* stays unset and createHostExecutor
+ * failure or non-Linux → VIBRAIL_HOST_SSH_* stays unset and createHostExecutor
  * cleanly falls back to LocalExecutor (no host channel; never breaks `up`).
  *
  * Not a new privilege: the api container already holds host-root-equivalent
@@ -241,7 +241,7 @@ function provisionHostSshChannel(): { user: string; keyPath: string } | null {
     if (!existsSync(keyPath)) {
       const g = spawnSync(
         "ssh-keygen",
-        ["-t", "ed25519", "-N", "", "-q", "-f", keyPath, "-C", "openship-host-executor"],
+        ["-t", "ed25519", "-N", "", "-q", "-f", keyPath, "-C", "vibrail-host-executor"],
         { stdio: "ignore" },
       );
       if (g.status !== 0) return null;
@@ -249,7 +249,7 @@ function provisionHostSshChannel(): { user: string; keyPath: string } | null {
     const pub = readFileSync(`${keyPath}.pub`, "utf8").trim();
     if (!pub) return null;
 
-    // Authorize the key for the host user running `openship up` (the container
+    // Authorize the key for the host user running `vibrail up` (the container
     // SSHes in as this user). Idempotent — only append if not already present.
     const userSshDir = join(homedir(), ".ssh");
     mkdirSync(userSshDir, { recursive: true, mode: 0o700 });
@@ -268,21 +268,21 @@ function provisionHostSshChannel(): { user: string; keyPath: string } | null {
 /**
  * The compose project name — the prefix on every container, volume and network.
  *
- * Unset, compose derives it from the project DIRECTORY (`~/.openship/compose`),
+ * Unset, compose derives it from the project DIRECTORY (`~/.vibrail/compose`),
  * which is why the stack read `compose-api-1` / `compose_postgres_data` instead of
- * naming itself. Pinned to `openship` so it does.
+ * naming itself. Pinned to `vibrail` so it does.
  *
  * But the project name is also the volume prefix, so changing it on a LIVE install
  * would repoint `postgres_data` and `certs` at fresh empty volumes — the database
  * and issued certificates would look wiped (they'd still be on disk under the old
  * prefix, but nothing would mount them). So: an install that already has a `.env`
  * without this key predates the pin and keeps its directory-derived `compose` name;
- * only fresh installs get `openship`. Docker Compose reads COMPOSE_PROJECT_NAME
+ * only fresh installs get `vibrail`. Docker Compose reads COMPOSE_PROJECT_NAME
  * from the project dir's .env, so pinning it here needs no flag at the call site.
  */
 function composeProjectName(prev: Record<string, string>): string {
   if (prev.COMPOSE_PROJECT_NAME) return prev.COMPOSE_PROJECT_NAME;
-  return Object.keys(prev).length > 0 ? "compose" : "openship";
+  return Object.keys(prev).length > 0 ? "compose" : "vibrail";
 }
 
 /**
@@ -299,7 +299,7 @@ function composeProjectName(prev: Record<string, string>): string {
  * Identified by compose's own `project.config_files` label pointing at OUR
  * compose file, so this can never match an unrelated stack that happens to have a
  * service called `edge` — and by construction it only ever lists containers a
- * previous `openship up` created. Volumes are deliberately NOT touched: they hold
+ * previous `vibrail up` created. Volumes are deliberately NOT touched: they hold
  * the database and issued certificates.
  */
 function orphanedStackContainers(project: string): Array<{ name: string; project: string }> {
@@ -337,7 +337,7 @@ function orphanedStackContainers(project: string): Array<{ name: string; project
  * Reconcile the DB password against a data volume that PREDATES this `.env`.
  *
  * Postgres only applies `POSTGRES_PASSWORD` when it initializes an EMPTY data
- * dir. So an install that regenerated its secrets (a wiped `~/.openship`, a
+ * dir. So an install that regenerated its secrets (a wiped `~/.vibrail`, a
  * restored backup, a manually deleted `.env`) while `<project>_postgres_data`
  * survived leaves the volume on the OLD password and the api presenting the new
  * one — the api then crash-loops on `password authentication failed for user`
@@ -408,7 +408,7 @@ function removeOrphanedStack(project: string): void {
 /**
  * Warn when a previous project's data volumes exist but won't be mounted, so a
  * project-name change can never look like silent data loss. Our compose declares
- * the volume key `openship_sites`, so any `<project>_openship_sites` names a prior
+ * the volume key `vibrail_sites`, so any `<project>_vibrail_sites` names a prior
  * stack of ours.
  */
 function warnOrphanedVolumes(project: string): void {
@@ -418,46 +418,46 @@ function warnOrphanedVolumes(project: string): void {
     r.stdout
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l.endsWith("_openship_sites"))
-      .map((l) => l.slice(0, -"_openship_sites".length))
+      .filter((l) => l.endsWith("_vibrail_sites"))
+      .map((l) => l.slice(0, -"_vibrail_sites".length))
       .filter((p) => p && p !== project),
   );
   if (others.size === 0) return;
   console.log(
     `  Note: volumes from a previous install (project "${[...others].join(", ")}") are still on disk\n` +
       `  and are NOT mounted by this stack — its database and certificates start fresh.\n` +
-      `  Remove them with \`docker volume ls | grep _openship_\` once you're sure they aren't needed.`,
+      `  Remove them with \`docker volume ls | grep _vibrail_\` once you're sure they aren't needed.`,
   );
 }
 
 function renderEnv(opts: ComposeUpOpts, host: { user: string; keyPath: string } | null): string {
   const prev = readEnvFile();
   const lines: string[] = [
-    "# Managed by `openship up`. Secrets are generated once and preserved.",
+    "# Managed by `vibrail up`. Secrets are generated once and preserved.",
     // Do NOT edit on a live install — it is the volume prefix (see composeProjectName).
     `COMPOSE_PROJECT_NAME=${composeProjectName(prev)}`,
     "CLOUD_MODE=false",
-    "OPENSHIP_TARGET=local",
-    "OPENSHIP_REQUIRE_AUTH=true",
-    `OPENSHIP_IMAGE_REGISTRY=${opts.registry || "ghcr.io/oblien"}`,
-    `OPENSHIP_VERSION=${opts.version || (typeof __CLI_VERSION__ === "string" ? __CLI_VERSION__ : "latest")}`,
+    "VIBRAIL_TARGET=local",
+    "VIBRAIL_REQUIRE_AUTH=true",
+    `VIBRAIL_IMAGE_REGISTRY=${opts.registry || "ghcr.io/aeolialiu2051"}`,
+    `VIBRAIL_VERSION=${opts.version || (typeof __CLI_VERSION__ === "string" ? __CLI_VERSION__ : "latest")}`,
     `POSTGRES_PASSWORD=${keepSecret(prev, "POSTGRES_PASSWORD")}`,
     `BETTER_AUTH_SECRET=${keepSecret(prev, "BETTER_AUTH_SECRET")}`,
     `INTERNAL_TOKEN=${keepSecret(prev, "INTERNAL_TOKEN")}`,
   ];
   if (opts.apiPort) lines.push(`API_PORT=${opts.apiPort}`);
   if (opts.dashboardPort) lines.push(`DASHBOARD_PORT=${opts.dashboardPort}`);
-  if (opts.publicUrl) lines.push(`OPENSHIP_PUBLIC_URL=${opts.publicUrl}`);
+  if (opts.publicUrl) lines.push(`VIBRAIL_PUBLIC_URL=${opts.publicUrl}`);
   if (opts.trustProxy || opts.publicUrl) lines.push("TRUST_PROXY=true");
   if (host) {
-    // Activates createHostExecutor → SSH to the host; OPENSHIP_HOST_KEY_PATH is
-    // the compose-side source for the /run/secrets/openship_host_key mount.
+    // Activates createHostExecutor → SSH to the host; VIBRAIL_HOST_KEY_PATH is
+    // the compose-side source for the /run/secrets/vibrail_host_key mount.
     lines.push(
-      "OPENSHIP_HOST_SSH_HOST=host.docker.internal",
-      `OPENSHIP_HOST_SSH_USER=${host.user}`,
-      "OPENSHIP_HOST_SSH_PORT=22",
-      "OPENSHIP_HOST_SSH_KEY=/run/secrets/openship_host_key",
-      `OPENSHIP_HOST_KEY_PATH=${host.keyPath}`,
+      "VIBRAIL_HOST_SSH_HOST=host.docker.internal",
+      `VIBRAIL_HOST_SSH_USER=${host.user}`,
+      "VIBRAIL_HOST_SSH_PORT=22",
+      "VIBRAIL_HOST_SSH_KEY=/run/secrets/vibrail_host_key",
+      `VIBRAIL_HOST_KEY_PATH=${host.keyPath}`,
     );
   }
   return lines.join("\n") + "\n";
@@ -465,10 +465,10 @@ function renderEnv(opts: ComposeUpOpts, host: { user: string; keyPath: string } 
 
 /**
  * The monorepo checkout to BUILD the stack from, when this is a from-source
- * ("dev") install — `openship-dev`, whose marker records the checkout dir.
+ * ("dev") install — `vibrail-dev`, whose marker records the checkout dir.
  *
  * A dev install tracks a branch, so its `__CLI_VERSION__` names a release tag
- * that isn't published: pulling `ghcr.io/oblien/openship-*:<that version>` fails
+ * that isn't published: pulling `ghcr.io/aeolialiu2051/vibrail-*:<that version>` fails
  * with `denied`. The checkout has the Dockerfiles, so build the three images we
  * own from it instead of pulling — same stack, same compose file, one override.
  * Returns null (→ pull path) when there's no checkout or no Dockerfiles in it.
@@ -489,7 +489,7 @@ function renderBuildOverride(repoDir: string): string {
       dockerfile: ${s.dockerfile}
 `,
   ).join("");
-  return `# Managed by \`openship up\` (from-source install) — builds instead of pulls.
+  return `# Managed by \`vibrail up\` (from-source install) — builds instead of pulls.
 services:
 ${services}`;
 }
@@ -533,7 +533,7 @@ function compose(args: string[], opts?: { quiet?: boolean; withBuildOverride?: b
 }
 
 /**
- * `openship up` (compose): write files, then either PULL the pinned images
+ * `vibrail up` (compose): write files, then either PULL the pinned images
  * (normal install) or BUILD api/dashboard/edge from the source checkout (dev
  * install). Postgres/redis are upstream images and are pulled either way.
  */
@@ -546,7 +546,7 @@ export function composeUp(opts: ComposeUpOpts): { ok: boolean; apiPort: string; 
   // (host-networked edge) and 4000/3001, leaving the new edge in a bind() crash
   // loop while the old one serves stale vhosts. Clear it before bringing ours up.
   const env = readEnvFile();
-  const project = env.COMPOSE_PROJECT_NAME || "openship";
+  const project = env.COMPOSE_PROJECT_NAME || "vibrail";
   removeOrphanedStack(project);
   warnOrphanedVolumes(project);
 
@@ -555,7 +555,7 @@ export function composeUp(opts: ComposeUpOpts): { ok: boolean; apiPort: string; 
   // on the db (see reconcileDbPassword).
   if (regeneratedSecrets && dbVolumeExists(project)) {
     console.log("  Existing database volume with regenerated credentials — realigning the password...");
-    reconcileDbPassword(env.POSTGRES_USER || "openship", env.POSTGRES_PASSWORD ?? "");
+    reconcileDbPassword(env.POSTGRES_USER || "vibrail", env.POSTGRES_PASSWORD ?? "");
   }
 
   if (buildDir) {
@@ -586,7 +586,7 @@ export function composeDown(): boolean {
 }
 
 /**
- * `openship uninstall` (compose): tear the stack down INCLUDING its volumes, and
+ * `vibrail uninstall` (compose): tear the stack down INCLUDING its volumes, and
  * optionally delete the images we own.
  *
  * `down -v` is the destructive part — those volumes hold the database, the issued
@@ -609,10 +609,10 @@ export function composeUninstall(opts: { removeImages?: boolean } = {}): {
 
   if (opts.removeImages) {
     const env = readEnvFile();
-    const registry = env.OPENSHIP_IMAGE_REGISTRY || "ghcr.io/oblien";
-    const version = env.OPENSHIP_VERSION || "latest";
+    const registry = env.VIBRAIL_IMAGE_REGISTRY || "ghcr.io/aeolialiu2051";
+    const version = env.VIBRAIL_VERSION || "latest";
     for (const { service } of BUILT_SERVICES) {
-      const ref = `${registry}/openship-${service}:${version}`;
+      const ref = `${registry}/vibrail-${service}:${version}`;
       // Ours by exact tag. Upstream postgres/redis are left alone — they're
       // commonly shared with whatever else the operator runs on this box.
       if (spawnSync("docker", ["image", "rm", "-f", ref], { stdio: "ignore" }).status === 0) {
@@ -623,13 +623,13 @@ export function composeUninstall(opts: { removeImages?: boolean } = {}): {
   return { ok, removedImages };
 }
 
-/** `openship update` (compose): pull the latest pinned images + recreate. */
+/** `vibrail update` (compose): pull the latest pinned images + recreate. */
 export function composeUpdate(version?: string): boolean {
   if (!existsSync(COMPOSE_FILE)) return false;
   // Repin the version if provided, else keep the .env's pin.
   if (version) {
     const env = readEnvFile();
-    env.OPENSHIP_VERSION = version;
+    env.VIBRAIL_VERSION = version;
     writeFileSync(
       ENV_FILE,
       Object.entries(env).map(([k, v]) => `${k}=${v}`).join("\n") + "\n",
@@ -653,7 +653,7 @@ export function composePs(): number {
 
 /**
  * The stack's INTERNAL_TOKEN, read from the generated compose `.env` — NOT the
- * bare-mode `~/.openship/internal-token`. The compose api container is booted
+ * bare-mode `~/.vibrail/internal-token`. The compose api container is booted
  * with this value (renderEnv → keepSecret), so the CLI must use it to reach
  * internal-token-gated endpoints (e.g. edge/import-sites after a migrate).
  */

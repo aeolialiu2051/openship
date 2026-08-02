@@ -1,6 +1,6 @@
 /**
  * Docker migration controller — inspect an existing Docker deployment on a
- * server so it can be adopted as an Openship project.
+ * server so it can be adopted as a Vibrail project.
  *
  * The full migration workflow is self-hosted-only. Cloud deployments with the
  * explicit user-server capability mount only the read-only scan handlers so
@@ -17,7 +17,7 @@ import { isServerInOrg, param } from "../../lib/controller-helpers";
 import { streamRunSSE } from "../../lib/run-sse";
 import { streamSSE } from "../../lib/sse";
 import { discoverServerStack } from "./docker-inspect.service";
-import { adoptServerStack, reimportOpenshipProject, parseRepoCompose } from "./migrate.service";
+import { adoptServerStack, reimportVibrailProject, parseRepoCompose } from "./migrate.service";
 import { buildMigrationPreview } from "./migration-preflight";
 import { migrationOrchestrator } from "./migration.orchestrator";
 import { migrationRunBus } from "./migration.sse";
@@ -187,7 +187,7 @@ export async function scanServerStream(c: Context) {
 /**
  * POST /migration/adopt  { serverId, projectName, serviceNames[] }
  *
- * Create an Openship `services` project from the selected discovered services.
+ * Create a Vibrail `services` project from the selected discovered services.
  * Re-discovers server-side (server truth, not client-sent config). Records only
  * — reuses the existing named volumes in place; deploy + cutover is separate.
  */
@@ -238,7 +238,7 @@ export async function adoptServer(c: Context) {
 /**
  * POST /migration/reimport  { serverId, projectId, projectName?, serviceNames? }
  *
- * Recover an ORPHANED Openship project (DR / cross-instance) from a server,
+ * Recover an ORPHANED Vibrail project (DR / cross-instance) from a server,
  * preserving its original id so the running containers re-attach. Records only —
  * the user redeploys from the project to finalize. `organizationId` comes from
  * the request context, never from server-supplied data.
@@ -265,7 +265,7 @@ export async function reimportServer(c: Context) {
   }
 
   try {
-    const result = await reimportOpenshipProject({
+    const result = await reimportVibrailProject({
       serverId,
       organizationId: ctx.organizationId,
       projectId: projectId.trim(),

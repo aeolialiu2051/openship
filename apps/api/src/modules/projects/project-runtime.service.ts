@@ -243,7 +243,7 @@ export async function syncProjectManagedEdge(
     : null;
   const serverId = (dep?.meta as { serverId?: string } | null)?.serverId ?? undefined;
 
-  // Operator-owned HOST_DOMAIN routes do not use the legacy Openship Cloud
+  // Operator-owned HOST_DOMAIN routes do not use the legacy Vibrail Cloud
   // edge bridge. Clear any warning left by an older deployment/configuration.
   if (!managedDomainsUseCloudEdge()) {
     if (opts.clearOnSuccess !== false) await clearRoutingWarning(dep);

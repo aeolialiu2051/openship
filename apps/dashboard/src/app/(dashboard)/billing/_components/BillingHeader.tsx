@@ -12,7 +12,7 @@ import type { BillingState } from "@/lib/api/billing";
  * Client component because the surrounding BillingLayout is an async server
  * component and locale is a client-runtime concern. Everything is READ from
  * Oblien (billing/state + billing/usage) except capacity ceilings (the tier's
- * oblienLimits) and build time (openship-derived — Oblien has no build meter).
+ * oblienLimits) and build time (vibrail-derived — Oblien has no build meter).
  * We never manage resource actions here; this is display only.
  */
 

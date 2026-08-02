@@ -10,7 +10,7 @@ import { randomUUID } from "../../lib/random-uuid";
 /**
  * One deployable sub-app inside a monorepo. Mirrors the single-app form fields
  * (rootDirectory, install/build/start commands, port) plus per-app routing/env
- * scoping. Multiple of these live under one openship project, all sharing the
+ * scoping. Multiple of these live under one vibrail project, all sharing the
  * monorepoWorkspace install at the repo root.
  */
 export interface MonorepoAppConfig {
@@ -210,7 +210,7 @@ export interface DeploymentModeSnapshots {
 }
 
 /**
- * Resource tier IDs for Openship Cloud deploys. The label, RAM/CPU/disk
+ * Resource tier IDs for Vibrail Cloud deploys. The label, RAM/CPU/disk
  * shape and price are placeholder values defined alongside the picker UI
  * — see `CLOUD_RESOURCE_TIERS` in `DeployTargetStep.tsx`. The backend
  * is the source of truth for what each tier actually provisions.
@@ -302,7 +302,7 @@ export interface DeploymentConfig {
    *  project create so the backend persists + compiles it. Opaque passthrough. */
   routingConfig?: RoutingConfig | null;
   /**
-   * Resource tier picked for Openship Cloud deploys. Self-hosted servers
+   * Resource tier picked for Vibrail Cloud deploys. Self-hosted servers
    * inherit the host's capacity, so this field is meaningless for them
    * — kept on the config (not nested under cloud) because operators
    * sometimes preview the cost before picking the target. The backend

@@ -5,10 +5,10 @@
  *
  *  - INTERNAL_TOKEN     — config/env's boot guard throws without it (non-desktop).
  *  - BETTER_AUTH_SECRET — the encryption key for command-job secrets derives from it.
- *  - OPENSHIP_JOB_RUNNER — force in-process so getJobRunner() never probes Redis.
+ *  - VIBRAIL_JOB_RUNNER — force in-process so getJobRunner() never probes Redis.
  * CLOUD_MODE stays unset (false) so the jobs router's `localOnly` doesn't 404.
  */
 process.env.INTERNAL_TOKEN ||= "test-internal-token";
 process.env.BETTER_AUTH_SECRET ||= "test-better-auth-secret-please-ignore-0123456789";
-process.env.OPENSHIP_JOB_RUNNER ||= "in-process";
+process.env.VIBRAIL_JOB_RUNNER ||= "in-process";
 process.env.DEPLOY_MODE ||= "docker";

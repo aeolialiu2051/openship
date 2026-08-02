@@ -1,8 +1,8 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://openship.io/openship.schema.json",
-  "title": "Openship deploy config",
-  "description": "openship.json — declarative deploy config for Openship. Auto-detection runs first; every field present here overrides it. Absent fields keep the detected value.",
+  "$id": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
+  "title": "Vibrail deploy config",
+  "description": "vibrail.json — declarative deploy config for Vibrail. Auto-detection runs first; every field present here overrides it. Absent fields keep the detected value.",
   "type": "object",
   "additionalProperties": false,
   "properties": {

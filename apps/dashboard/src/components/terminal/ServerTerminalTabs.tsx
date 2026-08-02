@@ -60,7 +60,7 @@ function genId(): string {
   return randomUUID();
 }
 
-const STORAGE_PREFIX = "openship.terminal.shells";
+const STORAGE_PREFIX = "vibrail.terminal.shells";
 
 function storageKey(serverId: string): string {
   return `${STORAGE_PREFIX}.${serverId}`;

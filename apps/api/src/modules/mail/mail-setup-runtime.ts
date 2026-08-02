@@ -4,7 +4,7 @@
  * without booting the API/database runtime.
  */
 
-export const MAIL_ENGINE_REMOTE_DIR = "/tmp/openship-iredmail-engine";
+export const MAIL_ENGINE_REMOTE_DIR = "/tmp/vibrail-iredmail-engine";
 
 export function buildAptGetCommand(args: string): string {
   return `DEBIAN_FRONTEND=noninteractive apt-get -o DPkg::Lock::Timeout=180 ${args}`;

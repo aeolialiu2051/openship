@@ -34,7 +34,7 @@ export interface CloudConnectAuthorizeResponse {
 }
 
 export const cloudApi = {
-  /** Disconnect from Openship Cloud */
+  /** Disconnect from Vibrail Cloud */
   disconnect: () => api.post<CloudStatus>(endpoints.cloud.disconnect),
 
   /** Check current cloud connection status */

@@ -16,7 +16,7 @@
  *
  * Works for server-backed (docker) AND cloud deployments: cloud drift shows up
  * as a `missing` from `getContainerInfo` when the workspace was deleted on
- * Openship Cloud. It NEVER destroys anything (that's the whole point — the
+ * Vibrail Cloud. It NEVER destroys anything (that's the whole point — the
  * containers may be healthy) and NEVER advances the project pointer on failure.
  */
 

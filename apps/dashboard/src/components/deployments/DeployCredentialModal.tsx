@@ -5,7 +5,7 @@
  *
  * Shown whenever a deploy needs the user to pick HOW the repo gets cloned
  * onto the build worker — same decision for self-hosted server and
- * Openship Cloud, so one modal handles both. Replaces the previous split
+ * Vibrail Cloud, so one modal handles both. Replaces the previous split
  * between `CloneStrategyModalContent` (preemptive gate) and
  * `CloneCredentialMissingModal` (post-failure recovery).
  *

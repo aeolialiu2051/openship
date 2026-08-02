@@ -11,7 +11,7 @@
  * Redis and always get the memory backend — no behavioral change vs
  * the legacy TtlCache they had before.
  *
- * Override with `OPENSHIP_CACHE_STORE=memory` or `=redis` to force a
+ * Override with `VIBRAIL_CACHE_STORE=memory` or `=redis` to force a
  * backend (handy for tests, and for production deployments that want
  * to opt out of Redis even when REDIS_URL is set).
  */
@@ -42,10 +42,10 @@ const trackedStores = new Set<CacheStore<unknown>>();
 const storesByNamespace = new Map<string, Promise<CacheStore<unknown>>>();
 
 async function pickBackend(): Promise<Backend> {
-  const override = (process.env.OPENSHIP_CACHE_STORE ?? "").toLowerCase().trim();
+  const override = (process.env.VIBRAIL_CACHE_STORE ?? "").toLowerCase().trim();
   if (override === "memory") return "memory";
   if (override === "redis") return "redis";
-  // Redis required (CLOUD_MODE / OPENSHIP_REQUIRE_REDIS): force redis, skip the
+  // Redis required (CLOUD_MODE / VIBRAIL_REQUIRE_REDIS): force redis, skip the
   // probe — no silent per-replica memory cache that would drift across instances.
   if (REDIS_REQUIRED) return "redis";
   return (await isRedisReachable()) ? "redis" : "memory";

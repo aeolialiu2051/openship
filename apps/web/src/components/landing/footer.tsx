@@ -23,7 +23,7 @@ const footerLinks = {
   Legal: [
     { label: "Privacy", href: "/privacy" },
     { label: "Terms", href: "/terms" },
-    { label: "License (Apache 2.0)", href: "https://github.com/oblien/openship/blob/main/LICENSE" },
+    { label: "License (Apache 2.0)", href: "https://github.com/aeolialiu2051/vibrail/blob/main/LICENSE" },
   ],
 };
 
@@ -40,7 +40,7 @@ export function Footer() {
                 aria-hidden="true"
               />
               <span className="th-text-heading text-base font-semibold tracking-tight">
-                Openship
+                Vibrail
               </span>
             </Link>
             <p className="th-text-muted mt-4 max-w-xs text-sm leading-relaxed">
@@ -104,7 +104,7 @@ export function Footer() {
           <div className="flex items-center gap-5">
             {/* GitHub */}
             <a
-              href="https://github.com/oblien/openship"
+              href="https://github.com/aeolialiu2051/vibrail"
               target="_blank"
               rel="noopener noreferrer"
               className="th-text-muted transition-colors hover:text-[var(--th-text-strong)]"
@@ -116,7 +116,7 @@ export function Footer() {
             </a>
             {/* X / Twitter */}
             <a
-              href="https://x.com/openshipio"
+              href="https://x.com/vibrailio"
               target="_blank"
               rel="noopener noreferrer"
               className="th-text-muted transition-colors hover:text-[var(--th-text-strong)]"

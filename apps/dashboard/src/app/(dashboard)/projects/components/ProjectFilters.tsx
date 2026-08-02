@@ -7,7 +7,7 @@ import { useI18n } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
 
 /**
- * Filter projects by where they're deployed: all, Openship Cloud, a specific
+ * Filter projects by where they're deployed: all, Vibrail Cloud, a specific
  * server (by name), or local. Mirrors the hosting label logic in ProjectCard
  * (deployTarget: "cloud" | "server" | "local", serverName for servers).
  */

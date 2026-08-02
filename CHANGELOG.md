@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to Openship. Versions follow [semver](https://semver.org);
+All notable changes to Vibrail. Versions follow [semver](https://semver.org);
 the in-app updater surfaces critical advisories from `release-advisories.json`.
 
 ## 0.4.0
@@ -29,8 +29,8 @@ and a batch of routing/reliability fixes.
   project's network under its service-name alias, so a freshly-built app resolves
   `postgres:5432` by name, exactly like a native deploy.
 - **A migrated service reports the container it really runs as** — service state
-  is read live from the host and matched by identity (label → `openship-<slug>-<svc>`
-  name → tracked id → compose labels), so a container Openship adopted **in place**
+  is read live from the host and matched by identity (label → `vibrail-<slug>-<svc>`
+  name → tracked id → compose labels), so a container Vibrail adopted **in place**
   (its docker labels still name the previous project) no longer shows "Stopped"
   while it serves traffic. Each run's log now ends with the container, state and
   match for every service.
@@ -43,7 +43,7 @@ and a batch of routing/reliability fixes.
   the running one. A crash-looping container now reads **Restarting** instead of a
   green "Running", and an unreachable host reads **Unknown** instead of echoing the
   last deploy status.
-- **Removing a route never wrongly demands Openship Cloud** — the free-domain gate
+- **Removing a route never wrongly demands Vibrail Cloud** — the free-domain gate
   classifies by hostname, so removing a custom-domain route (or any route) is no
   longer blocked by an unrelated free subdomain still in the set.
 - **Deleting a service can't hang** — runtime teardown is time-bounded, so a slow
@@ -69,13 +69,13 @@ config, and a batch of self-hosting and reliability fixes.
   them over its own detection. A repo that already tells Railway or Vercel how to
   build it deploys the same way here, no reconfiguration. Every config source
   runs through one shared parser registry (no per-source special-casing).
-- **`openship.json`** — an optional repo-root config to declare build, routing,
+- **`vibrail.json`** — an optional repo-root config to declare build, routing,
   env, and domains up front; it's authoritative over auto-detection and rides the
   same engine, for the repo root and each monorepo sub-app.
 
 ### Self-hosting
 - **Deploys to your own server by default** — a self-hosted instance targets the
-  server it runs on, never Openship Cloud, unless you explicitly choose cloud.
+  server it runs on, never Vibrail Cloud, unless you explicitly choose cloud.
 - **Health checks work when the control plane is containerized** — the
   post-deploy probe reaches your app through the host gateway, so a containerized
   self-host no longer fail-reverts an otherwise-healthy deploy.
@@ -84,7 +84,7 @@ config, and a batch of self-hosting and reliability fixes.
   a box already broken by the old pin.
 
 ### CLI
-- **`openship stop` actually stops** — the service and its children are reaped by
+- **`vibrail stop` actually stops** — the service and its children are reaped by
   process group and any ports it held are swept, so a restart can't strand the
   old process on a new port.
 
@@ -114,7 +114,7 @@ Backups get a real home, and a batch of delete/login/database reliability fixes.
   business-only setup that creates the project on confirm; the technical deploy
   wizard is now the "Advanced" path (no more orphaned draft projects from a
   half-finished install).
-- **Openship Mail is a first-class app** — it appears in the catalog alongside
+- **Vibrail Mail is a first-class app** — it appears in the catalog alongside
   Convex and n8n and hands off to the mail wizard. The rest of the catalog shows
   as **Coming soon** (dimmed, not installable) for this release.
 
@@ -138,7 +138,7 @@ Backups get a real home, and a batch of delete/login/database reliability fixes.
   projects and services back up there.
 
 ### Cloud
-- **Per-user project cap** — Openship Cloud enforces a hard cap on projects per
+- **Per-user project cap** — Vibrail Cloud enforces a hard cap on projects per
   user (env `CLOUD_MAX_PROJECTS_PER_USER`, default 2), at both create and
   folder-upload/ensure. Self-hosted is unmetered.
 
@@ -201,7 +201,7 @@ routing, servers, jobs, and the build toolchain.
   team org instead of hitting a dead end.
 
 ### Add service
-- The **Openship Cloud** image tab shows a "Connect to Openship Cloud" CTA when
+- The **Vibrail Cloud** image tab shows a "Connect to Vibrail Cloud" CTA when
   the instance isn't linked, and the source switcher has clearer contrast.
 
 ### Other

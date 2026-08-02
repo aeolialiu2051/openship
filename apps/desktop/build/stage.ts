@@ -2,11 +2,11 @@
  * Stages the self-contained payload the packaged desktop app ships. Everything
  * here is a build OUTPUT — no source is copied.
  *
- *   resources/bin/openship-api[.exe]  the API as one `bun build --compile`
+ *   resources/bin/vibrail-api[.exe]  the API as one `bun build --compile`
  *                                     binary (bundles the bun runtime; runs raw)
  *   resources/dashboard/              the dashboard's own Next standalone output
- *   resources/migrations/             drizzle .sql  → OPENSHIP_MIGRATIONS_DIR
- *   resources/pglite/                 pglite.wasm + pglite.data → OPENSHIP_PGLITE_ASSETS_DIR
+ *   resources/migrations/             drizzle .sql  → VIBRAIL_MIGRATIONS_DIR
+ *   resources/pglite/                 pglite.wasm + pglite.data → VIBRAIL_PGLITE_ASSETS_DIR
  *
  * Invoked by electron-forge's `generateAssets` hook (forge.config.js) and also
  * runnable standalone with `bun run build/stage.ts`. Must run under bun — it
@@ -28,7 +28,7 @@ const DASHBOARD_DIR = join(REPO_ROOT, "apps/dashboard");
 const DB_DRIZZLE_DIR = join(REPO_ROOT, "packages/db/drizzle");
 
 const isWin = process.platform === "win32";
-const API_BIN = isWin ? "openship-api.exe" : "openship-api";
+const API_BIN = isWin ? "vibrail-api.exe" : "vibrail-api";
 
 // Target arch for the compiled API binary. electron-forge passes the build
 // arch to the generateAssets hook, which forwards it as FORGE_ARCH; default to
@@ -43,7 +43,7 @@ const BUN_TARGET = `bun-${BUN_OS}-${TARGET_ARCH}`;
 const pkg = JSON.parse(
   readFileSync(join(DESKTOP_DIR, "package.json"), "utf8"),
 ) as { productName?: string; name?: string; version?: string };
-const APP_NAME = pkg.productName ?? pkg.name ?? "Openship";
+const APP_NAME = pkg.productName ?? pkg.name ?? "Vibrail";
 const APP_VERSION = pkg.version ?? "0.0.0";
 const TARGET = `${process.platform}/${TARGET_ARCH}`;
 
@@ -206,7 +206,7 @@ function main(): void {
         ...process.env,
         NODE_ENV: "production",
         CLOUD_MODE: "false",
-        OPENSHIP_TARGET: "local",
+        VIBRAIL_TARGET: "local",
       },
     });
   });
@@ -237,13 +237,13 @@ function main(): void {
   });
 
   // 3. Migrations — plain .sql the compiled binary can't embed. The API reads
-  //    them via OPENSHIP_MIGRATIONS_DIR (set by the desktop at spawn).
+  //    them via VIBRAIL_MIGRATIONS_DIR (set by the desktop at spawn).
   step("copying migrations → resources/migrations/", () => {
     cpSync(DB_DRIZZLE_DIR, join(RESOURCES, "migrations"), { recursive: true });
   });
 
   // 4. PGlite WASM + fs image — data files bun --compile can't embed. The API
-  //    hands them to PGlite via OPENSHIP_PGLITE_ASSETS_DIR (set at spawn).
+  //    hands them to PGlite via VIBRAIL_PGLITE_ASSETS_DIR (set at spawn).
   step("copying pglite assets → resources/pglite/", () => {
     const require = createRequire(join(REPO_ROOT, "packages/db/package.json"));
     const pgliteDist = dirname(require.resolve("@electric-sql/pglite"));

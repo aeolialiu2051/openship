@@ -13,7 +13,7 @@ describe("email-templates — HTML injection is neutralized", () => {
       invitee: { email: "victim@example.com" },
       inviter: { name: "<b>Mallory</b>", email: "mallory@evil.example" },
       organizationName: '<img src=x onerror="alert(1)">',
-      url: "https://openship.example/accept-invite/abc",
+      url: "https://vibrail.example/accept-invite/abc",
     });
 
     // The raw markup must NOT appear as live HTML.
@@ -34,7 +34,7 @@ describe("email-templates — HTML injection is neutralized", () => {
       invitee: { email: '"><script>@example.com' },
       inviter: { name: "Alice", email: "alice@example.com" },
       organizationName: "Acme",
-      url: "https://openship.example/accept-invite/abc",
+      url: "https://vibrail.example/accept-invite/abc",
     });
 
     expect(email.html).not.toContain("<script>");
@@ -44,7 +44,7 @@ describe("email-templates — HTML injection is neutralized", () => {
   it("escapes a user's display name in the greeting (reset password HTML)", () => {
     const email = resetPasswordEmail(
       { name: "<script>alert(1)</script>", email: "user@example.com" },
-      "https://openship.example/reset/xyz",
+      "https://vibrail.example/reset/xyz",
     );
 
     expect(email.html).not.toContain("<script>alert(1)</script>");

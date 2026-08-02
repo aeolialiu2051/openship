@@ -308,7 +308,7 @@
   },
   "advanced": {
     "resetTitle": "Réinitialiser l'état côté serveur ?",
-    "resetDesc": "Efface le suivi de cette installation par Vibrail et supprime les enregistrements DNS créés par Vibrail pour celle-ci. Le fichier d'état côté serveur (/root/.openship/mail-state.json) et la ligne du registre sont supprimés. La pile de messagerie reste intacte, mais vous devrez relancer l'assistant pour la gérer à nouveau (Retirer conserve l'état et le DNS pour une réadoption).",
+    "resetDesc": "Efface le suivi de cette installation par Vibrail et supprime les enregistrements DNS créés par Vibrail pour celle-ci. Le fichier d'état côté serveur (/root/.vibrail/mail-state.json) et la ligne du registre sont supprimés. La pile de messagerie reste intacte, mais vous devrez relancer l'assistant pour la gérer à nouveau (Retirer conserve l'état et le DNS pour une réadoption).",
     "resetSubmit": "Réinitialiser l'état",
     "resetSubmitting": "Réinitialisation…",
     "resetFailed": "Échec de la réinitialisation",
@@ -340,7 +340,7 @@
     "rerunDesc": "Ouvre l'assistant d'installation pointé vers ce serveur. Utile après un changement de DNS, un renommage de domaine, ou pour réessayer une étape échouée. L'assistant détecte une installation existante et propose une reprise par étape plutôt que d'effacer l'état.",
     "openWizard": "Ouvrir l'assistant",
     "resetCardTitle": "Réinitialiser l'état côté serveur",
-    "resetCardDesc": "Retire le suivi de cette installation par Vibrail - le fichier d'état côté serveur (/root/.openship/mail-state.json) et la ligne du registre. Ne désinstalle PAS la pile de messagerie et ne touche à aucune boîte aux lettres ; le serveur continue de fonctionner, mais vous relancerez l'assistant de configuration pour le gérer à nouveau. À utiliser après une purge manuelle ou une réinstallation lorsque le suivi a dévié de la réalité.",
+    "resetCardDesc": "Retire le suivi de cette installation par Vibrail - le fichier d'état côté serveur (/root/.vibrail/mail-state.json) et la ligne du registre. Ne désinstalle PAS la pile de messagerie et ne touche à aucune boîte aux lettres ; le serveur continue de fonctionner, mais vous relancerez l'assistant de configuration pour le gérer à nouveau. À utiliser après une purge manuelle ou une réinstallation lorsque le suivi a dévié de la réalité.",
     "resetStateBtn": "Réinitialiser l'état",
     "removeTitle": "Retirer le serveur de messagerie",
     "removeDesc": "Arrête de gérer ce serveur - le retire uniquement de la liste /emails. La pile de messagerie continue de fonctionner et le fichier d'état côté serveur reste intact, vous pouvez donc le réadopter plus tard via Rechercher une installation existante. À utiliser pour effacer une entrée obsolète ou mal marquée.",

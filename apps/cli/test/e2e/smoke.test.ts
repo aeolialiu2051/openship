@@ -45,7 +45,7 @@ describe("cli smoke", { timeout: 40_000 }, () => {
   it("renders top-level help listing the core commands", async () => {
     const { stdout, code } = await runCli(["--help"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("openship");
+    expect(stdout).toContain("vibrail");
     for (const cmd of ["deploy", "server", "project", "mail", "login"]) {
       expect(stdout).toContain(cmd);
     }

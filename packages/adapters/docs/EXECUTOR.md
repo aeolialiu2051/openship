@@ -4,7 +4,7 @@
 
 ## The Problem
 
-Openship needs to:
+Vibrail needs to:
 - Run shell commands (git, npm, kill, systemctl)
 - Read/write files (PID files, Traefik YAML configs, log files)
 - Check if files exist (`.git` dirs, ACME storage)

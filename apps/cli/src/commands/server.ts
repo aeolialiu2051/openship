@@ -1,5 +1,5 @@
 /**
- * `openship server` — manage self-hosted SSH servers.
+ * `vibrail server` — manage self-hosted SSH servers.
  *
  * Grounded in the API's system module (mounted at /api/system, localOnly):
  *   list/add/rm       → GET|POST /system/servers, DELETE /system/servers/:id
@@ -31,7 +31,7 @@ const INSTALLABLE = ["docker", "git", "certbot", "rsync"] as const;
 function guard<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...args: A) => Promise<void> {
   return async (...args: A) => {
     if (!getToken()) {
-      err("Not logged in. Run `openship login` first.");
+      err("Not logged in. Run `vibrail login` first.");
       process.exit(1);
     }
     try {
@@ -329,7 +329,7 @@ server
   .command("ssh <serverId>")
   .description("Open an interactive SSH terminal (coming soon)")
   .action(() => {
-    info("  `openship server ssh` is coming soon.");
+    info("  `vibrail server ssh` is coming soon.");
     info("  Interactive terminals require a WebSocket client that isn't bundled yet.");
     process.exit(1);
   });

@@ -37,13 +37,13 @@ export function getRoutingBaseDomain(): string {
 }
 
 /**
- * Whether managed free subdomains need the legacy Openship Cloud edge bridge.
+ * Whether managed free subdomains need the legacy Vibrail Cloud edge bridge.
  *
- * With no HOST_DOMAIN, `*.vibrail.warpgateapi.com` is owned by the Openship Cloud edge and a
+ * With no HOST_DOMAIN, `*.vibrail.warpgateapi.com` is owned by the Vibrail Cloud edge and a
  * user-VPS deploy must sync slug -> VPS through that service. A configured
  * HOST_DOMAIN belongs to the operator instead: DNS, wildcard TLS, and any
  * cross-VPS ingress are supplied by the operator's own infrastructure, while
- * Openship still installs the concrete hostname route on the target VPS.
+ * Vibrail still installs the concrete hostname route on the target VPS.
  */
 export function managedDomainsUseCloudEdge(): boolean {
   return (
@@ -148,7 +148,7 @@ export function buildProjectRouteDomains(opts: {
 
       // Attach EITHER the operator's custom domain OR a free
       // <slug>.vibrail.warpgateapi.com fallback — never both. The free managed URL is
-      // served by Openship Cloud's edge (runPostDeploySync →
+      // served by Vibrail Cloud's edge (runPostDeploySync →
       // ensureManagedEdgeProxy), so a self-hosted box can't serve it
       // alone; once the operator points their own domain at the box, that
       // domain is the deploy URL and a free slug they never asked for is

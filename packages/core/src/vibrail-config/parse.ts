@@ -1,9 +1,9 @@
 /**
- * Validate + coerce raw `openship.json` JSON into a typed {@link OpenshipConfig}.
+ * Validate + coerce raw `vibrail.json` JSON into a typed {@link VibrailConfig}.
  *
  * Hand-rolled (no schema dep — mirrors the metadata parsers). Two audiences:
  *   - the deploy prepare pipeline overlays `config` leniently (ignores `errors`);
- *   - `openship config validate` fails when `errors` is non-empty.
+ *   - `vibrail config validate` fails when `errors` is non-empty.
  * Every field is optional; unknown top-level keys are warnings, not errors.
  */
 
@@ -11,19 +11,19 @@ import { STACK_IDS } from "../stacks";
 import { ALL_PACKAGE_MANAGERS } from "../stacks";
 import type { RoutingConfig } from "../metadata/types";
 import {
-  OPENSHIP_DOMAIN_TYPES,
-  OPENSHIP_PRODUCTION_MODES,
-  OPENSHIP_RESOURCE_TIERS,
-  OPENSHIP_RESTARTS,
-  OPENSHIP_RUNTIMES,
-  type OpenshipConfig,
-  type OpenshipDomain,
-  type OpenshipEnv,
-  type OpenshipHealthcheck,
-  type OpenshipMonorepo,
-  type OpenshipMonorepoApp,
-  type OpenshipResources,
-  type OpenshipService,
+  VIBRAIL_DOMAIN_TYPES,
+  VIBRAIL_PRODUCTION_MODES,
+  VIBRAIL_RESOURCE_TIERS,
+  VIBRAIL_RESTARTS,
+  VIBRAIL_RUNTIMES,
+  type VibrailConfig,
+  type VibrailDomain,
+  type VibrailEnv,
+  type VibrailHealthcheck,
+  type VibrailMonorepo,
+  type VibrailMonorepoApp,
+  type VibrailResources,
+  type VibrailService,
   type ParseResult,
 } from "./schema";
 
@@ -110,13 +110,13 @@ class Ctx {
   }
 }
 
-function parseEnv(ctx: Ctx, v: unknown, path: string): OpenshipEnv | undefined {
+function parseEnv(ctx: Ctx, v: unknown, path: string): VibrailEnv | undefined {
   if (v === undefined) return undefined;
   if (!ctx.isObj(v)) {
     ctx.err(path, "must be an object of environment variables");
     return undefined;
   }
-  const out: OpenshipEnv = {};
+  const out: VibrailEnv = {};
   for (const [key, val] of Object.entries(v)) {
     if (typeof val === "string") {
       out[key] = val;
@@ -132,13 +132,13 @@ function parseEnv(ctx: Ctx, v: unknown, path: string): OpenshipEnv | undefined {
   return out;
 }
 
-function parseDomains(ctx: Ctx, v: unknown, path: string): OpenshipDomain[] | undefined {
+function parseDomains(ctx: Ctx, v: unknown, path: string): VibrailDomain[] | undefined {
   if (v === undefined) return undefined;
   if (!Array.isArray(v)) {
     ctx.err(path, "must be an array of hostnames or domain objects");
     return undefined;
   }
-  const out: OpenshipDomain[] = [];
+  const out: VibrailDomain[] = [];
   v.forEach((item, i) => {
     const p = `${path}[${i}]`;
     if (typeof item === "string") {
@@ -153,7 +153,7 @@ function parseDomains(ctx: Ctx, v: unknown, path: string): OpenshipDomain[] | un
         domain,
         port: ctx.int(item.port, `${p}.port`, 1, 65535),
         targetPath: ctx.str(item.targetPath, `${p}.targetPath`),
-        type: ctx.enumOf(item.type, `${p}.type`, OPENSHIP_DOMAIN_TYPES),
+        type: ctx.enumOf(item.type, `${p}.type`, VIBRAIL_DOMAIN_TYPES),
       });
     } else {
       ctx.err(p, "must be a hostname string or a domain object");
@@ -224,14 +224,14 @@ function parseRoutes(ctx: Ctx, v: unknown, path: string): RoutingConfig | undefi
   return routes;
 }
 
-function parseResources(ctx: Ctx, v: unknown, path: string): OpenshipResources | undefined {
+function parseResources(ctx: Ctx, v: unknown, path: string): VibrailResources | undefined {
   if (v === undefined) return undefined;
   if (!ctx.isObj(v)) {
     ctx.err(path, "must be an object");
     return undefined;
   }
-  const r: OpenshipResources = {
-    tier: ctx.enumOf(v.tier, `${path}.tier`, OPENSHIP_RESOURCE_TIERS),
+  const r: VibrailResources = {
+    tier: ctx.enumOf(v.tier, `${path}.tier`, VIBRAIL_RESOURCE_TIERS),
     cpuCores: ctx.int(v.cpuCores, `${path}.cpuCores`, 0.25, 4),
     memoryMb: ctx.int(v.memoryMb, `${path}.memoryMb`, 128, 8192),
     diskMb: ctx.int(v.diskMb, `${path}.diskMb`, 64, 204800),
@@ -239,7 +239,7 @@ function parseResources(ctx: Ctx, v: unknown, path: string): OpenshipResources |
   return r;
 }
 
-function parseHealthcheck(ctx: Ctx, v: unknown, path: string): OpenshipHealthcheck | undefined {
+function parseHealthcheck(ctx: Ctx, v: unknown, path: string): VibrailHealthcheck | undefined {
   if (v === undefined) return undefined;
   if (!ctx.isObj(v)) {
     ctx.err(path, "must be an object");
@@ -263,13 +263,13 @@ function parseHealthcheck(ctx: Ctx, v: unknown, path: string): OpenshipHealthche
   };
 }
 
-function parseServices(ctx: Ctx, v: unknown, path: string): OpenshipService[] | undefined {
+function parseServices(ctx: Ctx, v: unknown, path: string): VibrailService[] | undefined {
   if (v === undefined) return undefined;
   if (!Array.isArray(v)) {
     ctx.err(path, "must be an array of service objects");
     return undefined;
   }
-  const out: OpenshipService[] = [];
+  const out: VibrailService[] = [];
   v.forEach((item, i) => {
     const p = `${path}[${i}]`;
     if (!ctx.isObj(item)) {
@@ -291,7 +291,7 @@ function parseServices(ctx: Ctx, v: unknown, path: string): OpenshipService[] | 
       dependsOn: ctx.strArray(item.dependsOn, `${p}.dependsOn`),
       env: parseEnv(ctx, item.env, `${p}.env`),
       command: ctx.str(item.command, `${p}.command`),
-      restart: ctx.enumOf(item.restart, `${p}.restart`, OPENSHIP_RESTARTS),
+      restart: ctx.enumOf(item.restart, `${p}.restart`, VIBRAIL_RESTARTS),
       exposed: ctx.bool(item.exposed, `${p}.exposed`),
       exposedPort: ctx.str(item.exposedPort, `${p}.exposedPort`),
       domain: ctx.str(item.domain, `${p}.domain`),
@@ -301,13 +301,13 @@ function parseServices(ctx: Ctx, v: unknown, path: string): OpenshipService[] | 
   return out;
 }
 
-function parseMonorepo(ctx: Ctx, v: unknown, path: string): OpenshipMonorepo | undefined {
+function parseMonorepo(ctx: Ctx, v: unknown, path: string): VibrailMonorepo | undefined {
   if (v === undefined) return undefined;
   if (!ctx.isObj(v)) {
     ctx.err(path, "must be an object");
     return undefined;
   }
-  const mono: OpenshipMonorepo = {};
+  const mono: VibrailMonorepo = {};
   if (v.workspace !== undefined) {
     if (!ctx.isObj(v.workspace)) ctx.err(`${path}.workspace`, "must be an object");
     else {
@@ -328,7 +328,7 @@ function parseMonorepo(ctx: Ctx, v: unknown, path: string): OpenshipMonorepo | u
   if (v.apps !== undefined) {
     if (!Array.isArray(v.apps)) ctx.err(`${path}.apps`, "must be an array");
     else {
-      const apps: OpenshipMonorepoApp[] = [];
+      const apps: VibrailMonorepoApp[] = [];
       v.apps.forEach((a, i) => {
         const p = `${path}.apps[${i}]`;
         if (!ctx.isObj(a)) {
@@ -370,18 +370,18 @@ function parsePackageManager(ctx: Ctx, v: unknown, path: string): string | undef
   return s;
 }
 
-/** Parse + validate raw `openship.json` JSON (already `JSON.parse`d) into a config. */
-export function parseOpenshipConfig(raw: unknown): ParseResult {
+/** Parse + validate raw `vibrail.json` JSON (already `JSON.parse`d) into a config. */
+export function parseVibrailConfig(raw: unknown): ParseResult {
   const ctx = new Ctx();
   if (!ctx.isObj(raw)) {
-    return { config: null, errors: ["openship.json must be a JSON object"], warnings: [] };
+    return { config: null, errors: ["vibrail.json must be a JSON object"], warnings: [] };
   }
 
   for (const key of Object.keys(raw)) {
     if (!TOP_LEVEL_KEYS.has(key)) ctx.warnings.push(`Unknown field "${key}" (ignored)`);
   }
 
-  const config: OpenshipConfig = {
+  const config: VibrailConfig = {
     framework: ctx.enumOf(raw.framework, "framework", STACK_IDS),
     packageManager: parsePackageManager(ctx, raw.packageManager, "packageManager"),
     rootDirectory: ctx.str(raw.rootDirectory, "rootDirectory"),
@@ -391,8 +391,8 @@ export function parseOpenshipConfig(raw: unknown): ParseResult {
     outputDirectory: ctx.str(raw.outputDirectory, "outputDirectory"),
     buildImage: ctx.str(raw.buildImage, "buildImage"),
     productionPaths: ctx.strArray(raw.productionPaths, "productionPaths"),
-    runtime: ctx.enumOf(raw.runtime, "runtime", OPENSHIP_RUNTIMES),
-    productionMode: ctx.enumOf(raw.productionMode, "productionMode", OPENSHIP_PRODUCTION_MODES),
+    runtime: ctx.enumOf(raw.runtime, "runtime", VIBRAIL_RUNTIMES),
+    productionMode: ctx.enumOf(raw.productionMode, "productionMode", VIBRAIL_PRODUCTION_MODES),
     port: ctx.int(raw.port, "port", 1, 65535),
     env: parseEnv(ctx, raw.env, "env"),
     domains: parseDomains(ctx, raw.domains, "domains"),
@@ -403,7 +403,7 @@ export function parseOpenshipConfig(raw: unknown): ParseResult {
   };
 
   // Strip undefined so the overlay only carries fields the user actually declared.
-  for (const k of Object.keys(config) as (keyof OpenshipConfig)[]) {
+  for (const k of Object.keys(config) as (keyof VibrailConfig)[]) {
     if (config[k] === undefined) delete config[k];
   }
 
@@ -411,7 +411,7 @@ export function parseOpenshipConfig(raw: unknown): ParseResult {
 }
 
 /** Convenience: parse a raw JSON string. Returns a JSON-parse error in `errors`. */
-export function parseOpenshipConfigJson(text: string): ParseResult {
+export function parseVibrailConfigJson(text: string): ParseResult {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -422,5 +422,5 @@ export function parseOpenshipConfigJson(text: string): ParseResult {
       warnings: [],
     };
   }
-  return parseOpenshipConfig(raw);
+  return parseVibrailConfig(raw);
 }

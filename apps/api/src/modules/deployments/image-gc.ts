@@ -7,7 +7,7 @@
  * the images ACTUALLY on each host against the DB keep-set and prunes the rest.
  *
  * Safety model (see the audit): the ONLY images considered are those carrying
- * the `openship.project=<id>` label, which `labels()` stamps on FINAL build
+ * the `vibrail.project=<id>` label, which `labels()` stamps on FINAL build
  * images — base/third-party images (postgres, redis, mongo, …) are PULLED, never
  * labeled, and are therefore structurally unreachable here. The keep-set is the
  * exact imageRef of the active + pinned + newest-`rollbackWindow` deployments
@@ -104,7 +104,7 @@ export interface ReapResult {
  *     (not the image id) can never yank a foreign tag the operator added.
  *   - truly dangling (NO tags at all) → the image id: our superseded, untagged
  *     final layer, safe to drop.
- *   - only NON-openship tags remain → the operator re-purposed this image → keep.
+ *   - only NON-vibrail tags remain → the operator re-purposed this image → keep.
  */
 export function selectImageRemovalRefs(
   img: { id: string; repoTags: string[] },

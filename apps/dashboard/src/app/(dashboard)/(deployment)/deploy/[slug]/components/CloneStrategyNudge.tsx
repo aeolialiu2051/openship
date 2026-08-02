@@ -9,7 +9,7 @@
  *                        the user explicitly chose to build on the API host.
  *   - `hasGlobalToken` — whether a custom global PAT is saved.
  *
- * The sidebar combines these with live GitHub availability (gh CLI / Openship
+ * The sidebar combines these with live GitHub availability (gh CLI / Vibrail
  * App) to pick ONE path deterministically — it does not prompt when the answer
  * is knowable. The only UI is `<DeployCredentialModal>`, shown by the sidebar
  * solely for the genuine no-credential dead-end; that modal writes

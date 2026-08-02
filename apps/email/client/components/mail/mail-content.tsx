@@ -105,7 +105,7 @@ export function MailContent({ id, html, senderEmail }: MailContentProps) {
 
     // The shadow root is style-isolated from the document - global font
     // CSS doesn't reach it for unstyled elements. Prepend a single
-    // <style> block that applies the openship sans stack (Gellix +
+    // <style> block that applies the vibrail sans stack (Gellix +
     // SF Arabic fallback) to the rendered email body. `@font-face`
     // declarations in the outer document remain accessible per spec,
     // so we only need to set font-family inside the shadow tree.

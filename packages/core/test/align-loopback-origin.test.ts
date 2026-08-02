@@ -36,11 +36,11 @@ describe("alignLoopbackOrigin", () => {
   });
 
   it("SECURITY: a production (non-loopback) dashboard origin is never rewritten", () => {
-    expect(alignLoopbackOrigin("https://app.openship.io", "http://127.0.0.1:4000")).toBe(
-      "https://app.openship.io",
+    expect(alignLoopbackOrigin("https://vibrail.warpgateapi.com", "http://127.0.0.1:4000")).toBe(
+      "https://vibrail.warpgateapi.com",
     );
-    expect(alignLoopbackOrigin("https://app.openship.io", "http://localhost:4000")).toBe(
-      "https://app.openship.io",
+    expect(alignLoopbackOrigin("https://vibrail.warpgateapi.com", "http://localhost:4000")).toBe(
+      "https://vibrail.warpgateapi.com",
     );
   });
 

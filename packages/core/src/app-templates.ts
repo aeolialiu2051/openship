@@ -299,7 +299,7 @@ export interface AppTemplate {
    * forward-compat gate that lets the shape evolve without breaking old boxes.
    */
   schemaVersion?: number;
-  /** Minimum Openship version (semver) required to install this app. Absent ⇒ any. */
+  /** Minimum Vibrail version (semver) required to install this app. Absent ⇒ any. */
   minEngine?: string;
   /** ISO timestamp of the last catalog edit — surface-only ("template updated"). */
   updatedAt?: string;

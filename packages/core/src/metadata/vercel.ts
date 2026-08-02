@@ -9,7 +9,7 @@ import type {
 import { trimmed } from "./text";
 
 /**
- * Map Vercel's `framework` slugs to openship StackIds. Only the slugs that
+ * Map Vercel's `framework` slugs to vibrail StackIds. Only the slugs that
  * differ from our IDs (or need disambiguation) are listed; anything already
  * matching a StackId passes through untouched via the consumer's own lookup.
  */

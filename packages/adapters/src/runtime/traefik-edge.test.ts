@@ -31,7 +31,7 @@ describe("managed Traefik compatibility", () => {
       isTraefikContainer(
         container({
           name: "vibrail-suspended-project-1",
-          labels: { "openship.suspension-route": "true" },
+          labels: { "vibrail.suspension-route": "true" },
           mounts: [],
         }),
       ),
@@ -283,7 +283,7 @@ describe("buildTraefikLabels", () => {
     expect(labels).toMatchObject({
       "traefik.enable": "true",
       "traefik.docker.network": "vibrail-edge",
-      "openship.project": "project-1",
+      "vibrail.project": "project-1",
       [`traefik.http.routers.${name}.service`]: "noop@internal",
       [`traefik.http.routers.${name}.entrypoints`]: "websecure",
       [`traefik.http.routers.${name}.priority`]: "100000",

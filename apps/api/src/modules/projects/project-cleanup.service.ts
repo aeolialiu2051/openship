@@ -305,7 +305,7 @@ export async function collectProjectManifest(
         await pushVolumesForContainer(sd.containerId, runtime, "service");
         pushContainer(sd.containerId, runtime, "service container");
       }
-      // Per-service compose/monorepo images (openship/<slug>-<svc>:bld_…-svc_…).
+      // Per-service compose/monorepo images (vibrail/<slug>-<svc>:bld_…-svc_…).
       // These are the REAL images for a multi-service deployment — dep.imageRef
       // is only the "compose" sentinel — so without this they leak on project
       // deletion. Deduped via the shared seenImages set. Docker only.
@@ -352,7 +352,7 @@ export async function collectProjectManifest(
   }
 
   // ── Orphan container sweep (label-based, authoritative per host) ───
-  // Reclaim containers labeled `openship.project=<id>` that NO DB row
+  // Reclaim containers labeled `vibrail.project=<id>` that NO DB row
   // references — started by a deploy that then failed during routing, or
   // whose row was lost to a crash. This is how leaked containers ("3 for
   // one project") get cleaned, even retroactively. Sweep every docker
@@ -381,12 +381,12 @@ export async function collectProjectManifest(
 
   // ── Adopted-container sweep (identity-based, not label-based) ─────
   // A migration can adopt a container IN PLACE, and docker labels are immutable
-  // in place — so it still carries the PREVIOUS project's `openship.project` and
+  // in place — so it still carries the PREVIOUS project's `vibrail.project` and
   // is invisible to the label sweep above. Its DB row can also point at an id a
   // redeploy replaced. Either way the container survived a "delete everything"
   // teardown, kept its volumes, and then fought the next deploy for its ports.
   // Resolve by the SAME identity chain the live-state read uses (canonical
-  // `openship-<slug>-<svc>` name / compose labels / tracked id), so teardown
+  // `vibrail-<slug>-<svc>` name / compose labels / tracked id), so teardown
   // reclaims exactly what the Services panel can see. Deduped by pushContainer.
   const ownServices = await repos.service.listByProject(project.id).catch(() => []);
   if (ownServices.length > 0) {
@@ -414,7 +414,7 @@ export async function collectProjectManifest(
   }
 
   // ── Orphan image sweep (label-based, authoritative per host) ──────
-  // Reclaim images labeled `openship.project=<id>` that NO DB row references —
+  // Reclaim images labeled `vibrail.project=<id>` that NO DB row references —
   // e.g. a service was deleted (its imageRef row cascade-dropped) or a build
   // crashed after `docker build` but before persisting imageRef. The DB-tracked
   // pushes above miss these; this label sweep is the authoritative backstop on
@@ -446,7 +446,7 @@ export async function collectProjectManifest(
   // and the per-deployment runtime resolution above may have been skipped
   // (server gone). Enumerate it explicitly so deleting the project always
   // tears the workspace down on Oblien — fixes "deleted locally but still
-  // live on Openship Cloud". De-duped against any deployment container that
+  // live on Vibrail Cloud". De-duped against any deployment container that
   // already covers it.
   if (project.cloudWorkspaceId && !seenContainers.has(project.cloudWorkspaceId)) {
     try {
@@ -481,7 +481,7 @@ export async function collectProjectManifest(
     } catch (err) {
       // Two very different failures land here — distinguish them like the
       // gone-server branch above:
-      //   • PERMANENT (org has no Openship Cloud link → owner unlinked/never
+      //   • PERMANENT (org has no Vibrail Cloud link → owner unlinked/never
       //     linked): we can never reach this workspace from here, so blocking
       //     the delete forever helps nobody. Skip + warn so the project stays
       //     deletable (the workspace may remain on Oblien; re-link to clean it).
@@ -494,7 +494,7 @@ export async function collectProjectManifest(
       );
       if (linkUserId === null) {
         console.warn(
-          `[cleanup] cloud workspace ${project.cloudWorkspaceId} skipped — org ${project.organizationId} has no Openship Cloud link (${safeErrorMessage(err)}); workspace may remain on Oblien. Re-link to clean it up.`,
+          `[cleanup] cloud workspace ${project.cloudWorkspaceId} skipped — org ${project.organizationId} has no Vibrail Cloud link (${safeErrorMessage(err)}); workspace may remain on Oblien. Re-link to clean it up.`,
         );
       } else {
         resources.push({
@@ -509,12 +509,12 @@ export async function collectProjectManifest(
 
   // ── Project networks (always cleaned - they're clutter, not data) ──
   // One per docker runtime (Docker installs are per-machine), keyed off
-  // project slug to match the `openship-<slug>` naming in DockerRuntime.
+  // project slug to match the `vibrail-<slug>` naming in DockerRuntime.
   for (const docker of dockerRuntimes) {
     resources.push({
       type: "network",
       ref: project.slug,
-      label: `network openship-${project.slug}`,
+      label: `network vibrail-${project.slug}`,
       runtime: docker,
     });
   }
@@ -604,7 +604,7 @@ export async function previewProjectDeletion(project: Project): Promise<Deletion
   // Self-hosted is a STATIC fact of the project (anything not cloud-managed), not
   // something to infer from a live runtime probe: an imported/migrated project on
   // an unreachable server would otherwise resolve to `false` and hide the
-  // record-only ("Remove from Openship") delete — exactly when it's most useful.
+  // record-only ("Remove from Vibrail") delete — exactly when it's most useful.
   // The loop below only strengthens (never un-sets) this.
   let selfHosted = !project.cloudWorkspaceId;
 
@@ -702,7 +702,7 @@ export async function previewProjectDeletion(project: Project): Promise<Deletion
     selfHosted,
     services: previewServices,
     deploymentVolumes: Array.from(new Set(deploymentVolumes)),
-    networks: Array.from(networkSlugs).map((slug) => `openship-${slug}`),
+    networks: Array.from(networkSlugs).map((slug) => `vibrail-${slug}`),
     totalVolumes,
   };
 }

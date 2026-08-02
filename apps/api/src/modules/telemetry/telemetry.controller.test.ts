@@ -9,8 +9,8 @@ describe("page-view telemetry sanitization", () => {
   });
 
   it("removes referrer query strings and fragments", () => {
-    expect(cleanReferrer("https://openship.dev/projects/1?token=secret#x")).toBe(
-      "https://openship.dev/projects/1",
+    expect(cleanReferrer("https://vibrail.dev/projects/1?token=secret#x")).toBe(
+      "https://vibrail.dev/projects/1",
     );
     expect(cleanReferrer("not a url")).toBeNull();
   });

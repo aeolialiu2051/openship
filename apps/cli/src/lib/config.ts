@@ -1,5 +1,5 @@
 /**
- * Persistent CLI config at ~/.openship/config.json.
+ * Persistent CLI config at ~/.vibrail/config.json.
  *
  * The file holds named CONTEXTS — each pins an API + dashboard endpoint, the
  * PAT issued against them, and optionally cached capabilities (see caps.ts).
@@ -113,7 +113,7 @@ export function getActiveContext(): string {
 export function setActiveContext(name: string): void {
   const config = readConfig();
   if (!config.contexts[name]) {
-    throw new Error(`Unknown context "${name}". Run \`openship login --context ${name}\` first.`);
+    throw new Error(`Unknown context "${name}". Run \`vibrail login --context ${name}\` first.`);
   }
   config.current = name;
   writeConfig(config);

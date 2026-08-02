@@ -15,7 +15,7 @@ import { env } from "../config/env";
  */
 export function isReservedLoopbackPort(port: number): boolean {
   const apiPort = env.PORT;
-  const dashboardPort = env.OPENSHIP_DASHBOARD_PORT;
+  const dashboardPort = env.VIBRAIL_DASHBOARD_PORT;
   return port === apiPort || port === dashboardPort;
 }
 

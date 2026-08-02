@@ -261,7 +261,7 @@ function managesSameSlot(existing: CloudflareRecord, desired: ManagedDnsRecordIn
  * Publish DNS records without taking ownership of pre-existing user records.
  * Exact matches are left untouched; conflicting singleton records fail with a
  * clear error. Records created here are tagged so cleanup can delete exactly
- * Openship's writes even when the mail server or its remote state is gone.
+ * Vibrail's writes even when the mail server or its remote state is gone.
  */
 export async function publishManagedDnsRecords(opts: {
   records: ManagedDnsRecordInput[];

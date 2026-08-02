@@ -68,7 +68,7 @@ export const SYSTEM = {
     /** Maximum custom domains per project */
     MAX_PER_PROJECT: 10,
     /** DNS TXT record prefix for domain verification */
-    VERIFICATION_PREFIX: "_openship-challenge",
+    VERIFICATION_PREFIX: "_vibrail-challenge",
     /** SSL renewal scheduler interval (ms) */
     SSL_RENEW_INTERVAL_MS: 6 * 60 * 60 * 1000, // 6 hours
     /** How many days before expiry to trigger renewal */

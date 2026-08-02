@@ -1,7 +1,7 @@
 /**
  * Resolve the calling client's IP address for rate-limiting / audit logging.
  *
- * Openship's deploy topology always fronts this Bun process with shared
+ * Vibrail's deploy topology always fronts this Bun process with shared
  * Traefik. The reverse proxy
  * populates `X-Real-IP` with the originating client address and
  * strips/rewrites anything inbound. We trust that header at face

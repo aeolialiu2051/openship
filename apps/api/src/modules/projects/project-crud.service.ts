@@ -130,7 +130,7 @@ function readActiveDeploymentSummary(dep: Deployment | null | undefined): {
  *  only signal the dashboard needs — `deployTarget === "cloud"` IS
  *  the cloud-project test; the dashboard combines it with its own
  *  CloudContext.connected state to decide whether to render the
- *  "Reconnect Openship Cloud" gate. No duplicate booleans here. */
+ *  "Reconnect Vibrail Cloud" gate. No duplicate booleans here. */
 export async function enrichProject(p: Project) {
   const production = p.resources as ResourceConfig | null;
   const build = p.buildResources as ResourceConfig | null;
@@ -228,7 +228,7 @@ function resolveProjectSource(data: TCreateProjectBody) {
   const isRelease = isReleaseProvider(data.gitProvider);
   const isTemplate = isTemplateProvider(data.gitProvider);
   // Release/dist deploys resolve a prebuilt dir onto THIS box's filesystem
-  // (download + extract into ~/.openship) — a self-hosted runtime concern.
+  // (download + extract into ~/.vibrail) — a self-hosted runtime concern.
   // Blocked in cloud mode, same as localPath below: the SaaS builds in Oblien
   // sandboxes and must never write a tenant's dist onto the shared control plane.
   if (isRelease && env.CLOUD_MODE) {
@@ -382,7 +382,7 @@ async function createProductionProject(
 ) {
   // Atomic free-domain gate — same rule and shape as updateProject. When the
   // caller EXPLICITLY sends endpoints, a free (*.vibrail.warpgateapi.com) route only resolves
-  // behind the Openship Cloud edge, so refuse BEFORE any group/project row is
+  // behind the Vibrail Cloud edge, so refuse BEFORE any group/project row is
   // written on a disconnected instance (no dead "Pending" route persisted). The
   // auto-derived default (data.publicEndpoints undefined) is deliberately NOT
   // gated — that path must keep working on a self-hosted instance.
@@ -417,9 +417,9 @@ async function createProductionProject(
 
 /**
  * Create a `services` project while PRESERVING an explicit project id — the
- * re-import path (recovering an Openship project from a server's manifest). The
+ * re-import path (recovering a Vibrail project from a server's manifest). The
  * preserved id means the server's still-running containers (labelled
- * `openship.project=<id>`) re-attach immediately: teardown/reclaim/network
+ * `vibrail.project=<id>`) re-attach immediately: teardown/reclaim/network
  * reconcile recognize them, and a later redeploy replaces same-id containers
  * cleanly. The slug is preserved when free, else uniquified (so the free
  * subdomain regenerates to the original). Enforces the quota and creates a
@@ -605,7 +605,7 @@ async function uniqueProjectSlug(organizationId: string, baseSlug: string) {
  * image apps → the running image tag. Null for git projects (they keep branch).
  */
 async function resolveEnvVersion(row: Project, latest: Deployment | null): Promise<string | null> {
-  if (row.appTemplateId === "openship" || row.appTemplateId === "mail-webmail") return readApiVersion();
+  if (row.appTemplateId === "vibrail" || row.appTemplateId === "mail-webmail") return readApiVersion();
   if (isReleaseProvider(row.gitProvider)) {
     const pinned = (row.releaseSource as ReleaseSource | null)?.pinnedVersion;
     return latest?.releaseVersion ?? pinned ?? null;
@@ -675,7 +675,7 @@ async function findProjectByAppSlug(
 // ─── Ensure project (create or return existing) ─────────────────────────────
 
 /**
- * Enforce the project cap before creating one. On Openship Cloud (CLOUD_MODE) a
+ * Enforce the project cap before creating one. On Vibrail Cloud (CLOUD_MODE) a
  * cloud org maps 1:1 to its owning SaaS user, so this per-org count IS the
  * per-user cap (env CLOUD_MAX_PROJECTS_PER_USER, default 2). Self-hosted is not
  * metered — it uses the high SYSTEM.PROJECTS.MAX_PER_USER safety cap. Called
@@ -1035,12 +1035,12 @@ export async function updateProject(
     const beforeState = await resolveProjectRouteState(p).catch(() => null);
     const previousHostnames = beforeState?.projectDomains.map((d) => d.hostname) ?? [];
 
-    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Openship
+    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Vibrail
     // Cloud edge — refuse before any write so a disconnected instance can't
     // INTRODUCE a dead route. Only gate endpoints whose hostname isn't already
     // live: re-validating the WHOLE set blocked removing/editing a route whenever
     // another, already-persisted free route stayed in the set (you can't remove
-    // api.openship.io because app.openship.io is still there). Removal never
+    // vibrail.warpgateapi.com because vibrail.warpgateapi.com is still there). Removal never
     // introduces anything, so it never gates. Skipped for slug/port re-syncs.
     if (data.publicEndpoints !== undefined) {
       // Already-live hostnames = DB domain rows ∪ the resolved route endpoints
@@ -1091,7 +1091,7 @@ export async function updateProject(
             `[updateProject] live route re-apply failed (non-fatal): ${safeErrorMessage(err)}`,
           ),
         );
-        // A free (*.vibrail.warpgateapi.com) domain resolves only through Openship Cloud's edge.
+        // A free (*.vibrail.warpgateapi.com) domain resolves only through Vibrail Cloud's edge.
         // reapplyProjectLiveRoutes handles the self-hosted Traefik side; the
         // managed edge must be re-registered too or an edited/added free URL
         // 404s with no signal. Only meaningful once deployed (no live target
@@ -1301,11 +1301,11 @@ export async function getProjectCommitStatus(
     return getReleaseDriftStatus(p);
   }
 
-  // Self-app + webmail: both ship from the oblien/openship release stream but
+  // Self-app + webmail: both ship from the aeolialiu2051/vibrail release stream but
   // carry no releaseSource (they deploy via localPath/migration), so they'd
   // otherwise fall through to {supported:false}. Compare the running version
   // against the latest published release.
-  if (p.appTemplateId === "openship" || p.appTemplateId === "mail-webmail") {
+  if (p.appTemplateId === "vibrail" || p.appTemplateId === "mail-webmail") {
     return getSelfReleaseDrift(p);
   }
 
@@ -1352,7 +1352,7 @@ export async function getProjectCommitStatus(
 /**
  * Release/dist drift: compare the newest advertised version (github latest
  * release tag, or a `versionUrl`) against the deployed release version. A
- * `pinnedVersion` source has no drift — it's fixed. The self-app (openship
+ * `pinnedVersion` source has no drift — it's fixed. The self-app (vibrail
  * template) never deploys through the pipeline, so its `current` falls back to
  * the running API's own version.
  */
@@ -1365,7 +1365,7 @@ async function getReleaseDriftStatus(p: Project) {
     const dep = await repos.deployment.findById(p.activeDeploymentId).catch(() => null);
     current = dep?.releaseVersion ?? null;
   }
-  if (!current && p.appTemplateId === "openship") {
+  if (!current && p.appTemplateId === "vibrail") {
     current = readApiVersion();
   }
 
@@ -1398,7 +1398,7 @@ async function getReleaseDriftStatus(p: Project) {
 /**
  * Self-app / webmail release drift. Both are `isApp` projects that deploy from a
  * prebuilt dist (no releaseSource), but their version tracks the running API
- * (`readApiVersion`) and their upstream is the openship release stream. Compare
+ * (`readApiVersion`) and their upstream is the vibrail release stream. Compare
  * the running version against the latest published release tag.
  */
 async function getSelfReleaseDrift(p: Project) {

@@ -5,7 +5,7 @@ description: The Better Auth wrapper plus the desktop session-bootstrap and clou
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The Auth API is how Openship signs users in and keeps their session. Almost everything here is served by
+The Auth API is how Vibrail signs users in and keeps their session. Almost everything here is served by
 [Better Auth](https://better-auth.com) through a single catch-all — email/password sign-in and sign-up, OAuth,
 the organization/member/invitation endpoints, and the MCP OAuth authorization server. A small set of
 **desktop-only** endpoints sit in front of it to bootstrap a zero-auth local session and hand off cloud sign-in
@@ -13,7 +13,7 @@ to the downloadable app.
 
 This module is consumed almost entirely by the dashboard (and, in desktop mode, the Electron host) — you rarely
 call it directly. For programmatic API access, mint a personal access token instead
-([`openship token create`](/docs/cli/access)) and use it as a bearer header. See the
+([`vibrail token create`](/docs/cli/access)) and use it as a bearer header. See the
 [API overview](/docs/api) and [Auth & sessions](/docs/security/auth) for the full model.
 
 <Callout title="Base path & auth">
@@ -77,13 +77,13 @@ GET /api/auth/get-session
 ```
 
 Returns the active session and user as JSON, or `401` when unauthenticated. In zero-auth desktop mode
-(self-hosted onboarding, no password), a miss triggers an inline bootstrap: Openship provisions the local admin
+(self-hosted onboarding, no password), a miss triggers an inline bootstrap: Vibrail provisions the local admin
 user, mints a session, sets the cookie on the response, and returns it — so the dashboard's first navigation
 succeeds instead of looping to `/login`.
 
 ```bash
 curl https://your-host/api/auth/get-session \
-  -H "Cookie: openship.session_token=<session>"
+  -H "Cookie: vibrail.session_token=<session>"
 ```
 
 ## Desktop session bootstrap

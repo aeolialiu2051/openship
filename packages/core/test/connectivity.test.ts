@@ -33,7 +33,7 @@ describe("classifyConnectivityError", () => {
     // the path. `access denied` / `read-only` already classified correctly, so
     // two ways of saying the same thing disagreed.
     for (const m of [
-      "EACCES: permission denied, open '/backups/openship/db.sql'",
+      "EACCES: permission denied, open '/backups/vibrail/db.sql'",
       "EACCES: permission denied, mkdir '/mnt/backup/nightly'",
       "EROFS: read-only file system, open '/srv/backups/x'",
     ]) {

@@ -1,16 +1,16 @@
 ---
 title: Cloud as source
-description: Cloud projects are owned by Openship Cloud; your self-hosted instance is a gateway in front of it — plus how projects promote up and come back home.
+description: Cloud projects are owned by Vibrail Cloud; your self-hosted instance is a gateway in front of it — plus how projects promote up and come back home.
 ---
 
-When a project runs on **Openship Cloud** (our hosted service), the cloud is the one true copy — the
+When a project runs on **Vibrail Cloud** (our hosted service), the cloud is the one true copy — the
 **canonical** owner. Its record, deployments, domains, environment variables, and logs all live on the
 cloud, and the cloud runs its builds and lifecycle. Your self-hosted instance keeps **no local copy** of
 that project. Instead it acts as a **gateway** — a thin pass-through that forwards requests for that project
 up to the cloud and hands you back the answer.
 
 Think of it like a mailbox on your street. The letters aren't stored in the mailbox; the mailbox just
-carries them to and from the real post office. Your instance is the mailbox; Openship Cloud is the post
+carries them to and from the real post office. Your instance is the mailbox; Vibrail Cloud is the post
 office.
 
 <Callout title="One rule to remember">
@@ -20,7 +20,7 @@ the whole idea behind this page.
 
 ## A gateway, not a mirror
 
-Openship deliberately never keeps two copies of the same project. A mirror would mean two sources of truth
+Vibrail deliberately never keeps two copies of the same project. A mirror would mean two sources of truth
 that constantly drift apart and need reconciling — and a bug on your box could corrupt cloud data. A gateway
 avoids all of that: there is nothing to sync, because there is only ever one copy.
 
@@ -51,7 +51,7 @@ That distinction matters: the project *does* exist, the cloud is just temporaril
 ## One cloud identity for the whole team
 
 A cloud connection belongs to the **organization owner**, not to each person. When the gateway forwards a
-call, it authenticates as the owner's Openship Cloud session (read server-side from encrypted storage — no
+call, it authenticates as the owner's Vibrail Cloud session (read server-side from encrypted storage — no
 cookies or tokens ever travel from the browser).
 
 So teammates do **not** each need their own cloud account. Your local instance decides *who is allowed* to
@@ -60,7 +60,7 @@ sees the same "connected" state and the same list of cloud workspaces.
 
 ## Promote: sending a project up to the cloud
 
-**Promote** moves a local project onto Openship Cloud so the cloud becomes its canonical home. Under the
+**Promote** moves a local project onto Vibrail Cloud so the cloud becomes its canonical home. Under the
 hood it copies the project's whole **subgraph** (the project row plus everything attached to it —
 deployments, domains, env, and so on) up to the cloud, and then removes the local rows so no shadow copy is
 left behind.
@@ -68,7 +68,7 @@ left behind.
 There are two ways it happens:
 
 - **Born-on-cloud (automatic).** When you deploy a still-local project to the cloud *and let the cloud
-  build it*, Openship promotes the project **first**, then runs the deploy upstream — so it becomes
+  build it*, Vibrail promotes the project **first**, then runs the deploy upstream — so it becomes
   cloud-canonical from its very first cloud deploy. If the copy-up fails, the promote stops **before**
   anything local is torn down, leaving your project exactly as it was. (Choosing *build on this machine* is
   the one exception — see [What your box still does](#what-your-box-still-does-for-a-cloud-project).)
@@ -102,12 +102,12 @@ containers back up are operator follow-up steps, not part of the data transfer i
 
 For a cloud-owned project, your local instance does **zero** orchestration — with one opt-in exception:
 **build locally, upload the artifact.** If you choose "build on this machine," your box builds the app with
-its own credentials and uploads the result to an Openship Cloud workspace to run. In that case the project
+its own credentials and uploads the result to a Vibrail Cloud workspace to run. In that case the project
 stays local-canonical and is *not* promoted. Everything else — routing, TLS, running the containers —
 belongs to the cloud. See [Runtime model](/docs/architecture/runtime-model) for how a runtime target is
 chosen.
 
-## On Openship Cloud itself
+## On Vibrail Cloud itself
 
 There's a neat symmetry here: **on the cloud service, every project is already canonical-local** — there is
 nothing upstream to forward to. The exact same code runs on both sides; the gateway simply resolves
@@ -116,15 +116,15 @@ nothing upstream to forward to. The exact same code runs on both sides; the gate
 ## Doing it yourself
 
 Promote and bring-home are self-hosted-only actions, guarded by the `project:admin` permission. Your
-organization also has to be **connected to Openship Cloud** first — a transfer on an unconnected org is
+organization also has to be **connected to Vibrail Cloud** first — a transfer on an unconnected org is
 refused.
 
 ```bash
-# Promote a local project up to Openship Cloud
-openship project transfer <projectId> to-cloud
+# Promote a local project up to Vibrail Cloud
+vibrail project transfer <projectId> to-cloud
 
 # Bring a cloud project back to this instance
-openship project transfer <projectId> to-self-hosted
+vibrail project transfer <projectId> to-self-hosted
 ```
 
 The matching API routes are `POST /api/projects/:id/transfer/to-cloud` and
@@ -133,9 +133,9 @@ finish local cleanup returns a partial-success (`207`) so you can retry the clea
 already authoritative.
 
 <Callout title="Errors a transfer can return" type="warn">
-- **`412`** — your org isn't connected to Openship Cloud yet.
+- **`412`** — your org isn't connected to Vibrail Cloud yet.
 - **`409`** — the project is already on the target side, *or* a leftover cloud copy / a name clash blocks the
-  promote. Openship never overwrites the other copy; it asks you to clean up or rename and retry.
+  promote. Vibrail never overwrites the other copy; it asks you to clean up or rename and retry.
 - **`502`** — the cloud accepted the call but the transfer itself failed upstream.
 </Callout>
 
@@ -143,6 +143,6 @@ already authoritative.
 
 <Cards>
   <Card title="Data ownership" href="/docs/architecture/data-ownership" description="Exactly what lives where — your database vs. the cloud." />
-  <Card title="Runtime model" href="/docs/architecture/runtime-model" description="How a deployment resolves to a local/server Docker workload or Openship Cloud." />
-  <Card title="Architecture overview" href="/docs/architecture/overview" description="How the pieces of Openship fit together." />
+  <Card title="Runtime model" href="/docs/architecture/runtime-model" description="How a deployment resolves to a local/server Docker workload or Vibrail Cloud." />
+  <Card title="Architecture overview" href="/docs/architecture/overview" description="How the pieces of Vibrail fit together." />
 </Cards>

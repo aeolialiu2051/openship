@@ -8,7 +8,7 @@ import { err, printJson } from "../lib/output";
  * command (audit log, image catalog, one-off reads) is reachable here.
  */
 export const apiCommand = new Command("api")
-  .description("Make an authenticated request to any Openship API route (like `gh api`)")
+  .description("Make an authenticated request to any Vibrail API route (like `gh api`)")
   .argument("<path>", "Path under /api, e.g. /projects or /deployments/<id>")
   .option("-X, --method <method>", "HTTP method (defaults to GET, or POST when --data is given)")
   .option("-d, --data <json>", "Request body as a JSON string")

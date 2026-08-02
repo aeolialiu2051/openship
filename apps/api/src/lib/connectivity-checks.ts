@@ -32,7 +32,7 @@ async function sshEcho(executor: CommandExecutor): Promise<ConnectivityResult> {
   return connOk(Date.now() - startedAt);
 }
 
-/** A deploy target needs more than an authenticated shell: Openship must be
+/** A deploy target needs more than an authenticated shell: Vibrail must be
  * able to install packages, write proxy/ACME state, and reload services without
  * an interactive password prompt. Validate that contract while credentials are
  * still being bound, rather than failing halfway through the first deploy. */

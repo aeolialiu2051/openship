@@ -3,17 +3,17 @@ title: Deploying
 description: Ship a project, manage its deployments, and follow the logs — the full deploy loop from the terminal.
 ---
 
-The deploy loop is three commands: `openship deploy` ships the current project, `openship deployment`
-inspects and manages the deployments it produces, and `openship logs` streams what happened. Everything
-here runs against the project [linked in `.openship/project.json`](/docs/cli/access) unless you pass an
+The deploy loop is three commands: `vibrail deploy` ships the current project, `vibrail deployment`
+inspects and manages the deployments it produces, and `vibrail logs` streams what happened. Everything
+here runs against the project [linked in `.vibrail/project.json`](/docs/cli/access) unless you pass an
 explicit `--project`.
 
 <Callout title="Global --json">
-Any command accepts the top-level `--json` flag (`openship --json deploy …`) to print machine-readable
+Any command accepts the top-level `--json` flag (`vibrail --json deploy …`) to print machine-readable
 data on stdout instead of the human table/spinner output. Set it before the subcommand.
 </Callout>
 
-## `openship deploy`
+## `vibrail deploy`
 
 Triggers a deployment for the current project. The path is auto-selected by your working directory:
 
@@ -25,18 +25,18 @@ Passing any git-only flag (`--commit`, `--service-ids`, `--smart-route`, `--refr
 
 ```bash
 # Ship the linked project on the current branch
-openship deploy
+vibrail deploy
 
 # Ship and watch the build to completion
-openship deploy --watch
+vibrail deploy --watch
 
 # Deploy a specific project to the preview environment
-openship deploy --project proj_123 --env preview
+vibrail deploy --project proj_123 --env preview
 ```
 
 | Flag | Purpose |
 |---|---|
-| `--project <id>` | Project ID. Defaults to the linked project in `.openship/project.json`. |
+| `--project <id>` | Project ID. Defaults to the linked project in `.vibrail/project.json`. |
 | `--branch <name>` | Git branch to deploy. Defaults to the current branch. |
 | `--commit <sha>` | Specific commit SHA. Defaults to the latest commit on the branch. |
 | `--env <environment>` | Target environment: `production` or `preview`. Defaults to `production`. |
@@ -49,12 +49,12 @@ openship deploy --project proj_123 --env preview
 
 <Callout title="Not watching? Follow it later" type="info">
 Without `--watch`, the command queues the build and prints its deployment ID plus the exact
-`openship logs <id> --follow` line to attach to it.
+`vibrail logs <id> --follow` line to attach to it.
 </Callout>
 
-## `openship deployment`
+## `vibrail deployment`
 
-Manage existing deployments. Aliased as `openship deployments`. Every subcommand takes a deployment ID
+Manage existing deployments. Aliased as `vibrail deployments`. Every subcommand takes a deployment ID
 (except `list`, which is scoped to a project or the whole org).
 
 | Subcommand | Purpose |
@@ -77,8 +77,8 @@ Manage existing deployments. Aliased as `openship deployments`. Every subcommand
 ### list
 
 ```bash
-openship deployment list
-openship deployment list --project proj_123 --env production --limit 20
+vibrail deployment list
+vibrail deployment list --project proj_123 --env production --limit 20
 ```
 
 | Flag | Purpose |
@@ -93,7 +93,7 @@ and `created`.
 ### redeploy
 
 ```bash
-openship deployment redeploy dep_123 --use-existing-commit
+vibrail deployment redeploy dep_123 --use-existing-commit
 ```
 
 | Flag | Purpose |
@@ -103,8 +103,8 @@ openship deployment redeploy dep_123 --use-existing-commit
 ### pin
 
 ```bash
-openship deployment pin dep_123        # pin
-openship deployment pin dep_123 --off  # unpin
+vibrail deployment pin dep_123        # pin
+vibrail deployment pin dep_123 --off  # unpin
 ```
 
 | Flag | Purpose |
@@ -114,7 +114,7 @@ openship deployment pin dep_123 --off  # unpin
 ### rm
 
 ```bash
-openship deployment rm dep_123 --yes
+vibrail deployment rm dep_123 --yes
 ```
 
 | Flag | Purpose |
@@ -132,8 +132,8 @@ Some deployments finish in a state that waits for your call — for example a pa
 SSL certificate operations, keyed by domain rather than deployment ID.
 
 ```bash
-openship deployment ssl status app.example.com
-openship deployment ssl renew app.example.com --www
+vibrail deployment ssl status app.example.com
+vibrail deployment ssl renew app.example.com --www
 ```
 
 | Command | Flag | Purpose |
@@ -144,20 +144,20 @@ openship deployment ssl renew app.example.com --www
 For attaching and verifying domains themselves, see [Custom domains](/docs/guides/custom-domains) and the
 [Domains API](/docs/api/domains).
 
-## `openship logs`
+## `vibrail logs`
 
 View or stream a deployment's logs. The deployment ID is optional — leave it out and the CLI resolves the
 latest deployment of the linked project.
 
 ```bash
 # Latest deployment of the linked project
-openship logs
+vibrail logs
 
 # Print the last 100 lines and exit
-openship logs dep_123 --tail 100
+vibrail logs dep_123 --tail 100
 
 # Stream live until the deployment finishes
-openship logs dep_123 --follow
+vibrail logs dep_123 --follow
 ```
 
 | Flag | Purpose |

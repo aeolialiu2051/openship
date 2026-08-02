@@ -11,7 +11,7 @@ const STEPS = [
   {
     n: "01",
     title: "Connect",
-    body: "Link a Git repo and pick a target — Openship Cloud or your own server over SSH. Nothing is installed on your box: no agent, no daemon, no dashboard.",
+    body: "Link a Git repo and pick a target — Vibrail Cloud or your own server over SSH. Nothing is installed on your box: no agent, no daemon, no dashboard.",
   },
   {
     n: "02",

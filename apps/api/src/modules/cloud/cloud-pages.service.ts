@@ -24,7 +24,7 @@
  */
 
 import type { RequestContext } from "../../lib/request-context";
-import { getNamespaceClient } from "../../lib/openship-cloud";
+import { getNamespaceClient } from "../../lib/vibrail-cloud";
 
 export async function createCloudPage(
   ctx: RequestContext,

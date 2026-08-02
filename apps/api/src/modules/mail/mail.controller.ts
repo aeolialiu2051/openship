@@ -14,14 +14,14 @@
  *
  * State model:
  *   - Durable state ("what HAS been installed") lives on the target VPS at
- *     /root/.openship/mail-state.json. Purge the VPS, state goes with it.
+ *     /root/.vibrail/mail-state.json. Purge the VPS, state goes with it.
  *   - Ephemeral state ("is an install running RIGHT NOW") lives in a
  *     per-server session map in this process. Lost on API restart, which
- *     is fine - if openship restarts mid-install, the on-server state file
+ *     is fine - if vibrail restarts mid-install, the on-server state file
  *     still has the completed steps, the SSE caller can retry from where
  *     it left off via the regular Resume button.
  *
- * No openship DB tables involved.
+ * No vibrail DB tables involved.
  */
 
 import type { Context } from "hono";
@@ -30,7 +30,7 @@ import crypto from "node:crypto";
 import { lookup as dnsLookup } from "node:dns/promises";
 import { buildMailBackupPayload } from "./admin/backup-plan";
 import { streamSSE } from "../../lib/sse";
-import { resolveRootExecutor } from "../../lib/openship-server-store";
+import { resolveRootExecutor } from "../../lib/vibrail-server-store";
 import { USER_SERVERS_ENABLED } from "../../config";
 import { safeErrorMessage } from "@repo/core";
 import { sshManager } from "../../lib/ssh-manager";
@@ -141,7 +141,7 @@ function statusFromState(state: MailServerState | null, serverId: string) {
     : undefined;
 
   // Webmail block - never leak the branding admin token to the dashboard.
-  // The token is the shared secret openship's API uses to PATCH Zero's
+  // The token is the shared secret vibrail's API uses to PATCH Zero's
   // /admin/branding endpoint; the operator never needs to see or paste it.
   const webmail = state.webmail
     ? {
@@ -298,11 +298,11 @@ export async function getStatus(c: Context) {
 }
 
 /**
- * GET /mail/servers - list every server openship has provisioned (or is
+ * GET /mail/servers - list every server vibrail has provisioned (or is
  * provisioning) the mail stack on.
  *
  * Reads from the `mail_servers` table - the single source of truth in
- * openship's DB. Fast (one query, no SSH), survives unreachable hosts,
+ * vibrail's DB. Fast (one query, no SSH), survives unreachable hosts,
  * and stays consistent with the install lifecycle (rows inserted on
  * install start, stamped on completion, removed on reset).
  *
@@ -434,7 +434,7 @@ export async function adoptMailServer(c: Context) {
       return c.json(
         {
           error: iredmailInstalled
-            ? "A mail stack is running but no Openship state file was found — re-run setup to manage it."
+            ? "A mail stack is running but no Vibrail state file was found — re-run setup to manage it."
             : "No mail server found on this server.",
         },
         404,
@@ -445,7 +445,7 @@ export async function adoptMailServer(c: Context) {
       MAIL_SETUP_STEPS.every((step) => state.completedSteps[String(step.id)]?.success === true);
     // Mark it installed when the stack is actually LIVE, not only when every
     // current step id is recorded success. An adopted server set up by an
-    // older openship (or with step-id drift) has a running iRedMail stack but
+    // older vibrail (or with step-id drift) has a running iRedMail stack but
     // may not satisfy the exact per-step check — treating it as installed keeps
     // the dashboard on the admin panel instead of bouncing to the setup wizard.
     const completed = iredmailInstalled || installComplete;
@@ -462,7 +462,7 @@ export async function adoptMailServer(c: Context) {
 
 /**
  * If the state file's `dnsRecords` is missing the `a` (and optionally
- * `aaaa`) entries, derive them from openship's stored sshHost - either
+ * `aaaa`) entries, derive them from vibrail's stored sshHost - either
  * it's already an IP literal, or it's a hostname we resolve via DNS.
  *
  * This is a read-time augmentation only: we DON'T write back to the
@@ -508,18 +508,18 @@ async function augmentStateWithHostRecords(
 
 /**
  * Cross-check `state.webmail.installed` against the webmail project's latest
- * deployment — but ONLY when openship actually owns that deployment. A stale
+ * deployment — but ONLY when vibrail actually owns that deployment. A stale
  * `installed: true` written before a build ran (interrupted deploy) leaves a
  * `webmail-<serverId>` project whose deployment isn't `ready`; we override that.
  *
  * When there is NO `webmail-<serverId>` project at all, the webmail was adopted
- * / is managed outside openship's deploy pipeline (e.g. this openship DB was
+ * / is managed outside vibrail's deploy pipeline (e.g. this vibrail DB was
  * rebuilt and the server re-adopted, so the deployment row no longer exists).
  * The on-server state file is the source of truth there, so we TRUST it rather
  * than masking it to not-installed — otherwise every refresh after an adopt
  * flips the webmail back to "not installed".
  *
- * Read-time only: we never write back. If an openship deploy later succeeds,
+ * Read-time only: we never write back. If a Vibrail deploy later succeeds,
  * the onSuccess hook in deployment-lifecycle writes `installed=true`.
  */
 async function reconcileWebmailInstalled(
@@ -529,10 +529,10 @@ async function reconcileWebmailInstalled(
   if (!state.webmail?.installed) return state;
   try {
     const project = await repos.project.findFirstBySlug(`webmail-${serverId}`);
-    // Adopted / externally-managed webmail (no openship-side project) — the
-    // server, not openship's deployment table, is authoritative. Trust the file.
+    // Adopted / externally-managed webmail (no vibrail-side project) — the
+    // server, not vibrail's deployment table, is authoritative. Trust the file.
     if (!project) return state;
-    // openship owns this webmail deployment: downgrade only when it's genuinely
+    // vibrail owns this webmail deployment: downgrade only when it's genuinely
     // gone / not live (interrupted or torn-down deploy).
     if (!project.activeDeploymentId) {
       return { ...state, webmail: { ...state.webmail, installed: false } };
@@ -1091,7 +1091,7 @@ export async function acknowledgeDns(c: Context) {
  * then the dashboard re-POSTs to /mail/setup with the resume step to
  * continue past the PTR gate.
  *
- * We deliberately don't verify the PTR with `dig -x` from openship's host:
+ * We deliberately don't verify the PTR with `dig -x` from vibrail's host:
  * many VPS providers (Hostinger included) take 5-15 minutes to propagate
  * rDNS changes, and blocking on that would frustrate users. If they lie
  * about having set it, mail-to-Gmail just goes to spam - recoverable.
@@ -1177,7 +1177,7 @@ export async function resetSetup(c: Context) {
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : "Reset failed" }, 500);
   }
-  // Drop openship's record of "this server is a mail server" the moment the
+  // Drop vibrail's record of "this server is a mail server" the moment the
   // on-host state file goes. Best-effort - losing the row is recoverable on
   // the next install start, but losing them out of sync would let /emails
   // claim a stale mail server.

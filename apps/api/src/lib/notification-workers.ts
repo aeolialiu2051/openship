@@ -127,8 +127,8 @@ export function buildDiscordMessage(input: {
   timestamp: string;
 }): DiscordMessage {
   return {
-    username: "Openship",
-    avatar_url: "https://openship.io/favicon.ico",
+    username: "Vibrail",
+    avatar_url: "https://vibrail.warpgateapi.com/favicon.ico",
     embeds: [
       {
         title: truncate(input.title, DISCORD_TITLE_LIMIT),
@@ -154,7 +154,7 @@ async function sendEmail(
   const { title, body } = renderMessage(delivery);
   await sendMail({
     to: config.address,
-    subject: `[Openship] ${title}`,
+    subject: `[Vibrail] ${title}`,
     text: body,
     html: `<pre style="font-family:system-ui,sans-serif;font-size:14px">${escapeHtml(body)}</pre>`,
   });
@@ -212,11 +212,11 @@ async function sendWebhook(
   });
 
   // HMAC signature so the receiver can verify the request came from
-  // Openship. The secret is set when the user creates the channel and
+  // Vibrail. The secret is set when the user creates the channel and
   // stored encrypted in channel.config — we sign the raw body.
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    "User-Agent": "Openship-Webhook/1.0",
+    "User-Agent": "Vibrail-Webhook/1.0",
   };
   if (config.hmacSecret) {
     // The secret is encrypt()'d at storage time (see
@@ -225,7 +225,7 @@ async function sendWebhook(
     // HMAC verify always fails.
     const secret = decrypt(config.hmacSecret);
     const sig = createHmac("sha256", secret).update(body).digest("hex");
-    headers["X-Openship-Signature-256"] = `sha256=${sig}`;
+    headers["X-Vibrail-Signature-256"] = `sha256=${sig}`;
   }
 
   // SSRF-safe delivery: safeFetch resolves once, pins the validated IP (closes
@@ -412,7 +412,7 @@ export async function sendTestToChannel(channel: NotificationChannel): Promise<v
     category: "test",
     createdAt: new Date(),
     payload: {
-      message: "Openship test notification — this channel is configured correctly.",
+      message: "Vibrail test notification — this channel is configured correctly.",
     },
   } as unknown as NotificationDelivery;
   await worker(testDelivery, channel);

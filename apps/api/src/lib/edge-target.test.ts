@@ -3,7 +3,7 @@ import { isNonPublicHost } from "./edge-target";
 
 /**
  * `isNonPublicHost` is the guard that stops a free `.vibrail.warpgateapi.com` route from being
- * wired at a host Openship Cloud can't reach (the root cause of the 404: an
+ * wired at a host Vibrail Cloud can't reach (the root cause of the 404: an
  * `isLocal` box's display `sshHost` is `127.0.0.1`, which Oblien would proxy to
  * its OWN loopback). A false negative here re-introduces the dead route, so the
  * ranges are pinned explicitly.

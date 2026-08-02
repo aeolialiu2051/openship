@@ -55,7 +55,7 @@ export async function clearCloudSession(userId: string): Promise<void> {
 // ─── Connection truth (live, single-flight) ──────────────────────────────────
 
 /**
- * THE source of truth for "is this user connected to Openship Cloud":
+ * THE source of truth for "is this user connected to Vibrail Cloud":
  *
  *   - no stored token        → not connected (can't even ask)
  *   - SaaS 200               → connected (+ profile when present)
@@ -129,7 +129,7 @@ export async function isCloudConnected(userId: string): Promise<boolean> {
 }
 
 /**
- * THE source of truth for "is this ORG connected to Openship Cloud".
+ * THE source of truth for "is this ORG connected to Vibrail Cloud".
  *
  * Connection is owned by the org OWNER — only the owner can link cloud, and
  * their session is the org's single cloud identity that every org-scoped

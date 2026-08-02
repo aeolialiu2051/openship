@@ -24,9 +24,9 @@ const BuildSummary: React.FC = () => {
   const services = config.services || [];
   const exposedServices = services.filter((s) => s.exposed);
   // Build location follows buildStrategy FIRST: a "local" build runs on this
-  // machine even when the deploy target is Openship Cloud (local-orchestrated
+  // machine even when the deploy target is Vibrail Cloud (local-orchestrated
   // cloud — build here, upload the output to the cloud workspace). Only a
-  // SERVER build takes the target's name ("Openship Cloud" vs generic "Server").
+  // SERVER build takes the target's name ("Vibrail Cloud" vs generic "Server").
   const buildLocation = config.buildStrategy === "local"
     ? {
         label: t.deploy.buildSummary.localMachine,

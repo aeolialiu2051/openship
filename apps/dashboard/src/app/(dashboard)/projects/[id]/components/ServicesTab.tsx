@@ -757,7 +757,7 @@ export const ServicesTab = () => {
                     urlHost
                   ) : ct?.ip ? (
                     // Internal service that's running — its real internal IP on
-                    // the openship network (what the user actually wants to see).
+                    // the vibrail network (what the user actually wants to see).
                     <span className="font-mono">{ct.ip}</span>
                   ) : (
                     // Not running yet — fall back to the stable address SIBLINGS

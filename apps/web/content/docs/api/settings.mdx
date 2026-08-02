@@ -1,20 +1,20 @@
 ---
 title: Settings API
-description: Read and update your Openship workspace preferences — build mode, deploy defaults, and git clone credentials.
+description: Read and update your Vibrail workspace preferences — build mode, deploy defaults, and git clone credentials.
 ---
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
 The Settings API stores your workspace preferences: which build mode to use by default, the deploy target
 and server to pre-select, and a saved git token for cloning private repos. These follow you across devices
-and sync to Openship Cloud. In the dashboard this is the **Settings** page; there is no dedicated `openship`
-CLI command for these values (the CLI's `openship system settings` manages instance-level settings, a
+and sync to Vibrail Cloud. In the dashboard this is the **Settings** page; there is no dedicated `vibrail`
+CLI command for these values (the CLI's `vibrail system settings` manages instance-level settings, a
 [different module](/docs/api)).
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/settings`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model.
 </Callout>
 
@@ -45,7 +45,7 @@ GET /api/settings
 
 ```bash
 curl https://your-host/api/settings \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 The response includes `buildMode`, `defaultDeployTarget`, `defaultServerId`, a `cloneToken` object
@@ -68,7 +68,7 @@ PUT /api/settings
 
 ```bash
 curl -X PUT https://your-host/api/settings \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"buildMode":"server"}'
 ```
@@ -89,7 +89,7 @@ PATCH /api/settings/build-mode
 
 ```bash
 curl -X PATCH https://your-host/api/settings/build-mode \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"buildMode":"local"}'
 ```
@@ -112,7 +112,7 @@ PATCH /api/settings/deploy-defaults
 
 ```bash
 curl -X PATCH https://your-host/api/settings/deploy-defaults \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"defaultDeployTarget":"server","defaultServerId":"srv_123"}'
 ```
@@ -141,13 +141,13 @@ PATCH /api/settings/clone-credentials
 ```bash
 # Store a token and use it by default
 curl -X PATCH https://your-host/api/settings/clone-credentials \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"token":"ghp_xxx","asDefault":true}'
 
 # Clear the stored token
 curl -X PATCH https://your-host/api/settings/clone-credentials \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"token":null}'
 ```
@@ -169,7 +169,7 @@ PATCH /api/settings/clone-strategy-preference
 
 ```bash
 curl -X PATCH https://your-host/api/settings/clone-strategy-preference \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"preference":"remote-with-token"}'
 ```
@@ -194,7 +194,7 @@ PATCH /api/settings/forward-git
 
 ```bash
 curl -X PATCH https://your-host/api/settings/forward-git \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"enabled":true}'
 ```
@@ -209,6 +209,6 @@ an `error` message naming the allowed values.
 
 <Callout title="403 — missing scope" type="error">
 Reading requires the `settings:read` scope and writing requires `settings:write`. A token without the scope
-gets `403`. Mint one with the right scopes via [`openship token create`](/docs/cli/access), or see
+gets `403`. Mint one with the right scopes via [`vibrail token create`](/docs/cli/access), or see
 [authentication](/docs/security/auth).
 </Callout>

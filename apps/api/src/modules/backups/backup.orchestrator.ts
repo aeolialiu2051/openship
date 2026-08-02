@@ -246,7 +246,7 @@ export class BackupOrchestrator {
       if (!destinationRow) throw new Error(`Destination ${policy.destinationId} disappeared`);
 
       // 2. Resolve the destination up front (shared by both source kinds).
-      //    toAdapterRow handles openship_server by hydrating creds from the
+      //    toAdapterRow handles vibrail_server by hydrating creds from the
       //    user's `servers` row; other kinds are a straight passthrough.
       const adapterRow = await toAdapterRow(destinationRow);
       const destination = resolveDestination(adapterRow);

@@ -27,7 +27,7 @@ describe("app catalog (JSON)", () => {
     expect(command).toContain("set -e");
     expect(command).toContain("hasDefaultCredential: true");
     expect(command).toContain("/app/x-ui setting -username");
-    expect(command).not.toContain(".openship-credentials-initialized");
+    expect(command).not.toContain(".vibrail-credentials-initialized");
     expect(command).not.toContain("/usr/bin/x-ui restart");
     expect(app?.prepare?.[1]?.once).not.toBe(true);
     expect(app?.prepare?.[2]?.once).not.toBe(true);

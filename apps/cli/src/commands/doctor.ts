@@ -1,12 +1,12 @@
 /**
- * `openship doctor` — diagnose and repair a local Openship instance.
+ * `vibrail doctor` — diagnose and repair a local Vibrail instance.
  *
  * For a LOCAL self-hosted box (the active context points at localhost) this is a
  * real health surface: service state, database liveness/migrations, deployed-
  * service containers, and system components — and, when the embedded database is
  * corrupt (the crash-loop-on-boot case), an interactive backup → heal → verify
  * repair. Interactive by default (a `@clack/prompts` panel + menu, like the bare
- * `openship` control panel); `--json` / non-TTY prints a machine-readable report
+ * `vibrail` control panel); `--json` / non-TTY prints a machine-readable report
  * with a non-zero exit on failure; `--fix` runs the light repair with no prompts.
  *
  * For a REMOTE context it falls back to the original lightweight preflight
@@ -128,11 +128,11 @@ function bunVersion(): string | null {
 async function remotePreflight(): Promise<void> {
   const checks: Array<{ name: string; status: CheckState; detail: string }> = [];
   const hasConfig = existsSync(CONFIG_PATH);
-  checks.push({ name: "config", status: hasConfig ? "pass" : "warn", detail: hasConfig ? CONFIG_PATH : `not found; run \`openship login\`` });
+  checks.push({ name: "config", status: hasConfig ? "pass" : "warn", detail: hasConfig ? CONFIG_PATH : `not found; run \`vibrail login\`` });
   const context = getActiveContext();
   const apiUrl = getApiUrl();
   const hasToken = Boolean(getContext(context).token);
-  checks.push({ name: "context", status: hasToken ? "pass" : "warn", detail: hasToken ? `${context} (${apiUrl})` : `${context} has no token; run \`openship login\`` });
+  checks.push({ name: "context", status: hasToken ? "pass" : "warn", detail: hasToken ? `${context} (${apiUrl})` : `${context} has no token; run \`vibrail login\`` });
   let reachable = false;
   try {
     const res = await apiRaw("/health", { signal: AbortSignal.timeout(6000) });
@@ -148,7 +148,7 @@ async function remotePreflight(): Promise<void> {
   if (isJsonMode()) {
     printJson({ context, apiUrl, reachable, checks });
   } else {
-    process.stdout.write(chalk.bold("\n  Openship doctor\n\n"));
+    process.stdout.write(chalk.bold("\n  Vibrail doctor\n\n"));
     for (const c of checks) process.stdout.write(`  ${GLYPH[c.status]} ${chalk.bold(c.name.padEnd(8))} ${c.detail}\n`);
     process.stdout.write("\n");
   }
@@ -176,12 +176,12 @@ async function reportOnce(): Promise<void> {
       lastError: s.lastError,
     });
   } else {
-    process.stdout.write(chalk.bold("\n  Openship doctor\n\n"));
+    process.stdout.write(chalk.bold("\n  Vibrail doctor\n\n"));
     process.stdout.write(`  ${GLYPH[svc.state]} ${chalk.bold("Service".padEnd(10))} ${svc.detail}\n`);
     process.stdout.write(`  ${GLYPH[db.state]} ${chalk.bold("Database".padEnd(10))} ${db.detail}\n`);
     for (const c of s.components) process.stdout.write(`  ${GLYPH[c.state]} ${chalk.bold(c.name.padEnd(10))} ${c.detail}\n`);
     process.stdout.write(`  ${GLYPH[services.state]} ${chalk.bold("Services".padEnd(10))} ${services.detail}\n`);
-    if (s.corrupted) process.stdout.write(chalk.yellow(`\n  Database looks corrupted — run \`openship doctor\` (interactive) or \`openship doctor --fix\`.\n`));
+    if (s.corrupted) process.stdout.write(chalk.yellow(`\n  Database looks corrupted — run \`vibrail doctor\` (interactive) or \`vibrail doctor --fix\`.\n`));
     process.stdout.write("\n");
   }
   const failed = svc.state === "fail" || db.state === "fail" || services.state === "fail" || s.components.some((c) => c.state === "fail");
@@ -214,7 +214,7 @@ async function autoFix(): Promise<void> {
   if (verified) {
     out(chalk.green("Database is healthy again. Your data is intact."));
   } else {
-    out(chalk.red(`Still not healthy. Backup preserved at ${backup}. Run \`openship doctor\` for guided recovery.`));
+    out(chalk.red(`Still not healthy. Backup preserved at ${backup}. Run \`vibrail doctor\` for guided recovery.`));
     process.exit(1);
   }
 }
@@ -222,7 +222,7 @@ async function autoFix(): Promise<void> {
 /* ── Interactive doctor (TTY, local) ─────────────────────────────────────── */
 
 async function interactiveDoctor(): Promise<void> {
-  intro(`${chalk.bgCyan(chalk.black(" Openship "))}${chalk.dim(" doctor")}`);
+  intro(`${chalk.bgCyan(chalk.black(" Vibrail "))}${chalk.dim(" doctor")}`);
 
   // Menu loop — re-gather status each pass so a repair/restart reflects live.
   for (;;) {

@@ -10,9 +10,9 @@ import { describe, test, expect, vi, beforeEach } from "vitest";
 vi.mock("@/config/env", () => ({
   env: {
     DEPLOY_MODE: "docker",
-    OPENSHIP_ALLOW_ZERO_AUTH: false,
-    OPENSHIP_REQUIRE_AUTH: false,
-    OPENSHIP_PUBLIC_URL: undefined as string | undefined,
+    VIBRAIL_ALLOW_ZERO_AUTH: false,
+    VIBRAIL_REQUIRE_AUTH: false,
+    VIBRAIL_PUBLIC_URL: undefined as string | undefined,
   },
 }));
 vi.mock("@/lib/auth-mode", () => ({ getAuthMode: vi.fn(async () => "none") }));
@@ -31,9 +31,9 @@ const e = env as unknown as Record<string, unknown>;
 
 beforeEach(() => {
   e.DEPLOY_MODE = "docker";
-  e.OPENSHIP_ALLOW_ZERO_AUTH = false;
-  e.OPENSHIP_REQUIRE_AUTH = false;
-  e.OPENSHIP_PUBLIC_URL = undefined;
+  e.VIBRAIL_ALLOW_ZERO_AUTH = false;
+  e.VIBRAIL_REQUIRE_AUTH = false;
+  e.VIBRAIL_PUBLIC_URL = undefined;
   (getAuthMode as ReturnType<typeof vi.fn>).mockResolvedValue("none");
   (isLoopbackRequest as ReturnType<typeof vi.fn>).mockReturnValue(true);
 });
@@ -49,14 +49,14 @@ describe("zeroAuthAllowed", () => {
   });
 
   test("mode=none + opt-in but NON-loopback peer → refused", async () => {
-    e.OPENSHIP_ALLOW_ZERO_AUTH = true;
+    e.VIBRAIL_ALLOW_ZERO_AUTH = true;
     (isLoopbackRequest as ReturnType<typeof vi.fn>).mockReturnValue(false);
     expect((await zeroAuthAllowed(ctx)).ok).toBe(false);
   });
 
-  test("mode=none + publicly-served (OPENSHIP_PUBLIC_URL) → refused", async () => {
+  test("mode=none + publicly-served (VIBRAIL_PUBLIC_URL) → refused", async () => {
     e.DEPLOY_MODE = "desktop";
-    e.OPENSHIP_PUBLIC_URL = "https://openship.example";
+    e.VIBRAIL_PUBLIC_URL = "https://vibrail.example";
     expect((await zeroAuthAllowed(ctx)).ok).toBe(false);
   });
 
@@ -66,7 +66,7 @@ describe("zeroAuthAllowed", () => {
   });
 
   test("mode=none + docker + explicit opt-in + loopback → allowed", async () => {
-    e.OPENSHIP_ALLOW_ZERO_AUTH = true;
+    e.VIBRAIL_ALLOW_ZERO_AUTH = true;
     expect((await zeroAuthAllowed(ctx)).ok).toBe(true);
   });
 });

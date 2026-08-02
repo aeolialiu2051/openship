@@ -17,8 +17,8 @@ import { isLoopbackRequest, peerAddress } from "./loopback-peer";
  *
  * Zero-auth is permitted ONLY when ALL hold:
  *   - resolved authMode === "none" (canonical getAuthMode, never a raw default)
- *   - not CLI-managed / publicly-served (OPENSHIP_REQUIRE_AUTH / OPENSHIP_PUBLIC_URL)
- *   - desktop, or OPENSHIP_ALLOW_ZERO_AUTH explicitly opted in
+ *   - not CLI-managed / publicly-served (VIBRAIL_REQUIRE_AUTH / VIBRAIL_PUBLIC_URL)
+ *   - desktop, or VIBRAIL_ALLOW_ZERO_AUTH explicitly opted in
  *   - the TCP peer is loopback (kernel-reported, unspoofable)
  */
 export async function zeroAuthAllowed(
@@ -27,11 +27,11 @@ export async function zeroAuthAllowed(
   const mode = await getAuthMode();
   if (mode !== "none") return { ok: false, reason: `authMode=${mode}` };
 
-  if (env.OPENSHIP_REQUIRE_AUTH || env.OPENSHIP_PUBLIC_URL) {
+  if (env.VIBRAIL_REQUIRE_AUTH || env.VIBRAIL_PUBLIC_URL) {
     return { ok: false, reason: "cli-managed-or-publicly-served" };
   }
-  if (env.DEPLOY_MODE !== "desktop" && !env.OPENSHIP_ALLOW_ZERO_AUTH) {
-    return { ok: false, reason: `deploy-mode=${env.DEPLOY_MODE} without OPENSHIP_ALLOW_ZERO_AUTH` };
+  if (env.DEPLOY_MODE !== "desktop" && !env.VIBRAIL_ALLOW_ZERO_AUTH) {
+    return { ok: false, reason: `deploy-mode=${env.DEPLOY_MODE} without VIBRAIL_ALLOW_ZERO_AUTH` };
   }
   if (!isLoopbackRequest(c)) {
     return { ok: false, reason: `non-loopback peer=${peerAddress(c) ?? "<unknown>"}` };

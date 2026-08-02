@@ -3,21 +3,21 @@ import { Navbar, Footer } from "@/components/landing";
 
 const PAGE_TITLE = "About";
 const PAGE_DESCRIPTION =
-  "Openship is an open-source deployment platform built and maintained by the team at Oblien. Apache 2.0, source on GitHub, yours to run anywhere.";
+  "Vibrail is an open-source deployment platform built and maintained by the team at Oblien. Apache 2.0, source on GitHub, yours to run anywhere.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/about" },
   openGraph: {
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
     url: "/about",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
   },
 };
@@ -75,7 +75,7 @@ export default function AboutPage() {
                     <h2 className="legal-section-title">What we build</h2>
                   </header>
                   <p className="legal-p">
-                    Openship is a deployment platform you run yourself. Point it at a repository and it
+                    Vibrail is a deployment platform you run yourself. Point it at a repository and it
                     detects your stack, builds it, and ships it to any Linux server you own — with databases,
                     domains, SSL, mail, and backups managed from one place.
                   </p>
@@ -91,12 +91,12 @@ export default function AboutPage() {
                     <h2 className="legal-section-title">Open source</h2>
                   </header>
                   <p className="legal-p">
-                    Openship is open-source software under the{" "}
-                    <a href="https://github.com/oblien/openship/blob/main/LICENSE" target="_blank" rel="noreferrer">
+                    Vibrail is open-source software under the{" "}
+                    <a href="https://github.com/aeolialiu2051/vibrail/blob/main/LICENSE" target="_blank" rel="noreferrer">
                       Apache License 2.0
                     </a>
                     . The dashboard, CLI, agents, and infrastructure adapters are all public and auditable on{" "}
-                    <a href="https://github.com/oblien/openship" target="_blank" rel="noreferrer">GitHub</a>.
+                    <a href="https://github.com/aeolialiu2051/vibrail" target="_blank" rel="noreferrer">GitHub</a>.
                   </p>
                   <p className="legal-p">
                     Every deployment is a standard Docker container with standard manifests — no proprietary
@@ -111,13 +111,13 @@ export default function AboutPage() {
                     <h2 className="legal-section-title">Who&rsquo;s behind it</h2>
                   </header>
                   <p className="legal-p">
-                    Openship is built and maintained by the team at{" "}
+                    Vibrail is built and maintained by the team at{" "}
                     <a href="https://oblien.com" target="_blank" rel="noreferrer">Oblien</a> (Oblien LLC), which
                     builds cloud and developer infrastructure. It stays open under Apache 2.0 for everyone who
                     deploys with it.
                   </p>
                   <p className="legal-p">
-                    Openship Cloud — the managed option — is operated by Oblien, but the platform itself is
+                    Vibrail Cloud — the managed option — is operated by Oblien, but the platform itself is
                     yours to self-host, forever, at no cost.
                   </p>
                 </section>
@@ -129,7 +129,7 @@ export default function AboutPage() {
                   </header>
                   <p className="legal-p">
                     Star or fork the project, open an issue, or send a pull request on{" "}
-                    <a href="https://github.com/oblien/openship" target="_blank" rel="noreferrer">GitHub</a>.
+                    <a href="https://github.com/aeolialiu2051/vibrail" target="_blank" rel="noreferrer">GitHub</a>.
                     Bug reports and feature ideas are genuinely welcome — the docs and the platform improve
                     fastest with them.
                   </p>

@@ -102,7 +102,7 @@
       "noMatchesTitle": "Aucun résultat",
       "noMatchesBody": "Essayez une autre catégorie ou un autre terme de recherche - ou choisissez Image personnalisée dans la barre latérale.",
       "localImages": "Images locales",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "Docker local",
       "customEntryName": "Image personnalisée",
       "customEntryDescription": "Récupérez n'importe quelle image Docker publique ou privée par tag.",

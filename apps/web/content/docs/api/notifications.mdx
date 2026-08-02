@@ -14,12 +14,12 @@ Notifications** page. Channels, subscriptions, and deliveries are per-user; defa
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/notifications/channels`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and the [auth model](/docs/security/auth) for details.
 </Callout>
 
 <Callout title="Available on every instance" type="info">
-  This module ships on both self-hosted and cloud instances. There is no dedicated `openship` CLI
+  This module ships on both self-hosted and cloud instances. There is no dedicated `vibrail` CLI
   command — manage notifications from the dashboard or these endpoints directly.
 </Callout>
 
@@ -56,7 +56,7 @@ Categories are the stable, user-facing event groups (e.g. `deploy.failed`, `back
 
 ```bash
 curl https://your-host/api/notifications/categories \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Create a channel
@@ -129,7 +129,7 @@ The `config` shape depends on `kind`:
 
 ```bash
 curl -X POST https://your-host/api/notifications/channels \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"kind":"email","label":"On-call inbox","config":{"address":"ops@example.com"}}'
 ```
@@ -192,7 +192,7 @@ PUT /api/notifications/subscriptions
 
 ```bash
 curl -X PUT https://your-host/api/notifications/subscriptions \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"category":"deploy.failed","channelId":"chan_123","enabled":true}'
 ```
@@ -253,7 +253,7 @@ GET /api/notifications/deliveries
 
 ```bash
 curl "https://your-host/api/notifications/deliveries?unseen=true&limit=20" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Errors you might see

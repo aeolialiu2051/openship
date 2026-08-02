@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
 
-const SITE_URL = "https://openship.io";
-const SITE_NAME = "Openship";
-const TITLE_DEFAULT = "Openship - Open Source, Self-Hostable Deployment Platform";
-const TITLE_TEMPLATE = "%s - Openship";
+const SITE_URL = "https://vibrail.warpgateapi.com";
+const SITE_NAME = "Vibrail";
+const TITLE_DEFAULT = "Vibrail - Open Source, Self-Hostable Deployment Platform";
+const TITLE_TEMPLATE = "%s - Vibrail";
 const DESCRIPTION =
   "Deploy anything, own everything. Self-hostable, AI-powered deployment platform with free SSL, unlimited domains, instant rollbacks, and CLI/MCP support. Open source and free forever.";
 
@@ -73,11 +73,11 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Openship - Deploy Anything. Own Everything.",
+    title: "Vibrail - Deploy Anything. Own Everything.",
     description:
       "Open source, self-hostable deployment platform with AI-powered builds and instant rollbacks.",
-    creator: "@openship",
-    site: "@openship",
+    creator: "@vibrail",
+    site: "@vibrail",
   },
   robots: {
     index: true,
@@ -94,7 +94,7 @@ export const metadata: Metadata = {
     canonical: "/",
     types: {
       "application/rss+xml": [
-        { url: "/resources/rss.xml", title: "Openship Resources" },
+        { url: "/resources/rss.xml", title: "Vibrail Resources" },
       ],
     },
   },
@@ -130,15 +130,15 @@ const organizationLd = {
   description: DESCRIPTION,
   foundingDate: "2024",
   sameAs: [
-    "https://github.com/oblien/openship",
-    "https://x.com/openshipio",
+    "https://github.com/aeolialiu2051/vibrail",
+    "https://x.com/vibrailio",
     "https://discord.gg/Q9eWNCeXjg",
   ],
   contactPoint: [
     {
       "@type": "ContactPoint",
       contactType: "customer support",
-      email: "hello@openship.io",
+      email: "hello@vibrail.warpgateapi.com",
       availableLanguage: ["English"],
     },
   ],

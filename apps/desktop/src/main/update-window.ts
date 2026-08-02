@@ -59,7 +59,7 @@ function buildHtml(info: UpdateInfo): string {
     const INFO = ${payload};
     const u = window.desktop && window.desktop.updates;
     document.getElementById("sub").textContent =
-      "Openship " + INFO.version + " is ready to install.";
+      "Vibrail " + INFO.version + " is ready to install.";
     document.getElementById("notes").textContent = (INFO.notes || "").trim() ||
       "A new version is available.";
     const status = document.getElementById("status");
@@ -94,7 +94,7 @@ export function openUpdateWindow(
     minimizable: false,
     maximizable: false,
     fullscreenable: false,
-    title: "Openship Update",
+    title: "Vibrail Update",
     parent: parent ?? undefined,
     show: false,
     // Match the app's page background per OS theme so there's no wrong-theme

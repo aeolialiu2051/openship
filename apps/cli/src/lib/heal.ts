@@ -2,7 +2,7 @@
  * PGlite data-dir recovery — get a corrupted embedded database back to a
  * startable state WITHOUT losing committed data. This is the pure-Node port of
  * `packages/db/scripts/heal-pglite.ts`, brought into the shipped CLI so
- * `openship doctor` can repair a box that's crash-looping on boot.
+ * `vibrail doctor` can repair a box that's crash-looping on boot.
  *
  * Symptom this fixes:
  *   DrizzleQueryError: Failed query: CREATE SCHEMA IF NOT EXISTS "drizzle"
@@ -32,7 +32,7 @@ import { execFileSync } from "node:child_process";
 import { OS_DIR } from "./paths";
 
 /** The embedded DB directory: `PGLITE_DATA_DIR` (with `~` expansion) else
- *  `~/.openship/data` — matches `resolvePgliteDataDir()` in packages/db. */
+ *  `~/.vibrail/data` — matches `resolvePgliteDataDir()` in packages/db. */
 export function resolveDataDir(): string {
   const fromEnv = process.env.PGLITE_DATA_DIR?.trim();
   if (fromEnv) {

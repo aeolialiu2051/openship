@@ -92,7 +92,7 @@ import "./executors/cloud";           // cloud runtime → backup executor
 import "./executors/bare";            // bare SSH host → backup executor (mail, etc.)
 import "./destinations/local";        // local filesystem destination
 import "./destinations/s3";           // S3-compatible (AWS/R2/Wasabi/B2/MinIO/...)
-import "./destinations/sftp";         // SFTP + openship_server (shared impl)
+import "./destinations/sftp";         // SFTP + vibrail_server (shared impl)
 
 // Other producers / executors / destinations land in later chunks via
 // new side-effect imports here. Keep this section flat + ordered.

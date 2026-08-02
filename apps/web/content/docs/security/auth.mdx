@@ -1,11 +1,11 @@
 ---
 title: Authentication
-description: How you prove who you are to Openship — session cookies, personal access tokens, MCP OAuth, and desktop loopback mode.
+description: How you prove who you are to Vibrail — session cookies, personal access tokens, MCP OAuth, and desktop loopback mode.
 ---
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-Every request to Openship has to answer one question first: **who are you?** Openship accepts four
+Every request to Vibrail has to answer one question first: **who are you?** Vibrail accepts four
 different ways to answer it, and which one applies depends on *where* the request comes from — a browser
 tab, a script, an AI agent, or the desktop app talking to itself. This page walks through each one.
 
@@ -20,27 +20,27 @@ after login are covered separately in [Permission model](/docs/security/permissi
 | Method | What you send | When it applies |
 |---|---|---|
 | **Session cookie** | An httpOnly cookie the browser holds for you | The dashboard, in a normal browser |
-| **Personal access token (PAT)** | `Authorization: Bearer opsh_pat_…` | The CLI, scripts, server-to-server, and MCP clients without OAuth |
+| **Personal access token (PAT)** | `Authorization: Bearer vibrail_pat_…` | The CLI, scripts, server-to-server, and MCP clients without OAuth |
 | **MCP OAuth** | An OAuth 2.1 access token the client fetches for you | AI agents (Claude, Cursor, …) connecting to `/api/mcp` |
 | **Zero-auth loopback** | Nothing — the request just comes from `127.0.0.1` | The desktop app, or a local single-user instance you opt into |
 
-A single request uses exactly one of these. Openship checks for a `Bearer` token first; if there isn't
+A single request uses exactly one of these. Vibrail checks for a `Bearer` token first; if there isn't
 one, it looks for a session cookie; if there's neither, it falls back to the loopback path (and only if
 that mode is turned on).
 
 ## Session cookies (the dashboard)
 
-When you log in to the dashboard, Openship gives your browser a **signed, httpOnly session cookie**.
+When you log in to the dashboard, Vibrail gives your browser a **signed, httpOnly session cookie**.
 "httpOnly" means JavaScript running in the page cannot read it — so even if a bad script somehow ran on
 the page, it couldn't steal your session. The browser sends the cookie automatically on every request;
 you never handle it yourself.
 
-The cookie name is prefixed with your instance mode — `openship.session_token` on a self-hosted install,
-`openship-cloud.session_token` on Openship Cloud.
+The cookie name is prefixed with your instance mode — `vibrail.session_token` on a self-hosted install,
+`vibrail-cloud.session_token` on Vibrail Cloud.
 
 <Callout title="Bearer tokens are refused from the dashboard's own origin" type="warn">
 If a request arrives with a `Bearer` header **and** an `Origin` matching one of the dashboard's trusted
-browser origins, Openship rejects it (`401 BEARER_NOT_ALLOWED_FROM_BROWSER`). Bearer tokens are for
+browser origins, Vibrail rejects it (`401 BEARER_NOT_ALLOWED_FROM_BROWSER`). Bearer tokens are for
 CLIs and servers; a token showing up from a browser tab is the signature of a stolen credential being
 replayed, so the door is closed. The CLI sends no `Origin` header at all, which is why its tokens are
 accepted.
@@ -52,11 +52,11 @@ A **personal access token** (PAT) is a long string you send in the `Authorizatio
 you are without a browser:
 
 ```
-Authorization: Bearer opsh_pat_…
+Authorization: Bearer vibrail_pat_…
 ```
 
-Every token looks like `opsh_pat_` followed by a 43-character random secret (256 bits of entropy).
-Openship stores **only a SHA-256 hash** of it — the plaintext is shown to you exactly once, at creation,
+Every token looks like `vibrail_pat_` followed by a 43-character random secret (256 bits of entropy).
+Vibrail stores **only a SHA-256 hash** of it — the plaintext is shown to you exactly once, at creation,
 and can never be retrieved again. A token always **acts as the person who created it** and carries that
 person's role, unless you narrow it (see below).
 
@@ -71,20 +71,20 @@ From the terminal:
 
 ```bash
 # A full-access token that acts as you
-openship token create "my laptop"
+vibrail token create "my laptop"
 
 # A read-only token that expires in 90 days
-openship token create "ci-readonly" --read-only --expires 90
+vibrail token create "ci-readonly" --read-only --expires 90
 
 # A token scoped to one project (read + write only on that project)
-openship token create "deploy-bot" --grant project:proj_123:read,write
+vibrail token create "deploy-bot" --grant project:proj_123:read,write
 
-openship token list      # your tokens (never shows secrets)
-openship token revoke <id>
+vibrail token list      # your tokens (never shows secrets)
+vibrail token revoke <id>
 ```
 
 <Callout title="Use a token from the CLI" type="info">
-`openship login` stores a token so the CLI can send it on every call. Run it with `--token opsh_pat_…`
+`vibrail login` stores a token so the CLI can send it on every call. Run it with `--token vibrail_pat_…`
 for a non-interactive login (handy in CI), or run it bare to open the token settings page and paste one in.
 The stored token is only ever sent as a `Bearer` header — never as a cookie.
 </Callout>
@@ -117,7 +117,7 @@ returns `401 INVALID_TOKEN`.
 
 ## MCP OAuth (AI agents)
 
-Openship is a standards-compliant **OAuth 2.1** server for the **Model Context Protocol (MCP)** — the
+Vibrail is a standards-compliant **OAuth 2.1** server for the **Model Context Protocol (MCP)** — the
 way AI agents call tools. An MCP-capable client (Claude, Cursor, …) points at `POST /api/mcp`, and the
 handshake is automatic: the first unauthenticated request returns a `401` pointing at
 `/.well-known/oauth-protected-resource`, the client registers itself, runs the **PKCE** authorize flow
@@ -148,10 +148,10 @@ This is safe only because it is gated twice, and both gates must pass:
 
 <Callout title="Every condition is required" type="warn">
 1. **Not CLI-managed or public.** Zero-auth is for the **desktop app only**. An instance started from the
-   CLI (`openship up` sets `OPENSHIP_REQUIRE_AUTH`) or served publicly (`--public-url` /
-   `OPENSHIP_PUBLIC_URL`) refuses zero-auth outright — it always requires a login.
+   CLI (`vibrail up` sets `VIBRAIL_REQUIRE_AUTH`) or served publicly (`--public-url` /
+   `VIBRAIL_PUBLIC_URL`) refuses zero-auth outright — it always requires a login.
 2. **Opt-in.** The instance's auth mode must be `none`. This is the default for the desktop app; on any
-   other deployment it also requires the operator to set `OPENSHIP_ALLOW_ZERO_AUTH=true`.
+   other deployment it also requires the operator to set `VIBRAIL_ALLOW_ZERO_AUTH=true`.
 3. **Loopback only.** The request must come from a loopback address (`127.0.0.1` / `::1`), read from the
    kernel-reported TCP peer — **not** the `Host` header, which a client or a misconfigured reverse proxy
    could forge. A request from anywhere else is rejected with `401`, even in zero-auth mode.
@@ -165,21 +165,21 @@ closes that hole, so a remote visitor can never land on the zero-auth path.
 
 On a normal self-hosted install this path is never even reached: the auth mode defaults to `local`, so a
 missing session is a plain `401`. Turning it on is a deliberate operator choice — auth mode `none` **and**
-`OPENSHIP_ALLOW_ZERO_AUTH=true` — and even then the loopback check keeps it usable only from the machine
+`VIBRAIL_ALLOW_ZERO_AUTH=true` — and even then the loopback check keeps it usable only from the machine
 itself. A request arriving through a network reverse proxy carries the proxy's address as its TCP peer,
 not loopback, so it is refused.
 
-Openship recognizes three auth modes overall:
+Vibrail recognizes three auth modes overall:
 
 - **`none`** — zero-auth loopback, described above. Default for the desktop app only; never used by a
   CLI-started or public instance.
 - **`local`** — standard login required (email + password via [Better Auth](https://www.better-auth.com/)).
-  Default for a fresh self-hosted install, and always used for CLI (`openship up`) and public instances.
-- **`cloud`** — the desktop app signs in with an Openship Cloud account instead of a local one.
+  Default for a fresh self-hosted install, and always used for CLI (`vibrail up`) and public instances.
+- **`cloud`** — the desktop app signs in with a Vibrail Cloud account instead of a local one.
 
 <Callout title="Creating the first admin" type="info">
 A CLI or self-hosted instance has no public sign-up. The first admin (email + password) is created during the
-`openship` guided setup, over an internal-token-gated, one-shot endpoint that a browser can't reach. After
+`vibrail` guided setup, over an internal-token-gated, one-shot endpoint that a browser can't reach. After
 that, add more users from **Settings → Team** in the dashboard.
 </Callout>
 
@@ -191,7 +191,7 @@ never be mistaken for "no login required."
 
 ## Cloud sign-in
 
-Choosing **Continue with Cloud** (or connecting a self-hosted instance to Openship Cloud) runs a PKCE
+Choosing **Continue with Cloud** (or connecting a self-hosted instance to Vibrail Cloud) runs a PKCE
 handshake that mints a **cloud session** for the connecting owner. That session is stored **encrypted,
 server-side only** — the browser never sees it — and org-scoped cloud calls act on the owner's behalf
 through it. How that boundary is kept clean is covered in
@@ -199,17 +199,17 @@ through it. How that boundary is kept clean is covered in
 
 ## Where credentials live
 
-Openship keeps secrets where they're safest instead of copying them around:
+Vibrail keeps secrets where they're safest instead of copying them around:
 
 - **PAT secrets** are stored only as a SHA-256 hash; the plaintext exists just once, in your clipboard.
 - **Cloud sessions** are encrypted at rest on the instance and never exposed to the browser.
-- The **GitHub App private key** lives only on Openship Cloud; self-hosted instances mint short-lived App
+- The **GitHub App private key** lives only on Vibrail Cloud; self-hosted instances mint short-lived App
   tokens through the cloud rather than holding the key.
 - Per-project git tokens and environment secrets are encrypted at rest.
 
 ## Revocation
 
-- **A token:** `openship token revoke <id>`, or the **Revoke** button in Settings → Tokens. It stops
+- **A token:** `vibrail token revoke <id>`, or the **Revoke** button in Settings → Tokens. It stops
   working on its next request.
 - **An MCP client:** disconnect it under Settings → MCP — its issued tokens are revoked and the consent
   is dropped, so reconnecting re-prompts.
@@ -232,5 +232,5 @@ Openship keeps secrets where they're safest instead of copying them around:
 <Cards>
   <Card title="Permission model" href="/docs/security/permissions" description="What a logged-in identity is actually allowed to do — roles and resource grants." />
   <Card title="Connect an AI agent (MCP)" href="/docs/mcp" description="Endpoint URLs, client config, and verification for MCP clients." />
-  <Card title="The local ↔ cloud boundary" href="/docs/security/cloud-boundary" description="How self-hosted instances talk to Openship Cloud without leaking identity." />
+  <Card title="The local ↔ cloud boundary" href="/docs/security/cloud-boundary" description="How self-hosted instances talk to Vibrail Cloud without leaking identity." />
 </Cards>

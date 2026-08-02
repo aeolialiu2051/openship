@@ -5,7 +5,7 @@
  * (`apps/api/assets/geoip/`) and copied into `dist/assets` at build, so
  * production reads OUR shipped copy — no third-party dependency at runtime. The
  * only network path is a last-resort download when the asset is somehow absent,
- * and it points at OUR repo (overridable via OPENSHIP_GEOIP_URL), never an
+ * and it points at OUR repo (overridable via VIBRAIL_GEOIP_URL), never an
  * upstream mirror. Refreshing the vendored copy is a maintainer action
  * (`bun run update:geoip`), not something the running server does.
  *
@@ -24,15 +24,15 @@ const DB_FILE = "GeoLite2-Country.mmdb";
 
 /** Fallback download source — OUR repo copy, not a third party. */
 const DB_URL =
-  process.env.OPENSHIP_GEOIP_URL?.trim() ||
-  `https://raw.githubusercontent.com/oblien/openship/main/apps/api/assets/geoip/${DB_FILE}`;
+  process.env.VIBRAIL_GEOIP_URL?.trim() ||
+  `https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/apps/api/assets/geoip/${DB_FILE}`;
 
-const CACHE_PATH = join(homedir(), ".openship", "cache", DB_FILE);
+const CACHE_PATH = join(homedir(), ".vibrail", "cache", DB_FILE);
 
 /** On-disk locations, first existing wins: an explicit override, the vendored
  *  asset (built dist or the source tree), then a prior download cache. */
 function candidatePaths(): string[] {
-  const override = process.env.OPENSHIP_GEOIP_DB?.trim();
+  const override = process.env.VIBRAIL_GEOIP_DB?.trim();
   const here = dirname(fileURLToPath(import.meta.url));
   const rel = join("assets", "geoip", DB_FILE);
   return [

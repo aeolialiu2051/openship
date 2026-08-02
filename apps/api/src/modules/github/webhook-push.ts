@@ -311,7 +311,7 @@ async function triggerBranchDeployments(
       const fwd = await forwardPushToCloud(input, defaultBranch);
       if (fwd.forwarded) {
         console.log(
-          `[GitHub Webhook] ${input.event} for ${input.owner}/${input.repo}#${input.branch} - forwarded to Openship Cloud (${fwd.cloudProjectId})`,
+          `[GitHub Webhook] ${input.event} for ${input.owner}/${input.repo}#${input.branch} - forwarded to Vibrail Cloud (${fwd.cloudProjectId})`,
         );
         recordPushDelivery(null, input, "forwarded", {
           organizationId: fwd.organizationId,
@@ -320,7 +320,7 @@ async function triggerBranchDeployments(
         return {
           success: true,
           event: input.event,
-          message: `Forwarded push to Openship Cloud (${fwd.cloudProjectId})`,
+          message: `Forwarded push to Vibrail Cloud (${fwd.cloudProjectId})`,
         };
       }
     }

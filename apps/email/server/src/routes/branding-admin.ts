@@ -1,13 +1,13 @@
 /**
  * Branding admin endpoint - token-authenticated write API.
  *
- * The Zero server fully owns branding storage: openship's dashboard
+ * The Zero server fully owns branding storage: vibrail's dashboard
  * never touches our filesystem. It hits this endpoint with the shared
  * `BRANDING_ADMIN_TOKEN` to PATCH `config.json`. Reads (`/branding.json`)
  * stay public because the login page renders pre-auth.
  *
  * Why a token here, not a session cookie:
- *   - openship's API is a different origin and a different auth realm.
+ *   - vibrail's API is a different origin and a different auth realm.
  *     It has no Zero session, and bolting on a service-to-service login
  *     just to write a few strings is overkill.
  *   - The token is a single shared secret operators provision once at

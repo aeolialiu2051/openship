@@ -1,7 +1,7 @@
 /**
  * Dev-only: build the dashboard from local SOURCE and stage a COMPLETE Next
- * standalone, so `openship up` can serve the CURRENT dashboard through the same
- * `OPENSHIP_DASHBOARD_DIR` folder-override the production CLI already supports —
+ * standalone, so `vibrail up` can serve the CURRENT dashboard through the same
+ * `VIBRAIL_DASHBOARD_DIR` folder-override the production CLI already supports —
  * fed from a local build instead of a GitHub download. The CLI code stays the
  * single production version; this just prepares the folder for `cli:dev`.
  *
@@ -33,7 +33,7 @@ function run(cmd: string, args: string[], cwd: string, env: Record<string, strin
 run("bun", ["run", "build"], DASHBOARD_DIR, {
   NODE_ENV: "production",
   CLOUD_MODE: "false",
-  OPENSHIP_TARGET: "local",
+  VIBRAIL_TARGET: "local",
   NEXT_PUBLIC_API_PROXY: "true",
 });
 

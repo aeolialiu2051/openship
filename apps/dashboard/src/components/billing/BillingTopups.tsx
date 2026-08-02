@@ -57,7 +57,7 @@ function formatCredits(milliCredits: number): string {
 
 export const BillingTopups: React.FC<BillingTopupsProps> = ({ state }) => {
   const { t } = useI18n();
-  // Availability is decided by Openship Cloud (billing state), NOT hardcoded —
+  // Availability is decided by Vibrail Cloud (billing state), NOT hardcoded —
   // so top-ups can launch by flipping the cloud flag with no dashboard release.
   // Absent flag → treated as not-available (coming soon).
   const topupsAvailable = state.topups?.available === true;

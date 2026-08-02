@@ -13,12 +13,12 @@ export const STEPS: Record<OnboardingStep, StepDef> = {
   choose: {
     id: "choose",
     title: "Get Started",
-    subtitle: "Choose how you'd like to use Openship.",
+    subtitle: "Choose how you'd like to use Vibrail.",
   },
   "selfhost-choice": {
     id: "selfhost-choice",
-    title: "Where should Openship run?",
-    subtitle: "Pick where to install the Openship platform. Both options give you full control and data ownership.",
+    title: "Where should Vibrail run?",
+    subtitle: "Pick where to install the Vibrail platform. Both options give you full control and data ownership.",
   },
   ssh: {
     id: "ssh",

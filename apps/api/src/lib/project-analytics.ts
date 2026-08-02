@@ -88,7 +88,7 @@ export async function resolveProjectTracking(projectId: string): Promise<Project
 
 /**
  * Map a fixed list of tracked domains to their traffic sources — the shared core
- * of the single/plural resolvers below. SaaS/OpenShip Cloud deploys observe
+ * of the single/plural resolvers below. SaaS/Vibrail Cloud deploys observe
  * traffic at the Oblien edge; self-hosted deploys use their Traefik log source.
  * Empty domain list (or no resolvable server)
  * → no sources.

@@ -27,7 +27,7 @@ export interface AppDestination {
  * "Where to install" picker for the app wizards. Servers use the shared
  * mail-style `ServerSelector` dropdown (pre-selects the first/only server so the
  * wizard opens with a destination already chosen; collapses many into a
- * searchable list, carries its own "add server"), with Openship Cloud /
+ * searchable list, carries its own "add server"), with Vibrail Cloud /
  * this-machine as sibling choices. Reports the pick as
  * `{deployTarget, serverId, serverHost}`.
  */

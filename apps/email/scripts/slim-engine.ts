@@ -5,7 +5,7 @@
  * What it removes:
  *   - nginx + PHP (packages, configs, and the install/setup calls that
  *     pull them in)
- *   - iRedAdmin / Roundcube / SOGo web apps (openship + Zero replace them)
+ *   - iRedAdmin / Roundcube / SOGo web apps (vibrail + Zero replace them)
  *   - Netdata, mlmmj, memcached (unused subsystems)
  *   - OpenLDAP and MySQL backends (we use PostgreSQL exclusively)
  *
@@ -149,7 +149,7 @@ const LINE_PATCHES: LinePatch[] = [
   // functions/cleanup.sh: drop the hardcoded "Web admin panel (iRedAdmin)"
   // URL from the post-install summary. The line is unconditional in the
   // engine - it prints even when iRedAdmin was never installed, which is
-  // confusing. openship's dashboard surfaces the real credentials.
+  // confusing. vibrail's dashboard surfaces the real credentials.
   {
     file: "functions/cleanup.sh",
     match: /^\* - Web admin panel \(iRedAdmin\): /,

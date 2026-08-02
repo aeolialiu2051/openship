@@ -20,7 +20,7 @@
 import type { Context } from "hono";
 import { getRequestContext } from "../../lib/request-context";
 import { auth } from "../../lib/auth";
-import { issueNamespaceToken } from "../../lib/openship-cloud";
+import { issueNamespaceToken } from "../../lib/vibrail-cloud";
 import {
   exchangeHandoffCode,
   validateDesktopRedirect,
@@ -97,7 +97,7 @@ function oblienErrorResponse(c: Context, err: unknown, fallback: string) {
  * POST /api/cloud/analytics  { operation, domain, params }
  *
  * Local/desktop instances call this to read Oblien analytics for a
- * hostname they own on Openship Cloud. Forwarded via the caller's
+ * hostname they own on Vibrail Cloud. Forwarded via the caller's
  * namespace token — Oblien returns data only for hostnames in the
  * caller's namespace, so cross-tenant access is structurally
  * impossible. No SaaS-side ownership check needed.
@@ -336,7 +336,7 @@ export async function connectAuthorize(c: Context) {
     // browser cookie session token. The local instance later calls
     // POST /api/cloud/disconnect which deletes the session row by
     // id — handing over the cookie session would mean a "disconnect
-    // local from cloud" click logs the user out of app.openship.io.
+    // local from cloud" click logs the user out of vibrail.warpgateapi.com.
     //
     // Instead, mint a dedicated session row for the linked-instance
     // bearer flow. The cookie session stays untouched; disconnect
@@ -677,7 +677,7 @@ export async function ingestSubgraphHandler(c: Context) {
       if (nameTaken) {
         return c.json(
           {
-            error: "A project with this name already exists on Openship Cloud. Rename this project and retry.",
+            error: "A project with this name already exists on Vibrail Cloud. Rename this project and retry.",
             code: "SLUG_TAKEN",
             table: err.table,
           },
@@ -784,7 +784,7 @@ export async function exportSubgraphHandler(c: Context) {
 // ─── OAuth bridge (browser-session handoff for linkSocialAccount) ───────────
 //
 // SaaS-only OAuth flow. Self-hosted instances never hold GitHub OAuth
-// credentials — they redirect the user's browser to api.openship.io
+// credentials — they redirect the user's browser to vibrail.warpgateapi.com
 // where the real OAuth round-trip happens against the SaaS's Better
 // Auth instance. The browser starts with no SaaS session cookie (it
 // only has a local session), so we need a 2-hop handoff:
@@ -812,7 +812,7 @@ export async function exportSubgraphHandler(c: Context) {
 //
 // SaaS-only OAuth + install flow. Local self-hosted instances NEVER hold
 // GitHub OAuth credentials, GitHub App private keys, or the gitInstallation
-// table for the App. Everything flows through api.openship.io.
+// table for the App. Everything flows through vibrail.warpgateapi.com.
 //
 // Three independent identity envelopes chain together:
 //
@@ -1055,7 +1055,7 @@ function renderCallbackHtml(
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${escapeHtml(title)} · Openship</title>
+  <title>${escapeHtml(title)} · Vibrail</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; max-width: 480px; margin: 80px auto; padding: 24px; color: #1a1a1a; background: #fafafa; }
     .card { background: #fff; border-radius: 12px; padding: 32px; box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 8px 24px rgba(0,0,0,0.06); }

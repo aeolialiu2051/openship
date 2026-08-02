@@ -21,7 +21,7 @@ describe("GATE 3 target probe", () => {
 
   it("refuses a multi-tenant cloud target", async () => {
     await expect(
-      assertTargetNotCloud("https://api.openship.io", { fetchImpl: fakeFetch({ status: "ok", cloudMode: true }) }),
+      assertTargetNotCloud("https://vibrail.warpgateapi.com", { fetchImpl: fakeFetch({ status: "ok", cloudMode: true }) }),
     ).rejects.toBeInstanceOf(TargetIsCloudError);
   });
 

@@ -1,8 +1,8 @@
 /**
  * Deploy the control plane ITSELF as a real, deploy-only app.
  *
- * The Openship self-app (project `appTemplateId === "openship"`) runs as a bare
- * host process supervised by `openship up` (launchd/systemd). To make it a
+ * The Vibrail self-app (project `appTemplateId === "vibrail"`) runs as a bare
+ * host process supervised by `vibrail up` (launchd/systemd). To make it a
  * genuine deployment — real row + `activeDeploymentId` + routes/SSL owned by the
  * normal pipeline — without a SECOND process binding the port, we create an
  * ADOPT deployment: `meta:{deployTarget:"local", runtimeMode:"bare",
@@ -36,8 +36,8 @@ import { onSuccess } from "../../modules/deployments/deployment-lifecycle";
 import type { DeploymentMeta } from "../deployment-runtime";
 import { refreshSelfAppPublicUrl } from "../public-url";
 
-const APP_SLUG = "openship";
-const APP_TEMPLATE_ID = "openship";
+const APP_SLUG = "vibrail";
+const APP_TEMPLATE_ID = "vibrail";
 function isAdoptDeployment(dep: Deployment | null | undefined): boolean {
   return !!dep && (dep.meta as DeploymentMeta | null)?.adopt === true;
 }
@@ -180,7 +180,7 @@ async function findSelfAppProject(): Promise<Project | null> {
 
 /**
  * Boot hook: reconcile the self-app deployment + route on every start.
- * Self-hosted only (register.ts modes). NOT gated on OPENSHIP_PUBLIC_URL so
+ * Self-hosted only (register.ts modes). NOT gated on VIBRAIL_PUBLIC_URL so
  * free/byo boxes reconcile too. First boot (no self-app) is a clean no-op.
  */
 export function registerSelfAdoptReconcile(): void {
@@ -191,7 +191,7 @@ export function registerSelfAdoptReconcile(): void {
       const project = await findSelfAppProject();
       if (!project) return;
 
-      const dashPort = env.OPENSHIP_DASHBOARD_PORT || 3001;
+      const dashPort = env.VIBRAIL_DASHBOARD_PORT || 3001;
 
       // (a) Backfill / ensure the adopt deployment (existing installs predate it).
       await ensureAdoptDeployment(project.id, dashPort).catch((err) =>

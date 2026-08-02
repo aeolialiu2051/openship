@@ -1,10 +1,10 @@
 /**
- * `openship status` — what's running on THIS machine + the active context's API.
+ * `vibrail status` — what's running on THIS machine + the active context's API.
  *
  * Two parts:
- *   1. Local service — is the `openship up` service installed/running, and on
+ *   1. Local service — is the `vibrail up` service installed/running, and on
  *      which resolved ports (they're dynamic; the remembered pair lives in
- *      ~/.openship/ports.json). Always shown, even when the API is down.
+ *      ~/.vibrail/ports.json). Always shown, even when the API is down.
  *   2. API — GET /api/health + /api/health/env for the active context (best
  *      effort; a stopped server shows "not reachable", not a hard crash).
  */
@@ -44,7 +44,7 @@ function readPorts(): { api?: number; dashboard?: number } {
 }
 
 export const statusCommand = new Command("status")
-  .description("Show the local Openship service (installed/running, ports) and the active context's API health")
+  .description("Show the local Vibrail service (installed/running, ports) and the active context's API health")
   .action(async () => {
     const context = getActiveContext();
     const apiUrl = getApiUrl();
@@ -52,7 +52,7 @@ export const statusCommand = new Command("status")
     // Compose install → the bare service manager reads "not installed", which is
     // misleading. Show the stack (docker compose ps) + a health probe instead.
     if (readInstallMethod() === "compose" && !isJsonMode()) {
-      console.log(chalk.bold("\n  Openship status (Docker Compose)\n"));
+      console.log(chalk.bold("\n  Vibrail status (Docker Compose)\n"));
       composePs();
       try {
         const h = await apiRequest<Health>("/health", { signal: AbortSignal.timeout(8000) });
@@ -94,7 +94,7 @@ export const statusCommand = new Command("status")
         : chalk.dim("not installed");
 
     let out =
-      chalk.bold("\n  Openship status\n\n") +
+      chalk.bold("\n  Vibrail status\n\n") +
       row("Service", serviceState) +
       row("Manager", svc.kind === "unsupported" ? chalk.dim("none") : svc.kind) +
       (ports.api ? row("API port", ports.api) : "") +
@@ -115,7 +115,7 @@ export const statusCommand = new Command("status")
       out +=
         row("Health", chalk.red("not reachable")) +
         chalk.dim(`  ${unreachableMsg}\n`) +
-        chalk.dim(svc.running ? "  (service is up — it may still be starting)\n" : "  Start it with `openship up`.\n");
+        chalk.dim(svc.running ? "  (service is up — it may still be starting)\n" : "  Start it with `vibrail up`.\n");
     }
 
     process.stdout.write(out + "\n");

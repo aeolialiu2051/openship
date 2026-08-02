@@ -5,7 +5,7 @@ description: The source picker that starts every deployment — upload a folder,
 
 This screen is where every new deployment begins. When you press **New Project** in the dashboard you land
 on the Library page (route `/library`), titled **New Project** with the subtitle *"Import a repository, paste
-a URL, or start from a template"*. Its job is simple: pick **where your code comes from**, and Openship hands
+a URL, or start from a template"*. Its job is simple: pick **where your code comes from**, and Vibrail hands
 you off to the deploy wizard (`/deploy/...`) with everything pre-filled.
 
 Think of this page as the front door with five doors behind it — each tab is a different way to bring code in.
@@ -17,7 +17,7 @@ it runs, and press Deploy.
 ## The five tabs
 
 The tab row sits just under the page title. The **GitHub** tab is selected by default. The last tab
-(**Existing server**) only appears on self-hosted and desktop installs — Openship Cloud has no server inventory
+(**Existing server**) only appears on self-hosted and desktop installs — Vibrail Cloud has no server inventory
 to adopt from.
 
 | Tab | Icon | What it's for |
@@ -34,13 +34,13 @@ Cloud connection status. It's informational; the action is always on the left.
 ## Folder
 
 Deploy an app from a folder, no Git required. This tab behaves differently depending on how you're running
-Openship:
+Vibrail:
 
-- **Desktop app** — you get the **Local Projects** panel. Point Openship at a folder on your machine
+- **Desktop app** — you get the **Local Projects** panel. Point Vibrail at a folder on your machine
   (drop it or type the absolute path, then **Scan**), it auto-detects the framework, and builds and runs the
   app locally. No upload happens — the local pipeline reads the folder in place.
-- **Browser (Openship Cloud or a remote self-hosted instance)** — you get the **Folder upload** flow. A browser
-  can't see your filesystem, so Openship first asks **"What are you deploying?"** and shows a grid of stacks to
+- **Browser (Vibrail Cloud or a remote self-hosted instance)** — you get the **Folder upload** flow. A browser
+  can't see your filesystem, so Vibrail first asks **"What are you deploying?"** and shows a grid of stacks to
   pick from (this fixes the build image). Then you drop or browse to your project folder — it's packed in your
   browser (skipping `node_modules`, `.git`, and build output), uploaded, and you continue to the wizard.
 
@@ -65,7 +65,7 @@ Once connected, this panel lists your repositories with tools to find the right 
 - **Visibility** pills: **All**, **Public**, **Private**.
 - A **sort** dropdown: **Recent**, **Name**, **Stars**.
 
-Click any repository and Openship takes you straight into the deploy wizard for it.
+Click any repository and Vibrail takes you straight into the deploy wizard for it.
 
 <Callout title="'Local only' badge" type="warn">
 A repo tagged **Local only** is visible through the `gh` CLI but the Vibrail GitHub App isn't installed on its
@@ -79,16 +79,16 @@ owner — so it can build locally, but remote deploys will be refused. Install t
 
 For deploying a public repository you don't own or haven't connected. The panel is **Import from Git URL**:
 paste a URL like `https://github.com/username/repository` and press **Import Repository**. No GitHub connection
-is required. Openship parses the owner and repo from the link and sends you to the wizard.
+is required. Vibrail parses the owner and repo from the link and sends you to the wizard.
 
 <Callout title="Public repos only">
-This path clones over the public URL. For private repositories, use the **GitHub** tab so Openship can
+This path clones over the public URL. For private repositories, use the **GitHub** tab so Vibrail can
 authenticate. See [Deploy from a template or Git URL](/docs/guides/deploy-template-or-url).
 </Callout>
 
 ## Template
 
-A grid of framework starters. Pick a framework and Openship opens the wizard seeded from that template — a fast
+A grid of framework starters. Pick a framework and Vibrail opens the wizard seeded from that template — a fast
 way to get a working project online without bringing your own code first. (The plain "static" option is omitted
 here.)
 
@@ -100,11 +100,11 @@ See [Deploy from a template or Git URL](/docs/guides/deploy-template-or-url) for
 
 *(Self-hosted and desktop only.)* This tab is for **adopting a deployment you're already running** — the card
 is titled **Existing Docker server**, described as *"Migrate a running Docker or Compose deployment into
-Openship."* Press **Migrate Docker** to open the migration wizard, which connects over SSH to your box,
-inspects the running containers, and brings them under Openship's management.
+Vibrail."* Press **Migrate Docker** to open the migration wizard, which connects over SSH to your box,
+inspects the running containers, and brings them under Vibrail's management.
 
 <Callout title="Needs SSH to your own machine">
-Adoption reads containers off a server you control, so it isn't available on Openship Cloud. If you want to add
+Adoption reads containers off a server you control, so it isn't available on Vibrail Cloud. If you want to add
 a fresh machine instead of adopting one, see [Connect your own server](/docs/guides/custom-servers).
 </Callout>
 

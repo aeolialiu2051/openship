@@ -49,7 +49,7 @@ export default function DeployMailPage() {
   const [bootReady, setBootReady] = useState(false);
 
   const [domain, setDomain] = useState("");
-  // selectedKey is `${kind}:${serverId}` so we can distinguish "opshcloud"
+  // selectedKey is `${kind}:${serverId}` so we can distinguish "cloud"
   // (serverId is "") from a self-hosted server even when the latter is empty
   // for some reason - keys never collide across kinds.
   const [selectedKey, setSelectedKey] = useState("");
@@ -90,7 +90,7 @@ export default function DeployMailPage() {
       return false;
     if (!selectedTarget) return false;
     if (selectedTarget.disabled) return false;
-    if (selectedTarget.kind !== "opshcloud" && !selectedTarget.serverId)
+    if (selectedTarget.kind !== "cloud" && !selectedTarget.serverId)
       return false;
     return true;
   }, [domain, selectedTarget]);
@@ -98,11 +98,11 @@ export default function DeployMailPage() {
   const mailHostnameFromStatus = status?.domain ? `mail.${status.domain}` : "";
   // When cloud is chosen AND the chosen domain is the mail server's own
   // `mail.<install>` subdomain, the deploy uses the proxy variant: the
-  // workload runs on Opshcloud at *.vibrail.warpgateapi.com, the mail VPS proxies the
+  // workload runs on Vibrail Cloud at *.vibrail.warpgateapi.com, the mail VPS proxies the
   // public hostname over. DNS stays put - operators don't have to touch
   // it. Otherwise both paths follow normal preflight/DNS expectations.
   const isCloudProxyVariant =
-    selectedTarget?.kind === "opshcloud" &&
+    selectedTarget?.kind === "cloud" &&
     !!mailHostnameFromStatus &&
     domain.toLowerCase() === mailHostnameFromStatus;
 
@@ -111,7 +111,7 @@ export default function DeployMailPage() {
     setSubmitting(true);
     try {
       const target =
-        selectedTarget.kind === "opshcloud"
+        selectedTarget.kind === "cloud"
           ? ({ kind: "cloud" } as const)
           : ({ kind: "self", serverId: selectedTarget.serverId } as const);
       const { deploymentId } = await mailApi.webmail.deployAsProject({
@@ -222,7 +222,7 @@ export default function DeployMailPage() {
             hint={
               isCloudProxyVariant
                 ? tm.domainHintProxy
-                : selectedTarget?.kind === "opshcloud"
+                : selectedTarget?.kind === "cloud"
                   ? tm.domainHintCloud
                   : tm.domainHintDefault
             }

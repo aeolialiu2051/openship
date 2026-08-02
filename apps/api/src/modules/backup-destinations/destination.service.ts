@@ -44,7 +44,7 @@ const LOCAL_DEST_DENY = [
   "/root",
   "/var/lib/postgresql",
   "/var/lib/docker",
-  "/var/lib/openship",
+  "/var/lib/vibrail",
   "/boot",
 ];
 
@@ -112,7 +112,7 @@ export interface CreateDestinationInput {
   sshHost?: string | null;
   sshPort?: number | null;
   sshUser?: string | null;
-  /** When kind="openship_server", the user's servers.id to reuse. */
+  /** When kind="vibrail_server", the user's servers.id to reuse. */
   serverId?: string | null;
   accessKeyId?: string | null;
   secretAccessKey?: string | null;
@@ -316,13 +316,13 @@ export async function createDestination(
 ): Promise<SerializedDestination> {
   await validateInput(input);
 
-  // Ownership check for openship_server: the serverId arrives from the
+  // Ownership check for vibrail_server: the serverId arrives from the
   // request body and MUST belong to the calling org. Without this
   // check, an attacker could create a destination using a victim's
   // server row and SSH-impersonate them.
-  if (input.kind === "openship_server") {
+  if (input.kind === "vibrail_server") {
     if (!input.serverId) {
-      throw new Error("openship_server destinations require a serverId");
+      throw new Error("vibrail_server destinations require a serverId");
     }
     const server = await repos.server.get(input.serverId);
     if (!server) {
@@ -509,7 +509,7 @@ export async function preflightDraft(
 
   let adapterRow: BackupDestinationRow;
   try {
-    if (input.kind === "openship_server") {
+    if (input.kind === "vibrail_server") {
       const serverId = input.serverId ?? stored?.serverId ?? null;
       if (!serverId) return { ok: false, reason: "Select a server to test" };
       adapterRow = await hydrateServerAdapterRow({
@@ -593,9 +593,9 @@ async function validateInput(input: CreateDestinationInput): Promise<void> {
         throw new Error("SFTP destinations require a password or private key");
       }
       break;
-    case "openship_server":
+    case "vibrail_server":
       if (!input.serverId) {
-        throw new Error("openship_server destinations require a serverId");
+        throw new Error("vibrail_server destinations require a serverId");
       }
       break;
     case "local":

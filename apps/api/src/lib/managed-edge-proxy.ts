@@ -4,7 +4,7 @@ import { resolveEdgeTargetHost } from "./edge-target";
 import { getRoutingBaseDomain } from "./routing-domains";
 
 const NO_CLOUD_MEMBER =
-  "Cannot sync edge proxy: no member of this organization has linked Openship Cloud";
+  "Cannot sync edge proxy: no member of this organization has linked Vibrail Cloud";
 
 /**
  * Ensure an Oblien edge proxy exists for a managed deploy slug.
@@ -73,7 +73,7 @@ export async function syncManagedEdgeRoutes(
 /**
  * Tear down every managed (*.vibrail.warpgateapi.com) edge route for a set of freed slugs,
  * best-effort. The delete-side counterpart to `syncManagedEdgeRoutes`: dropping
- * a free domain must release its slug→target route on Openship Cloud's edge, or
+ * a free domain must release its slug→target route on Vibrail Cloud's edge, or
  * the old URL keeps resolving and the slug stays taken. Never throws — a stale
  * edge route is cosmetic and must never fail a domain edit; returns per-slug
  * failures for the caller to log.
@@ -102,6 +102,6 @@ export function edgeUnsyncedWarning(failures: string[], retryHint: string): stri
   return (
     `Deployed, but the free domain routing didn't sync for ${failures.join(", ")}. ` +
     `The app is live on the server; the free .${baseDomain} URL won't resolve until the edge route is created. ` +
-    `Check that the server is reachable from Openship Cloud on port 80, then ${retryHint}.`
+    `Check that the server is reachable from Vibrail Cloud on port 80, then ${retryHint}.`
   );
 }

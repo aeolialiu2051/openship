@@ -1,7 +1,7 @@
 /**
- * `openship reset-admin-password` — recover the box login WITHOUT signing in.
+ * `vibrail reset-admin-password` — recover the box login WITHOUT signing in.
  *
- * The CLI owns the loopback internal token (~/.openship/internal-token) that the
+ * The CLI owns the loopback internal token (~/.vibrail/internal-token) that the
  * running service loaded at boot, so it can hit the internal-token-gated
  * /api/system/reset-admin-password on localhost — "god access" from the machine
  * itself. This is the forgot-password path for a self-hosted box: reset the local
@@ -30,12 +30,12 @@ function resolvedApiPort(): number | undefined {
 
 export const resetAdminCommand = new Command("reset-admin-password")
   .description("Reset the local admin login on THIS machine (no sign-in required)")
-  .option("--port <port>", "API port of the running service (default: the resolved port from ~/.openship/ports.json, else 4000)")
+  .option("--port <port>", "API port of the running service (default: the resolved port from ~/.vibrail/ports.json, else 4000)")
   .option("--email <email>", "Also set the admin email")
   .option("--name <name>", "Also set the admin display name")
   .option("--password <password>", "New password (prompted if omitted)")
   .action(async (opts) => {
-    intro(chalk.cyan("Reset Openship admin password"));
+    intro(chalk.cyan("Reset Vibrail admin password"));
 
     let pw: string | undefined = opts.password;
     if (!pw) {
@@ -71,7 +71,7 @@ export const resetAdminCommand = new Command("reset-admin-password")
         body: JSON.stringify({ password: pw, email: opts.email, name: opts.name }),
       });
     } catch {
-      log.error(`Couldn't reach the Openship API on port ${port}. Is it running? (openship status)`);
+      log.error(`Couldn't reach the Vibrail API on port ${port}. Is it running? (vibrail status)`);
       log.info("If it's listening on another port, pass --port <n>.");
       process.exit(1);
     }

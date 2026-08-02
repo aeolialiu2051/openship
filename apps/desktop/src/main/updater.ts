@@ -25,7 +25,7 @@ import {
 } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
-const RELEASES_API = "https://api.github.com/repos/oblien/openship/releases/latest";
+const RELEASES_API = "https://api.github.com/repos/aeolialiu2051/vibrail/releases/latest";
 
 export interface UpdateAsset {
   name: string;
@@ -53,7 +53,7 @@ export async function checkForUpdate(): Promise<UpdateCheck> {
     const res = await net.fetch(RELEASES_API, {
       headers: {
         Accept: "application/vnd.github+json",
-        "User-Agent": "Openship-Desktop",
+        "User-Agent": "Vibrail-Desktop",
       },
       signal: AbortSignal.timeout(10_000),
     });
@@ -75,12 +75,12 @@ export async function downloadUpdate(
   asset: UpdateAsset,
   onProgress: (fraction: number) => void,
 ): Promise<string> {
-  const dir = join(app.getPath("temp"), "openship-update");
+  const dir = join(app.getPath("temp"), "vibrail-update");
   mkdirSync(dir, { recursive: true });
   const dest = join(dir, asset.name);
 
   const res = await net.fetch(asset.url, {
-    headers: { "User-Agent": "Openship-Desktop" },
+    headers: { "User-Agent": "Vibrail-Desktop" },
   });
   if (!res.ok || !res.body) {
     throw new Error(`Download failed: HTTP ${res.status}`);
@@ -120,7 +120,7 @@ export async function downloadUpdate(
   let expected: string | null = null;
   try {
     const shaRes = await net.fetch(`${asset.url}.sha256`, {
-      headers: { "User-Agent": "Openship-Desktop" },
+      headers: { "User-Agent": "Vibrail-Desktop" },
       signal: AbortSignal.timeout(10_000),
     });
     if (shaRes.ok) {
@@ -165,7 +165,7 @@ function fallbackOpen(file: string): void {
 
 /** Spawn a detached script that waits for us to exit, then runs `body`. */
 function runDetachedAfterExit(scriptBody: string, ext: "sh" | "cmd"): void {
-  const dir = join(app.getPath("temp"), "openship-update");
+  const dir = join(app.getPath("temp"), "vibrail-update");
   mkdirSync(dir, { recursive: true });
   const scriptPath = join(dir, `apply-update.${ext}`);
   writeFileSync(scriptPath, scriptBody, { mode: 0o755 });
@@ -179,13 +179,13 @@ function runDetachedAfterExit(scriptBody: string, ext: "sh" | "cmd"): void {
 }
 
 function installMac(dmg: string): void {
-  // The running app bundle: <exe>/../../.. → …/Openship.app
+  // The running app bundle: <exe>/../../.. → …/Vibrail.app
   const installedApp = resolve(app.getPath("exe"), "..", "..", "..");
   if (!installedApp.endsWith(".app")) {
     return fallbackOpen(dmg);
   }
 
-  const staged = join(app.getPath("temp"), "openship-update", "Openship.app");
+  const staged = join(app.getPath("temp"), "vibrail-update", "Vibrail.app");
 
   // Mount, copy the new .app out, unmount — all before we quit.
   const attach = spawnSync(
@@ -198,7 +198,7 @@ function installMac(dmg: string): void {
   if (!mount) return fallbackOpen(dmg);
 
   try {
-    const appInDmg = join(mount, "Openship.app");
+    const appInDmg = join(mount, "Vibrail.app");
     if (!existsSync(appInDmg)) return fallbackOpen(dmg);
     spawnSync("rm", ["-rf", staged]);
     const copy = spawnSync("ditto", [appInDmg, staged], { encoding: "utf8" });
@@ -251,8 +251,8 @@ function installWindows(zip: string): void {
   // we self-replace exactly like mac/linux: extract now, then a detached script
   // waits for us to exit (file locks), mirrors the new build over the install
   // dir, and relaunches.
-  const installDir = dirname(app.getPath("exe")); // …\Openship-win32-x64\
-  const staging = join(app.getPath("temp"), "openship-update", "win-extract");
+  const installDir = dirname(app.getPath("exe")); // …\Vibrail-win32-x64\
+  const staging = join(app.getPath("temp"), "vibrail-update", "win-extract");
   rmSync(staging, { recursive: true, force: true });
   mkdirSync(staging, { recursive: true });
 
@@ -270,7 +270,7 @@ function installWindows(zip: string): void {
   );
   if (unzip.status !== 0) return fallbackOpen(zip);
 
-  const appRoot = findDirContaining(staging, "openship.exe");
+  const appRoot = findDirContaining(staging, "vibrail.exe");
   if (!appRoot) return fallbackOpen(zip);
 
   // `robocopy /MIR` requires the target not be locked, so it runs only after we
@@ -282,7 +282,7 @@ function installWindows(zip: string): void {
       ":wait",
       `tasklist /FI "PID eq ${process.pid}" | find "${process.pid}" >nul && (timeout /t 1 /nobreak >nul & goto wait)`,
       `robocopy "${appRoot}" "${installDir}" /MIR /NJH /NJS /NP /NFL /NDL >nul`,
-      `start "" "${join(installDir, "openship.exe")}"`,
+      `start "" "${join(installDir, "vibrail.exe")}"`,
       `rmdir /s /q "${staging}"`,
       "",
     ].join("\r\n"),

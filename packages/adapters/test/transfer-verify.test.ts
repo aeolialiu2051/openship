@@ -38,7 +38,7 @@ let emptyDir: string;
 let populatedDir: string;
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), "openship-transfer-"));
+  root = await mkdtemp(join(tmpdir(), "vibrail-transfer-"));
   emptyDir = join(root, "empty");
   populatedDir = join(root, "populated");
   await mkdir(emptyDir);

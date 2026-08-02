@@ -51,7 +51,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("openship up --compose", () => {
+describe("vibrail up --compose", () => {
   it("fails before compose when Docker Compose is unavailable", async () => {
     h.hasDocker = false;
     const result = await runCommand(upCommand, ["--compose"]);

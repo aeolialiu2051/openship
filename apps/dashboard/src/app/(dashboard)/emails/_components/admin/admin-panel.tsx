@@ -84,7 +84,7 @@ const ReputationBanner = dynamic(
   { loading: ReputationBannerLoading },
 );
 
-const WELCOME_SEEN_PREFIX = "openship:mail:welcome-seen:";
+const WELCOME_SEEN_PREFIX = "vibrail:mail:welcome-seen:";
 
 interface MailAdminPanelProps {
   status: MailSetupStatus;

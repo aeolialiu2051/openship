@@ -1,6 +1,6 @@
 /**
- * `openship init` — link the current directory to an Openship project by
- * writing .openship/project.json. Later commands (e.g. deploy) read this file
+ * `vibrail init` — link the current directory to a Vibrail project by
+ * writing .vibrail/project.json. Later commands (e.g. deploy) read this file
  * to know which project to act on without a flag.
  *
  * Projects come from GET /api/projects (project.controller.ts:list), the
@@ -33,7 +33,7 @@ interface ProjectLink {
 }
 
 export const initCommand = new Command("init")
-  .description("Link the current directory to an Openship project (.openship/project.json)")
+  .description("Link the current directory to a Vibrail project (.vibrail/project.json)")
   .option("--project <id>", "Project id to link (skips the picker)")
   .option("--environment <name>", "Default deploy environment", "production")
   .option("--dir <path>", "Directory to initialize", process.cwd())
@@ -41,7 +41,7 @@ export const initCommand = new Command("init")
   .option("-y, --yes", "Non-interactive: fail instead of prompting")
   .action(async (opts) => {
     const root: string = opts.dir || process.cwd();
-    const linkDir = join(root, ".openship");
+    const linkDir = join(root, ".vibrail");
     const linkPath = join(linkDir, "project.json");
 
     if (existsSync(linkPath) && !opts.force) {

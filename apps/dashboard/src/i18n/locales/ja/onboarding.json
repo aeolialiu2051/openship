@@ -126,7 +126,7 @@
     "couldNotStartAuthMsg": "デスクトップ認証フローを開始できませんでした。",
     "authFailedMsg": "もう一度お試しいただき、ブラウザでサインインを完了してください。",
     "completingSignIn": "サインインを完了しています…",
-    "returningToOpenship": "Vibrail に戻っています",
+    "returningToVibrail": "Vibrail に戻っています",
     "redirectingCloud": "Vibrail Cloud にリダイレクトしています…",
     "newTabSignIn": "新しいタブでサインインを完了します",
     "couldNotSaveTitle": "設定を保存できませんでした",

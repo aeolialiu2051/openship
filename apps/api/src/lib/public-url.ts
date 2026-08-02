@@ -4,7 +4,7 @@
  * external service a URL back to us, stop falling back to a hardcoded
  * `runtimeTarget.api` (http://localhost:4000 on a self-hosted box).
  *
- * Topology (self-hosted, `openship up --public-url https://ops.example.com`):
+ * Topology (self-hosted, `vibrail up --public-url https://ops.example.com`):
  * the managed edge routes the public host to the DASHBOARD (Next, port 3001);
  * the API binds to loopback and is reachable from outside ONLY through the
  * dashboard's same-origin proxy at `/api/proxy/*`, which strips that prefix and
@@ -13,7 +13,7 @@
  * base is `<public-url>/api/proxy`, and a public API path `/api/x` is reached
  * at `<public-url>/api/proxy/api/x`.
  *
- * When OPENSHIP_PUBLIC_URL is unset (cloud, or a dev box) everything falls back
+ * When VIBRAIL_PUBLIC_URL is unset (cloud, or a dev box) everything falls back
  * to `runtimeTarget.api` / `runtimeTarget.dashboard`, preserving today's behavior.
  */
 
@@ -27,7 +27,7 @@ import { repos, db, schema, eq } from "@repo/db";
  */
 const SAME_ORIGIN_PROXY_PREFIX = "/api/proxy";
 
-const SELF_APP_SLUG = "openship";
+const SELF_APP_SLUG = "vibrail";
 
 /**
  * DB-derived public URL of the self-deployed control-plane app's PRIMARY domain.
@@ -43,18 +43,18 @@ let cachedSelfAppUrl: string | null = null;
 /** Normalized public URL (no trailing slash): env seed wins, else the self-app's
  *  verified primary domain, else null (callers fall back to the runtime target). */
 function publicUrl(): string | null {
-  const raw = env.OPENSHIP_PUBLIC_URL?.trim();
+  const raw = env.VIBRAIL_PUBLIC_URL?.trim();
   if (raw) return raw.replace(/\/+$/, "");
   return cachedSelfAppUrl;
 }
 
 /**
- * The origin this API is actually reachable at (OPENSHIP_ADVERTISED_ORIGIN),
+ * The origin this API is actually reachable at (VIBRAIL_ADVERTISED_ORIGIN),
  * normalized. Desktop sets it to its dynamic loopback API origin. URL
  * construction ONLY — see the env field doc; never a security gate.
  */
 function advertisedOrigin(): string | null {
-  const raw = env.OPENSHIP_ADVERTISED_ORIGIN?.trim();
+  const raw = env.VIBRAIL_ADVERTISED_ORIGIN?.trim();
   return raw ? raw.replace(/\/+$/, "") : null;
 }
 
@@ -118,7 +118,7 @@ export interface InstanceReachability {
   /** The reachable public URL, or null when only loopback would answer. */
   url: string | null;
   source: "env" | "self-app" | null;
-  /** The `openship` control-plane self-app project exists (deployable target
+  /** The `vibrail` control-plane self-app project exists (deployable target
    *  for a domain). */
   selfAppInstalled: boolean;
   selfAppProjectId: string | null;
@@ -137,7 +137,7 @@ export interface InstanceReachability {
  * which resolves to the same `url` when `configured`.
  */
 export async function getInstanceReachability(): Promise<InstanceReachability> {
-  const envUrl = env.OPENSHIP_PUBLIC_URL?.trim();
+  const envUrl = env.VIBRAIL_PUBLIC_URL?.trim();
   if (envUrl) {
     return {
       configured: true,
@@ -179,7 +179,7 @@ export async function getInstanceReachability(): Promise<InstanceReachability> {
 
 /** Public origin serving the DASHBOARD (== the CLI `--public-url`), else the
  *  ACTUAL local dashboard origin (dynamic port on desktop, via
- *  OPENSHIP_LOCAL_DASHBOARD_URL), else the static runtime target. Used for the
+ *  VIBRAIL_LOCAL_DASHBOARD_URL), else the static runtime target. Used for the
  *  MCP loginPage/consentPage + invite/OIDC links — so on desktop these point at
  *  the real dashboard port, not the dead static one. */
 export function resolveDashboardPublicUrl(): string {
@@ -217,11 +217,11 @@ export function incomingWebhookUrl(id: string): string {
 
 /**
  * The domain-strategy webhook callback URL: delivered directly to a project's
- * own verified domain via the `/_openship/hooks/` Traefik location (proxied to
+ * own verified domain via the `/_vibrail/hooks/` Traefik location (proxied to
  * the loopback API). Used when a project sets an explicit `webhookDomain`.
  */
 export function domainWebhookUrl(hostname: string, scheme: "http" | "https" = "https"): string {
-  return `${scheme}://${hostname}/_openship/hooks/github`;
+  return `${scheme}://${hostname}/_vibrail/hooks/github`;
 }
 
 /**
@@ -235,7 +235,7 @@ export function domainWebhookUrl(hostname: string, scheme: "http" | "https" = "h
  * request in scope, so a `DynamicBaseURLConfig` resolves to an empty issuer
  * there; a discovery `issuer` also has to be stable across requests.
  *
- * Without a public URL, use OPENSHIP_ADVERTISED_ORIGIN when set (the desktop
+ * Without a public URL, use VIBRAIL_ADVERTISED_ORIGIN when set (the desktop
  * app's real dynamic loopback API origin) so discovery/issuer/authorize/token
  * are reachable, else fall back to the static `runtimeTarget.api`.
  */
@@ -276,7 +276,7 @@ export function requestPublicOrigin(req: Request): string {
   const pub = publicUrl() ?? advertisedOrigin();
   if (pub) return pub;
   // Unconfigured (e.g. a bare loopback API behind a same-origin proxy with no
-  // OPENSHIP_PUBLIC_URL): fall back to the proxy's forwarded host so discovery
+  // VIBRAIL_PUBLIC_URL): fall back to the proxy's forwarded host so discovery
   // stays reachable — but VALIDATE proto + host so a spoofed x-forwarded-host
   // can't poison the advertised origin. Never feeds an auth/zero-auth gate.
   const host = firstForwardedValue(req.headers.get("x-forwarded-host"));

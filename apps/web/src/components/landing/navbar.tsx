@@ -12,7 +12,7 @@ const NAV_ITEMS = [
   { label: "Pricing", href: "/pricing" },
 ];
 
-const GITHUB_URL = "https://github.com/oblien/openship";
+const GITHUB_URL = "https://github.com/aeolialiu2051/vibrail";
 
 export function Navbar() {
   const [dark, setDark] = useState(false);
@@ -57,7 +57,7 @@ export function Navbar() {
               transition: "color .3s",
             }}
           >
-            Openship
+            Vibrail
           </span>
         </Link>
 

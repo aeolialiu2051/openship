@@ -18,7 +18,7 @@ services:
         envFileContent: `
 NODE_VERSION=20
 BETTER_AUTH_SECRET=from-env
-POSTGRES_USER=openship
+POSTGRES_USER=vibrail
 POSTGRES_PASSWORD=secret
 EMPTY_VALUE=
 `,
@@ -28,7 +28,7 @@ EMPTY_VALUE=
     expect(parsed.services[0]?.image).toBe("node:20");
     expect(parsed.services[0]?.environment).toEqual({
       BETTER_AUTH_SECRET: "from-env",
-      DATABASE_URL: "postgres://openship:secret@db:5432/app",
+      DATABASE_URL: "postgres://vibrail:secret@db:5432/app",
       EMPTY_DEFAULT: "fallback",
       EMPTY_NO_COLON: "",
     });

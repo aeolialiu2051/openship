@@ -41,7 +41,7 @@ export type NodeDef = {
 
 export const NODES: Record<NodeId, NodeDef> = {
   git: { label: "git push", sub: "any branch", kind: "pill", beat: 0 },
-  cli: { label: "CLI", sub: "openship up", kind: "pill", beat: 0 },
+  cli: { label: "CLI", sub: "vibrail up", kind: "pill", beat: 0 },
   desktop: { label: "Desktop app", sub: "Mac · Windows", kind: "pill", beat: 0 },
   agent: { label: "AI agent", sub: "over MCP", kind: "pill", beat: 0 },
 
@@ -374,8 +374,8 @@ export const BEATS: Beat[] = [
 
 /** Plain-language walkthrough for screen readers, since the SVG is decorative. */
 export const SR_DESCRIPTION =
-  "Diagram of the Openship deploy path. A git push, CLI command, desktop app or AI agent triggers a build. " +
+  "Diagram of the Vibrail deploy path. A git push, CLI command, desktop app or AI agent triggers a build. " +
   "The build runs on your machine and produces an immutable version, then streams over SSH to your server — " +
-  "Openship Cloud, your own VPS, or a homelab. On the server, managed Postgres, Redis, mail and object storage " +
+  "Vibrail Cloud, your own VPS, or a homelab. On the server, managed Postgres, Redis, mail and object storage " +
   "join the app on a private network. The edge layer terminates your domains with automatic SSL and serves " +
   "visitors, and any previous version can be restored in one click.";

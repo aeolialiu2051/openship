@@ -1,5 +1,5 @@
 /**
- * `openship mail` — self-hosted mail server (iRedMail) setup + admin.
+ * `vibrail mail` — self-hosted mail server (iRedMail) setup + admin.
  *
  * [self-host] only: every subcommand gates via caps.requireSelfHost. The
  * whole /api/mail mount is localOnly on the API side.
@@ -58,7 +58,7 @@ function guard<A extends unknown[]>(
 ): (...args: A) => Promise<void> {
   return async (...args: A) => {
     if (!getToken()) {
-      err("Not logged in. Run `openship login` first.");
+      err("Not logged in. Run `vibrail login` first.");
       process.exit(1);
     }
     try {
@@ -202,7 +202,7 @@ const scanCmd = new Command("scan")
       info(`  domain:         ${res.domain ?? "-"}`);
       info(`  install done:   ${res.installComplete ? "yes" : "no"}`);
       info(`  webmail:        ${res.webmailPresent ? "yes" : "no"}`);
-      if (res.adoptable) ok(`  Adoptable — run \`openship mail adopt ${serverId}\`.`);
+      if (res.adoptable) ok(`  Adoptable — run \`vibrail mail adopt ${serverId}\`.`);
       else info("  Nothing to adopt on this server.");
     }),
   );
@@ -277,13 +277,13 @@ const setupCmd = new Command("setup")
             break;
           case "dns_pending":
             info("  Publish the DNS records above, then:");
-            info(`    openship mail dns-ack ${serverId}`);
-            info(`    openship mail setup ${serverId} --domain ${opts.domain} --start-step ${p.resumeStep}`);
+            info(`    vibrail mail dns-ack ${serverId}`);
+            info(`    vibrail mail setup ${serverId} --domain ${opts.domain} --start-step ${p.resumeStep}`);
             return;
           case "ptr_pending":
             info(`  Set reverse DNS (PTR) for ${p.ipv4}${p.ipv6 ? ` / ${p.ipv6}` : ""} → ${p.target}, then:`);
-            info(`    openship mail ptr-ack ${serverId}`);
-            info(`    openship mail setup ${serverId} --domain ${opts.domain} --start-step ${p.resumeStep}`);
+            info(`    vibrail mail ptr-ack ${serverId}`);
+            info(`    vibrail mail setup ${serverId} --domain ${opts.domain} --start-step ${p.resumeStep}`);
             return;
           case "complete":
             ok(`  Mail setup complete for ${p.domain}.`);

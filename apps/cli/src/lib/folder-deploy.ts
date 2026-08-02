@@ -1,6 +1,6 @@
 /**
  * Folder (non-git) deploy for the CLI — the terminal equivalent of the MCP /
- * dashboard folder-upload flow. When `openship deploy` runs outside a git repo,
+ * dashboard folder-upload flow. When `vibrail deploy` runs outside a git repo,
  * we package the current folder and drive the same server-side pipeline:
  *
  *   folder/session → (upload the tar.gz) → folder/scan → projects/ensure →
@@ -111,7 +111,7 @@ export async function deployFolder(opts: {
 
   // 2. Package the folder (source only — deps are reinstalled during build).
   step("Packaging folder");
-  const tarball = join(tmpdir(), `openship-upload-${session.sessionId}.tar.gz`);
+  const tarball = join(tmpdir(), `vibrail-upload-${session.sessionId}.tar.gz`);
   execFileSync(
     "tar",
     [

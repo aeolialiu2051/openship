@@ -74,10 +74,10 @@ export async function closeDb(): Promise<void> {
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // `../drizzle` resolves into the read-only embedded FS when this module is
 // baked into a `bun build --compile` binary (the desktop app), where the .sql
-// files aren't present. OPENSHIP_MIGRATIONS_DIR points that build at the
+// files aren't present. VIBRAIL_MIGRATIONS_DIR points that build at the
 // migrations shipped alongside the binary as a data asset.
 const MIGRATIONS_DIR =
-  process.env.OPENSHIP_MIGRATIONS_DIR ?? resolve(__dirname, "../drizzle");
+  process.env.VIBRAIL_MIGRATIONS_DIR ?? resolve(__dirname, "../drizzle");
 
 // ─── Data directory ──────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ const MIGRATIONS_DIR =
  *
  * Priority:
  *   1) PGLITE_DATA_DIR env var - explicit path (recommended for self-hosted)
- *   2) Default: ~/.openship/data  (outside the project, won't be committed)
+ *   2) Default: ~/.vibrail/data  (outside the project, won't be committed)
  */
 function resolvePgliteDataDir(): string {
   const home = process.env.HOME ?? process.env.USERPROFILE ?? "/tmp";
@@ -94,7 +94,7 @@ function resolvePgliteDataDir(): string {
   const explicit = process.env.PGLITE_DATA_DIR;
   if (explicit) {
     // Expand a leading ~ ourselves: env files (loaded via `node --env-file`) do
-    // NOT shell-expand, so `PGLITE_DATA_DIR=~/.openship/data-saas` would
+    // NOT shell-expand, so `PGLITE_DATA_DIR=~/.vibrail/data-saas` would
     // otherwise resolve literally. `resolve` handles relative paths from cwd.
     const expanded = explicit === "~" || explicit.startsWith("~/")
       ? resolve(home, explicit.slice(1).replace(/^\/+/, ""))
@@ -102,7 +102,7 @@ function resolvePgliteDataDir(): string {
     return resolve(expanded);
   }
 
-  return resolve(home, ".openship", "data");
+  return resolve(home, ".vibrail", "data");
 }
 
 // ─── Client factory ──────────────────────────────────────────────────────────
@@ -116,7 +116,7 @@ function resolvePgliteDataDir(): string {
  *
  * PGlite data location (when active):
  *   PGLITE_DATA_DIR  → explicit path (self-hosted customisation)
- *   _(default)_      → ~/.openship/data  (outside the project)
+ *   _(default)_      → ~/.vibrail/data  (outside the project)
  *
  * Migrations run automatically at startup from `packages/db/drizzle/`.
  * Schema changes → `pnpm db:generate` → commit the new migration → restart.
@@ -140,7 +140,7 @@ function resolveDatabaseUrl(): string {
   // otherwise fall through to PGlite (dev default).
   if (!host && !password) return "";
 
-  const user = process.env.POSTGRES_USER ?? process.env.PGUSER ?? "openship";
+  const user = process.env.POSTGRES_USER ?? process.env.PGUSER ?? "vibrail";
   const port = process.env.POSTGRES_PORT ?? process.env.PGPORT ?? "5432";
   const db = process.env.POSTGRES_DB ?? process.env.PGDATABASE ?? user;
   const auth = password
@@ -208,11 +208,11 @@ function clearStalePgliteControlFile(dataDir: string): void {
  * When @repo/db is baked into a `bun build --compile` binary (the desktop app),
  * pglite's own `pglite.wasm`/`pglite.data` aren't on disk beside its module — it
  * looks for them in the read-only embedded FS (`/$bunfs/root/…`) and fails.
- * OPENSHIP_PGLITE_ASSETS_DIR points at copies shipped alongside the binary; we
+ * VIBRAIL_PGLITE_ASSETS_DIR points at copies shipped alongside the binary; we
  * hand them to PGlite directly so it never resolves its own module dir.
  */
 async function resolvePgliteAssets() {
-  const dir = process.env.OPENSHIP_PGLITE_ASSETS_DIR;
+  const dir = process.env.VIBRAIL_PGLITE_ASSETS_DIR;
   if (!dir) return undefined;
   // WebAssembly is a bun/node runtime global, but not in this package's TS lib
   // (ES2022 + @types/node). Reach it via a typed globalThis cast so @repo/db

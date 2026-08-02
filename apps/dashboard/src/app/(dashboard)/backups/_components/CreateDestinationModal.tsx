@@ -35,7 +35,7 @@ interface KindOption {
 const KIND_OPTIONS: KindOption[] = [
   { kind: "s3_compatible", icon: Cloud },
   { kind: "sftp", icon: Server },
-  { kind: "openship_server", icon: ServerCog },
+  { kind: "vibrail_server", icon: ServerCog },
 ];
 
 // ─── S3 providers ────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ function kindTitle(kind: Kind, m: Record<string, string>): string {
       return m.kindS3;
     case "sftp":
       return m.kindSftp;
-    case "openship_server":
+    case "vibrail_server":
       return m.kindServer;
   }
 }
@@ -184,7 +184,7 @@ function kindMeta(kind: Kind, m: Record<string, string>): { description: string;
       return { description: m.s3Desc, examples: m.s3Examples };
     case "sftp":
       return { description: m.sftpDesc, examples: m.sftpExamples };
-    case "openship_server":
+    case "vibrail_server":
       return { description: m.serverDesc, examples: m.serverExamples };
   }
 }
@@ -435,7 +435,7 @@ function ConfigureForm({
       input.pathPrefix = pathPrefix.trim() || null;
       if (sftpPassword) input.sftpPassword = sftpPassword;
       if (sftpPrivateKey) input.sftpPrivateKey = sftpPrivateKey;
-    } else if (kind === "openship_server") {
+    } else if (kind === "vibrail_server") {
       input.serverId = serverId;
       input.pathPrefix = pathPrefix.trim() || null;
     }
@@ -574,7 +574,7 @@ function ConfigureForm({
               <input
                 value={pathPrefix}
                 onChange={(e) => setPathPrefix(e.target.value)}
-                placeholder="openship/prod"
+                placeholder="vibrail/prod"
                 className={inputClass}
               />
             </Field>
@@ -631,7 +631,7 @@ function ConfigureForm({
             <input
               value={pathPrefix}
               onChange={(e) => setPathPrefix(e.target.value)}
-              placeholder="/backups/openship"
+              placeholder="/backups/vibrail"
               className={inputClass}
             />
           </Field>
@@ -659,7 +659,7 @@ function ConfigureForm({
         </div>
       )}
 
-      {kind === "openship_server" && (
+      {kind === "vibrail_server" && (
         <div className="grid grid-cols-1 gap-4">
           <Field label={m.fieldServer} hint={m.hintServer}>
             <ServerSelector
@@ -672,7 +672,7 @@ function ConfigureForm({
             <input
               value={pathPrefix}
               onChange={(e) => setPathPrefix(e.target.value)}
-              placeholder="/backups/openship"
+              placeholder="/backups/vibrail"
               className={`${inputClass} font-mono`}
             />
           </Field>

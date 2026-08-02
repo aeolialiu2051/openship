@@ -22,9 +22,9 @@ r.use("*", localOnly);
 r.post("/scan", { tag: "server:write", collection: true }, migration.scanServer);
 // Streaming variant (SSE): step progress + result, no fixed timeout.
 r.get("/scan/stream", { tag: "server:write", collection: true }, migration.scanServerStream);
-// Create an Openship project from the selected discovered services (records only).
+// Create a Vibrail project from the selected discovered services (records only).
 r.post("/adopt", { tag: "server:write", collection: true }, migration.adoptServer);
-// Re-import an orphaned Openship project (DR / cross-instance), preserving its id.
+// Re-import an orphaned Vibrail project (DR / cross-instance), preserving its id.
 r.post("/reimport", { tag: "server:write", collection: true }, migration.reimportServer);
 
 // Read-only: parse a linked repo's docker-compose (GitHub API) for the map step.

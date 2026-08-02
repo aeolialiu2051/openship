@@ -30,7 +30,7 @@ import { promisify } from "node:util";
 import { getBuildImage, safeErrorMessage, type StackId } from "@repo/core";
 import { provisionCloudWorkspace } from "@repo/adapters";
 import { env } from "../../../config/env";
-import { getNamespaceClient } from "../../../lib/openship-cloud";
+import { getNamespaceClient } from "../../../lib/vibrail-cloud";
 import {
   newFolderSessionId,
   putFolderSession,
@@ -195,7 +195,7 @@ export async function createFolderSession(
   }
 
   // ── User-server, self-hosted, or local SaaS dev: API staging relay. ──
-  const stagingDir = await mkdtemp(join(tmpdir(), "openship-upload-"));
+  const stagingDir = await mkdtemp(join(tmpdir(), "vibrail-upload-"));
   const uploadTicket = randomBytes(24).toString("base64url");
 
   putFolderSession({

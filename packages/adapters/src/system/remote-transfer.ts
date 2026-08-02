@@ -175,7 +175,7 @@ async function withTemporaryPrivateKey<T>(
     return fn();
   }
 
-  const tempDir = await mkdtemp(join(tmpdir(), "openship-rsync-key-"));
+  const tempDir = await mkdtemp(join(tmpdir(), "vibrail-rsync-key-"));
   const keyPath = join(tempDir, "id_rsa");
 
   try {
@@ -252,7 +252,7 @@ export async function uploadFileWithRsync(
   // shell), so it must NOT be shell-quoted. rsync 3.2.4+ defaults to
   // protected-args and sends the arg to the remote WITHOUT shell splitting —
   // wrapping it in `sq()` would send literal quotes, breaking as
-  // `change_dir "/root/'/tmp…"`. openship remote paths are generated (no spaces/
+  // `change_dir "/root/'/tmp…"`. vibrail remote paths are generated (no spaces/
   // metachars), so the raw path is correct on both modern and legacy rsync.
   const target = `${user}@${host}:${remoteFile}`;
 

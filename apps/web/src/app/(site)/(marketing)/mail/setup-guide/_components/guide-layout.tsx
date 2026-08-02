@@ -5,7 +5,7 @@
  *
  * Pure content pages - no auth, no server-side state, no per-server
  * settings rail. Operators reading these are expected to have their
- * Openship admin Overview open in a side tab for the actual host /
+ * Vibrail admin Overview open in a side tab for the actual host /
  * port / username / password values, so we don't duplicate them here.
  */
 

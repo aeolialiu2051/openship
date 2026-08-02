@@ -5,7 +5,7 @@
  *
  * A build host is often already authenticated to the git remote: the operator ran
  * `gh auth login` on it, or configured a credential helper, or its ssh key is on
- * the account. Openship used to ignore all of that — it only knew about
+ * the account. Vibrail used to ignore all of that — it only knew about
  * credentials it stores itself (`serverGithubAuth`) or ships/forwards — so such a
  * server was treated as credential-less and the deploy fell back to cloning on
  * the API host and transferring the build context.

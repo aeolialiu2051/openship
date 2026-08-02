@@ -5,8 +5,8 @@ description: Fix a server that won't connect over SSH, a component that won't in
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-When you deploy to your own machine, Openship reaches it over SSH — the same way you'd type `ssh you@your-box`
-in a terminal. Most "my server won't work" problems come down to one of four things: Openship can't log in,
+When you deploy to your own machine, Vibrail reaches it over SSH — the same way you'd type `ssh you@your-box`
+in a terminal. Most "my server won't work" problems come down to one of four things: Vibrail can't log in,
 can't reach the box, can't install a tool it needs, or a tool it installed isn't running. This page walks
 through each one.
 
@@ -15,17 +15,17 @@ Servers are at **`/servers`**; each server's detail screen is **`/servers/<serve
 **Components**, **Security**, **Ports** (desktop app only), and **Terminal** tabs. For the happy-path
 walkthrough see [Deploy to your own server](/docs/guides/custom-servers) and the
 [Servers dashboard reference](/docs/dashboard/servers). From the terminal, the matching commands live under
-[`openship server`](/docs/cli/self-host).
+[`vibrail server`](/docs/cli/self-host).
 </Callout>
 
 ## Two commands that tell you what's wrong
 
 Before fixing anything, find out *which* stage is failing. Two actions answer that:
 
-- **Test Connection** (the button on the server form, or `openship server test-connection --host ...`) tries
+- **Test Connection** (the button on the server form, or `vibrail server test-connection --host ...`) tries
   only the SSH login, using the details you typed, and **saves nothing**. Use it while you're still guessing at
   credentials.
-- **Re-check** (the Components tab, or `openship server check <serverId>`) logs into a **saved** server and
+- **Re-check** (the Components tab, or `vibrail server check <serverId>`) logs into a **saved** server and
   reports which components are installed, healthy, and which required ones are missing.
 
 If Test Connection succeeds but Re-check shows problems, your SSH is fine and the issue is a component. If Test
@@ -42,7 +42,7 @@ server allows password login.` / `SSH key authentication failed for … Check th
 passphrase, or whether the server accepts this key.`
 </Callout>
 
-**What it means.** Openship reached the server, but the server rejected the login. The network is fine — the
+**What it means.** Vibrail reached the server, but the server rejected the login. The network is fine — the
 username, the secret (password / key / passphrase), or the chosen **auth method** is wrong, or the server
 doesn't accept that kind of login.
 
@@ -60,7 +60,7 @@ Match the **Authentication** method to how you actually log in:
 
 - **Password** — the server must allow password login (`PasswordAuthentication yes` in its sshd config). Many
   cloud images disable it.
-- **SSH Key** — the **Key Path** must point at a **private** key the machine running Openship can read
+- **SSH Key** — the **Key Path** must point at a **private** key the machine running Vibrail can read
   (e.g. `~/.ssh/id_rsa`), and the matching public key must be in the server's `~/.ssh/authorized_keys`. Add
   the **Passphrase** if the key has one.
 - **Agent** — uses the host machine's running `ssh-agent`; see [Agent auth finds no keys](#agent-auth-finds-no-keys).
@@ -68,7 +68,7 @@ Match the **Authentication** method to how you actually log in:
 
 <Step>
 Verify the same details work from a plain terminal: `ssh -p <port> <user>@<host>`. If that fails too, the fix
-is on the server, not in Openship.
+is on the server, not in Vibrail.
 </Step>
 
 <Step>
@@ -90,7 +90,7 @@ A failure that isn't about credentials — the underlying message contains somet
 `ETIMEDOUT`, `EHOSTUNREACH`, `ENETUNREACH`, or `SSH connection closed before ready`.
 </Callout>
 
-**What it means.** Openship never got as far as logging in. Either nothing is listening on that host and port,
+**What it means.** Vibrail never got as far as logging in. Either nothing is listening on that host and port,
 a firewall is dropping the packets, or the address is wrong.
 
 - `ECONNREFUSED` — the host answered but nothing is listening on that **port** (wrong port, or sshd is down).
@@ -106,19 +106,19 @@ Double-check the **Server IP Address** and **Port**. A typo here is the most com
 </Step>
 
 <Step>
-Confirm the SSH port is open to the machine running Openship — check your provider's firewall / security-group
+Confirm the SSH port is open to the machine running Vibrail — check your provider's firewall / security-group
 rules, not just the server's local firewall.
 </Step>
 
 <Step>
-Test raw reachability from the Openship host: `nc -vz <host> <port>` (or `ssh -p <port> <user>@<host>`). If
-that can't connect, the problem is network/firewall, not Openship.
+Test raw reachability from the Vibrail host: `nc -vz <host> <port>` (or `ssh -p <port> <user>@<host>`). If
+that can't connect, the problem is network/firewall, not Vibrail.
 </Step>
 
 </Steps>
 
 <Callout title="&quot;Cooling down after repeated failures&quot;" type="warn">
-After a couple of consecutive failures Openship trips a short circuit breaker and fast-fails with
+After a couple of consecutive failures Vibrail trips a short circuit breaker and fast-fails with
 `Server is unreachable — cooling down after repeated failures, retry in ~30s.` instead of hammering a dead box
 on every check. This is expected — fix the underlying reachability problem, wait out the countdown, then retry.
 A single success clears it.
@@ -149,7 +149,7 @@ Make sure the key that reaches the final host is loaded in your `ssh-agent` (see
 </Step>
 
 <Step>
-Prefer configuring the bastion once in your `~/.ssh/config` and pointing Openship at the target host — the
+Prefer configuring the bastion once in your `~/.ssh/config` and pointing Vibrail at the target host — the
 Agent path reads your SSH config the same way your terminal does.
 </Step>
 
@@ -163,7 +163,7 @@ authentication failure.
 </Callout>
 
 **What it means.** Agent auth authenticates exactly the way `ssh <host>` does in your terminal: through the
-host machine's `ssh-agent`. Openship looks for the agent socket in `SSH_AUTH_SOCK`, and — because a
+host machine's `ssh-agent`. Vibrail looks for the agent socket in `SSH_AUTH_SOCK`, and — because a
 GUI-launched desktop app often doesn't inherit that variable — falls back to `launchctl getenv SSH_AUTH_SOCK`
 on macOS and `systemctl --user show-environment` on Linux. If no agent (or no loaded key) is found, the login
 has nothing to offer and fails. The Agent path is also non-interactive (`BatchMode=yes`), so it never prompts
@@ -174,13 +174,13 @@ for a password or passphrase — it must succeed with agent/keys alone.
 <Steps>
 
 <Step>
-On the machine running Openship, confirm an agent is running and has your key:
+On the machine running Vibrail, confirm an agent is running and has your key:
 `ssh-add -l`. If it lists "no identities", load one with `ssh-add ~/.ssh/id_rsa`.
 </Step>
 
 <Step>
-Confirm plain `ssh <user>@<host>` works from that same machine. If it does but Openship doesn't, the agent
-socket isn't being found — restart Openship from a shell that has `SSH_AUTH_SOCK` set, or switch to **SSH Key**
+Confirm plain `ssh <user>@<host>` works from that same machine. If it does but Vibrail doesn't, the agent
+socket isn't being found — restart Vibrail from a shell that has `SSH_AUTH_SOCK` set, or switch to **SSH Key**
 auth and point at the key file directly.
 </Step>
 
@@ -193,10 +193,10 @@ On Windows, the OpenSSH agent is a named pipe rather than a socket and isn't sup
 
 ## A component won't install or reports unhealthy
 
-Openship installs and health-checks a small set of components on each server: **Docker**, **Git**,
+Vibrail installs and health-checks a small set of components on each server: **Docker**, **Git**,
 **Traefik**, **Certbot**, and **rsync**. Docker and Git are the core requirements for deployments; the rest
 are optional infrastructure. Manage them from the server's **Components** tab (the **System Health** card) or
-with `openship server install`/`check`.
+with `vibrail server install`/`check`.
 
 ### Docker is missing or the daemon isn't running
 
@@ -213,8 +213,8 @@ means it's present but the background service is stopped.
 <Steps>
 
 <Step>
-For a missing Docker, use **Install** on the Docker row (or `openship server install <serverId> -c docker`).
-Openship installs it via the official `curl -fsSL https://get.docker.com | sh` script and, on systemd hosts,
+For a missing Docker, use **Install** on the Docker row (or `vibrail server install <serverId> -c docker`).
+Vibrail installs it via the official `curl -fsSL https://get.docker.com | sh` script and, on systemd hosts,
 enables and starts the service.
 </Step>
 
@@ -224,7 +224,7 @@ docker` so it survives reboots).
 </Step>
 
 <Step>
-Press **Re-check** (or `openship server check <serverId>`) — the Docker row should read healthy with a version.
+Press **Re-check** (or `vibrail server check <serverId>`) — the Docker row should read healthy with a version.
 </Step>
 
 </Steps>
@@ -268,7 +268,7 @@ An install returns an error such as `install_in_progress`, `Invalid component na
 **What it means.**
 
 - `install_in_progress` — a setup session for this server is already running; only one runs at a time.
-- `Invalid component names` / `Invalid or missing component name` — the component isn't one Openship installs.
+- `Invalid component names` / `Invalid or missing component name` — the component isn't one Vibrail installs.
   The valid names are `docker`, `git`, `traefik`, `certbot`, and `rsync`.
 
 **How to fix.**
@@ -309,7 +309,7 @@ There's no **Ports** tab, or a tunnel action fails with `Not available in this m
 </Callout>
 
 **What it means.** Port forwarding is **desktop-only**. Forwarding a remote port to "localhost" only makes
-sense when the Openship orchestrator *is* your own machine, so the feature is hidden on hosted and self-hosted
+sense when the Vibrail orchestrator *is* your own machine, so the feature is hidden on hosted and self-hosted
 VPS instances.
 
 **How to fix.** Use the desktop app to manage port forwards for that server. There's nothing to change on the
@@ -341,7 +341,7 @@ SSH connection, so if SSH is down the tunnel can't start.
 </Step>
 
 <Step>
-If the start still fails, the OS may have picked a busy local port — set **Local** to `0` so Openship binds any
+If the start still fails, the OS may have picked a busy local port — set **Local** to `0` so Vibrail binds any
 free port, then **Start** again. **Stop** and **Start** cleanly reopen a stuck forward.
 </Step>
 

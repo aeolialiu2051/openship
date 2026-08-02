@@ -39,7 +39,7 @@ describe("rsyncCommand resume flags", () => {
   test("includes --partial and --partial-dir so a re-invoke resumes", () => {
     const cmd = rsyncCommand("ssh -i k", peer, "/a", "/b", true, false);
     expect(cmd).toContain("--partial");
-    expect(cmd).toContain("--partial-dir=.openship-partial");
+    expect(cmd).toContain("--partial-dir=.vibrail-partial");
   });
 });
 
@@ -142,7 +142,7 @@ describe("establishDirectLink", () => {
   test("push: source reaches target → direction 'push'", async () => {
     const sourceExec = fakeExec([
       ...bootstrapOk,
-      { match: /OPENSHIP_LINK_OK/, reply: "OPENSHIP_LINK_OK\n" },
+      { match: /VIBRAIL_LINK_OK/, reply: "VIBRAIL_LINK_OK\n" },
     ]);
     const targetExec = fakeExec([]); // just receives the authorized_keys install
     const link = await establishDirectLink({
@@ -156,19 +156,19 @@ describe("establishDirectLink", () => {
     expect(link?.direction).toBe("push");
     // Cleanup strips the run marker on the peer (target) and removes the temp key.
     await link!.cleanup();
-    expect(targetExec.calls.some((c) => /grep -v .*openship-migration-run1-push/.test(c))).toBe(true);
-    expect(sourceExec.calls.some((c) => /rm -rf .*openship-migration-run1-push/.test(c))).toBe(true);
+    expect(targetExec.calls.some((c) => /grep -v .*vibrail-migration-run1-push/.test(c))).toBe(true);
+    expect(sourceExec.calls.some((c) => /rm -rf .*vibrail-migration-run1-push/.test(c))).toBe(true);
   });
 
   test("push blocked, pull works → direction 'pull'", async () => {
     // Source probe fails; target (pull initiator) probe succeeds.
     const sourceExec = fakeExec([
       ...bootstrapOk,
-      { match: /OPENSHIP_LINK_OK/, reply: "" }, // push probe: unreachable
+      { match: /VIBRAIL_LINK_OK/, reply: "" }, // push probe: unreachable
     ]);
     const targetExec = fakeExec([
       ...bootstrapOk,
-      { match: /OPENSHIP_LINK_OK/, reply: "OPENSHIP_LINK_OK" },
+      { match: /VIBRAIL_LINK_OK/, reply: "VIBRAIL_LINK_OK" },
     ]);
     const link = await establishDirectLink({
       sourceExec,
@@ -183,7 +183,7 @@ describe("establishDirectLink", () => {
 
   test("neither direction connects → null", async () => {
     const unreachable = () =>
-      fakeExec([...bootstrapOk, { match: /OPENSHIP_LINK_OK/, reply: "" }]);
+      fakeExec([...bootstrapOk, { match: /VIBRAIL_LINK_OK/, reply: "" }]);
     const link = await establishDirectLink({
       sourceExec: unreachable(),
       targetExec: unreachable(),

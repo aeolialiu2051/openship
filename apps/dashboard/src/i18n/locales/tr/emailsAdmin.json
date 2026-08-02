@@ -354,7 +354,7 @@
   },
   "advanced": {
     "resetTitle": "Sunucu üzerindeki durum sıfırlansın mı?",
-    "resetDesc": "Vibrail'in bu kurulumla ilgili takibini ve bu kurulum için oluşturduğu DNS kayıtlarını temizler. Sunucudaki durum dosyası (/root/.openship/mail-state.json) ile e-posta sunucusu kayıt satırı silinir. Çalışan e-posta servisleri korunur; yeniden yönetmek için kurulum sihirbazını tekrar çalıştırmanız gerekir (Kaldır, yeniden benimseme için durumu ve DNS'i korur).",
+    "resetDesc": "Vibrail'in bu kurulumla ilgili takibini ve bu kurulum için oluşturduğu DNS kayıtlarını temizler. Sunucudaki durum dosyası (/root/.vibrail/mail-state.json) ile e-posta sunucusu kayıt satırı silinir. Çalışan e-posta servisleri korunur; yeniden yönetmek için kurulum sihirbazını tekrar çalıştırmanız gerekir (Kaldır, yeniden benimseme için durumu ve DNS'i korur).",
     "resetSubmit": "Durumu sıfırla",
     "resetSubmitting": "Sıfırlanıyor…",
     "resetFailed": "Sıfırlama başarısız oldu",
@@ -386,7 +386,7 @@
     "rerunDesc": "Bu sunucuyu hedefleyen kurulum sihirbazını açar. DNS değişikliğinden, alan adı yeniden adlandırmasından sonra veya başarısız bir adımı tekrar denemek için kullanışlıdır. Sihirbaz mevcut bir kurulumu tespit eder ve durumu silmek yerine adım bazlı tekrar deneme sunar.",
     "openWizard": "Sihirbazı aç",
     "resetCardTitle": "Sunucu üzerindeki durumu sıfırla",
-    "resetCardDesc": "Vibrail'in bu kuruluma ilişkin izleme verilerini — sunucudaki durum dosyasını (/root/.openship/mail-state.json) ve kayıt satırını — kaldırır. E-posta yığınını kaldırmaz veya posta kutularına dokunmaz; sunucu çalışmaya devam eder ancak yeniden yönetmek için kurulum sihirbazını çalıştırmanız gerekir. İzleme verileri elle temizleme veya sunucuyu yeniden imajlama sonrasında gerçek durumdan saptığında kullanın.",
+    "resetCardDesc": "Vibrail'in bu kuruluma ilişkin izleme verilerini — sunucudaki durum dosyasını (/root/.vibrail/mail-state.json) ve kayıt satırını — kaldırır. E-posta yığınını kaldırmaz veya posta kutularına dokunmaz; sunucu çalışmaya devam eder ancak yeniden yönetmek için kurulum sihirbazını çalıştırmanız gerekir. İzleme verileri elle temizleme veya sunucuyu yeniden imajlama sonrasında gerçek durumdan saptığında kullanın.",
     "resetStateBtn": "Durumu sıfırla",
     "removeTitle": "E-posta sunucusunu kaldır",
     "removeDesc": "Bu sunucuyu yönetmeyi durdurur — yalnızca /emails listesinden çıkarır. E-posta yığını çalışmaya devam eder ve sunucudaki durum dosyası korunur; böylece mevcut kurulumu tarayarak daha sonra yeniden yönetime alabilirsiniz. Eski veya yanlış işaretlenmiş bir kaydı temizlemek için kullanın.",

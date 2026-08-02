@@ -1,9 +1,9 @@
 /**
- * `openship config init` / `openship config validate` — author and check the
- * repo-root `openship.json` (Openship's declarative deploy config).
+ * `vibrail config init` / `vibrail config validate` — author and check the
+ * repo-root `vibrail.json` (Vibrail's declarative deploy config).
  *
  * `validate` runs the SAME parser the deploy pipeline uses
- * (`parseOpenshipConfigJson` from @repo/core), so a file that validates here
+ * (`parseVibrailConfigJson` from @repo/core), so a file that validates here
  * behaves identically on deploy. `init` scaffolds a minimal, valid starter with
  * the `$schema` line (editor autocomplete) plus whatever we can cheaply detect
  * locally (package manager from the lockfile, a build script from package.json).
@@ -11,16 +11,16 @@
 import { Command } from "commander";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { parseOpenshipConfigJson, type OpenshipConfig } from "@repo/core";
+import { parseVibrailConfigJson, type VibrailConfig } from "@repo/core";
 import { err, info, isJsonMode, ok, printJson } from "../lib/output";
 
-const SCHEMA_URL = "https://openship.io/openship.schema.json";
-const CONFIG_FILE = "openship.json";
+const SCHEMA_URL = "https://docs.vibrail.warpgateapi.com/vibrail.schema.json";
+const CONFIG_FILE = "vibrail.json";
 
 /** Cheap, dependency-free stack hints from the target dir. No network, no clone. */
-function detectHints(dir: string): Partial<OpenshipConfig> {
-  const hints: Partial<OpenshipConfig> = {};
-  const lock: Array<[string, OpenshipConfig["packageManager"]]> = [
+function detectHints(dir: string): Partial<VibrailConfig> {
+  const hints: Partial<VibrailConfig> = {};
+  const lock: Array<[string, VibrailConfig["packageManager"]]> = [
     ["pnpm-lock.yaml", "pnpm"],
     ["yarn.lock", "yarn"],
     ["bun.lockb", "bun"],
@@ -48,9 +48,9 @@ function detectHints(dir: string): Partial<OpenshipConfig> {
 }
 
 const initCmd = new Command("init")
-  .description("Scaffold an openship.json in the current directory")
+  .description("Scaffold a vibrail.json in the current directory")
   .option("--dir <path>", "Directory to write into", process.cwd())
-  .option("--force", "Overwrite an existing openship.json")
+  .option("--force", "Overwrite an existing vibrail.json")
   .action((opts) => {
     const dir: string = opts.dir || process.cwd();
     const path = join(dir, CONFIG_FILE);
@@ -61,7 +61,7 @@ const initCmd = new Command("init")
 
     const hints = detectHints(dir);
     // $schema first (editor autocomplete); then detected fields. Everything else
-    // is intentionally omitted — Openship auto-detects it, and openship.json only
+    // is intentionally omitted — Vibrail auto-detects it, and vibrail.json only
     // needs to carry what you want to override.
     const scaffold: Record<string, unknown> = { $schema: SCHEMA_URL, ...hints };
     const text = JSON.stringify(scaffold, null, 2) + "\n";
@@ -72,11 +72,11 @@ const initCmd = new Command("init")
       return;
     }
     ok(`\n  Wrote ${CONFIG_FILE} → ${path}`);
-    info("  Edit it to declare framework, env, domains, resources, services… then `openship config validate`.\n");
+    info("  Edit it to declare framework, env, domains, resources, services… then `vibrail config validate`.\n");
   });
 
 const validateCmd = new Command("validate")
-  .description("Validate an openship.json against the deploy schema")
+  .description("Validate a vibrail.json against the deploy schema")
   .argument("[file]", "Path to the config file", CONFIG_FILE)
   .action((file: string) => {
     const path = file === CONFIG_FILE ? join(process.cwd(), CONFIG_FILE) : file;
@@ -86,7 +86,7 @@ const validateCmd = new Command("validate")
       process.exit(1);
     }
 
-    const { config, errors, warnings } = parseOpenshipConfigJson(readFileSync(path, "utf8"));
+    const { config, errors, warnings } = parseVibrailConfigJson(readFileSync(path, "utf8"));
     const valid = errors.length === 0 && config !== null;
 
     if (isJsonMode()) {
@@ -104,6 +104,6 @@ const validateCmd = new Command("validate")
   });
 
 export const configCommand = new Command("config")
-  .description("Author and validate openship.json (declarative deploy config)")
+  .description("Author and validate vibrail.json (declarative deploy config)")
   .addCommand(initCmd)
   .addCommand(validateCmd);

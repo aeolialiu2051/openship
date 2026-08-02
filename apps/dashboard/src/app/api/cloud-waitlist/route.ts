@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 
 // TODO: removed — temporary Cloud-waitlist forwarder for the SaaS deploy gate.
-// Delete when Openship Cloud launches (along with CloudWaitlistModal + the gate).
+// Delete when Vibrail Cloud launches (along with CloudWaitlistModal + the gate).
 
 /**
  * Cloud "notify me" waitlist submit. Forwards the email to the external

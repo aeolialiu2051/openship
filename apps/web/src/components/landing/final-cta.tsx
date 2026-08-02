@@ -17,7 +17,7 @@ export function FinalCta() {
               Get started
             </a>
             <a
-              href="https://github.com/oblien/openship"
+              href="https://github.com/aeolialiu2051/vibrail"
               target="_blank"
               rel="noreferrer"
               className="fcta-btn fcta-btn--ghost"

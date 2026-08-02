@@ -12,7 +12,7 @@ describe("deployment default target selection", () => {
     expect(displayedDeployTarget("cloud", true)).toBe("server");
   });
 
-  it("marks OpenShip Cloud as coming soon instead of saving it", () => {
+  it("marks Vibrail Cloud as coming soon instead of saving it", () => {
     expect(resolveDeployTargetClick("cloud")).toEqual({
       kind: "coming-soon",
     });

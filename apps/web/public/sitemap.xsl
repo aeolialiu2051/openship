@@ -8,7 +8,7 @@
     <html lang="en">
       <head>
         <meta charset="UTF-8"/>
-        <title>Openship - Sitemap</title>
+        <title>Vibrail - Sitemap</title>
         <meta name="robots" content="noindex"/>
         <style>
           :root {
@@ -168,7 +168,7 @@
         <div class="wrap">
           <a class="brand" href="/">
             <span class="brand-mark"></span>
-            Openship
+            Vibrail
           </a>
 
           <xsl:choose>
@@ -179,7 +179,7 @@
               </div>
               <h1>Sitemap Index<span class="count"><xsl:value-of select="count(sm:sitemapindex/sm:sitemap)"/> sub-sitemaps</span></h1>
               <p class="lede">
-                This file lists every sub-sitemap on openship.io. Crawlers fetch each child below to discover the full URL set.
+                This file lists every sub-sitemap on vibrail.warpgateapi.com. Crawlers fetch each child below to discover the full URL set.
               </p>
               <table>
                 <thead>
@@ -212,7 +212,7 @@
               </div>
               <h1>URLs<span class="count"><xsl:value-of select="count(sm:urlset/sm:url)"/> entries</span></h1>
               <p class="lede">
-                Every URL below is part of the public Openship site. Crawlers ingest these to keep search results fresh.
+                Every URL below is part of the public Vibrail site. Crawlers ingest these to keep search results fresh.
               </p>
               <table>
                 <thead>

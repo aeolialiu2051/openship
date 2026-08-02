@@ -276,7 +276,7 @@
     "noServersLink": "Servidores",
     "noServersPost": " primeiro.",
     "fieldRemotePath": "Caminho remoto",
-    "hintRemotePath": "Diretório absoluto no servidor (ex.: /backups/openship)",
+    "hintRemotePath": "Diretório absoluto no servidor (ex.: /backups/vibrail)",
     "fieldAbsolutePath": "Caminho absoluto",
     "hintAbsolutePath": "Caminho do sistema de arquivos no host da API. Desativado no modo cloud.",
     "saving": "Salvando…",

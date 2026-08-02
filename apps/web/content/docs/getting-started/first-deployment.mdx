@@ -1,12 +1,12 @@
 ---
 title: Your first deployment
-description: A gentle, screen-by-screen walkthrough of putting one real GitHub app online with Openship — and what "live" actually looks like.
+description: A gentle, screen-by-screen walkthrough of putting one real GitHub app online with Vibrail — and what "live" actually looks like.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 You're about to take some code that lives on GitHub and turn it into a real website that anyone can open. Think
-of it like handing a letter to the post office: you give Openship your code, it does the sorting, stamping, and
+of it like handing a letter to the post office: you give Vibrail your code, it does the sorting, stamping, and
 delivering, and out the other end comes a real web address you can click.
 
 This page is the slow, friendly tour — we stop at every screen and explain what it means. If you'd rather do the
@@ -14,9 +14,9 @@ whole thing from the terminal in a couple of commands, the [Quickstart](/docs/ge
 covered.
 
 <Callout title="Before you start">
-- Openship is up and running (you can see the dashboard). If not, start with [Installation](/docs/getting-started/installation).
+- Vibrail is up and running (you can see the dashboard). If not, start with [Installation](/docs/getting-started/installation).
 - You have a **GitHub repository** with an app in it — a website, an API, anything.
-- You do **not** need Docker, a server config, or any special files. Openship figures those out by reading your repo.
+- You do **not** need Docker, a server config, or any special files. Vibrail figures those out by reading your repo.
 </Callout>
 
 ## The walkthrough
@@ -30,7 +30,7 @@ covered.
 In the dashboard, go to the **Library** page (the **New project** button lands you here too). It opens on the
 **GitHub** tab, which shows a list of your repositories.
 
-If this is your very first time, Openship won't have permission to see your repos yet — you'll see a **Connect
+If this is your very first time, Vibrail won't have permission to see your repos yet — you'll see a **Connect
 GitHub** button instead of a list. Click it, say yes in the GitHub window that pops up, and the list appears.
 You only do this once.
 
@@ -42,7 +42,7 @@ You only do this once.
 
 ### Pick the repository you want
 
-Find your app in the list and click it. Openship reads the repo, works out what kind of app it is, and takes
+Find your app in the list and click it. Vibrail reads the repo, works out what kind of app it is, and takes
 you to the setup screen. There's nothing to fill in by hand yet — just choose the repo.
 
 </Step>
@@ -51,11 +51,11 @@ you to the setup screen. There's nothing to fill in by hand yet — just choose 
 
 ### Choose where it should run (you might not see this)
 
-Depending on how you're running Openship, it may first ask **"Where do you want to deploy?"** The choices are
-things like one of your **connected servers** or **Openship Cloud** (the managed option, where Openship runs the
+Depending on how you're running Vibrail, it may first ask **"Where do you want to deploy?"** The choices are
+things like one of your **connected servers** or **Vibrail Cloud** (the managed option, where Vibrail runs the
 app for you).
 
-If Openship already knows where to send your app — there's only one place available, or you chose one the last
+If Vibrail already knows where to send your app — there's only one place available, or you chose one the last
 time — it skips this screen and takes you straight to setup. So don't worry if you never see it. When you do,
 pick one and press **Continue**.
 
@@ -69,7 +69,7 @@ Not sure? The default is fine. This choice isn't permanent — you can move or r
 
 ### Read the setup screen
 
-This is the one screen worth a slow look. Openship has already filled it in for you by reading your code:
+This is the one screen worth a slow look. Vibrail has already filled it in for you by reading your code:
 
 - **The framework and commands** — which kind of app it detected, plus the install and build commands it will run.
 - **Environment variables** — an area to add any secrets or settings your app needs (like a database address).
@@ -111,10 +111,10 @@ buttons appear: **Visit Site** and **View dashboard**.
 When the deployment is done, the build screen shows a **Ready** status in the deployment details, along
 with the branch it built, the framework it used, and the **web address** your app now lives at.
 
-Press **Visit Site** and Openship opens that address in a new tab — that's your app, on the internet, for real. 🎉
+Press **Visit Site** and Vibrail opens that address in a new tab — that's your app, on the internet, for real. 🎉
 
 <Callout title="Where does the web address come from?" type="info">
-Openship gives every project a web address automatically — you'll see the exact one on the setup screen and again
+Vibrail gives every project a web address automatically — you'll see the exact one on the setup screen and again
 in the build details. **Visit Site** just opens it. Prefer your own name, like `yourapp.com`? You can attach a
 custom domain afterwards.
 </Callout>
@@ -125,7 +125,7 @@ variables, and settings all live there.
 ## If something goes wrong
 
 <Callout title="No repositories show up / “Connect GitHub” keeps reappearing" type="warn">
-Your GitHub connection didn't finish, or Openship wasn't granted access to that repo. Connect again, and when
+Your GitHub connection didn't finish, or Vibrail wasn't granted access to that repo. Connect again, and when
 GitHub asks **which repositories** to allow, make sure yours is included.
 </Callout>
 

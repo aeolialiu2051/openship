@@ -24,7 +24,7 @@ import {
 } from "./build-pipeline";
 import { transferLocalDirectory } from "./transfer";
 
-const LOCAL_BUILD_DIR = "/tmp/openship/.builds";
+const LOCAL_BUILD_DIR = "/tmp/vibrail/.builds";
 
 // ─── Options ─────────────────────────────────────────────────────────────────
 

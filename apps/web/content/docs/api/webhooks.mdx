@@ -38,7 +38,7 @@ modules. Only `github` is registered on the unified `/:provider` dispatcher by d
 POST /api/webhooks/:provider
 ```
 
-There is no Openship-defined request body: the body is the provider's **raw event payload**, read verbatim
+There is no Vibrail-defined request body: the body is the provider's **raw event payload**, read verbatim
 so the signature can be checked byte-for-byte. GitHub deliveries carry these headers, which the dispatcher
 relies on:
 
@@ -69,9 +69,9 @@ curl -X POST https://your-host/api/webhooks/github \
 ```
 
 <Callout title="No CLI command for this endpoint" type="info">
-Webhooks are machine-to-machine, so there is no `openship` command that calls `/api/webhooks`. Instead,
-Openship registers the GitHub webhook — with a per-project signing secret — automatically when you link a
-repository to a project (see [`openship project`](/docs/cli/projects)). You never configure the URL or
+Webhooks are machine-to-machine, so there is no `vibrail` command that calls `/api/webhooks`. Instead,
+Vibrail registers the GitHub webhook — with a per-project signing secret — automatically when you link a
+repository to a project (see [`vibrail project`](/docs/cli/projects)). You never configure the URL or
 secret by hand.
 </Callout>
 
@@ -107,7 +107,7 @@ When a verified `push` event arrives, the handler maps it to deployments like th
 - **Idempotency.** The `X-GitHub-Delivery` id is claimed persistently, so an at-least-once redelivery of the
   same push is dropped instead of deploying twice.
 - **Cloud forwarding.** On a self-hosted box, if no local project matches but a linked **cloud** project owns
-  the repo/branch, the push is forwarded to Openship Cloud so the cloud copy redeploys.
+  the repo/branch, the push is forwarded to Vibrail Cloud so the cloud copy redeploys.
 
 Deep dive on wiring and edge cases: [Auto-deploy on push](/docs/guides/auto-deploy).
 

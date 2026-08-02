@@ -12,7 +12,7 @@ export const KIND_ICONS: Record<
 > = {
   s3_compatible: Cloud,
   sftp: Server,
-  openship_server: Server,
+  vibrail_server: Server,
   local: HardDrive,
   http_upload: Cloud,
 };
@@ -22,7 +22,7 @@ export const KIND_ICONS: Record<
 export const EDITABLE_KINDS = new Set<BackupDestinationSummary["kind"]>([
   "s3_compatible",
   "sftp",
-  "openship_server",
+  "vibrail_server",
 ]);
 
 type BackupsDict = Record<string, string>;
@@ -31,7 +31,7 @@ export function kindLabel(kind: BackupDestinationSummary["kind"], m: BackupsDict
   const map: Record<BackupDestinationSummary["kind"], string> = {
     s3_compatible: m.kindS3,
     sftp: m.kindSftp,
-    openship_server: m.kindServer,
+    vibrail_server: m.kindServer,
     local: m.kindLocal,
     http_upload: m.kindHttp,
   };
@@ -48,7 +48,7 @@ export function describeCredentials(row: BackupDestinationSummary, m: BackupsDic
         : row.hasSftpPassword
           ? m.credPasswordStored
           : m.credNone;
-    case "openship_server":
+    case "vibrail_server":
       return m.credReusesServer;
     case "local":
       return m.credNoneNeeded;
@@ -63,7 +63,7 @@ export function describeDestination(row: BackupDestinationSummary, m: BackupsDic
       return `${row.bucket ?? "?"}${row.region ? ` · ${row.region}` : ""}${row.endpoint ? ` · ${row.endpoint}` : ""}`;
     case "sftp":
       return `${row.sshUser ?? "?"}@${row.sshHost ?? "?"}:${row.sshPort ?? 22}${row.pathPrefix ? `:${row.pathPrefix}` : ""}`;
-    case "openship_server":
+    case "vibrail_server":
       return `${m.serverPrefix}${row.serverId?.slice(0, 8) ?? "?"}…${row.pathPrefix ? ` · ${row.pathPrefix}` : ""}`;
     case "local":
       return row.endpoint ?? "?";

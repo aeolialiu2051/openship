@@ -135,7 +135,7 @@ function LoginPageInner() {
     );
   }
 
-  /* ── Cloud mode (desktop): redirect to Openship Cloud for all auth ── */
+  /* ── Cloud mode (desktop): redirect to Vibrail Cloud for all auth ── */
   if (authMode === "cloud") {
     const apiUrl = getApiOrigin(typeof window !== "undefined" ? window.location.origin : undefined);
     const callbackUrl = `${apiUrl}/api/auth/cloud-callback`;
@@ -150,7 +150,7 @@ function LoginPageInner() {
             {t.auth.login.title}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Sign in with your Openship account to continue.
+            Sign in with your Vibrail account to continue.
           </p>
         </div>
 

@@ -42,11 +42,11 @@ const PLANS: Plan[] = [
   },
   {
     n: "02",
-    name: "Openship Cloud",
+    name: "Vibrail Cloud",
     tag: "Managed",
     price: "Coming soon",
     priceNote: "Plans announced once billing is live",
-    lead: "Fully managed Openship — multi-region, auto-scaling, backups included. Plans open as soon as payments are ready.",
+    lead: "Fully managed Vibrail — multi-region, auto-scaling, backups included. Plans open as soon as payments are ready.",
     cta: "Get notified",
     ctaHref: "/contact",
     ribbon: "Coming soon",
@@ -70,7 +70,7 @@ const FAQ = [
     a: "We're finishing setting up payments and billing. Rather than show plans we can't complete sign-up for yet, we've paused them for the moment. It's temporary — leave your email on the contact page and we'll tell you the instant they open.",
   },
   {
-    q: "How much does Openship Cloud cost?",
+    q: "How much does Vibrail Cloud cost?",
     a: "Cloud pricing hasn't been announced yet, and sign-ups are paused while we finish billing setup. Leave your email on the contact page and we'll let you know before it launches.",
   },
   {
@@ -106,7 +106,7 @@ export default function PricingPage() {
             </h1>
             <p className="pp-sub">
               We're finishing setting up payments. Self-hosted is temporarily
-              unavailable and Openship Cloud is coming soon — leave your email
+              unavailable and Vibrail Cloud is coming soon — leave your email
               and we'll let you know the moment plans open up.
             </p>
 

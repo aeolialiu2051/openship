@@ -538,7 +538,7 @@ export async function remove(c: Context) {
     /* no body — fine */
   }
   const wipeVolumes = c.req.query("wipeVolumes") === "true" || bodyWipeVolumes === true;
-  // Record-only ("soft") delete: drop the Openship record, keep the server
+  // Record-only ("soft") delete: drop the Vibrail record, keep the server
   // workload + data. Self-hosted only — teardownProject ignores it for a cloud
   // project (the security boundary; this query flag is just the request).
   const recordOnly = c.req.query("recordOnly") === "true";
@@ -552,15 +552,15 @@ export async function remove(c: Context) {
     // attempts on resources the actor could actually see.
     return c.json({ ok: false, error: "Project not found" }, 404);
   }
-  // The Openship control plane deploys itself; deleting its app row would drop
+  // The Vibrail control plane deploys itself; deleting its app row would drop
   // the Apps entry + domain while the host service keeps running (and orphan the
   // edge route). It's managed from the CLI, never torn down via the dashboard.
-  if (proj.appTemplateId === "openship") {
+  if (proj.appTemplateId === "vibrail") {
     return c.json(
       {
         ok: false,
         code: "PROJECT_IS_CONTROL_PLANE",
-        error: "This is the Openship control plane — manage it with the CLI, not the dashboard.",
+        error: "This is the Vibrail control plane — manage it with the CLI, not the dashboard.",
       },
       403,
     );
@@ -1528,7 +1528,7 @@ export async function setAutoDeploy(c: Context) {
       {
         success: false,
         error:
-          "Set a webhook domain or expose this Openship API on a public URL to enable auto-deploy.",
+          "Set a webhook domain or expose this Vibrail API on a public URL to enable auto-deploy.",
         webhook_strategy: "none",
       },
       400,
@@ -1656,8 +1656,8 @@ export async function setAutoDeploy(c: Context) {
  *
  * When a domain is set:
  *   1. Validates it belongs to this project and is verified
- *   2. Adds /_openship/hooks/ location to the domain's nginx config
- *   3. The webhook URL becomes https://{domain}/_openship/hooks/github
+ *   2. Adds /_vibrail/hooks/ location to the domain's nginx config
+ *   3. The webhook URL becomes https://{domain}/_vibrail/hooks/github
  *
  * When domain is null → clears the webhook domain (falls back to edge relay or none).
  */

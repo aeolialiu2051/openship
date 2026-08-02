@@ -136,7 +136,7 @@
     "couldNotStartAuthMsg": "Masaüstü kimlik doğrulama akışı başlatılamadı.",
     "authFailedMsg": "Lütfen tekrar deneyin ve tarayıcınızda girişi tamamlayın.",
     "completingSignIn": "Giriş tamamlanıyor…",
-    "returningToOpenship": "Vibrail'e dönülüyor",
+    "returningToVibrail": "Vibrail'e dönülüyor",
     "redirectingCloud": "Vibrail Cloud'a yönlendiriliyor…",
     "newTabSignIn": "Giriş işlemini yeni bir sekmeyle tamamlayacaksınız",
     "couldNotSaveTitle": "Yapılandırma kaydedilemedi",

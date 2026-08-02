@@ -67,7 +67,7 @@ export function InviteMemberModal({
   // Can the selected transport actually deliver the invite email?
   //   - "platform" (legacy value: local system mail) → instance/env SMTP.
   //     Hosted tenant mail servers are not eligible transports.
-  //   - "cloud" → Openship Cloud is connected to relay it (passed in as a prop).
+  //   - "cloud" → Vibrail Cloud is connected to relay it (passed in as a prop).
   const [emailDeliverable, setEmailDeliverable] = useState<boolean | null>(null);
   useEffect(() => {
     if (!selfHosted) return;
@@ -238,7 +238,7 @@ export function InviteMemberModal({
             />
             <SendSegment
               icon={Cloud}
-              label={t.settings.inviteMember.openshipCloud}
+              label={t.settings.inviteMember.vibrailCloud}
               statusText={cloudConnected ? t.settings.inviteMember.cloudReady : t.settings.inviteMember.cloudNotReady}
               tone={cloudConnected ? "ok" : "warn"}
               selected={mailSource === "cloud"}

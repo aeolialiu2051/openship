@@ -126,7 +126,7 @@
     "couldNotStartAuthMsg": "Não foi possível iniciar o fluxo de autenticação do desktop.",
     "authFailedMsg": "Tente novamente e conclua o login no seu navegador.",
     "completingSignIn": "Concluindo o login…",
-    "returningToOpenship": "Retornando ao Vibrail",
+    "returningToVibrail": "Retornando ao Vibrail",
     "redirectingCloud": "Redirecionando para o Vibrail Cloud…",
     "newTabSignIn": "Você concluirá o login em uma nova aba",
     "couldNotSaveTitle": "Não foi possível salvar a configuração",

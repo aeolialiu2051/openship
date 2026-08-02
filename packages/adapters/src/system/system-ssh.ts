@@ -5,7 +5,7 @@ import type { SshConfig } from "../types";
 /**
  * Shared "agent case" logic for the system-`ssh` path.
  *
- * When SSH auth is "agent", openship shells out to the OS `ssh` binary instead
+ * When SSH auth is "agent", vibrail shells out to the OS `ssh` binary instead
  * of the in-process `ssh2` client (only the real OpenSSH client reliably
  * resolves the agent / `~/.ssh/config` / default keys / macOS keychain — the
  * same thing that makes `ssh root@host` work in a terminal). Command exec, file
@@ -26,7 +26,7 @@ const CONNECT_TIMEOUT_SECONDS = 15;
  * exists on every macOS/Linux host (the platforms this path supports).
  */
 export function makeControlPath(): string {
-  return `/tmp/openship-ssh-${process.pid}-${randomBytes(6).toString("hex")}.sock`;
+  return `/tmp/vibrail-ssh-${process.pid}-${randomBytes(6).toString("hex")}.sock`;
 }
 
 /**

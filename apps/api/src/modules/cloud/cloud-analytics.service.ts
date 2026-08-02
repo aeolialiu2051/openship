@@ -41,7 +41,7 @@
  */
 
 import { Oblien } from "@repo/adapters";
-import { issueNamespaceToken } from "../../lib/openship-cloud";
+import { issueNamespaceToken } from "../../lib/vibrail-cloud";
 
 export type CloudAnalyticsOperation = "timeseries" | "requests" | "streamToken";
 

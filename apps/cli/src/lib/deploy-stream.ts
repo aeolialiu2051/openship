@@ -47,7 +47,7 @@ export async function streamDeploymentLogs(deploymentId: string): Promise<Stream
         `\n⚠  ${failed.length} of ${serviceStatuses.size} service(s) failed to deploy: ${names}\n` +
           `   The others are live; each failed service keeps serving its PREVIOUS container.\n` +
           `   Retry only the failed ones (the rest stay untouched):\n` +
-          `     openship deploy --service-ids ${ids}\n`,
+          `     vibrail deploy --service-ids ${ids}\n`,
       );
     } else if (result.success) {
       ok(`\n✓ ${result.message ?? "Deployment ready"}`);

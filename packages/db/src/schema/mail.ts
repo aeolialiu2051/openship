@@ -4,8 +4,8 @@ import { servers } from "./servers";
 /**
  * Mail-server install record.
  *
- * A row here is openship's fast answer to "is this server a mail server?".
- * The state file on the host (/root/.openship-mail-state.json) remains the
+ * A row here is vibrail's fast answer to "is this server a mail server?".
+ * The state file on the host (/root/.vibrail-mail-state.json) remains the
  * source of truth for STEP-level progress; this table just lets the
  * dashboard skip an SSH round-trip on every /emails page load.
  *

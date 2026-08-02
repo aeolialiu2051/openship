@@ -37,7 +37,7 @@ import {
   type DiscoveredGroup,
   type DiscoveredService,
   type ComposeRepoService,
-  type OpenshipProjectGroup,
+  type VibrailProjectGroup,
   type MigrationRun,
   type MigrationStatus,
   type TransferProgress,
@@ -71,14 +71,14 @@ import { ServerConnectionCard } from "@/app/(dashboard)/servers/[serverId]/_comp
 
 /** Platforms whose Docker/Compose apps this flow can adopt — shown as faint,
  *  clean brand marks under the intro (decorative). Only brands with a crisp
- *  simpleicons mark (blurry favicon sources dropped); the Openship circle is
+ *  simpleicons mark (blurry favicon sources dropped); the Vibrail circle is
  *  appended as the destination. */
 const MIGRATE_SOURCES = ["coolify", "caprover", "docker"] as const;
 
 /** A service that builds from source with no registry image can't migrate in v1. */
 const isBlocked = (s: DiscoveredService) => Boolean(s.build) && !s.image;
 
-/** The dockerized edge proxy (80/443). Openship's Traefik replaces it, so it's
+/** The dockerized edge proxy (80/443). Vibrail's Traefik replaces it, so it's
  *  never imported — importing it would just replay the 80/443 conflict. */
 const isProxy = (s: DiscoveredService) => Boolean(s.proxyKind);
 
@@ -190,7 +190,7 @@ interface RepoLink {
 }
 
 /**
- * One Openship project to create from the scan. A project maps to AT MOST one
+ * One Vibrail project to create from the scan. A project maps to AT MOST one
  * compose (or a set of standalone containers) — you can't merge two composes.
  * `bound` is the group key its services belong to (null until the first pick).
  */
@@ -224,7 +224,7 @@ interface ImportProject {
 type RouteMode = "keep" | "free" | "custom" | "none";
 
 /** Same-server volume ownership per service: "reuse" (take over in place, the
- *  default) or "copy" (duplicate into a new Openship volume, keep the original). */
+ *  default) or "copy" (duplicate into a new Vibrail volume, keep the original). */
 type VolumeStrategy = "reuse" | "copy";
 
 interface MigrateItem {
@@ -254,7 +254,7 @@ const hasKeepableRoute = (s: Pick<DiscoveredService, "existingRoute">) =>
 
 /** Best-effort auto-match a discovered container name to a repo compose service:
  *  exact normalized match, else the discovered name ending with / containing the
- *  compose name (handles the `openship-<group>-<svc>` prefix). null = no match. */
+ *  compose name (handles the `vibrail-<group>-<svc>` prefix). null = no match. */
 function autoMatchCompose(discoveredName: string, composeNames: string[]): string | null {
   const dn = normalizeName(discoveredName);
   const exact = composeNames.find((c) => normalizeName(c) === dn);
@@ -314,7 +314,7 @@ function toServerRoutes(
 }
 
 /**
- * Migrate existing Docker deployment(s) into Openship: pick a server → inspect →
+ * Migrate existing Docker deployment(s) into Vibrail: pick a server → inspect →
  * organise the discovered stack into one or more PROJECTS (tabs) → migrate.
  * Each project reuses the existing named volumes in place. Multiple projects run
  * sequentially, each with its own cutover.
@@ -366,8 +366,8 @@ export function ServerMigrationWizard({
   const [targetId, setTargetId] = useState<string | null>(serverId ?? null);
   const [serverName, setServerName] = useState<string | null>(null);
   const [scanning, setScanning] = useState(false);
-  // "Flat Docker" scan mode: ignore openship.* labels so managed workloads adopt
-  // as plain compose/standalone (no re-import). Off = Openship-aware (default).
+  // "Flat Docker" scan mode: ignore vibrail.* labels so managed workloads adopt
+  // as plain compose/standalone (no re-import). Off = Vibrail-aware (default).
   const [flatDocker, setFlatDocker] = useState(false);
   const [scanStatus, setScanStatus] = useState<string>("");
   const [stack, setStack] = useState<DiscoveredStack | null>(null);
@@ -771,12 +771,12 @@ export function ServerMigrationWizard({
 
   // ── Derived ──────────────────────────────────────────────────────────────
   const adoptable = Boolean(stack?.adoptable);
-  // Openship projects on the server that this instance doesn't know → re-importable.
-  const orphanedOpenship = useMemo(
-    () => stack?.openshipProjects?.filter((p) => !p.knownHere) ?? [],
+  // Vibrail projects on the server that this instance doesn't know → re-importable.
+  const orphanedVibrail = useMemo(
+    () => stack?.vibrailProjects?.filter((p) => !p.knownHere) ?? [],
     [stack],
   );
-  const hasReimport = orphanedOpenship.length > 0;
+  const hasReimport = orphanedVibrail.length > 0;
   const sameServer = selectedId === targetId;
   // Cross-server now MOVES locally-built images as data (docker save|load) — no
   // registry, no rebuild. Surface an info note up front (the image stream can be
@@ -1404,13 +1404,13 @@ export function ServerMigrationWizard({
                   "nothing found" (not a giant empty modal). */}
               {stack && !adoptable && !hasReimport && <NoResults message={m.discover.nothing} />}
 
-              {/* Only Openship projects to re-import (no generic candidates): show
+              {/* Only Vibrail projects to re-import (no generic candidates): show
                   the re-import section on its own. */}
               {stack && !adoptable && hasReimport && (
                 <div className="h-full min-h-0 overflow-y-auto pr-1">
-                  <OpenshipReimportSection
+                  <VibrailReimportSection
                     serverId={selectedId ?? ""}
-                    orphaned={orphanedOpenship}
+                    orphaned={orphanedVibrail}
                     alreadyManaged={stack.alreadyManaged}
                     onOpen={(pid) => router.push(`/projects/${pid}`)}
                   />
@@ -1429,9 +1429,9 @@ export function ServerMigrationWizard({
                         </p>
                         <div className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto pe-1.5">
                           {hasReimport && (
-                            <OpenshipReimportSection
+                            <VibrailReimportSection
                               serverId={selectedId ?? ""}
-                              orphaned={orphanedOpenship}
+                              orphaned={orphanedVibrail}
                               alreadyManaged={stack.alreadyManaged}
                               onOpen={(pid) => router.push(`/projects/${pid}`)}
                             />
@@ -2084,9 +2084,9 @@ export function ServerMigrationWizard({
           {!stack && !error && <EmptyHint scanning={scanning} status={scanStatus} />}
           {stack && !adoptable && !hasReimport && <NoResults message={m.discover.nothing} />}
           {stack && hasReimport && (
-            <OpenshipReimportSection
+            <VibrailReimportSection
               serverId={selectedId ?? ""}
-              orphaned={orphanedOpenship}
+              orphaned={orphanedVibrail}
               alreadyManaged={stack.alreadyManaged}
               onOpen={(pid) => router.push(`/projects/${pid}`)}
             />
@@ -2477,20 +2477,20 @@ function formatSeen(iso: string): string {
 }
 
 /**
- * Openship projects recovered from the server (matched by the `openship.project`
+ * Vibrail projects recovered from the server (matched by the `vibrail.project`
  * label + the on-server manifest) that this instance doesn't know — DB reset
  * (DR) or a server from another instance. Re-import rebuilds the project records
  * PRESERVING the original id so the running containers re-attach; it's records
  * only (no move/redeploy), so a "redeploy to finalize" note follows.
  */
-export function OpenshipReimportSection({
+export function VibrailReimportSection({
   serverId,
   orphaned,
   alreadyManaged,
   onOpen,
 }: {
   serverId: string;
-  orphaned: OpenshipProjectGroup[];
+  orphaned: VibrailProjectGroup[];
   alreadyManaged: number;
   onOpen: (projectId: string) => void;
 }) {
@@ -2502,7 +2502,7 @@ export function OpenshipReimportSection({
   const [done, setDone] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const reimport = async (p: OpenshipProjectGroup) => {
+  const reimport = async (p: VibrailProjectGroup) => {
     setBusy(p.projectId);
     setErrors((e) => ({ ...e, [p.projectId]: "" }));
     try {

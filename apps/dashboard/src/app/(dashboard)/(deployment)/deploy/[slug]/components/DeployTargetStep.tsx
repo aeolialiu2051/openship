@@ -312,9 +312,9 @@ export const DeployTargetSummary: React.FC<CompactSummaryProps> = ({
   };
   const target = targetLabels[deployTarget];
   // Build label is driven by buildStrategy FIRST — a "local" build always runs
-  // on this machine, even when the deploy target is Openship Cloud
+  // on this machine, even when the deploy target is Vibrail Cloud
   // (local-orchestrated cloud: build here, upload the output to the cloud
-  // workspace). Only a SERVER build inherits the target's name ("Openship
+  // workspace). Only a SERVER build inherits the target's name ("Vibrail
   // Cloud" when the workspace builds it, else the generic remote label).
   const build =
     buildStrategy === "local"
@@ -497,7 +497,7 @@ export type LastPick = {
 };
 
 export const lastPickStore = createPersistedValue<LastPick>(
-  "openship.deploy-last-pick",
+  "vibrail.deploy-last-pick",
   (raw): raw is LastPick => {
     if (!raw || typeof raw !== "object") return false;
     const obj = raw as { target?: unknown; serverId?: unknown };
@@ -522,7 +522,7 @@ interface DeployTargetStepProps {
 }
 
 // ─── Cloud resource tiers ────────────────────────────────────────────────────
-// Placeholder runtime shapes for the Openship Cloud power picker. The
+// Placeholder runtime shapes for the Vibrail Cloud power picker. The
 // numbers here are the UX surface only — the backend owns the
 // authoritative cpu/mem/disk values per tier and translates them at
 // provision time. Billing is credits-based (no $/mo shown here).
@@ -899,7 +899,7 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     }
   }, [config.deployTarget, config.buildStrategy, updateConfig]);
 
-  // Cloud-hosted Openship has no operator-controlled local build host. Repair
+  // Cloud-hosted Vibrail has no operator-controlled local build host. Repair
   // saved/legacy selections as well as hiding the card, so an invisible
   // `buildStrategy="local"` can never leak into the deployment request.
   useEffect(() => {
@@ -1203,8 +1203,8 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
     },
     {
       value: "api-host",
-      // The "api host" is the machine running Openship: the user's own device in
-      // desktop mode, the Openship orchestrator when self-hosted. Not the cloud —
+      // The "api host" is the machine running Vibrail: the user's own device in
+      // desktop mode, the Vibrail orchestrator when self-hosted. Not the cloud —
       // so no cloud icon, and a label that says which machine it actually is.
       icon: <Cpu className="size-5" />,
       label: isDesktop ? ts.clone.apiHostDesktopLabel : ts.clone.apiHostServerLabel,
@@ -1301,8 +1301,8 @@ const DeployTargetStep: React.FC<DeployTargetStepProps> = ({ targets, onContinue
   const handleContinue = async () => {
     if (selectionComingSoon) return;
 
-    // The only hard gate at this step: deploying TO Openship Cloud needs an
-    // Openship Cloud connection. Anything else (free .${baseDomain} domains
+    // The only hard gate at this step: deploying TO Vibrail Cloud needs an
+    // Vibrail Cloud connection. Anything else (free .${baseDomain} domains
     // on own-server / local, free domains in compose services, etc.) is a
     // downstream concern - the stack/domains screens after Continue prompt
     // for cloud at the exact moment it's actually needed. Interrupting here

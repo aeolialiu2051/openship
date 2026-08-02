@@ -27,7 +27,7 @@ export default function DesktopGuidePage() {
               both servers).
             </li>
             <li>
-              <strong>Password</strong> - from your Openship admin Overview tab.
+              <strong>Password</strong> - from your Vibrail admin Overview tab.
             </li>
             <li>
               <strong>IMAP server / port / security</strong> - typically port{" "}

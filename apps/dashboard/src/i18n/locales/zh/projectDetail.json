@@ -105,7 +105,7 @@
       "noMatchesTitle": "无匹配项",
       "noMatchesBody": "请尝试其他类别或搜索词，或从侧栏选择“自定义镜像”。",
       "localImages": "本地镜像",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "本地 Docker",
       "customEntryName": "自定义镜像",
       "customEntryDescription": "按标签拉取任意公共或私有 Docker 镜像。",

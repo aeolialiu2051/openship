@@ -156,7 +156,7 @@ export function Sidebar({
   // GitHub App, etc.) - not an identity replacement.
   //
   // The external SaaS profile (cloudUser.name / cloudUser.email) belongs in
-  // Settings -> CloudConnection where it lives as a "Linked to Openship
+  // Settings -> CloudConnection where it lives as a "Linked to Vibrail
   // Cloud as <email>" card. We surface it here only as a small secondary
   // hint line under the local identity when a cloud session is active, so
   // the operator can see WHICH external account is linked without ever
@@ -181,11 +181,11 @@ export function Sidebar({
   const [loggingOut, setLoggingOut] = useState(false);
 
   useEffect(() => {
-    setCollapsed(window.localStorage.getItem("openship-sidebar-collapsed") === "true");
+    setCollapsed(window.localStorage.getItem("vibrail-sidebar-collapsed") === "true");
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("openship-sidebar-collapsed", String(collapsed));
+    window.localStorage.setItem("vibrail-sidebar-collapsed", String(collapsed));
   }, [collapsed]);
 
   useEffect(() => {

@@ -108,7 +108,7 @@ function spawnGit(
   });
 }
 
-const GENERATED_DOCKERFILE_NAME = "Dockerfile.openship";
+const GENERATED_DOCKERFILE_NAME = "Dockerfile.vibrail";
 
 type IgnoreMatcher = ReturnType<typeof ignore>;
 
@@ -216,7 +216,7 @@ async function cloneGitSource(
   if (config.gitSsh) {
     sshMaterial = await materializeGitSsh(
       localGitSshWriter(),
-      await mkdtemp(join(tmpdir(), "opsh-ghkey-")),
+      await mkdtemp(join(tmpdir(), "vibrail-ghkey-")),
       config.gitSsh,
     );
   }
@@ -301,7 +301,7 @@ export async function prepareSourceTree(
   config: BuildConfig,
   opts?: { onLog?: LogCallback },
 ): Promise<SourceTree> {
-  const contextDir = await mkdtemp(join(tmpdir(), "openship-docker-context-"));
+  const contextDir = await mkdtemp(join(tmpdir(), "vibrail-docker-context-"));
 
   try {
     if (config.localPath) {

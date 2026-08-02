@@ -22,7 +22,7 @@ function capturingExecutor(sink: string[]): CommandExecutor {
 
 // The exact PoC payload from the report, embedded in a mailbox INSERT.
 const EVIL_NAME =
-  "PoC\n__OPENSHIP_SQL_EOF__\n(id; hostname) > /tmp/CURL_RCE_PROOF 2>&1\n#";
+  "PoC\n__VIBRAIL_SQL_EOF__\n(id; hostname) > /tmp/CURL_RCE_PROOF 2>&1\n#";
 const EVIL_STATEMENT = `INSERT INTO mailbox (username, name) VALUES ('a@b.com', '${EVIL_NAME.replace(/'/g, "''")}')`;
 
 describe("psql-runner transaction() — command injection is neutralized", () => {
@@ -55,6 +55,6 @@ describe("psql-runner transaction() — command injection is neutralized", () =>
     await transaction(capturingExecutor(cmds), [EVIL_STATEMENT]);
     // The word may appear as DATA inside the quoted arg, but there must be no
     // heredoc for it to terminate — the structural guarantee is "no <<".
-    expect(cmds[0].includes("<<'__OPENSHIP_SQL_EOF__'")).toBe(false);
+    expect(cmds[0].includes("<<'__VIBRAIL_SQL_EOF__'")).toBe(false);
   });
 });

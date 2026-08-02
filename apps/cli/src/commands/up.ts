@@ -45,7 +45,7 @@ interface UpOpts {
   ref?: string;
   /** Build from an existing local checkout instead of cloning. */
   source?: string;
-  /** Git remote to clone for --from-source (default: oblien/openship). */
+  /** Git remote to clone for --from-source (default: aeolialiu2051/vibrail). */
   repo?: string;
   /** Install via Docker Compose (published images). Default when Docker is present on Linux. */
   compose?: boolean;
@@ -56,7 +56,7 @@ interface UpOpts {
   nonInteractive?: boolean;
   adminName?: string;
   adminEmail?: string;
-  /** Prefer OPENSHIP_ADMIN_PASSWORD env over the flag (keeps it out of argv). */
+  /** Prefer VIBRAIL_ADMIN_PASSWORD env over the flag (keeps it out of argv). */
   adminPassword?: string;
   /** byo | free | none (default: byo when --public-url set, else none). */
   domainKind?: string;
@@ -114,7 +114,7 @@ function ensureAuthSecret(): string {
 }
 
 export const upCommand = new Command("up")
-  .description("Start Openship as a persistent service (boot + auto-restart); --foreground to run attached")
+  .description("Start Vibrail as a persistent service (boot + auto-restart); --foreground to run attached")
   .option("--port <port>", "API port to listen on", "4000")
   .option("--data-dir <dir>", "Directory for the embedded database")
   .option("--dashboard-port <port>", "Dashboard port", "3001")
@@ -132,19 +132,19 @@ export const upCommand = new Command("up")
   )
   .option(
     "--host <addr>",
-    "Bind the dashboard to this interface so an upstream reverse proxy (or another LAN host) can reach it — e.g. 0.0.0.0 or a LAN IP like 192.168.1.50. Default 127.0.0.1. The API stays on loopback (the dashboard proxies to it). A concrete IP auto-trusts that browser origin for login; for 0.0.0.0 or a domain also pass --public-url (or set OPENSHIP_EXTRA_TRUSTED_ORIGINS) so login isn't rejected.",
+    "Bind the dashboard to this interface so an upstream reverse proxy (or another LAN host) can reach it — e.g. 0.0.0.0 or a LAN IP like 192.168.1.50. Default 127.0.0.1. The API stays on loopback (the dashboard proxies to it). A concrete IP auto-trusts that browser origin for login; for 0.0.0.0 or a domain also pass --public-url (or set VIBRAIL_EXTRA_TRUSTED_ORIGINS) so login isn't rejected.",
   )
-  .option("--from-source", "Preview: build + run Openship from source (a branch) instead of a published release — runs attached")
+  .option("--from-source", "Preview: build + run Vibrail from source (a branch) instead of a published release — runs attached")
   .option("--ref <branch>", "Git branch/tag/sha to build with --from-source (default: main)")
-  .option("--source <path>", "Build from an existing local Openship checkout instead of cloning")
-  .option("--repo <url>", "Git remote to clone for --from-source (default: oblien/openship)")
+  .option("--source <path>", "Build from an existing local Vibrail checkout instead of cloning")
+  .option("--repo <url>", "Git remote to clone for --from-source (default: aeolialiu2051/vibrail)")
   .option("--compose", "Install via Docker Compose using the published images (postgres + redis + api + dashboard). Default when Docker is available.")
   .option("--bare", "Install as the bare process service (embedded DB, no Docker) instead of Compose")
   .option("--non-interactive", "Headless install: after the service starts, create the admin + register the domain from the flags below (no prompts). Alias: --yes.")
   .option("--yes", "Alias for --non-interactive.")
   .option("--admin-name <name>", "Admin display name (headless install)")
   .option("--admin-email <email>", "Admin email — required for a headless install")
-  .option("--admin-password <password>", "Admin password (min 8). Prefer the OPENSHIP_ADMIN_PASSWORD env var to keep it out of shell history.")
+  .option("--admin-password <password>", "Admin password (min 8). Prefer the VIBRAIL_ADMIN_PASSWORD env var to keep it out of shell history.")
   .option("--domain-kind <kind>", "Headless install domain: byo | free | none (default: byo if --public-url set, else none)")
   .option("--hostname <host>", "Domain/hostname for --domain-kind byo (or derived from --public-url)")
   .option("--slug <slug>", "Free .vibrail.warpgateapi.com subdomain for --domain-kind free (box must already be Cloud-connected)")
@@ -160,7 +160,7 @@ export const upCommand = new Command("up")
       const started = await runCompose(opts);
       if (headless && !opts.dryRun) {
         // The compose api container boots with the token from compose/.env (NOT
-        // the bare ~/.openship token file) — authenticate the setup calls with it.
+        // the bare ~/.vibrail token file) — authenticate the setup calls with it.
         const token = composeInternalToken();
         if (!token) {
           console.warn(
@@ -221,7 +221,7 @@ async function runHeadlessProvision(
       method: extra?.method,
       onLog: (m) => console.log(chalk.dim(`  ${m}`)),
     });
-    console.log(chalk.green(`\n  ✓ Openship provisioned${result.liveUrl ? `: ${result.liveUrl}` : "."}`));
+    console.log(chalk.green(`\n  ✓ Vibrail provisioned${result.liveUrl ? `: ${result.liveUrl}` : "."}`));
     for (const w of result.warnings) console.warn(chalk.yellow(`  ⚠ ${w}`));
   } catch (err) {
     console.error(chalk.red(`\n  Headless provisioning failed: ${(err as Error).message}\n`));
@@ -230,17 +230,17 @@ async function runHeadlessProvision(
 }
 
 /**
- * `openship up` (Docker Compose): bring up the published images as a stack
+ * `vibrail up` (Docker Compose): bring up the published images as a stack
  * (postgres + redis + api + dashboard + the Traefik edge on :80/:443). The
  * heavier, production-shaped profile — Postgres/Redis instead of the bare
- * embedded PGlite. Managed via `docker compose` (openship stop/update/status).
+ * embedded PGlite. Managed via `docker compose` (vibrail stop/update/status).
  */
 async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: string; dashPort: string }> {
   const headless = !!(opts.nonInteractive || opts.yes);
   if (!hasDockerCompose()) {
     console.error(
       chalk.red("\n  Docker + `docker compose` are required for the Compose install.\n") +
-        chalk.dim("  Install Docker, or run `openship up --bare` for the process mode.\n"),
+        chalk.dim("  Install Docker, or run `vibrail up --bare` for the process mode.\n"),
     );
     process.exit(1);
   }
@@ -249,8 +249,8 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
   const fromSource = sourceBuildDir();
   const spinner = ora(
     fromSource
-      ? `Building Openship from ${fromSource} and starting the stack…`
-      : "Starting Openship via Docker Compose…",
+      ? `Building Vibrail from ${fromSource} and starting the stack…`
+      : "Starting Vibrail via Docker Compose…",
   ).start();
   const res = composeUp({
     apiPort: opts.port,
@@ -260,16 +260,16 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
   });
   if (!res.ok) {
     spinner.fail("docker compose failed to start the stack");
-    console.error(chalk.dim("\n  Check `docker compose -f ~/.openship/compose/docker-compose.yml logs`.\n"));
+    console.error(chalk.dim("\n  Check `docker compose -f ~/.vibrail/compose/docker-compose.yml logs`.\n"));
     process.exit(1);
   }
-  spinner.succeed("Openship is running via Docker Compose.");
+  spinner.succeed("Vibrail is running via Docker Compose.");
 
   const dashboardUrl = publicUrl ?? `http://localhost:${res.dashPort}`;
   console.log(
     chalk.dim(`  Dashboard: ${dashboardUrl}  (login required)\n`) +
       chalk.dim("  Images:    api + dashboard\n") +
-      chalk.dim("  Manage:    openship stop · openship update · openship status\n") +
+      chalk.dim("  Manage:    vibrail stop · vibrail update · vibrail status\n") +
       // In headless mode the admin is bootstrapped below — don't tell the user to do it by hand.
       (headless ? "" : chalk.dim("  Create an admin: open the dashboard and register the first account.\n")),
   );
@@ -277,13 +277,13 @@ async function runCompose(opts: UpOpts & { yes?: boolean }): Promise<{ apiPort: 
 }
 
 /**
- * `openship up --from-source`: build a branch (or a local checkout) from source
+ * `vibrail up --from-source`: build a branch (or a local checkout) from source
  * and run it attached — the remote sibling of `bun dev`. Reuses runForeground
  * for all environment, port, and public-URL wiring; only the API entry
  * (bun-run raw TS) and the dashboard dir (local build) differ.
  */
 async function runFromSource(opts: UpOpts): Promise<void> {
-  console.log(chalk.cyan("\n  Building Openship from source (preview mode)…"));
+  console.log(chalk.cyan("\n  Building Vibrail from source (preview mode)…"));
   console.log(
     chalk.dim("  Unverified dev build — for previewing a branch, not production self-hosting.\n"),
   );
@@ -302,8 +302,8 @@ async function runFromSource(opts: UpOpts): Promise<void> {
 }
 
 /**
- * Default `openship up`: install + start Openship as a persistent service that
- * auto-restarts on crash and starts on boot, running until `openship stop`.
+ * Default `vibrail up`: install + start Vibrail as a persistent service that
+ * auto-restarts on crash and starts on boot, running until `vibrail stop`.
  */
 export async function startService(
   opts: UpOpts,
@@ -365,13 +365,13 @@ export async function startService(
         ? chalk.dim(`  Dashboard: ${publicUrl}  (login required)\n`)
         : chalk.dim(`  Dashboard: http://localhost:${dashPort}  (login required)\n`);
       console.log(
-        chalk.green("\n  ✔ Openship is running as a service.\n") +
+        chalk.green("\n  ✔ Vibrail is running as a service.\n") +
           (opts.ui !== false ? dashboardLine : "") +
           (publicUrl
             ? chalk.dim("  API is proxied through the dashboard (not exposed). Point your reverse proxy / DNS at the dashboard port.\n")
             : chalk.dim(`  API:       http://localhost:${port}/api\n`)) +
           chalk.dim(`  ${res.detail}\n`) +
-          chalk.dim("  Starts on boot and auto-restarts. Stop with `openship stop`.\n"),
+          chalk.dim("  Starts on boot and auto-restarts. Stop with `vibrail stop`.\n"),
       );
     }
     return { port, dashPort, publicUrl };
@@ -379,7 +379,7 @@ export async function startService(
     if (runOpts.quiet) throw e; // let the wizard present the failure
     console.error(
       chalk.red(`\n  Couldn't install the service: ${(e as Error).message}\n`) +
-        chalk.dim("  Run `openship up --foreground` to run it attached instead.\n"),
+        chalk.dim("  Run `vibrail up --foreground` to run it attached instead.\n"),
     );
     process.exit(1);
   }
@@ -403,7 +403,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
       if (!existsSync(serverEntry)) {
         console.error(
           chalk.red("\n  Bundled server not found in this install.") +
-            chalk.dim("\n  Reinstall with `openship update` (or `npm i -g openship`).\n"),
+            chalk.dim("\n  Reinstall with `vibrail update` (or `npm i -g vibrail`).\n"),
         );
         process.exit(1);
       }
@@ -437,40 +437,40 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
       NODE_ENV: "production",
       // desktop mode → in-process job runner (no Redis).
       DEPLOY_MODE: "desktop",
-      OPENSHIP_TARGET: "local",
-      OPENSHIP_JOB_RUNNER: "in-process",
+      VIBRAIL_TARGET: "local",
+      VIBRAIL_JOB_RUNNER: "in-process",
       PGLITE_DATA_DIR: dataDir,
       BETTER_AUTH_SECRET: ensureAuthSecret(),
     };
     // Bundled server relocates its migrations + pglite assets next to the entry;
     // from-source resolves them from the dist's workspace layout, so leave unset.
     if (!source) {
-      env.OPENSHIP_MIGRATIONS_DIR = join(SERVER_DIR, "migrations");
-      env.OPENSHIP_PGLITE_ASSETS_DIR = join(SERVER_DIR, "pglite");
+      env.VIBRAIL_MIGRATIONS_DIR = join(SERVER_DIR, "migrations");
+      env.VIBRAIL_PGLITE_ASSETS_DIR = join(SERVER_DIR, "pglite");
     }
     // CLI-managed instances ALWAYS require login (zero-auth is desktop-only).
-    // The admin is created by `openship` setup via the internal-token-gated
+    // The admin is created by `vibrail` setup via the internal-token-gated
     // bootstrap endpoint; both processes share this token file.
-    env.OPENSHIP_REQUIRE_AUTH = "true";
+    env.VIBRAIL_REQUIRE_AUTH = "true";
     env.INTERNAL_TOKEN = ensureInternalToken();
     // The API ALWAYS binds loopback under the CLI — reachable only by the setup
     // wizard and the dashboard proxy on this same box, never exposed on
     // 0.0.0.0. Only the dashboard is ever public, and only in --public-url mode.
-    env.OPENSHIP_API_HOST = "127.0.0.1";
+    env.VIBRAIL_API_HOST = "127.0.0.1";
     // Tell the API the live dashboard port (dynamic) + where the instance log is,
     // so the self-app boot reconcile syncs the right port and the deployment logs
     // API can tail this run's logs. Set in EVERY mode (not just managed edge).
-    env.OPENSHIP_DASHBOARD_PORT = dashPort;
-    env.OPENSHIP_INSTANCE_LOG = instanceLogPath;
-    delete env.OPENSHIP_ALLOW_ZERO_AUTH;
+    env.VIBRAIL_DASHBOARD_PORT = dashPort;
+    env.VIBRAIL_INSTANCE_LOG = instanceLogPath;
+    delete env.VIBRAIL_ALLOW_ZERO_AUTH;
     if (publicUrl) {
       // Serve the dashboard publicly; it proxies to the loopback API above.
-      env.OPENSHIP_PUBLIC_URL = publicUrl;
+      env.VIBRAIL_PUBLIC_URL = publicUrl;
     } else if (opts.host && !/^(0\.0\.0\.0|127\.|::1?$|localhost$)/i.test(opts.host.trim())) {
       // --host bound to a concrete LAN IP (no public URL): trust the exact origin
       // the browser will use, or originGuard 403s the login POST. For 0.0.0.0 or a
       // domain we can't infer the origin — the user passes --public-url instead.
-      env.OPENSHIP_EXTRA_TRUSTED_ORIGINS = `http://${opts.host.trim()}:${dashPort}`;
+      env.VIBRAIL_EXTRA_TRUSTED_ORIGINS = `http://${opts.host.trim()}:${dashPort}`;
     }
     // Only trust the forwarded client IP (X-Real-IP) when an operator confirms a
     // real proxy is in front that OVERWRITES it — otherwise a client that can
@@ -479,10 +479,10 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     delete env.DATABASE_URL;
     delete env.POSTGRES_URL;
 
-    const spinner = ora(`Starting Openship on http://localhost:${port} …`).start();
+    const spinner = ora(`Starting Vibrail on http://localhost:${port} …`).start();
     // `detached` puts the child in its OWN process group so we can reap the
     // whole subtree (the API/dashboard may fork workers) with one group signal,
-    // and so an orphan can be found + swept by `openship stop`. NOT unref'd — the
+    // and so an orphan can be found + swept by `vibrail stop`. NOT unref'd — the
     // parent still owns their lifecycle.
     const child = spawn(apiCmd, apiArgs, {
       cwd: apiCwd,
@@ -505,7 +505,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     child.stderr.on("data", buffer);
     child.on("exit", (code) => {
       if (code && code !== 0) {
-        spinner.fail(`Openship server exited (code ${code})`);
+        spinner.fail(`Vibrail server exited (code ${code})`);
         process.stderr.write(buffered.slice(-2000));
         process.exit(code);
       }
@@ -527,21 +527,21 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     }
 
     if (!healthy) {
-      spinner.fail("Openship did not become healthy in time");
+      spinner.fail("Vibrail did not become healthy in time");
       process.stderr.write(buffered.slice(-2000));
       child.kill("SIGTERM");
       process.exit(1);
     }
 
-    spinner.succeed(`Openship API running at http://localhost:${port}`);
+    spinner.succeed(`Vibrail API running at http://localhost:${port}`);
 
-    // Track every child so Ctrl-C / a fatal exit / `openship stop` tears them all
+    // Track every child so Ctrl-C / a fatal exit / `vibrail stop` tears them all
     // down together. The API + dashboard hold keep-alive sockets to EACH OTHER,
     // so SIGTERM alone can hang their graceful shutdown (mutual wait) — we MUST
     // escalate to SIGKILL, and the parent must stay alive to deliver it, then
     // exit. A prior version scheduled an UNREF'd SIGKILL and never exited, so
     // launchd force-killed the parent first and the children were orphaned onto
-    // the port (`openship stop` "succeeded" but :4000 stayed held).
+    // the port (`vibrail stop` "succeeded" but :4000 stayed held).
     const children = [child];
     // Kill the child's whole PROCESS GROUP (negative pid) so any workers it
     // forked die too — a plain child.kill() would leave grandchildren holding
@@ -571,8 +571,8 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
     let dashboardUrl: string | null = null;
     if (opts.ui !== false) {
       // From-source: use the locally-built standalone (ensureDashboard's
-      // OPENSHIP_DASHBOARD_DIR override) instead of downloading a release asset.
-      if (source) process.env.OPENSHIP_DASHBOARD_DIR = source.dashboardDir;
+      // VIBRAIL_DASHBOARD_DIR override) instead of downloading a release asset.
+      if (source) process.env.VIBRAIL_DASHBOARD_DIR = source.dashboardDir;
       const uiSpinner = ora("Preparing the dashboard…").start();
       try {
         const bundle = await ensureDashboard({
@@ -590,7 +590,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
           env: {
             ...process.env,
             NODE_ENV: "production",
-            OPENSHIP_TARGET: "local",
+            VIBRAIL_TARGET: "local",
             PORT: dashPort,
             // Reachable remotely only when the operator explicitly exposes it
             // with --host or configures a public URL for a BYO proxy.
@@ -602,7 +602,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
             INTERNAL_API_URL: `http://127.0.0.1:${port}`,
             // ALWAYS tell the dashboard the real loopback API origin. The API port
             // is dynamic, so a browser opened on THIS box must learn it via
-            // window.__OPENSHIP_API_ORIGIN__ (layout.tsx) — otherwise it falls back
+            // window.__VIBRAIL_API_ORIGIN__ (layout.tsx) — otherwise it falls back
             // to the static default :4000 and every call 404s. Use `localhost` (NOT
             // 127.0.0.1) to MATCH the host the dashboard is opened on — a host-only
             // SameSite session cookie set on 127.0.0.1 is never sent to localhost
@@ -610,8 +610,8 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
             // Older dashboards use this origin verbatim; newer ones align it anyway.
             // `localhost` still reaches the 127.0.0.1-bound API. In proxy mode this
             // is just a fallback (sameOriginProxyOrigin wins for remote browsers).
-            OPENSHIP_LOCAL_API_URL: `http://localhost:${port}`,
-            ...(publicUrl ? { OPENSHIP_PUBLIC_URL: publicUrl } : {}),
+            VIBRAIL_LOCAL_API_URL: `http://localhost:${port}`,
+            ...(publicUrl ? { VIBRAIL_PUBLIC_URL: publicUrl } : {}),
           },
           stdio: ["ignore", "pipe", "pipe"],
         });
@@ -653,7 +653,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
         uiSpinner.warn(`Dashboard unavailable: ${(e as Error).message}`);
         console.log(
           chalk.dim(
-            "  The API is still running. Retry `openship up`, pass --no-ui, or use `openship install` for the desktop app.\n",
+            "  The API is still running. Retry `vibrail up`, pass --no-ui, or use `vibrail install` for the desktop app.\n",
           ),
         );
       }
@@ -671,7 +671,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
         chalk.dim(`  API:       http://localhost:${port}/api\n`) +
           (dashboardUrl ? chalk.dim(`  Dashboard: ${dashboardUrl}  (login required)\n`) : "") +
           chalk.dim(`  Data:      ${dataDir}\n`) +
-          chalk.dim("  Log in with your admin account (run `openship` to create one). Stop with Ctrl-C.\n"),
+          chalk.dim("  Log in with your admin account (run `vibrail` to create one). Stop with Ctrl-C.\n"),
       );
     }
 

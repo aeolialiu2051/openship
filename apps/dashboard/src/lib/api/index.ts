@@ -1,7 +1,7 @@
 /**
  * @module @/lib/api
  *
- * Centralised API layer for the Openship dashboard.
+ * Centralised API layer for the Vibrail dashboard.
  *
  * Usage:
  *   import { projectsApi, deployApi, githubApi } from "@/lib/api";
@@ -67,7 +67,7 @@ export type {
   DiscoveredService,
   DiscoveredVolumeMount,
   ComposeRepoService,
-  OpenshipProjectGroup,
+  VibrailProjectGroup,
   ReimportResult,
   AdoptResult,
   MigrationPreview,

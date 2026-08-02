@@ -63,7 +63,7 @@ function transferErrorResponse(c: Context, err: unknown, fallback: string) {
  * POST /api/projects/:id/transfer/to-cloud
  * Auth: project:admin
  *
- * Moves a self-hosted project's subgraph to Openship Cloud, then flips
+ * Moves a self-hosted project's subgraph to Vibrail Cloud, then flips
  * `project.cloudWorkspaceId` so subsequent requests resolve via the cloud
  * workspace. Body is empty (no options today).
  */

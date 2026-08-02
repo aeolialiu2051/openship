@@ -52,7 +52,7 @@ export function MailServer() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/email-preview.png"
-                  alt="Openship mail dashboard"
+                  alt="Vibrail mail dashboard"
                   loading="lazy"
                   decoding="async"
                   width={1920}

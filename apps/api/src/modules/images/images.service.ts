@@ -15,7 +15,7 @@
 
 import { Oblien } from "@repo/adapters";
 import { env } from "../../config/env";
-import { getOblienClient } from "../../lib/openship-cloud";
+import { getOblienClient } from "../../lib/vibrail-cloud";
 import { getOrgCloudToken } from "../../lib/cloud/client";
 import { cacheStore } from "../../lib/cache-store";
 

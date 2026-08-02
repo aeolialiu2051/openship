@@ -251,7 +251,7 @@
     "deploymentModeDesc": "{mode} · Zwischen Laufzeiten pro App und Einzel-App-Verarbeitung wechseln."
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Vibrail Cloud",
+    "targetVibrailCloud": "Vibrail Cloud",
     "targetServerNamed": "Server · {name}",
     "targetServer": "Server",
     "targetLocal": "Lokaler Rechner",
@@ -263,7 +263,7 @@
       "port": "Port",
       "process": "Prozess",
       "unitDescription": "Unit-Beschreibung",
-      "openshipDeployment": "Vibrail-Bereitstellung",
+      "vibrailDeployment": "Vibrail-Bereitstellung",
       "sites": {
         "lead": "Der vorhandene Proxy bedient derzeit {count} Site(s). Beim Migrieren werden sie in Vibrail importiert, bevor es die Ports 80/443 übernimmt:",
         "tlsBadge": "TLS",

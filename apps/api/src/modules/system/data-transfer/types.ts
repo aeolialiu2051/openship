@@ -51,7 +51,7 @@ export interface SealedSecrets {
 }
 
 export interface DataTransferFile {
-  kind: "openship-instance-export";
+  kind: "vibrail-instance-export";
   envelopeVersion: 1;
   createdAt: string;
   sourceDriver: "pg" | "pglite";

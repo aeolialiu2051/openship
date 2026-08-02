@@ -6,7 +6,7 @@ import { BareRuntime } from "./bare";
 // point the document root at the host filesystem (arbitrary file disclosure).
 describe("BareRuntime.resolveStaticRoot confinement", () => {
   const rt = new BareRuntime();
-  const WORK = "/opt/openship/releases/dep_123";
+  const WORK = "/opt/vibrail/releases/dep_123";
 
   test("empty / '.' → the workDir itself", () => {
     expect(rt.resolveStaticRoot(WORK, "")).toBe(WORK);

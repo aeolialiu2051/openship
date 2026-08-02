@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 /**
  * Build a single, self-contained `apps/api/release-dist/` that ships
- * both the Openship API (raw TS, bun runs it directly) and the
+ * both the Vibrail API (raw TS, bun runs it directly) and the
  * dashboard (pre-built Next standalone). Ready to run with:
  *
  *     cd apps/api/release-dist
@@ -17,7 +17,7 @@
  * (`apps/email/scripts/build-release.ts`) follows the same pattern;
  * this is its sibling for the core platform.
  *
- * Output tree (canonical paths used by openship-dist.ts):
+ * Output tree (canonical paths used by vibrail-dist.ts):
  *
  *   apps/api/release-dist/
  *     package.json        ← workspace-free, runtime deps only
@@ -71,7 +71,7 @@ const API_WORKSPACE_DEPS = ["core", "db", "adapters"] as const;
 
 /**
  * Output directory. Defaults to `apps/api/release-dist/` (the canonical
- * path that `openship-dist.ts` resolves). Override via DIST_DIR for
+ * path that `vibrail-dist.ts` resolves). Override via DIST_DIR for
  * concurrent CI builds.
  */
 const DIST = process.env.DIST_DIR
@@ -259,11 +259,11 @@ function isoDate(): string {
  */
 function buildRootPackageJson(version: string): Record<string, unknown> {
   return {
-    name: "@openship/release-dist",
+    name: "@vibrail/release-dist",
     version,
     private: true,
     description:
-      "Self-contained Openship release. Run `bun install --production --frozen-lockfile && bun run start.ts`.",
+      "Self-contained Vibrail release. Run `bun install --production --frozen-lockfile && bun run start.ts`.",
     type: "module",
     workspaces: ["api", "packages/*"],
     scripts: {
@@ -348,9 +348,9 @@ start(
 );
 `;
 
-const README = (version: string) => `# Openship release dist (v${version})
+const README = (version: string) => `# Vibrail release dist (v${version})
 
-Self-contained release of the Openship platform (API + dashboard).
+Self-contained release of the Vibrail platform (API + dashboard).
 Designed to be streamed to a target server by the migration wizard,
 or extracted manually for a fresh install.
 
@@ -427,7 +427,7 @@ async function main(): Promise<void> {
     await run("bun run build", DASHBOARD_DIR, {
       NODE_ENV: "production",
       CLOUD_MODE: "false",
-      OPENSHIP_TARGET: "local",
+      VIBRAIL_TARGET: "local",
     });
   });
 

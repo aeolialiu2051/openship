@@ -5,7 +5,7 @@ import { getApiOrigin, getRequestOriginFromHeaders } from "@/lib/api/urls";
 /**
  * Server-side API client for Next.js server components, layouts, and route handlers.
  *
- * Automatically forwards the browser's cookies to the Openship API
+ * Automatically forwards the browser's cookies to the Vibrail API
  * so session authentication works transparently.
  *
  * Usage:
@@ -119,7 +119,7 @@ function getServerApiBaseUrl(requestHeaders: Headers): string {
   let origin: string;
   // Desktop: the API runs on a dynamic port Electron injects here. Wins over
   // the header→table fallback (which can't know a dynamic port).
-  const localOverride = process.env.OPENSHIP_LOCAL_API_URL?.replace(/\/+$/, "");
+  const localOverride = process.env.VIBRAIL_LOCAL_API_URL?.replace(/\/+$/, "");
   const internal = process.env.INTERNAL_API_URL?.replace(/\/+$/, "");
   if (localOverride) {
     origin = localOverride;

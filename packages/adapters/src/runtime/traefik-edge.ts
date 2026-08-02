@@ -6,7 +6,7 @@ export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
-export const VIBRAIL_EDGE_DYNAMIC_HOST_DIR = "/var/lib/openship/traefik/dynamic";
+export const VIBRAIL_EDGE_DYNAMIC_HOST_DIR = "/var/lib/vibrail/traefik/dynamic";
 export const VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR = "/etc/traefik/dynamic";
 // Traefik 3.3 uses Docker API v1.24 even when DOCKER_API_VERSION is set. Docker
 // 29 rejects that client, leaving the Docker provider offline and every managed
@@ -306,7 +306,7 @@ export function isTraefikContainer(container: DockerContainerDetail): boolean {
   // Suspension-route carriers reuse the small Traefik image only as a durable
   // label host; they do not own the Docker socket or serve edge traffic and
   // must not be considered candidate reverse proxies during edge discovery.
-  if (container.labels["openship.suspension-route"] === "true") return false;
+  if (container.labels["vibrail.suspension-route"] === "true") return false;
   return (
     container.name === VIBRAIL_EDGE_CONTAINER ||
     container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ||
@@ -430,8 +430,8 @@ export function buildTraefikSuspensionLabels(
   const labels: Record<string, string> = {
     "traefik.enable": "true",
     "traefik.docker.network": edge.network,
-    "openship.project": projectId,
-    "openship.suspension-route": "true",
+    "vibrail.project": projectId,
+    "vibrail.suspension-route": "true",
   };
 
   for (const route of routes) {

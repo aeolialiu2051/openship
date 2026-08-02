@@ -126,7 +126,7 @@
     "couldNotStartAuthMsg": "无法启动桌面认证流程。",
     "authFailedMsg": "请重试并在浏览器中完成登录。",
     "completingSignIn": "正在完成登录……",
-    "returningToOpenship": "正在返回 Vibrail",
+    "returningToVibrail": "正在返回 Vibrail",
     "redirectingCloud": "正在跳转到 Vibrail Cloud……",
     "newTabSignIn": "你将在新标签页中完成登录",
     "couldNotSaveTitle": "无法保存配置",

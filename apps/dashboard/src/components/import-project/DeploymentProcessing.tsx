@@ -51,7 +51,7 @@ function describeBuildTarget(config: {
   serverName?: string;
 }, t: Dictionary): string {
   const dp = t.importProject.deploymentProcessing;
-  if (config.deployTarget === "cloud") return dp.targetOpenshipCloud;
+  if (config.deployTarget === "cloud") return dp.targetVibrailCloud;
   if (config.deployTarget === "server") {
     return config.serverName ? interpolate(dp.targetServerNamed, { name: config.serverName }) : dp.targetServer;
   }

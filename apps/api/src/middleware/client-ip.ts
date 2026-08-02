@@ -33,13 +33,13 @@ export async function clientIpMiddleware(c: Context, next: Next) {
   }
 
   // Loopback peers normally get header trust (local dev / same-box proxy). But
-  // when the instance is served PUBLICLY (openship up --public-url), the on-box
+  // when the instance is served PUBLICLY (vibrail up --public-url), the on-box
   // dashboard proxy makes EVERY request look loopback — so trusting x-real-ip
   // off loopback alone would let a remote client forge their source IP (and
   // slip the login rate-limiter). In that case require an explicit trusted
   // front proxy (TRUST_PROXY=true) before believing the header; otherwise fall
   // back to the (loopback) peer, which keys rate limits to one safe bucket.
-  const loopbackTrust = isLoopbackPeer(peer) && !env.OPENSHIP_PUBLIC_URL;
+  const loopbackTrust = isLoopbackPeer(peer) && !env.VIBRAIL_PUBLIC_URL;
   const trustHeader = loopbackTrust || env.TRUST_PROXY === true;
   const ip = trustHeader ? xri || peer : peer;
 

@@ -13,14 +13,14 @@ org **Dashboard**; every route is read-only.
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/analytics`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and [auth model](/docs/security/auth) for details.
 </Callout>
 
 <Callout title="Project scope via ?projectId=" type="info">
 Every endpoint except `/dashboard` requires a `?projectId=` — omitting it returns `404`. `/dashboard` takes
 no parameters and always reports the caller's active organization. When a `projectId` points at a **cloud**
-project, the request is transparently forwarded to Openship Cloud.
+project, the request is transparently forwarded to Vibrail Cloud.
 </Callout>
 
 ## Endpoints
@@ -61,12 +61,12 @@ GET /api/analytics/overview
 
 ```bash
 curl "https://your-host/api/analytics/overview?projectId=proj_123" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ```bash
 # Same thing from the CLI (generic authenticated request):
-openship api /analytics/overview -q projectId=proj_123
+vibrail api /analytics/overview -q projectId=proj_123
 ```
 
 ## Deployment stats
@@ -79,7 +79,7 @@ GET /api/analytics/deployments?projectId=<id>
 
 ```bash
 curl "https://your-host/api/analytics/deployments?projectId=proj_123" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Resource usage
@@ -98,7 +98,7 @@ runtime info (status, IP, uptime). Both take:
 
 ```bash
 curl "https://your-host/api/analytics/usage?projectId=proj_123" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ### Live usage stream
@@ -109,7 +109,7 @@ stream that emits a `usage` event roughly every 5 seconds while the connection i
 
 ```bash
 curl -N "https://your-host/api/analytics/usage/stream?projectId=proj_123" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 <Callout title="404 — nothing to stream" type="warn">
@@ -127,7 +127,7 @@ GET /api/analytics/dashboard
 
 ```bash
 curl https://your-host/api/analytics/dashboard \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Server analytics
@@ -145,7 +145,7 @@ the next read. All three require a `domain` query parameter and use the `server:
 
 ```bash
 curl "https://your-host/api/analytics/server/srv_123?domain=app.example.com" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 <Callout title="400 — domain is required" type="error">
@@ -154,6 +154,6 @@ hostname you want the numbers for.
 </Callout>
 
 <Callout title="502 — can't reach the server" type="warn">
-`/server/:serverId/live` returns `502` when Openship can't reach that server's management API (SSH down,
+`/server/:serverId/live` returns `502` when Vibrail can't reach that server's management API (SSH down,
 proxy not running). The persisted `/server/:serverId` and `/geo` reads still work from the database.
 </Callout>

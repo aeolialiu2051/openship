@@ -641,7 +641,7 @@ export default function EmailsPage() {
   }, [selectedServer]);
 
   /**
-   * Wipe `/root/.openship-mail-state.json` on the target server, then refetch
+   * Wipe `/root/.vibrail-mail-state.json` on the target server, then refetch
    * status. The local working state (logs, errors, resume hints) is cleared
    * here too so the page goes back to a "no install" view immediately.
    *
@@ -653,7 +653,7 @@ export default function EmailsPage() {
    *   2. Tell the backend to cancel any active session (releases the
    *      in-memory `active` flag - otherwise the reset endpoint returns
    *      409 and the wipe never happens)
-   *   3. Wipe `/root/.openship-mail-state.json` on the target VPS
+   *   3. Wipe `/root/.vibrail-mail-state.json` on the target VPS
    *   4. Clear every piece of frontend state that touches install UI
    *   5. Refetch /mail/status to confirm - server should return the
    *      empty shell, overwriting anything we missed locally

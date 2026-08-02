@@ -4,7 +4,7 @@
  * human-readable table in the browser while remaining valid for crawlers.
  */
 
-export const SITE_URL = "https://openship.io";
+export const SITE_URL = "https://vibrail.warpgateapi.com";
 export const STYLESHEET_PATH = "/sitemap.xsl";
 
 export type SitemapEntry = {

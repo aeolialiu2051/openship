@@ -233,13 +233,13 @@ EOF
 
 check_new_iredmail()
 {
-    # Openship ships this engine as a reviewed, slimmed source tree. A newer
+    # Vibrail ships this engine as a reviewed, slimmed source tree. A newer
     # upstream version cannot be substituted independently because local
     # patches and package selections must be upgraded together. Keep the
     # upstream check for manual engine use, but skip its hard refusal when the
     # orchestrator explicitly identifies the vendored build.
-    if [ X"${OPENSHIP_VENDORED_ENGINE}" == X'YES' ]; then
-        ECHO_INFO "Using the Openship-vendored iRedMail engine (${PROG_VERSION}); skipping upstream latest-version enforcement."
+    if [ X"${VIBRAIL_VENDORED_ENGINE}" == X'YES' ]; then
+        ECHO_INFO "Using the Vibrail-vendored iRedMail engine (${PROG_VERSION}); skipping upstream latest-version enforcement."
         echo 'export status_check_new_iredmail="DONE"' >> ${STATUS_FILE}
         return
     fi

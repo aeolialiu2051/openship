@@ -45,11 +45,11 @@ export interface MigrationPreviewService {
   /** Built-from-source → can't migrate in v1. */
   blocked: boolean;
   reason?: string;
-  /** This service IS the edge proxy (80/443) → dropped from import; Openship's
+  /** This service IS the edge proxy (80/443) → dropped from import; Vibrail's
    *  Traefik replaces it and reclaims the port. */
   edgeProxy?: boolean;
   /** Non-proxy service that published 80/443 → those host bindings are stripped
-   *  (reserved for Openship's edge); the app is routed through Traefik. */
+   *  (reserved for Vibrail's edge); the app is routed through Traefik. */
   edgePortsReserved?: number[];
   /** Named volumes that will be copied (cross-server) / reused (same-server). */
   volumes: Array<{ name: string; target: string }>;
@@ -69,9 +69,9 @@ export interface MigrationPreview {
   hasBlocked: boolean;
   /** A stop-copy-start window applies (originals are stopped during the move). */
   downtimeWarning: boolean;
-  /** Reverse-proxy services that will NOT be imported (Openship's edge replaces
+  /** Reverse-proxy services that will NOT be imported (Vibrail's edge replaces
    *  them). They're left running and untouched by the migration; add a domain to
-   *  a migrated service to move onto Openship's edge (its consent modal reclaims
+   *  a migrated service to move onto Vibrail's edge (its consent modal reclaims
    *  80/443 then). */
   droppedProxies: string[];
   /** Stack-level notes (custom networks flattened, etc.). */
@@ -131,7 +131,7 @@ export async function buildMigrationPreview(opts: {
       reason: isBuild
         ? "Built-from-source services can't be migrated yet — publish an image or link a repo first."
         : isProxy
-          ? `Reverse proxy (${s.proxyKind}) on ${(s.edgePorts ?? []).map((p) => `:${p}`).join("/")} — Openship's edge replaces it; not imported.`
+          ? `Reverse proxy (${s.proxyKind}) on ${(s.edgePorts ?? []).map((p) => `:${p}`).join("/")} — Vibrail's edge replaces it; not imported.`
           : undefined,
       edgeProxy: isProxy || undefined,
       edgePortsReserved: !isProxy && s.edgePorts?.length ? s.edgePorts : undefined,

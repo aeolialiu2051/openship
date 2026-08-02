@@ -1,10 +1,10 @@
 "use client";
 
 /**
- * Backup tab — backs up the mail server through openship's GENERAL backup
+ * Backup tab — backs up the mail server through vibrail's GENERAL backup
  * system (same policy → orchestrator → destination pipeline as service
  * backups). The mail server is just a new backup SOURCE; destinations
- * ("download on my server" = an openship_server destination) are managed
+ * ("download on my server" = an vibrail_server destination) are managed
  * on the shared /backups page and reused here.
  *
  * The include-checkboxes map to the policy's payloadConfig:

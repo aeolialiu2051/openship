@@ -276,7 +276,7 @@
     "noServersLink": "الخوادم",
     "noServersPost": " أولًا.",
     "fieldRemotePath": "المسار البعيد",
-    "hintRemotePath": "دليل مطلق على الخادم (مثل /backups/openship)",
+    "hintRemotePath": "دليل مطلق على الخادم (مثل /backups/vibrail)",
     "fieldAbsolutePath": "المسار المطلق",
     "hintAbsolutePath": "مسار نظام الملفات على مضيف الواجهة البرمجية. معطّل في وضع السحابة.",
     "saving": "جارٍ الحفظ…",

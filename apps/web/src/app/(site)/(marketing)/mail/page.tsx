@@ -4,7 +4,7 @@ import HomeContent from "./_components/home/HomeContent";
 
 const TITLE = "Mail - Built-in transactional and team email";
 const DESCRIPTION =
-  "Send and receive on your own domains without a third-party SMTP provider. Built into Openship - unlimited domains, unlimited mailboxes, Apache 2.0 open source.";
+  "Send and receive on your own domains without a third-party SMTP provider. Built into Vibrail - unlimited domains, unlimited mailboxes, Apache 2.0 open source.";
 
 export const metadata: Metadata = {
   title: "Mail",
@@ -38,15 +38,15 @@ export const metadata: Metadata = {
 const serviceLd = {
   "@context": "https://schema.org",
   "@type": "Service",
-  name: "Openship Mail",
+  name: "Vibrail Mail",
   serviceType: "Email Hosting",
   provider: {
     "@type": "Organization",
-    name: "Openship",
-    url: "https://openship.io",
+    name: "Vibrail",
+    url: "https://vibrail.warpgateapi.com",
   },
   description: DESCRIPTION,
-  url: "https://openship.io/mail",
+  url: "https://vibrail.warpgateapi.com/mail",
   areaServed: "Worldwide",
   audience: {
     "@type": "Audience",
@@ -58,8 +58,8 @@ const breadcrumbLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://openship.io" },
-    { "@type": "ListItem", position: 2, name: "Mail", item: "https://openship.io/mail" },
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://vibrail.warpgateapi.com" },
+    { "@type": "ListItem", position: 2, name: "Mail", item: "https://vibrail.warpgateapi.com/mail" },
   ],
 };
 

@@ -26,7 +26,7 @@ export interface DumpRemoteRestoreInput {
   /** The target server's id — we already have an SSH executor for it. */
   serverId: string;
   /**
-   * The Openship project slug deployed on the remote. We use this to
+   * The Vibrail project slug deployed on the remote. We use this to
    * locate the per-deploy working dir on the target so the restore
    * runs from the right cwd (where node_modules and the bun bin are).
    */
@@ -53,12 +53,12 @@ export async function dumpRemoteRestore(
   const dump = await dumpSubgraph({ kind: "instance" }, { stripEncrypted: true });
   const payload = JSON.stringify(dump);
 
-  const localTmpDir = mkdtempSync(join(tmpdir(), "openship-migrate-"));
+  const localTmpDir = mkdtempSync(join(tmpdir(), "vibrail-migrate-"));
   const localTmpPath = join(localTmpDir, "dump.json");
   writeFileSync(localTmpPath, payload, { encoding: "utf-8", mode: 0o600 });
 
   const migrateStamp = Date.now();
-  const remoteDumpPath = `/tmp/openship-migrate-${migrateStamp}.json`;
+  const remoteDumpPath = `/tmp/vibrail-migrate-${migrateStamp}.json`;
 
   try {
     // ── 2. Push the dump file over SSH. ──────────────────────────────
@@ -84,9 +84,9 @@ export async function dumpRemoteRestore(
     // (This also removes exec()'s 30s default timeout, which would truncate a
     // real restore.)
     //
-    // Path: /var/lib/openship/projects/<slug>/current — the deploy pipeline's
+    // Path: /var/lib/vibrail/projects/<slug>/current — the deploy pipeline's
     // per-project layout. execJournaled throws on non-zero exit like exec().
-    const remoteProjectDir = `/var/lib/openship/projects/${input.projectSlug}/current`;
+    const remoteProjectDir = `/var/lib/vibrail/projects/${input.projectSlug}/current`;
     await sshManager.execJournaled(
       input.serverId,
       `migrate:restore:${input.serverId}:${migrateStamp}`,
@@ -135,21 +135,21 @@ export async function sealedRemoteImport(input: DumpRemoteRestoreInput): Promise
   const file = await exportInstance({ passphrase });
   const payload = JSON.stringify(file);
 
-  const localTmpDir = mkdtempSync(join(tmpdir(), "openship-sealed-"));
+  const localTmpDir = mkdtempSync(join(tmpdir(), "vibrail-sealed-"));
   const localTmpPath = join(localTmpDir, "export.osx");
   writeFileSync(localTmpPath, payload, { encoding: "utf-8", mode: 0o600 });
 
   const stamp = Date.now();
-  const remoteFilePath = `/tmp/openship-sealed-${stamp}.osx`;
-  const remoteEnvPath = `/tmp/openship-sealed-${stamp}.env`;
-  const remoteProjectDir = `/var/lib/openship/projects/${input.projectSlug}/current`;
+  const remoteFilePath = `/tmp/vibrail-sealed-${stamp}.osx`;
+  const remoteEnvPath = `/tmp/vibrail-sealed-${stamp}.env`;
+  const remoteProjectDir = `/var/lib/vibrail/projects/${input.projectSlug}/current`;
 
   try {
     // Push the sealed file + a 0600 env-file carrying the passphrase (out of argv).
     await sshManager.withExecutor(input.serverId, async (exec) => {
       await exec.writeFile(remoteFilePath, payload);
       await exec.exec(`chmod 600 ${remoteFilePath}`);
-      await exec.writeFile(remoteEnvPath, `OPENSHIP_IMPORT_PASSPHRASE=${passphrase}\n`);
+      await exec.writeFile(remoteEnvPath, `VIBRAIL_IMPORT_PASSPHRASE=${passphrase}\n`);
       await exec.exec(`chmod 600 ${remoteEnvPath}`);
     });
 

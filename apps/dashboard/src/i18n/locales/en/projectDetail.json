@@ -105,7 +105,7 @@
       "noMatchesTitle": "No matches",
       "noMatchesBody": "Try a different category or search term - or pick Custom image from the rail.",
       "localImages": "Local images",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "Local Docker",
       "customEntryName": "Custom image",
       "customEntryDescription": "Pull any public or private Docker image by tag.",

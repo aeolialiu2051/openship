@@ -4,7 +4,7 @@
     "deploy-from-github",
     "deploy-local-folder",
     "deploy-template-or-url",
-    "openship-json",
+    "vibrail-json",
     "custom-domains",
     "environment-variables",
     "compose-multi-service",

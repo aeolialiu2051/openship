@@ -5,7 +5,7 @@
       "available": true,
       "verified": true,
       "id": "mail",
-      "name": "Openship Mail",
+      "name": "Vibrail Mail",
       "description": "A complete self-hosted mail server — SMTP/IMAP + webmail on your own domain.",
       "kind": "flow",
       "logo": "mail-webmail",
@@ -1931,7 +1931,7 @@
       "prepare": [
         {
           "service": "3x-ui",
-          "command": "set -e; credentials=/etc/x-ui/.openship-initial-credentials; settings=$(/app/x-ui setting -show true); if printf '%s\\n' \"$settings\" | grep -q 'hasDefaultCredential: true'; then username=${XUI_INITIAL_USERNAME:-admin}; password=${XUI_INITIAL_PASSWORD:-$(openssl rand -hex 32)}; /app/x-ui setting -username \"$username\" -password \"$password\"; umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$username\" \"$password\" > \"$credentials\"; elif [ ! -s \"$credentials\" ]; then printf '3x-ui already has non-default credentials, but the original OpenShip credential record is missing\\n' >&2; exit 1; fi; printf 'credentials-ready\\n'",
+          "command": "set -e; credentials=/etc/x-ui/.vibrail-initial-credentials; settings=$(/app/x-ui setting -show true); if printf '%s\\n' \"$settings\" | grep -q 'hasDefaultCredential: true'; then username=${XUI_INITIAL_USERNAME:-admin}; password=${XUI_INITIAL_PASSWORD:-$(openssl rand -hex 32)}; /app/x-ui setting -username \"$username\" -password \"$password\"; umask 077; printf 'XUI_INITIAL_USERNAME=%s\\nXUI_INITIAL_PASSWORD=%s\\n' \"$username\" \"$password\" > \"$credentials\"; elif [ ! -s \"$credentials\" ]; then printf '3x-ui already has non-default credentials, but the original Vibrail credential record is missing\\n' >&2; exit 1; fi; printf 'credentials-ready\\n'",
           "capture": "initialCredentials",
           "phase": "post-ready",
           "mustSucceed": true,
@@ -1943,7 +1943,7 @@
         },
         {
           "service": "3x-ui",
-          "command": "sed -n 's/^XUI_INITIAL_USERNAME=//p' /etc/x-ui/.openship-initial-credentials",
+          "command": "sed -n 's/^XUI_INITIAL_USERNAME=//p' /etc/x-ui/.vibrail-initial-credentials",
           "capture": "initialUsername",
           "persistAs": {
             "key": "XUI_INITIAL_USERNAME"
@@ -1952,7 +1952,7 @@
         },
         {
           "service": "3x-ui",
-          "command": "sed -n 's/^XUI_INITIAL_PASSWORD=//p' /etc/x-ui/.openship-initial-credentials",
+          "command": "sed -n 's/^XUI_INITIAL_PASSWORD=//p' /etc/x-ui/.vibrail-initial-credentials",
           "capture": "initialPassword",
           "persistAs": {
             "key": "XUI_INITIAL_PASSWORD",

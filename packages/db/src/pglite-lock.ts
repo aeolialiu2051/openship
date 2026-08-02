@@ -124,7 +124,7 @@ const DEV_LOCK_HARD_KILL_MS = 1500;
  */
 export function isDevWatchReload(): boolean {
   return (
-    process.execArgv.includes("--watch") || process.env.OPENSHIP_DEV_LOCK_TAKEOVER === "true"
+    process.execArgv.includes("--watch") || process.env.VIBRAIL_DEV_LOCK_TAKEOVER === "true"
   );
 }
 
@@ -138,7 +138,7 @@ export interface AcquireLockOptions {
    * failing. For the dev hot-reload flow: `node --watch` starts the new process
    * while the previous one still holds the lock (and may never exit on its own),
    * so waiting just stalls → error on every file save. Default: auto-on under
-   * `--watch` or `OPENSHIP_DEV_LOCK_TAKEOVER=true`, off everywhere else (a
+   * `--watch` or `VIBRAIL_DEV_LOCK_TAKEOVER=true`, off everywhere else (a
    * desktop/CLI must NEVER kill a legitimate second instance — it waits + errors).
    */
   takeover?: boolean;
@@ -273,7 +273,7 @@ export async function acquirePgliteLock(
       holder.machineId !== current.id
     ) {
       throw new Error(
-        `The Openship database at ${dataDir} is locked by a process on a different machine ` +
+        `The Vibrail database at ${dataDir} is locked by a process on a different machine ` +
           `(${holder.host}, pid ${holder.pid}). PGlite data directories cannot be shared ` +
           `across machines. If that machine no longer uses it, remove the lock file: ${lockPath}`,
       );
@@ -321,10 +321,10 @@ export async function acquirePgliteLock(
 
     if (Date.now() >= deadline) {
       throw new Error(
-        `Another Openship instance is already using the database at ${dataDir} ` +
+        `Another Vibrail instance is already using the database at ${dataDir} ` +
           `(pid ${holder.pid}). PGlite allows only one process per data directory; opening a ` +
           `second would corrupt it. Stop the other instance (e.g. quit the desktop app) and ` +
-          `retry. If you are certain no Openship process is running, remove: ${lockPath}`,
+          `retry. If you are certain no Vibrail process is running, remove: ${lockPath}`,
       );
     }
 

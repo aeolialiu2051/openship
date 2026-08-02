@@ -3,12 +3,12 @@ import { pgTable, text, boolean, timestamp, index, uniqueIndex } from "drizzle-o
 /**
  * Personal Access Token — a revocable, per-user Bearer credential for
  * programmatic API access (MCP clients, CLI, scripts). Presented as
- * `Authorization: Bearer opsh_pat_<secret>`; the auth middleware resolves it to
+ * `Authorization: Bearer vibrail_pat_<secret>`; the auth middleware resolves it to
  * the owning user + org and builds the same RequestContext a session would, so
  * the existing permission model applies unchanged.
  *
  * Only the SHA-256 hash of the token is stored — the plaintext is shown to the
- * user exactly once at creation. `tokenPrefix` (e.g. `opsh_pat_ab12`) is kept
+ * user exactly once at creation. `tokenPrefix` (e.g. `vibrail_pat_ab12`) is kept
  * for display only, so a user can recognise a token in the list.
  */
 export const personalAccessToken = pgTable(

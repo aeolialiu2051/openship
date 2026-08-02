@@ -14,7 +14,7 @@
  *
  * DKIM is intentionally NOT auto-provisioned for additional domains. iRedMail
  * uses per-domain keys generated via `amavisd genrsa` - running that from
- * within openship requires editing /etc/amavis/conf.d/50-user, reloading
+ * within vibrail requires editing /etc/amavis/conf.d/50-user, reloading
  * amavis, and managing key paths on disk. That's a separate operator action
  * (or future feature) - for now we surface the three records that actually
  * need to be live for mail to flow.

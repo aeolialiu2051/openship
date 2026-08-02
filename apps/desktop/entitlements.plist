@@ -5,15 +5,15 @@
   <!--
     Hardened-runtime entitlements. REQUIRED for notarization, and specifically
     tuned for how this app runs: an Electron shell that spawns the compiled
-    `openship-api` binary and runs the dashboard through Electron's Node.
+    `vibrail-api` binary and runs the dashboard through Electron's Node.
 
     - allow-jit / allow-unsigned-executable-memory: V8 (Electron) and bun both
       JIT-compile; without these the process is killed on first JIT write.
-    - disable-library-validation: the app loads/spawns code (the openship-api
+    - disable-library-validation: the app loads/spawns code (the vibrail-api
       Mach-O, any native .node addons in the dashboard bundle) that Gatekeeper
       would otherwise reject for not matching the main binary's team seal.
     - allow-dyld-environment-variables: the desktop passes env at spawn
-      (ELECTRON_RUN_AS_NODE, OPENSHIP_*), and child runtimes read DYLD_* paths.
+      (ELECTRON_RUN_AS_NODE, VIBRAIL_*), and child runtimes read DYLD_* paths.
   -->
   <key>com.apple.security.cs.allow-jit</key>
   <true/>

@@ -1,5 +1,5 @@
 /**
- * Restore an Openship DB dump into the current database.
+ * Restore a Vibrail DB dump into the current database.
  *
  *   bun --cwd packages/db db:restore --in backup.json
  *   bun --cwd packages/db db:restore --in backup.json --wipe-first
@@ -16,7 +16,7 @@
  *     dumps.
  *
  * Used by the path-A wizard (operator's VPS receives the dump and
- * restores it during `openship migrate-to`) and the reverse-migration
+ * restores it during `vibrail migrate-to`) and the reverse-migration
  * flow (download from remote, restore locally).
  */
 

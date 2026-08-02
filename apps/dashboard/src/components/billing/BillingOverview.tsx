@@ -390,7 +390,7 @@ function BuyCreditsCard({ available }: { available: boolean }) {
     }
   }
 
-  // Buy is enabled ONLY when Openship Cloud reports top-ups available; otherwise
+  // Buy is enabled ONLY when Vibrail Cloud reports top-ups available; otherwise
   // packs render as a dimmed "coming soon" preview.
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-6">

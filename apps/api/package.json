@@ -5,9 +5,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "OPENSHIP_DEV_LOCK_TAKEOVER=true node --env-file=.env --import tsx --watch src/index.ts",
-    "dev:saas": "OPENSHIP_DEV_LOCK_TAKEOVER=true node --env-file=.env.saas --import tsx --watch src/index.ts",
-    "dev:local-saas": "OPENSHIP_DEV_LOCK_TAKEOVER=true node --env-file=../../.env --env-file=.env.local-saas --import tsx --watch src/index.ts",
+    "dev": "VIBRAIL_DEV_LOCK_TAKEOVER=true node --env-file=.env --import tsx --watch src/index.ts",
+    "dev:saas": "VIBRAIL_DEV_LOCK_TAKEOVER=true node --env-file=.env.saas --import tsx --watch src/index.ts",
+    "dev:local-saas": "VIBRAIL_DEV_LOCK_TAKEOVER=true node --env-file=../../.env --env-file=.env.local-saas --import tsx --watch src/index.ts",
     "build": "tsup src/index.ts --format esm && node scripts/copy-assets.mjs",
     "build-release": "bun scripts/build-release.ts",
     "start": "node --env-file-if-exists=.env dist/index.js",

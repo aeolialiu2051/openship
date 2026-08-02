@@ -21,7 +21,7 @@ export function OpenSource() {
             <div className="os-cta-row">
               <a
                 className="os-btn os-btn--primary"
-                href="https://github.com/oblien/openship"
+                href="https://github.com/aeolialiu2051/vibrail"
                 target="_blank"
                 rel="noreferrer"
               >
@@ -29,7 +29,7 @@ export function OpenSource() {
               </a>
               <a
                 className="os-btn os-btn--ghost"
-                href="https://github.com/oblien/openship"
+                href="https://github.com/aeolialiu2051/vibrail"
                 target="_blank"
                 rel="noreferrer"
               >

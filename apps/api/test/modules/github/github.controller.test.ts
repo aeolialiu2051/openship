@@ -61,7 +61,7 @@ describe("connectRedirect", () => {
 
   it("starts a GitHub link flow and forwards the OAuth state cookie", async () => {
     getGitHubAuthMode.mockReturnValue("oauth");
-    const headers = new Headers({ cookie: "openship.session_token=test" });
+    const headers = new Headers({ cookie: "vibrail.session_token=test" });
 
     linkSocialAccount.mockResolvedValue(
       new Response(JSON.stringify({ url: "https://github.com/login/oauth/authorize?client_id=test" }), {

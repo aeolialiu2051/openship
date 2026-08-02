@@ -14,7 +14,7 @@ import { randomUUID } from "node:crypto";
 import { repos } from "@repo/db";
 import { provisionUser } from "./provision-user";
 
-export const LOCAL_EMAIL = "local@openship.local";
+export const LOCAL_EMAIL = "local@vibrail.local";
 
 /** Reset the in-process cache. Use after mutating the local user row
  *  (e.g. the zero-auth → local-auth upgrade flow renames the user). */

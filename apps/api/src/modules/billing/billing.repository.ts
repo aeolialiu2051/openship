@@ -55,7 +55,7 @@ export interface BillingState {
    */
   overQuota: boolean;
   /**
-   * Total build time this period, in minutes. Openship-derived (sum of
+   * Total build time this period, in minutes. Vibrail-derived (sum of
    * build-session durations) — Oblien does not meter build separately.
    */
   buildTimeMinutes: number;
@@ -76,7 +76,7 @@ export interface BillingState {
     bandwidthGb?: { used: number | null; max: number | null };
   };
   /**
-   * MASTER billing-feature availability, decided by Openship Cloud and driven
+   * MASTER billing-feature availability, decided by Vibrail Cloud and driven
    * by `BILLING_ENABLED`. Every mode reads this (SaaS builds it; self-hosted +
    * local forward it verbatim through the billing proxy) so the dashboard knows
    * whether billing is live or "coming soon". Stripe-mutating endpoints enforce
@@ -187,7 +187,7 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
   // Display-only over-quota flag (Oblien is the real enforcer).
   const overQuota = quotaLimit > 0 && quotaRemaining <= 0;
 
-  // Build time this period (openship-derived). Window = the org's billing
+  // Build time this period (vibrail-derived). Window = the org's billing
   // period, or the last 30 days when no period is set (fresh free org).
   const periodEnd = org.currentPeriodEnd ?? new Date();
   const periodStart =

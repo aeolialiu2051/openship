@@ -13,14 +13,14 @@ short-lived, single-use **ticket**, and the WebSocket upgrade presents that tick
 
 <Callout title="Self-hosted only" type="warn">
 This module is mounted only when the instance is **not** in cloud mode, and every route is additionally
-guarded by a local-only middleware. On Openship Cloud these paths return **404**. (Cloud service shells go
+guarded by a local-only middleware. On Vibrail Cloud these paths return **404**. (Cloud service shells go
 through a different subsystem, `/api/services/terminal`.)
 </Callout>
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/terminal/ticket`.
 The ticket endpoint takes a personal access token as a bearer header (`Authorization: Bearer <token>`,
-created with [`openship token create`](/docs/cli/access)) or the dashboard's session cookie. The WebSocket
+created with [`vibrail token create`](/docs/cli/access)) or the dashboard's session cookie. The WebSocket
 upgrade authenticates via the ticket (or a same-origin session cookie) **inside** the handshake — see below.
 See the [API overview](/docs/api) and [auth model](/docs/security/auth) for the full picture.
 </Callout>
@@ -54,7 +54,7 @@ POST /api/terminal/ticket
 
 ```bash
 curl -X POST https://your-host/api/terminal/ticket \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"serverId":"srv_123"}'
 ```
@@ -69,7 +69,7 @@ The token is consumed the first time it's presented on an upgrade — it cannot 
 ticket per connection attempt.
 
 <Callout title="No CLI equivalent yet" type="info">
-`openship server ssh <serverId>` is stubbed as "coming soon" — the CLI doesn't bundle a WebSocket client, so
+`vibrail server ssh <serverId>` is stubbed as "coming soon" — the CLI doesn't bundle a WebSocket client, so
 there's no terminal command today. Use the dashboard, or drive the WebSocket directly as shown below.
 </Callout>
 
@@ -80,7 +80,7 @@ GET /api/terminal/ws/:serverId
 ```
 
 Connect to the `wss://` form of this path and pass the ticket as a WebSocket subprotocol. Browsers send
-subprotocols in the `Sec-WebSocket-Protocol` header; the value must be the prefix `openship.terminal.v1+`
+subprotocols in the `Sec-WebSocket-Protocol` header; the value must be the prefix `vibrail.terminal.v1+`
 followed by the token from `/ticket`:
 
 ```js
@@ -92,7 +92,7 @@ const { token } = await fetch('/api/terminal/ticket', {
 
 const ws = new WebSocket(
   `wss://your-host/api/terminal/ws/${serverId}`,
-  [`openship.terminal.v1+${token}`],
+  [`vibrail.terminal.v1+${token}`],
 );
 ```
 
@@ -104,7 +104,7 @@ exceeded. Any failure opens the socket only to send an `error` control frame and
 ### Resuming a parked session
 
 When the socket drops without an explicit close, the shell is **parked** (kept alive) so the client can
-reattach. To resume, present a second subprotocol alongside the ticket: `openship.terminal.resume+<resumeToken>`,
+reattach. To resume, present a second subprotocol alongside the ticket: `vibrail.terminal.resume+<resumeToken>`,
 where `resumeToken` came from the previous `ready` frame. A resume reuses the existing PTY and audit row and
 does not count against the session cap.
 

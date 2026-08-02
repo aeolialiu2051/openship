@@ -1,6 +1,6 @@
 ---
 title: Self-host infrastructure
-description: CLI reference for the server, system, mail, and backup commands that operate an Openship instance you run yourself.
+description: CLI reference for the server, system, mail, and backup commands that operate a Vibrail instance you run yourself.
 ---
 
 These four command groups manage the machinery *behind* your deployments — the servers they land on,
@@ -10,17 +10,17 @@ They're the terminal equivalent of the dashboard's [Servers](/docs/dashboard/ser
 [Backups](/docs/dashboard/backups) screens.
 
 <Callout title="Log in first, and know your instance type">
-Every command here talks to your instance's API and needs a token — run `openship login` once. The
-`server`, `system`, and `mail` groups only work on a **self-hosted** instance; run against Openship Cloud
+Every command here talks to your instance's API and needs a token — run `vibrail login` once. The
+`server`, `system`, and `mail` groups only work on a **self-hosted** instance; run against Vibrail Cloud
 and they exit with a clean "self-host only" message. `backup` works on any instance.
 </Callout>
 
 <Callout title="--json everywhere" type="info">
 Add the global `--json` flag to any command for machine-readable output on stdout (tables and spinners are
-suppressed): `openship server list --json`.
+suppressed): `vibrail server list --json`.
 </Callout>
 
-## `openship server`
+## `vibrail server`
 
 Manage the SSH servers your instance can build and deploy on. See the
 [Custom servers guide](/docs/guides/custom-servers) for the click-by-click version.
@@ -55,9 +55,9 @@ Both commands take the same SSH connection flags. `--host` is the only required 
 
 ```bash
 # Add a server, then confirm it's reachable and ready
-openship server add --host 203.0.113.10 --name web-1 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
-openship server test-connection --host 203.0.113.10 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
-openship server list
+vibrail server add --host 203.0.113.10 --name web-1 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
+vibrail server test-connection --host 203.0.113.10 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
+vibrail server list
 ```
 
 ### `check` and `install`
@@ -72,15 +72,15 @@ The installable components are **`docker`, `git`, `certbot`, `rsync`**.
 | `install <serverId>` | `--follow` | Stream the install logs live (SSE). |
 
 ```bash
-openship server check srv_123
-openship server install srv_123 --component docker --component git --follow
+vibrail server check srv_123
+vibrail server install srv_123 --component docker --component git --follow
 ```
 
 ```bash
-openship server monitor srv_123                             # live stats (Ctrl-C to stop)
+vibrail server monitor srv_123                             # live stats (Ctrl-C to stop)
 ```
 
-## `openship system`
+## `vibrail system`
 
 Instance-level settings, first-run onboarding, migration between hosting modes, and whole-instance
 data transfer. Migration is covered in depth in
@@ -95,7 +95,7 @@ data transfer. Migration is covered in depth in
 | `browse [path]` | List directories on the instance host (defaults to home). |
 | `migration preflight` | Read-only readiness check for the own-server migration. |
 | `migration start` | Migrate this instance onto your own server. |
-| `migration start-cloud` | Migrate this instance to Openship Cloud. |
+| `migration start-cloud` | Migrate this instance to Vibrail Cloud. |
 | `migration start-tunnel` | Expose this instance via an edge tunnel. |
 | `migration switch-back` | Reverse a migration back to single-user. |
 | `data-transfer export` | Export the entire instance to a JSON file. |
@@ -114,8 +114,8 @@ data transfer. Migration is covered in depth in
 | `--invitation-mail-source <src>` | `platform` or `cloud`. |
 
 ```bash
-openship system settings get
-openship system settings set --default-build-mode server
+vibrail system settings get
+vibrail system settings set --default-build-mode server
 ```
 
 <Callout title="Turning auth off is deliberate" type="warn">
@@ -160,7 +160,7 @@ same instance settings as `settings set` (`--auth-mode`, `--tunnel-provider`, `-
 ### `migration`
 
 `preflight` and `start` move a single-user instance onto your own server; `start-cloud` moves it to
-Openship Cloud; `start-tunnel` fronts it with an edge tunnel; `switch-back` reverses any of them.
+Vibrail Cloud; `start-tunnel` fronts it with an edge tunnel; `switch-back` reverses any of them.
 
 | Command | Flag | Purpose |
 |---|---|---|
@@ -175,8 +175,8 @@ Openship Cloud; `start-tunnel` fronts it with an edge tunnel; `switch-back` reve
 Pass **either** `--hostname` (custom domain) **or** `--slug` (free subdomain), not both.
 
 ```bash
-openship system migration preflight --server-id srv_123 --hostname app.example.com
-openship system migration start     --server-id srv_123 --hostname app.example.com
+vibrail system migration preflight --server-id srv_123 --hostname app.example.com
+vibrail system migration start     --server-id srv_123 --hostname app.example.com
 ```
 
 ### `data-transfer`
@@ -194,8 +194,8 @@ defaults to `wipe` (replace) mode.
 | `import` | `-y, --yes` | Skip the confirmation prompt. | — |
 
 ```bash
-openship system data-transfer export --passphrase "correct horse" --out instance.json
-openship system data-transfer import --file instance.json --passphrase "correct horse" --mode merge
+vibrail system data-transfer export --passphrase "correct horse" --out instance.json
+vibrail system data-transfer import --file instance.json --passphrase "correct horse" --mode merge
 ```
 
 <Callout title="wipe replaces everything" type="error">
@@ -203,7 +203,7 @@ Importing in the default `wipe` mode deletes the current instance data before re
 for confirmation unless you pass `-y`. Use `--mode merge` to layer the file on top instead.
 </Callout>
 
-## `openship mail`
+## `vibrail mail`
 
 Set up and administer a self-hosted iRedMail server. This is the terminal side of the
 [Emails](/docs/dashboard/emails) screen; the [Email & webmail guide](/docs/guides/email-webmail) walks
@@ -239,10 +239,10 @@ records and setting reverse DNS — which you clear with `dns-ack` / `ptr-ack`, 
 | `--config <json>` | iRedMail config overrides as a JSON object. |
 
 ```bash
-openship mail setup srv_123 --domain example.com
+vibrail mail setup srv_123 --domain example.com
 # ...publish the DNS records it prints, then:
-openship mail dns-ack srv_123
-openship mail setup srv_123 --domain example.com --start-step 7
+vibrail mail dns-ack srv_123
+vibrail mail setup srv_123 --domain example.com --start-step 7
 ```
 
 ### `logs` and `postmaster`
@@ -256,16 +256,16 @@ The `component` for `logs` is a daemon key such as `postfix`, `dovecot`, `amavis
 or `postgresql`.
 
 ```bash
-openship mail health srv_123
-openship mail logs srv_123 postfix --lines 500
+vibrail mail health srv_123
+vibrail mail logs srv_123 postfix --lines 500
 ```
 
 <Callout title="scan, adopt, forget go together" type="info">
-`forget` only drops Openship's tracking row — the installed daemons and on-server state stay put. To pick
+`forget` only drops Vibrail's tracking row — the installed daemons and on-server state stay put. To pick
 the server back up later, run `mail scan <serverId>` and, if it reports adoptable, `mail adopt <serverId>`.
 </Callout>
 
-## `openship backup`
+## `vibrail backup`
 
 Policies (schedules), runs (executions), staged restores, and storage destinations. This mirrors the
 [Backups](/docs/dashboard/backups) screen; the [Backups & restore guide](/docs/guides/backups-restore)
@@ -299,8 +299,8 @@ Backup policies (schedules) for a project.
 | `run` | `--follow` | Stream the run to completion. | — |
 
 ```bash
-openship backup policy create --project proj_123 --destination dst_123 --cron '0 3 * * *' --retain-count 7
-openship backup policy run pol_123 --follow
+vibrail backup policy create --project proj_123 --destination dst_123 --cron '0 3 * * *' --retain-count 7
+vibrail backup policy run pol_123 --follow
 ```
 
 ### `backup run`
@@ -345,13 +345,13 @@ token; `restore apply` performs it.
 
 ```bash
 # Prepare, then apply with the token it prints
-openship backup run restore run_123
-openship backup restore apply rst_123 --token <confirmationToken> --follow
+vibrail backup run restore run_123
+vibrail backup restore apply rst_123 --token <confirmationToken> --follow
 ```
 
 <Callout title="Applying a restore is destructive" type="warn">
 `restore apply` overwrites live data, which is why it requires the confirmation token handed back by the
-prepare step. Cancel a staged restore you no longer want with `openship backup restore cancel <restoreId>`.
+prepare step. Cancel a staged restore you no longer want with `vibrail backup restore cancel <restoreId>`.
 </Callout>
 
 ### `backup destination`
@@ -369,7 +369,7 @@ Backup destinations (storage targets).
 | Flag | Purpose |
 |---|---|
 | `--name <name>` | Display name. **Required.** |
-| `--kind <kind>` | `s3_compatible`, `sftp`, `openship_server`, or `local`. **Required.** |
+| `--kind <kind>` | `s3_compatible`, `sftp`, `vibrail_server`, or `local`. **Required.** |
 | `--endpoint <url>` | Endpoint URL, or absolute path for `local`. |
 | `--region <region>` | S3 region. |
 | `--bucket <bucket>` | S3 bucket. |
@@ -383,14 +383,14 @@ Backup destinations (storage targets).
 | `--sftp-private-key <key>` | SFTP private key (raw). |
 | `--sftp-private-key-file <path>` | Read the SFTP private key from a file. |
 | `--sftp-key-passphrase <pw>` | SFTP private key passphrase. |
-| `--server <id>` | Server id (for the `openship_server` kind). |
+| `--server <id>` | Server id (for the `vibrail_server` kind). |
 | `--default` | Mark as the default destination. |
 
 ```bash
-openship backup destination create --name s3-backups --kind s3_compatible \
+vibrail backup destination create --name s3-backups --kind s3_compatible \
   --endpoint https://s3.us-east-1.amazonaws.com --region us-east-1 --bucket my-backups \
   --access-key-id AKIA... --secret-access-key ... --default
-openship backup destination preflight dst_123
+vibrail backup destination preflight dst_123
 ```
 
 ## Related

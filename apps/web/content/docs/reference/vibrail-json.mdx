@@ -1,18 +1,18 @@
 ---
-title: openship.json
-description: The declarative deploy config for Openship — like vercel.json or railway.toml. Declare framework, build, runtime, env, domains, routes, resources, services and monorepo layout, and Openship deploys the same way every time.
+title: vibrail.json
+description: The declarative deploy config for Vibrail — like vercel.json or railway.toml. Declare framework, build, runtime, env, domains, routes, resources, services and monorepo layout, and Vibrail deploys the same way every time.
 ---
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-`openship.json` is a repo-root file that tells Openship how to build, run, route, and scale a
+`vibrail.json` is a repo-root file that tells Vibrail how to build, run, route, and scale a
 project. It mirrors what you'd otherwise set in the [deploy wizard](/docs/guides/deploy-from-github),
-so a repo becomes "ready to ship on Openship" and [auto-deploy on push](/docs/guides/auto-deploy)
-and `openship deploy` become deterministic — no wizard needed.
+so a repo becomes "ready to ship on Vibrail" and [auto-deploy on push](/docs/guides/auto-deploy)
+and `vibrail deploy` become deterministic — no wizard needed.
 
 <Callout title="Authoritative overlay">
-Openship **auto-detects** your stack first, then applies every field present in `openship.json`
-on top. Fields you omit keep their detected value. So a good `openship.json` is **small** —
+Vibrail **auto-detects** your stack first, then applies every field present in `vibrail.json`
+on top. Fields you omit keep their detected value. So a good `vibrail.json` is **small** —
 declare only what you want to override or pin, not the whole detected config.
 </Callout>
 
@@ -20,7 +20,7 @@ Add the `$schema` line for editor autocomplete and inline validation:
 
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "framework": "nextjs",
   "port": 3000
 }
@@ -29,8 +29,8 @@ Add the `$schema` line for editor autocomplete and inline validation:
 Validate it any time with the CLI:
 
 ```bash
-openship config init       # scaffold a starter openship.json
-openship config validate   # check it against the schema
+vibrail config init       # scaffold a starter vibrail.json
+vibrail config validate   # check it against the schema
 ```
 
 It's **JSON, not JSONC** — no comments, no trailing commas.
@@ -157,7 +157,7 @@ Declaring `services` makes the project a multi-service (Docker) project — see
 
 ## Monorepo
 
-`monorepo` overrides Openship's detected sub-apps. Entries in `apps[]` are matched to detected
+`monorepo` overrides Vibrail's detected sub-apps. Entries in `apps[]` are matched to detected
 sub-apps by `rootDirectory` and override their build settings — they don't declare apps from
 scratch (the detector finds the apps).
 
@@ -191,7 +191,7 @@ dashboard for now.
 
 ## How it maps
 
-| `openship.json` | Deploy wizard / API |
+| `vibrail.json` | Deploy wizard / API |
 |---|---|
 | `framework`, `packageManager`, `*Command`, `outputDirectory`, `buildImage`, `productionPaths`, `rootDirectory` | Build settings |
 | `port`, `productionMode`, `runtime` | Runtime settings (`hasServer`, runtime isolation) |
@@ -204,5 +204,5 @@ dashboard for now.
 
 ## See also
 
-- [Guide: deploy with openship.json](/docs/guides/openship-json)
+- [Guide: deploy with vibrail.json](/docs/guides/vibrail-json)
 - [Deploy from GitHub](/docs/guides/deploy-from-github) · [Auto-deploy on push](/docs/guides/auto-deploy)

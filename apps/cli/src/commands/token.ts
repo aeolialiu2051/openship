@@ -1,5 +1,5 @@
 /**
- * `openship token` — personal access tokens.
+ * `vibrail token` — personal access tokens.
  *
  * Grounded in apps/api/src/modules/tokens/token.routes.ts (mounted at
  * /api/tokens). Self-scoped: every call operates on the caller's own tokens.

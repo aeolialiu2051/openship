@@ -11,7 +11,7 @@
  * Used two ways:
  *   - SaaS (CLOUD_MODE): the resolver returns this directly as THE GitHubSource
  *     (no gh, no merge).
- *   - local + Openship Cloud connected: LocalGitHubSource (the merge) composes
+ *   - local + Vibrail Cloud connected: LocalGitHubSource (the merge) composes
  *     one of these as its App sub-source for installations + cloud-minted clone
  *     tokens, while gh drives listing.
  */
@@ -139,7 +139,7 @@ export class GitHubAppSource implements GitHubSource {
     }
     return {
       sources: {
-        openshipApp: connected && status.connected
+        vibrailApp: connected && status.connected
           ? {
               connected: true,
               login: status.login,
@@ -151,13 +151,13 @@ export class GitHubAppSource implements GitHubSource {
         // overlays the real gh side when present.
         ghCli: { available: false },
       },
-      primary: connected ? "openship-app" : null,
+      primary: connected ? "vibrail-app" : null,
     };
   }
 
   async getConnectionStatus(): Promise<GitHubConnectionStatus> {
     const state = await this.getConnectionState();
-    if (!state.sources.openshipApp.connected) return { state, accounts: [] };
+    if (!state.sources.vibrailApp.connected) return { state, accounts: [] };
     try {
       const installs = await this.installs();
       const accounts = mapAccounts(installs).map((a) => ({
@@ -173,7 +173,7 @@ export class GitHubAppSource implements GitHubSource {
   async getHome(): Promise<GitHubHome> {
     const state = await this.getConnectionState();
     const errors: Record<string, string> = {};
-    if (!state.sources.openshipApp.connected) {
+    if (!state.sources.vibrailApp.connected) {
       return { state, accounts: [], repos: [] };
     }
     let accounts: MappedAccount[] = [];

@@ -10,7 +10,7 @@
  *   2. Dashboard hits POST /api/terminal/ticket with the normal Better
  *      Auth cookie, gets a one-shot opaque token.
  *
- *   3. Dashboard opens `new WebSocket(url, ["openship.terminal.v1+<token>"])`.
+ *   3. Dashboard opens `new WebSocket(url, ["vibrail.terminal.v1+<token>"])`.
  *      The token rides in `Sec-WebSocket-Protocol`. The server consumes
  *      it before the channel opens — single-use, ~30s TTL, bound to
  *      (userId, serverId).
@@ -23,12 +23,12 @@ import { getWebSocketApiBaseUrl } from "./urls";
 // The protocol prefix MUST match the constant in the API controller
 // (apps/api/src/modules/terminal/terminal.controller.ts). The server
 // echoes the same subprotocol back so the browser accepts the upgrade.
-export const TERMINAL_SUBPROTOCOL_PREFIX = "openship.terminal.v1+";
+export const TERMINAL_SUBPROTOCOL_PREFIX = "vibrail.terminal.v1+";
 // Optional second subprotocol carrying a resume token. Presented by
 // the client to reattach to a parked session (page reload, network
 // blip). The server validates ownership + freshness and either
 // reattaches or replies with error code "resume_failed".
-export const TERMINAL_RESUME_SUBPROTOCOL_PREFIX = "openship.terminal.resume+";
+export const TERMINAL_RESUME_SUBPROTOCOL_PREFIX = "vibrail.terminal.resume+";
 
 // ─── Wire-level control messages (server → client) ──────────────────────────
 
@@ -37,7 +37,7 @@ export interface ReadyMsg {
   sessionId: string;
   /**
    * Per-session secret to be stored client-side and presented in the
-   * `openship.terminal.resume+<token>` subprotocol on the next WS
+   * `vibrail.terminal.resume+<token>` subprotocol on the next WS
    * open. Survives page reload via localStorage.
    */
   resumeToken: string;

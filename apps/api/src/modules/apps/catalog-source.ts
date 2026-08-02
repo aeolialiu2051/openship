@@ -23,7 +23,7 @@ import { readApiVersion } from "../../lib/release-dist";
  *   - too new, but bundled copy is ok    → serve the BUNDLED copy (no break),
  *                                          flagged `updateAvailable`.
  *   - too new, no runnable copy          → a guided `requiresUpdate` PLACEHOLDER
- *                                          ("Requires Openship ≥ X"), not installable.
+ *                                          ("Requires Vibrail ≥ X"), not installable.
  * `schemaVersion` (an unreadable future SHAPE) is still dropped at ingest, but a
  * best-effort placeholder is surfaced when the raw entry's identity is readable.
  *
@@ -32,16 +32,16 @@ import { readApiVersion } from "../../lib/release-dist";
  */
 
 const REMOTE_URL =
-  "https://raw.githubusercontent.com/oblien/openship/main/packages/core/src/apps/catalog.json";
+  "https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/packages/core/src/apps/catalog.json";
 const TTL_MS = 600_000; // 10 minutes
 /** Catalog-ENVELOPE version we know how to read (the top-level `version`). A
  *  newer envelope is logged, not fatal — entries are gated individually. */
 const MAX_CATALOG_VERSION = 1;
 
 /** A resolved catalog entry: a template, possibly a lightweight placeholder that
- *  needs a newer Openship to install. */
+ *  needs a newer Vibrail to install. */
 export type ResolvedAppTemplate = AppTemplate & {
-  /** Set when this id needs a newer Openship than this instance — not installable. */
+  /** Set when this id needs a newer Vibrail than this instance — not installable. */
   requiresUpdate?: { minVersion?: string };
   /** A newer (engine-gated) version exists in the overlay; the bundled copy is served. */
   updateAvailable?: boolean;
@@ -49,7 +49,7 @@ export type ResolvedAppTemplate = AppTemplate & {
   custom?: boolean;
 };
 
-/** This instance's Openship version, for the `minEngine` gate. Best-effort — if
+/** This instance's Vibrail version, for the `minEngine` gate. Best-effort — if
  *  the package.json read throws, skip the gate. */
 function engineVersion(): string | undefined {
   try {

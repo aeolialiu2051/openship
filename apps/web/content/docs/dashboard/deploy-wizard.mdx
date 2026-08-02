@@ -13,7 +13,7 @@ live build screen at `/build/<id>`, which streams the logs until your app is onl
 
 <Callout title="Desktop vs. browser">
 The very first screen — **Deploy target** — only appears in the **desktop app**, where
-you can choose between your own servers, Openship Cloud, and your own machine. On a
+you can choose between your own servers, Vibrail Cloud, and your own machine. On a
 self-hosted or cloud dashboard opened in a browser, the wizard skips straight to
 **Config**.
 </Callout>
@@ -23,16 +23,16 @@ self-hosted or cloud dashboard opened in a browser, the wizard skips straight to
 This is the "where do you want this to run?" screen. Its heading reads **"Where do you
 want to deploy?"** and it shows one card per place you can deploy to.
 
-<Callout title="Screenshot">The Deploy target screen: the "Where do you want to deploy?" heading with the server card(s) and the **Openship Cloud** card, plus the **Add your own server** button underneath. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">The Deploy target screen: the "Where do you want to deploy?" heading with the server card(s) and the **Vibrail Cloud** card, plus the **Add your own server** button underneath. *(screenshot pending)*</Callout>
 
 ### The target cards
 
 | Card | What it means |
 |---|---|
 | **Your server** (shown by name) | Deploy to one of your connected servers over SSH. A single server shows by its name; multiple servers collapse into a **Your servers** card that expands to a picker. |
-| **Openship Cloud** | Deploy to managed cloud infrastructure — no server setup. If you haven't connected Cloud yet, the card explains that and prompts you to connect when you continue. |
+| **Vibrail Cloud** | Deploy to managed cloud infrastructure — no server setup. If you haven't connected Cloud yet, the card explains that and prompts you to connect when you continue. |
 
-If you run Openship self-hosted, an **Add your own server** button sits below the cards.
+If you run Vibrail self-hosted, an **Add your own server** button sits below the cards.
 It opens the **Add your server** form (name, IP address, port, username, and
 authentication — password, SSH key, or agent) right inside the wizard; the new server is
 selected automatically once saved, so you don't lose your place. See
@@ -40,14 +40,14 @@ selected automatically once saved, so you don't lose your place. See
 
 <Callout title="Building or running on your own machine" type="info">
 There isn't a separate "local machine" target card in this picker — the two cards are your
-server(s) and Openship Cloud. Running the **build** on your own computer is offered
+server(s) and Vibrail Cloud. Running the **build** on your own computer is offered
 separately as the **This Machine** build option (see *Advanced*, below), which is the
 fast path when you have a capable laptop and a small VPS.
 </Callout>
 
 ### Power — the cloud resource tier
 
-When **Openship Cloud** is selected, a **Power** panel appears on the right. This is where
+When **Vibrail Cloud** is selected, a **Power** panel appears on the right. This is where
 you size the machine your app runs on:
 
 | Tier | Best for | Resources |
@@ -63,7 +63,7 @@ If the project is just static files (no long-running server), there's no machine
 the summary shows a **Static** chip instead of a power tier.
 </Callout>
 
-<Callout title="Screenshot">Openship Cloud selected, with the **Power** panel on the right showing the Micro / Low / Medium / High / Custom tier cards. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">Vibrail Cloud selected, with the **Power** panel on the right showing the Micro / Low / Medium / High / Custom tier cards. *(screenshot pending)*</Callout>
 
 ### Advanced (server targets)
 
@@ -80,7 +80,7 @@ never open it). Its summary line shows the current build location; expand it for
   on a powerful machine) or **Remote** (build on the deploy target — best when your machine
   is limited).
 - **Clone location** — for Docker/Compose server deploys: **On your device** /
-  **On Openship** (clone then upload; works everywhere) or **On the server** (clone on the
+  **On Vibrail** (clone then upload; works everywhere) or **On the server** (clone on the
   server, no upload; best for big repos).
 
 <Callout title="Forwarding your git identity is now a setting, not a per-deploy checkbox" type="info">
@@ -104,7 +104,7 @@ a pencil) to reopen this picker for a one-off change.
 
 ## Screen 2 — Config
 
-This screen is where you confirm what Openship detected and set anything it can't guess.
+This screen is where you confirm what Vibrail detected and set anything it can't guess.
 The main column holds the settings; a sticky sidebar on the right holds your repo info,
 the domain, the **Deploy** button, and a build summary. For most apps the detected
 defaults are correct and you can go straight to **Deploy**.
@@ -113,7 +113,7 @@ defaults are correct and you can go straight to **Deploy**.
 
 ### The main column
 
-What renders here depends on the project type Openship detected:
+What renders here depends on the project type Vibrail detected:
 
 - **App** — a framework picker and build settings (install command, build command, output
   directory).
@@ -139,14 +139,14 @@ domain**, plus the exposed **port** (server apps) or **static path** (static app
 the app on your own address with HTTPS, see [Custom domains](/docs/guides/custom-domains).
 
 <Callout title="Free domains and services need Cloud" type="warn">
-Free `.<your-base-domain>` subdomains are routed through Openship Cloud. If you deploy to
+Free `.<your-base-domain>` subdomains are routed through Vibrail Cloud. If you deploy to
 your **own server** with a free domain (or expose a Compose service on one), the wizard
-asks you to connect Openship Cloud or switch to a custom domain first. Custom domains work
+asks you to connect Vibrail Cloud or switch to a custom domain first. Custom domains work
 without Cloud.
 </Callout>
 
 **Deploy Summary** — a read-only recap card at the bottom of the sidebar. For apps it lists
-the **Domain**, **Build Location** (Local Machine / Openship Cloud / Server), **Framework**,
+the **Domain**, **Build Location** (Local Machine / Vibrail Cloud / Server), **Framework**,
 and the detected **Install** / **Build** / **Output** commands. For Docker/Compose it shows
 the **Runtime**/**Stack** and **Port**.
 
@@ -159,7 +159,7 @@ live build screen.
 A few checks can interrupt before the build starts — none of them are errors, just the
 wizard asking for the one thing it needs:
 
-- Deploying **to Openship Cloud** without a Cloud connection → prompts you to connect.
+- Deploying **to Vibrail Cloud** without a Cloud connection → prompts you to connect.
 - A **free domain on your own server** (or on Compose services) → prompts for Cloud or a
   custom domain.
 - **Compose services with ports but no public domain** → a "no public service is reachable"
@@ -198,7 +198,7 @@ app; a failed deploy adds a "See logs for issue details" hint. For more, see
 
 ### Deployment Details & actions
 
-The right sidebar summarizes the deployment: **Status**, **Instance** (Openship Cloud /
+The right sidebar summarizes the deployment: **Status**, **Instance** (Vibrail Cloud /
 Server / Local machine), **Build** (local / cloud / server build), **Build time**,
 **Framework**, **Branch**, and **Domain**. The action button underneath changes with the
 state:

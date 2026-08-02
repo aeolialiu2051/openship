@@ -1,4 +1,4 @@
-<h1 align="center">Openship</h1>
+<h1 align="center">Vibrail</h1>
 
 <p align="center">
   Plataforma de despliegue de código abierto y autoalojable con CI/CD integrado.<br>
@@ -6,9 +6,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/openship"><img src="https://img.shields.io/npm/v/openship?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://openship.io"><img src="https://img.shields.io/badge/website-openship.io-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -24,7 +24,7 @@
 </p>
 
 <p align="center">
-  <img src="../screenshots/screen.png" alt="Openship dashboard" width="800" />
+  <img src="../screenshots/screen.png" alt="Vibrail dashboard" width="800" />
 </p>
 
 ---
@@ -32,29 +32,29 @@
 ## Inicio rápido
 
 ```bash
-npm i -g openship
-openship init
+npm i -g vibrail
+vibrail init
 ```
 
 Eso es todo. O, si prefieres Docker:
 
 ```bash
-git clone https://github.com/oblien/openship.git && cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
 cp .env.example .env
 docker compose up -d
 ```
 
-O descarga la app de escritorio desde [openship.io](https://openship.io).
+O descarga la app de escritorio desde [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com).
 
 ---
 
 ## Qué hace
 
-Apúntalo a un repositorio. Openship detecta tu stack, lo compila, lo configura todo y lo despliega — sin archivos de configuración, sin pipelines, sin YAML.
+Apúntalo a un repositorio. Vibrail detecta tu stack, lo compila, lo configura todo y lo despliega — sin archivos de configuración, sin pipelines, sin YAML.
 
 Bases de datos, dominios, SSL, CDN, correo, copias de seguridad — todo gestionado desde un solo lugar.
 
-Funciona con **Openship Cloud** (gestionado) o **cualquier servidor Linux** que tengas. Tanto los desarrolladores en solitario con proyectos personales como los equipos en producción usan la misma herramienta.
+Funciona con **Vibrail Cloud** (gestionado) o **cualquier servidor Linux** que tengas. Tanto los desarrolladores en solitario con proyectos personales como los equipos en producción usan la misma herramienta.
 
 ---
 
@@ -78,7 +78,7 @@ Funciona con **Openship Cloud** (gestionado) o **cualquier servidor Linux** que 
 
 ## Despliega donde sea
 
-- **Openship Cloud** — gestionado, autoescalado, sin configuración
+- **Vibrail Cloud** — gestionado, autoescalado, sin configuración
 - **Cualquier VPS** — Hetzner, DigitalOcean, Linode, OVH y demás
 - **Servidores dedicados** — bare metal, colocation, homelab
 - **Multiservidor** — reparte las cargas entre varias máquinas
@@ -116,6 +116,6 @@ Consulta [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Licencia
 
-Openship es software de **código abierto**, licenciado bajo la [Licencia Apache 2.0](../../LICENSE).
+Vibrail es software de **código abierto**, licenciado bajo la [Licencia Apache 2.0](../../LICENSE).
 
 Puedes usarlo, ejecutarlo, modificarlo, autoalojarlo y distribuirlo — incluso en productos comerciales y de código cerrado — según los términos de la licencia Apache 2.0. Consulta [LICENSE](../../LICENSE) para el texto completo.

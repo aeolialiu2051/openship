@@ -9,7 +9,7 @@
  *      Sec-WebSocket-Protocol.
  *   2. Dashboard hits POST /api/services/terminal/ticket with the
  *      Better Auth cookie, gets the opaque token.
- *   3. Dashboard opens `new WebSocket(url, ["openship.terminal.v1+<token>"])`.
+ *   3. Dashboard opens `new WebSocket(url, ["vibrail.terminal.v1+<token>"])`.
  *      The server consumes the token before the channel opens —
  *      single-use, ~30s TTL, bound to (userId, serviceId).
  */

@@ -1,6 +1,6 @@
 /**
  * Proxy config import — read an existing reverse proxy's configuration and
- * normalize its sites so a migrate/takeover can re-register them as Openship
+ * normalize its sites so a migrate/takeover can re-register them as Vibrail
  * routes. All parsing is read-only and best-effort (warnings, never throws).
  */
 

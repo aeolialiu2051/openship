@@ -3,7 +3,7 @@ import { platform } from "../controller-helpers";
 import { isCloudConnectedForOrg } from "./session";
 
 /**
- * The ONE server-side gate for "this action requires an Openship Cloud
+ * The ONE server-side gate for "this action requires a Vibrail Cloud
  * connection". Every cloud-requiring capability funnels through here (deploy
  * target, free/managed domains, cloud services, billing, migrate, cloud pages),
  * so there is one connection-truth and one error shape.
@@ -15,16 +15,16 @@ import { isCloudConnectedForOrg } from "./session";
 
 const CAPABILITY_MESSAGE: Record<CloudCapability, string> = {
   "cloud-deploy-target":
-    "Connect Openship Cloud to deploy to Openship Cloud, or pick one of your servers.",
+    "Connect Vibrail Cloud to deploy to Vibrail Cloud, or pick one of your servers.",
   "managed-project-domain":
-    "Connect Openship Cloud to use a free subdomain — free *.vibrail.warpgateapi.com domains route through the Openship Cloud edge. Add a custom domain instead, or connect Cloud in Settings.",
+    "Connect Vibrail Cloud to use a free subdomain — free *.vibrail.warpgateapi.com domains route through the Vibrail Cloud edge. Add a custom domain instead, or connect Cloud in Settings.",
   "managed-compose-domains":
-    "Connect Openship Cloud to expose services on free *.vibrail.warpgateapi.com subdomains — they route through the Openship Cloud edge. Use custom domains instead, or connect Cloud in Settings.",
-  "cloud-services-catalog": "Connect Openship Cloud to add cloud-managed services.",
-  billing: "Connect Openship Cloud to manage billing and usage.",
-  "migrate-to-cloud": "Connect Openship Cloud to migrate this project to the cloud.",
-  "cloud-pages": "Connect Openship Cloud — this action runs on Openship Cloud.",
-  "github-cloud-app": "Connect Openship Cloud to use the GitHub App integration.",
+    "Connect Vibrail Cloud to expose services on free *.vibrail.warpgateapi.com subdomains — they route through the Vibrail Cloud edge. Use custom domains instead, or connect Cloud in Settings.",
+  "cloud-services-catalog": "Connect Vibrail Cloud to add cloud-managed services.",
+  billing: "Connect Vibrail Cloud to manage billing and usage.",
+  "migrate-to-cloud": "Connect Vibrail Cloud to migrate this project to the cloud.",
+  "cloud-pages": "Connect Vibrail Cloud — this action runs on Vibrail Cloud.",
+  "github-cloud-app": "Connect Vibrail Cloud to use the GitHub App integration.",
 };
 
 export function capabilityMessage(capability: CloudCapability): string {

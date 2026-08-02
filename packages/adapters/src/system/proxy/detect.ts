@@ -3,7 +3,7 @@
  *
  * Both install paths (CLI self-install and dashboard/SSH server setup) run this
  * over a CommandExecutor (local or SSH) before binding the edge ports, so we
- * never confuse an existing reverse proxy with an Openship-managed service.
+ * never confuse an existing reverse proxy with a Vibrail-managed service.
  * Detection is read-only.
  */
 

@@ -14,7 +14,7 @@ export interface RoutedDomainInput {
 }
 
 export interface RouteRegistrationOptions {
-  /** If set, the domain matching this hostname gets a /_openship/hooks/ location */
+  /** If set, the domain matching this hostname gets a /_vibrail/hooks/ location */
   webhookDomain?: string | null;
   /** The proxy target for webhook requests (e.g. http://127.0.0.1:4000/api/webhooks/) */
   webhookProxy?: string;

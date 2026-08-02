@@ -2,7 +2,7 @@
  * Shared constants used across the monorepo.
  */
 
-export const APP_NAME = "Openship";
+export const APP_NAME = "Vibrail";
 
 export const DEPLOYMENT_STATUSES = [
   "queued",
@@ -122,7 +122,7 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
     // quota pushed to Oblien) is real so tiers still enforce — it's an internal
     // number, never shown as a price. NOTE (tune before launch): these credit
     // numbers are placeholders sized to Oblien's 10,000,000-credit ceiling; the
-    // true credit-per-$/per-cpu-minute rate is Oblien-configured. 1 openship
+    // true credit-per-$/per-cpu-minute rate is Oblien-configured. 1 vibrail
     // credit = 1 Oblien credit = 1000 milli (the wrapper divides by 1000 at the
     // Oblien boundary). Self-hosted is free and surfaces none of these numbers.
     monthlyCredits: 500_000, // 500 credits — free-tier allowance
@@ -202,7 +202,7 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
     ],
     popular: false,
     support: "dedicated",
-    contactSales: "mailto:sales@openship.io",
+    contactSales: "mailto:sales@vibrail.warpgateapi.com",
   },
 };
 

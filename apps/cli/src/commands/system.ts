@@ -273,7 +273,7 @@ const browseCommand = new Command("browse")
 /* ── migration ───────────────────────────────────────────────────────
  * POST /api/system/migration/{preflight,start,start-cloud,start-tunnel,switch-back}
  * → migration.controller. Preflight/start move a single-user instance onto the
- * operator's own server; start-cloud → Openship Cloud; start-tunnel → edge
+ * operator's own server; start-cloud → Vibrail Cloud; start-tunnel → edge
  * tunnel; switch-back reverses any of them.
  */
 function buildDomain(opts: { hostname?: string; slug?: string }): DomainChoice {
@@ -345,11 +345,11 @@ migrationCommand
 
 migrationCommand
   .command("start-cloud")
-  .description("Migrate this instance to Openship Cloud")
+  .description("Migrate this instance to Vibrail Cloud")
   .option("--allow-non-empty-target", "Proceed even if the cloud org already has projects")
   .action(async (opts) => {
     await guarded(async () => {
-      const spin = spinner("Migrating to Openship Cloud…");
+      const spin = spinner("Migrating to Vibrail Cloud…");
       try {
         const res = await apiRequest<{ ok: true; publicUrl: string; imported: unknown }>(
           "/system/migration/start-cloud",

@@ -37,7 +37,7 @@ declare module "hono" {
  *   2. No session → consult `getAuthMode()`.
  *   3. authMode !== "none" → 401.
  *   4. authMode === "none" → loopback guardrail (CRITICAL #4):
- *        - Desktop OR `OPENSHIP_ALLOW_ZERO_AUTH=true` is required.
+ *        - Desktop OR `VIBRAIL_ALLOW_ZERO_AUTH=true` is required.
  *        - The request must come from a loopback TCP peer
  *          (kernel-reported, not the Host header). Reverse-proxy
  *          misconfig spoofing Host can no longer escalate to admin.
@@ -189,7 +189,7 @@ export async function resolveBearerIdentity(
 }
 
 /**
- * Bearer auth — a PAT (`opsh_pat_…`) or an OAuth MCP access token. Both resolve
+ * Bearer auth — a PAT (`vibrail_pat_…`) or an OAuth MCP access token. Both resolve
  * via `resolveBearerIdentity` and converge on the SAME scoped-principal path
  * (`enforceBoundOrgAndReadOnly` → `finishBearer` → `applyAuthedRequest` → the
  * permission stack). The only edge differences: a browser-origin PAT is
@@ -251,7 +251,7 @@ async function tryBearerAuth(c: Context, next: Next): Promise<Response | typeof 
 }
 
 export async function authMiddleware(c: Context, next: Next) {
-  // ── 0. Bearer credential (PAT `opsh_pat_…` or OAuth MCP token) ──────
+  // ── 0. Bearer credential (PAT `vibrail_pat_…` or OAuth MCP token) ──────
   // Handled before Better Auth so a bearer is never mis-parsed as a cookie
   // session. Both kinds resolve through one path (resolveBearerIdentity);
   // null → not a valid bearer for us → fall through to the session path.

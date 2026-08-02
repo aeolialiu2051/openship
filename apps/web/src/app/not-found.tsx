@@ -9,7 +9,7 @@ export default function NotFound() {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <title>Page not found — Openship</title>
+        <title>Page not found — Vibrail</title>
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className="min-h-screen antialiased">

@@ -1,5 +1,5 @@
 import { createPlatform, type CloudRuntime } from "@repo/adapters";
-import { getOblienClient, getNamespaceClient, issueNamespaceToken } from "./openship-cloud";
+import { getOblienClient, getNamespaceClient, issueNamespaceToken } from "./vibrail-cloud";
 import { getRoutingBaseDomain } from "./routing-domains";
 import { safeErrorMessage } from "@repo/core";
 

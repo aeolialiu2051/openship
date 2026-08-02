@@ -97,17 +97,17 @@ describe("DockerRuntime container status normalization", () => {
       {
         Id: "c1",
         State: "Running",
-        Labels: { "openship.deployment": "dep1", "openship.service": "web" },
+        Labels: { "vibrail.deployment": "dep1", "vibrail.service": "web" },
       },
       {
         Id: "c2",
         State: "HEALTHY",
-        Labels: { "openship.deployment": "dep1", "openship.service": "db" },
+        Labels: { "vibrail.deployment": "dep1", "vibrail.service": "db" },
       },
       {
         Id: "c3",
         State: "Exited",
-        Labels: { "openship.deployment": "dep1", "openship.service": "cache" },
+        Labels: { "vibrail.deployment": "dep1", "vibrail.service": "cache" },
       },
     ]) as any;
 
@@ -148,22 +148,22 @@ describe("DockerRuntime container status normalization", () => {
     runtime.docker.listContainers = (async () => [
       {
         Id: "c_api",
-        Names: ["/openship-openship-api"],
-        Image: "openship/openship-api:bld_x",
+        Names: ["/vibrail-vibrail-api"],
+        Image: "vibrail/vibrail-api:bld_x",
         ImageID: "sha256:1",
         State: "Restarting",
         Status: "Restarting (1) 44 seconds ago",
-        Labels: { "openship.project": "proj_1", "openship.service": "api" },
+        Labels: { "vibrail.project": "proj_1", "vibrail.service": "api" },
         Ports: [{ PrivatePort: 4000, PublicPort: 4000, Type: "tcp" }],
         Mounts: [],
-        NetworkSettings: { Networks: { "openship-openship": { IPAddress: "172.18.0.7" } } },
+        NetworkSettings: { Networks: { "vibrail-vibrail": { IPAddress: "172.18.0.7" } } },
       },
     ]) as any;
 
     const [c] = await runtime.listAllContainers();
     expect(c).toMatchObject({
       id: "c_api",
-      names: ["openship-openship-api"],
+      names: ["vibrail-vibrail-api"],
       state: "restarting",
       status: "Restarting (1) 44 seconds ago",
       ip: "172.18.0.7",
@@ -176,7 +176,7 @@ describe("DockerRuntime container status normalization", () => {
     runtime.docker.listContainers = (async () => [
       {
         Id: "c_stopped",
-        Names: ["/openship-openship-web"],
+        Names: ["/vibrail-vibrail-web"],
         Image: "img",
         ImageID: "sha256:2",
         State: "exited",

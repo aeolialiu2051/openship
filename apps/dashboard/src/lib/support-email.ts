@@ -7,7 +7,7 @@ export function extractSupportEmail(from: string | undefined): string {
 
 export function getSupportEmail(): string {
   if (typeof window !== "undefined") {
-    return (window as { __OPENSHIP_SUPPORT_EMAIL__?: string }).__OPENSHIP_SUPPORT_EMAIL__ || "";
+    return (window as { __VIBRAIL_SUPPORT_EMAIL__?: string }).__VIBRAIL_SUPPORT_EMAIL__ || "";
   }
   return extractSupportEmail(process.env.SMTP_FROM);
 }

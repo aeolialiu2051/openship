@@ -1,5 +1,5 @@
 /**
- * Unified "version identity" for anything Openship can update — one discriminated
+ * Unified "version identity" for anything Vibrail can update — one discriminated
  * shape covering the three drift kinds so a single resolver/scanner and a single
  * banner can treat git projects, release/dist projects, the self-app, and
  * image-based apps the same way. This is the commit-OR-tag unification: instead

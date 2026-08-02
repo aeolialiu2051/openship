@@ -288,9 +288,9 @@ export function createProjectRepo(db: Database) {
     },
 
     async create(data: Omit<NewProject, "id"> & { id?: string }) {
-      // `id` is normally generated, but re-import (recovering an Openship project
-      // from a server's `.openship/manifest.json`) passes the ORIGINAL id so the
-      // still-running containers' `openship.project` labels re-attach immediately.
+      // `id` is normally generated, but re-import (recovering a Vibrail project
+      // from a server's `.vibrail/manifest.json`) passes the ORIGINAL id so the
+      // still-running containers' `vibrail.project` labels re-attach immediately.
       const { id: providedId, ...rest } = data;
       const id = providedId ?? generateId("proj");
       // Omitted/undefined means a normal new project and receives a key.
@@ -472,7 +472,7 @@ export function createProjectRepo(db: Database) {
     },
 
     /**
-     * Bind a project to its Openship Cloud workspace. The unique
+     * Bind a project to its Vibrail Cloud workspace. The unique
      * partial index on `(cloud_workspace_id) WHERE NOT NULL` enforces
      * one-project-per-workspace at the DB layer — a unique violation
      * here means another project row already claims this workspace,

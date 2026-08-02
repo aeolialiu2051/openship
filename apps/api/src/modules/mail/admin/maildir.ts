@@ -11,7 +11,7 @@
  * re-created after a hard delete without colliding with leftover files
  * (iRedAdmin uses the same trick).
  *
- * Storage layout for openship:
+ * Storage layout for vibrail:
  *   storagebasedirectory = "/var/vmail"   (iRedMail default)
  *   storagenode          = "vmail1"        (iRedMail default; one node only)
  *

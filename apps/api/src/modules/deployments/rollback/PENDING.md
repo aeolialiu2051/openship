@@ -54,13 +54,13 @@ We verified this against the docs (`/llms.mdx/docs/api/{snapshots,workspaces,ima
 
 Conclusion: the "kill workspace + recreate from archive" pattern the user originally wanted is **not buildable** against the current Oblien API. We'd need either:
 - A new Oblien endpoint we don't have (open question with their team), or
-- External durable storage (R2/S3), which we explored and reverted because it's the wrong call for Openship Cloud (should be internal to the Oblien account).
+- External durable storage (R2/S3), which we explored and reverted because it's the wrong call for Vibrail Cloud (should be internal to the Oblien account).
 
 The inline workspace model (item 1) sidesteps the requirement entirely.
 
 ### 3. `cloud_archive_strategy: 'offload'` is a placeholder
 
-The DB column accepts `'inplace' | 'offload'`. Only `'inplace'` is wired. `'offload'` is reserved for a future self-hosted-to-external-S3 path — when self-hosted users want to ship their archives off-host. Not buildable for Openship Cloud (which would need internal Oblien support per item 2).
+The DB column accepts `'inplace' | 'offload'`. Only `'inplace'` is wired. `'offload'` is reserved for a future self-hosted-to-external-S3 path — when self-hosted users want to ship their archives off-host. Not buildable for Vibrail Cloud (which would need internal Oblien support per item 2).
 
 ---
 
@@ -128,7 +128,7 @@ Block-level dedup beyond rsync hard-links. Ties us to a filesystem; not portable
 
 ## Decision log
 
-- **S3/R2 offload for Openship Cloud** — rejected. Should be internal to Oblien; S3 belongs to a future self-hosted-only path.
+- **S3/R2 offload for Vibrail Cloud** — rejected. Should be internal to Oblien; S3 belongs to a future self-hosted-only path.
 - **`pause` instead of `stop` on archive** — rejected. Paused workspaces keep memory billed; the archive semantic must stay cheap.
 - **Custom Oblien images from workspaces** — not available (read-only catalog).
 - **Hard-link release dedup on bare** — shipped (via `rsync --link-dest`).

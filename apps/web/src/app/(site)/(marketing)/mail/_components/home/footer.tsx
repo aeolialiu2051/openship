@@ -3,7 +3,7 @@ import { motion } from 'motion/react';
 import { Button } from '../ui/button';
 import Link from 'next/link';
 import { useRef } from 'react';
-import { Footer as OpenshipFooter } from '@/components/landing';
+import { Footer as VibrailFooter } from '@/components/landing';
 
 export default function MailFooter() {
   const ref = useRef(null);
@@ -44,7 +44,7 @@ export default function MailFooter() {
                 className="hidden flex-col items-center justify-start md:flex"
               >
                 <div className="justify-start text-center text-lg font-normal leading-7 text-white lg:text-2xl">
-                  Self-host Openship and run your own mail server in minutes.
+                  Self-host Vibrail and run your own mail server in minutes.
                 </div>
               </motion.div>
               <motion.div
@@ -55,7 +55,7 @@ export default function MailFooter() {
               >
                 <Link href="https://docs.vibrail.warpgateapi.com/#/docs/quickstart">
                   <Button className="h-8 bg-white text-black cursor-pointer">
-                    Install Openship
+                    Install Vibrail
                   </Button>
                 </Link>
               </motion.div>
@@ -64,7 +64,7 @@ export default function MailFooter() {
         </div>
       </div>
       <div className="w-full self-stretch">
-        <OpenshipFooter />
+        <VibrailFooter />
       </div>
     </div>
   );

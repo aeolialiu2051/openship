@@ -193,7 +193,7 @@ export const billingAnniversaryGrant = pgTable(
 // cache so the dashboard's balance/usage surface renders instantly without a
 // live Oblien round-trip, and survives when Oblien is briefly unreachable.
 //
-// Credit columns (balance/creditsUsed) are stored in openship MILLI-credits
+// Credit columns (balance/creditsUsed) are stored in vibrail MILLI-credits
 // (the Oblien-credit value ×1000) to match PLANS[].monthlyCredits + the
 // dashboard's formatCredits(÷1000). The per-resource columns are raw physical
 // units straight off `data.usage.*` (minutes / GB) and are NOT credits.

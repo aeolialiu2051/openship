@@ -1,4 +1,4 @@
-<h1 align="center">Openship</h1>
+<h1 align="center">Vibrail</h1>
 
 <p align="center">
   Yerleşik CI/CD özelliklerine sahip, açık kaynaklı ve kendi sunucunuzda barındırabileceğiniz dağıtım platformu.<br>
@@ -6,9 +6,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/openship"><img src="https://img.shields.io/npm/v/openship?color=0b7285&label=npm" alt="npm sürümü" /></a>
+  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm sürümü" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Lisans" /></a>
-  <a href="https://openship.io"><img src="https://img.shields.io/badge/website-openship.io-0b7285" alt="Web sitesi" /></a>
+  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Web sitesi" /></a>
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <img src="../screenshots/screen.png" alt="Openship kontrol paneli" width="800" />
+  <img src="../screenshots/screen.png" alt="Vibrail kontrol paneli" width="800" />
 </p>
 
 ---
@@ -43,41 +43,41 @@
 
 ### Tek başınıza — masaüstü uygulaması
 
-Kontrol düzlemi bilgisayarınızda çalışır ve sunucularınızı SSH üzerinden yönetir; Openship'in hiçbir bileşeni herkese açık hâle getirilmez. İndirin ve açın; terminal kullanmanız gerekmez:
+Kontrol düzlemi bilgisayarınızda çalışır ve sunucularınızı SSH üzerinden yönetir; Vibrail'in hiçbir bileşeni herkese açık hâle getirilmez. İndirin ve açın; terminal kullanmanız gerekmez:
 
 | Platform                  | İndirme                                                                                                      |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| **macOS** (Apple Silicon) | [Openship-arm64.dmg](https://github.com/oblien/openship/releases/latest/download/Openship-arm64.dmg)         |
-| **macOS** (Intel)         | [Openship-x64.dmg](https://github.com/oblien/openship/releases/latest/download/Openship-x64.dmg)             |
-| **Windows**               | [Openship-win32-x64.zip](https://github.com/oblien/openship/releases/latest/download/Openship-win32-x64.zip) |
-| **Linux**                 | [Openship.AppImage](https://github.com/oblien/openship/releases/latest/download/Openship.AppImage)           |
+| **macOS** (Apple Silicon) | [Vibrail-arm64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-arm64.dmg)         |
+| **macOS** (Intel)         | [Vibrail-x64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-x64.dmg)             |
+| **Windows**               | [Vibrail-win32-x64.zip](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-win32-x64.zip) |
+| **Linux**                 | [Vibrail.AppImage](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail.AppImage)           |
 
-Linux: `chmod +x Openship.AppImage && ./Openship.AppImage`. Bağlantılar her zaman en yeni sürümü gösterir.
+Linux: `chmod +x Vibrail.AppImage && ./Vibrail.AppImage`. Bağlantılar her zaman en yeni sürümü gösterir.
 
 ### Ekip veya kesintisiz çalışma — sunucuda CLI
 
-API ve kontrol panelini birlikte içeren CLI'ı kurup **`openship`** komutunu çalıştırın. Etkileşimli sihirbaz ilk yöneticiyi oluşturur, alan adınızı yapılandırır ve Openship'i açılışta çalışan bir servis olarak kurar. Kurulumu daha sonra yönetmek için aynı komutu yeniden çalıştırabilirsiniz.
+API ve kontrol panelini birlikte içeren CLI'ı kurup **`vibrail`** komutunu çalıştırın. Etkileşimli sihirbaz ilk yöneticiyi oluşturur, alan adınızı yapılandırır ve Vibrail'i açılışta çalışan bir servis olarak kurar. Kurulumu daha sonra yönetmek için aynı komutu yeniden çalıştırabilirsiniz.
 
 ```bash
-curl -fsSL https://get.openship.io | sh             # kurulum (alternatif: npm i -g openship)
-openship                                            # etkileşimli kurulum ve kontrol paneli
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh             # kurulum (alternatif: npm i -g vibrail)
+vibrail                                            # etkileşimli kurulum ve kontrol paneli
 ```
 
-CI veya etkileşimsiz sunucularda sihirbazı atlayarak doğrudan `openship up` kullanabilirsiniz. Aynı arka plan servisi sistem açılışında başlar ve hata durumunda otomatik olarak yeniden çalışır:
+CI veya etkileşimsiz sunucularda sihirbazı atlayarak doğrudan `vibrail up` kullanabilirsiniz. Aynı arka plan servisi sistem açılışında başlar ve hata durumunda otomatik olarak yeniden çalışır:
 
 ```bash
-openship up                                             # bu makinede arka plan servisi
-openship up --public-url https://openship.example.com   # kendi alan adınızda yayınla (edge + TLS dâhil)
+vibrail up                                             # bu makinede arka plan servisi
+vibrail up --public-url https://vibrail.example.com   # kendi alan adınızda yayınla (edge + TLS dâhil)
 ```
 
-`openship open` kontrol panelini açar · `openship stop` servisi durdurur · `openship update` günceller · `openship up --foreground` ön planda çalıştırır.
+`vibrail open` kontrol panelini açar · `vibrail stop` servisi durdurur · `vibrail update` günceller · `vibrail up --foreground` ön planda çalıştırır.
 
 **Bir proje dağıtın:**
 
 ```bash
 cd your-project
-openship init          # bu dizini bir projeye bağlar
-openship deploy
+vibrail init          # bu dizini bir projeye bağlar
+vibrail deploy
 ```
 
 Sunucu kurulum kılavuzu ve eksiksiz CLI başvurusu: **[docs/installation.md](../installation.md)**.
@@ -88,7 +88,7 @@ Sunucu kurulum kılavuzu ve eksiksiz CLI başvurusu: **[docs/installation.md](..
 Bu yöntem CLI'dan daha ağırdır. Compose yığını, kontrol düzlemi konteynerine ana makinenin Docker daemon'ına erişim verir. Yalnızca konteyner içinde çalışan bir kontrol düzlemine özellikle ihtiyacınız varsa kullanın. Desteklenen kurulum yöntemleri yukarıdaki CLI ve masaüstü uygulamasıdır.
 
 ```bash
-git clone https://github.com/oblien/openship.git && cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
 cp .env.example .env
 docker compose up -d
 ```
@@ -99,7 +99,7 @@ docker compose up -d
 
 ## Ne Yapar?
 
-Bir depoyu seçin. Openship teknoloji yığınınızı algılar, derler, yapılandırır ve dağıtır; yapılandırma dosyaları, işlem hatları veya YAML yazmanız gerekmez.
+Bir depoyu seçin. Vibrail teknoloji yığınınızı algılar, derler, yapılandırır ve dağıtır; yapılandırma dosyaları, işlem hatları veya YAML yazmanız gerekmez.
 
 Veritabanları, alan adları, SSL, CDN, e-posta ve yedeklemeler tek bir yerden yönetilir.
 
@@ -127,7 +127,7 @@ Yan projelerini dağıtan bireysel geliştiriciler ile canlı ortamları yönete
 
 ## İstediğiniz Yere Dağıtın
 
-- **Openship Cloud** — yönetilen, otomatik ölçeklenen ve kurulum gerektirmeyen ortam
+- **Vibrail Cloud** — yönetilen, otomatik ölçeklenen ve kurulum gerektirmeyen ortam
 - **Herhangi bir VPS** — Hetzner, DigitalOcean, Linode, OVH ve diğerleri
 - **Fiziksel sunucular** — bare metal, veri merkezi veya ev laboratuvarı
 - **Çoklu sunucu** — iş yüklerini birden fazla makineye dağıtma
@@ -175,7 +175,7 @@ bun scripts/release.ts 0.2.0        # açık sürüm numarası
 Etiketin gönderilmesi [`.github/workflows/release.yml`](../../.github/workflows/release.yml) iş akışını tetikler. Bu iş akışı:
 
 - **macOS, Windows ve Linux kurulum paketleri** ile sunucu arşivlerini ve SHA-256 dosyalarını oluşturur,
-- npm [OIDC güvenilir yayınlama](https://docs.npmjs.com/trusted-publishers) üzerinden **`openship` CLI paketini npm'de yayımlar** ve
+- npm [OIDC güvenilir yayınlama](https://docs.npmjs.com/trusted-publishers) üzerinden **`vibrail` CLI paketini npm'de yayımlar** ve
 - oluşturulan dosyalarla bir **GitHub Release** yayımlar.
 
 Bir sürümü uygulama içi güncelleyicide **kritik** olarak işaretlemek veya öneri/bilgi notları eklemek için etiket oluşturmadan önce [`release-advisories.json`](../../release-advisories.json) dosyasına kayıt ekleyin. Genel sürüm notları [`CHANGELOG.md`](../../CHANGELOG.md) dosyasındadır.
@@ -186,7 +186,7 @@ Bir sürümü uygulama içi güncelleyicide **kritik** olarak işaretlemek veya 
 
 Bir güvenlik açığı mı buldunuz? Lütfen bunu herkese açık bir issue, PR veya tartışmada paylaşmayın; özel olarak bildirin.
 
-- **Önerilen bildirim yöntemi:** [Güvenlik açığı bildir](https://github.com/oblien/openship/security/advisories/new) — yalnızca sizin ve bakımcıların görebildiği özel GitHub bildirimi.
+- **Önerilen bildirim yöntemi:** [Güvenlik açığı bildir](https://github.com/aeolialiu2051/vibrail/security/advisories/new) — yalnızca sizin ve bakımcıların görebildiği özel GitHub bildirimi.
 - Kapsam, gerekli bilgiler ve açıklama süreci: [SECURITY.md](../../SECURITY.md).
 
 İyi niyetli güvenlik araştırmaları [güvenli liman politikamız](../../SECURITY.md#safe-harbor) kapsamında yetkilidir. Geçerli bir açığı ilk bildiren kişiye memnuniyetle teşekkür ederiz.
@@ -195,6 +195,6 @@ Bir güvenlik açığı mı buldunuz? Lütfen bunu herkese açık bir issue, PR 
 
 ## Lisans
 
-Openship, [Apache License 2.0](../../LICENSE) kapsamında lisanslanan **açık kaynaklı** bir yazılımdır.
+Vibrail, [Apache License 2.0](../../LICENSE) kapsamında lisanslanan **açık kaynaklı** bir yazılımdır.
 
 Apache 2.0 koşulları kapsamında ticari ve kapalı kaynaklı ürünler dâhil olmak üzere yazılımı kullanabilir, çalıştırabilir, değiştirebilir, kendi sunucunuzda barındırabilir ve dağıtabilirsiniz. Ayrıntılar için [LICENSE](../../LICENSE) dosyasına bakın.

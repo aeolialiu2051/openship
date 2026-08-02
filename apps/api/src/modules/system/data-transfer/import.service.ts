@@ -47,8 +47,8 @@ const SINGLETON_AND_AUTH = [
 ];
 
 function assertValidEnvelope(file: DataTransferFile): void {
-  if (!file || file.kind !== "openship-instance-export") {
-    throw new InvalidTransferFileError("Not an Openship instance export file.");
+  if (!file || file.kind !== "vibrail-instance-export") {
+    throw new InvalidTransferFileError("Not a Vibrail instance export file.");
   }
   if (file.envelopeVersion !== 1) {
     throw new InvalidTransferFileError(

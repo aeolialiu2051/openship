@@ -9,19 +9,19 @@ A backup is just a spare copy of your data, kept somewhere else, so that if toda
 you can go back to a good one. Think of it like photocopying an important document and leaving the copy in a
 safe at another address — if the original burns, you still have the copy.
 
-Openship does two jobs here. First, it copies your data to a storage place you choose (a **destination**).
+Vibrail does two jobs here. First, it copies your data to a storage place you choose (a **destination**).
 Second, it does that on a schedule you set (a **policy**) so you never have to remember. And when you need it,
 it puts a copy back (a **restore**).
 
 <Callout title="What you need first">
-- Openship up and running, and a project with at least one **service** that holds data (like a database).
+- Vibrail up and running, and a project with at least one **service** that holds data (like a database).
 - Somewhere to keep the copies — an S3 bucket, an SFTP server, an existing server, or a folder on disk. We set
   this up in the first step below.
 </Callout>
 
 ## Step 1 — Add a place to keep backups
 
-Before Openship can back anything up, it needs to know **where** to put the copies. That place is called a
+Before Vibrail can back anything up, it needs to know **where** to put the copies. That place is called a
 destination. You add destinations once, on the **Backups** page, and every project can then use them.
 
 <Steps>
@@ -42,12 +42,12 @@ right.
 
 ### Pick the kind of storage
 
-Openship asks which type of destination this is. Pick the one that matches what you have:
+Vibrail asks which type of destination this is. Pick the one that matches what you have:
 
 - **S3-compatible** — any S3-style bucket (AWS S3, Cloudflare R2, Backblaze B2, Wasabi, MinIO).
 - **SFTP** — push copies over SSH to any host, using new credentials you provide.
-- **Existing server** — reuse the SSH login from a server you've already added to Openship.
-- **Local disk** — write to a folder on the machine running Openship. (Not available in cloud mode.)
+- **Existing server** — reuse the SSH login from a server you've already added to Vibrail.
+- **Local disk** — write to a folder on the machine running Vibrail. (Not available in cloud mode.)
 
 </Step>
 
@@ -77,23 +77,23 @@ The fields change depending on the kind you picked. Fill in what applies:
 </Tab>
 <Tab value="Existing server">
 
-- **Name** and the **Server** to reuse — pick one of the servers already saved under **Servers**. Openship
+- **Name** and the **Server** to reuse — pick one of the servers already saved under **Servers**. Vibrail
   reuses that server's SSH credentials, so there's nothing new to enter.
 - An optional **Remote path** for where to store the copies.
 
 </Tab>
 <Tab value="Local disk">
 
-- **Name** and an **Absolute path** — a filesystem path on the machine running Openship, like
-  `/var/backups/openship`.
+- **Name** and an **Absolute path** — a filesystem path on the machine running Vibrail, like
+  `/var/backups/vibrail`.
 
-This kind is disabled when Openship runs in cloud mode.
+This kind is disabled when Vibrail runs in cloud mode.
 
 </Tab>
 </Tabs>
 
 <Callout title="Your secrets are safe" type="info">
-Keys and passwords are **encrypted at rest** — Openship stores them scrambled, not in plain text. When you
+Keys and passwords are **encrypted at rest** — Vibrail stores them scrambled, not in plain text. When you
 edit a destination later, secret fields show up blank; leave them blank to keep the stored value.
 </Callout>
 
@@ -106,7 +106,7 @@ Press **Save destination**.
 ### Check that it works
 
 Back on the list, each destination has a **Verify connection** button (the circular arrows icon). Click it —
-Openship writes a tiny test file, reads it back, and deletes it. A green **Verified** badge means the login and
+Vibrail writes a tiny test file, reads it back, and deletes it. A green **Verified** badge means the login and
 address are correct. Do this now, before you rely on it.
 
 <Callout title="Screenshot">The Backups list with one destination and its **Verified** badge after a successful connection check. *(screenshot pending)*</Callout>
@@ -149,7 +149,7 @@ these choices:
   your own five-field cron expression. "Manual only" means it never runs on its own — you trigger it by hand.
 - **Retain count** — keep the N most recent successful backups (older ones are pruned automatically).
 - **Retain days** — drop backups older than N days.
-- **Pre-deploy trigger** — when ticked, Openship also backs up automatically right before each new deploy goes
+- **Pre-deploy trigger** — when ticked, Vibrail also backs up automatically right before each new deploy goes
   live. This is your safety net for bad deploys.
 - **Pre-hook / Post-hook** — optional shell commands. A pre-hook runs *before* the copy is taken (databases
   often use `pg_dump` here); if it fails, the run is aborted. A post-hook runs *after* upload for cleanup.
@@ -166,7 +166,7 @@ Press **Create policy**.
 
 <Callout title="Per service or whole project" type="info">
 The dashboard sets a policy **per service**. From the terminal you can also make a **project-level** policy that
-covers the whole project — just leave off `--service` when you run `openship backup policy create` (see below).
+covers the whole project — just leave off `--service` when you run `vibrail backup policy create` (see below).
 </Callout>
 
 ## Step 3 — Run a backup now
@@ -189,7 +189,7 @@ gets a **Protected** badge and pruning will skip it. Click again to **Allow rete
 ## Step 5 — Restore a backup
 
 Restoring puts a saved copy back in place of the current data. It's the whole point of having backups — but it
-**overwrites** what's there now, so Openship walks you through it carefully.
+**overwrites** what's there now, so Vibrail walks you through it carefully.
 
 <Steps>
 
@@ -211,7 +211,7 @@ The first screen shows which backup you're restoring and warns that current data
 restoring from safe from automatic pruning, so that known-good copy stays around. Press **Continue → Prepare**.
 
 <Callout title="Want a copy of the data as it is right now?" type="info">
-Restoring **overwrites** the current data, and Openship does **not** take a fresh backup of the live state for
+Restoring **overwrites** the current data, and Vibrail does **not** take a fresh backup of the live state for
 you first — the "protect" tick above only shields the backup you're restoring *from*. If you might want today's
 data back, run **Backup now** (Step 3) *before* you start the restore.
 </Callout>
@@ -222,7 +222,7 @@ data back, run **Backup now** (Step 3) *before* you start the restore.
 
 ### Prepare (a safe check)
 
-Openship downloads and verifies the backup at the destination to make sure it's actually usable. Nothing
+Vibrail downloads and verifies the backup at the destination to make sure it's actually usable. Nothing
 destructive happens yet — your service keeps running normally during this step.
 
 </Step>
@@ -252,38 +252,38 @@ complete**.
 
 ## Prefer the terminal?
 
-Everything above works from the CLI. The base command is `openship backup`, with four groups: `destination`,
+Everything above works from the CLI. The base command is `vibrail backup`, with four groups: `destination`,
 `policy`, `run`, and `restore`.
 
 ```bash
 # 1. Add a destination (S3-compatible example) and verify it
-openship backup destination create \
+vibrail backup destination create \
   --name "Production R2" --kind s3_compatible \
   --endpoint https://<account>.r2.cloudflarestorage.com \
   --bucket my-backups --region auto \
   --access-key-id <id> --secret-access-key <key>
 
-openship backup destination list
-openship backup destination preflight <destinationId>
+vibrail backup destination list
+vibrail backup destination preflight <destinationId>
 
 # 2. Create a daily policy for one service, keeping 7 copies
-openship backup policy create \
+vibrail backup policy create \
   --project <projectId> --destination <destinationId> \
   --service <serviceId> --cron "0 3 * * *" \
   --retain-count 7 --pre-deploy
 
 # 3. Run it now and watch it finish
-openship backup policy run <policyId> --follow
+vibrail backup policy run <policyId> --follow
 
 # 4. See runs, and protect one from pruning
-openship backup run list --project <projectId>
-openship backup run protect <runId>            # or --release to unprotect
+vibrail backup run list --project <projectId>
+vibrail backup run protect <runId>            # or --release to unprotect
 
 # 5. Restore — a two-step, on-purpose flow
 #    'restore' stages it and prints a restoreId + confirmation token…
-openship backup run restore <runId>
+vibrail backup run restore <runId>
 #    …then apply it with that token (this is destructive)
-openship backup restore apply <restoreId> --token <confirmationToken> --follow
+vibrail backup restore apply <restoreId> --token <confirmationToken> --follow
 ```
 
 <Callout title="Restore is deliberately two steps" type="info">
@@ -312,7 +312,7 @@ whole run on purpose, so the copy is never half-made.
 </Callout>
 
 <Callout title="I need to undo a restore" type="warn">
-There's no one-click undo — a restore overwrites the data in place, and Openship doesn't auto-capture the live
+There's no one-click undo — a restore overwrites the data in place, and Vibrail doesn't auto-capture the live
 state beforehand. Your safety net is a backup taken *before* the restore: if you ran **Backup now** first (or an
 earlier run still holds the state you want), open that run in **Recent backups** and **Restore** from it.
 </Callout>

@@ -3,7 +3,7 @@
  * containers actually on the host.
  *
  * Why this exists: a service's *state* must never come from the database. The
- * old read path asked docker for `label=openship.deployment=<active dep id>` and
+ * old read path asked docker for `label=vibrail.deployment=<active dep id>` and
  * kept only rows whose stored container id appeared in the answer. That is fine
  * for a freshly deployed container and structurally broken for an ADOPTED one: a
  * same-server migration attaches already-running containers in place, and docker
@@ -14,8 +14,8 @@
  * So identity is resolved from several angles, strongest first, and state is read
  * off whatever container that resolves to:
  *
- *   1. label     — `openship.project` + `openship.service` (a native deploy)
- *   2. name      — `openship-<slug>-<service>`, the name Openship itself mints
+ *   1. label     — `vibrail.project` + `vibrail.service` (a native deploy)
+ *   2. name      — `vibrail-<slug>-<service>`, the name Vibrail itself mints
  *                  (createServiceContainer); survives relabeling and adoption
  *   3. trackedId — the id stored on the `service_deployment` row; the only key an
  *                  attached container with a FOREIGN name has. Identity hint
@@ -75,7 +75,7 @@ export interface ResolveLiveStateInput {
   /** Every container on the host (label-agnostic `docker ps -a`). */
   live: LiveContainerLike[];
   projectId: string;
-  /** Project slug — the middle segment of `openship-<slug>-<service>`. */
+  /** Project slug — the middle segment of `vibrail-<slug>-<service>`. */
   slug: string;
   /** serviceId → container id recorded at deploy/attach time. Identity hint. */
   trackedIds?: Record<string, string | null | undefined>;
@@ -90,11 +90,11 @@ const UNMATCHED: Omit<LiveServiceMatch, "duplicates"> = {
   matchedBy: null,
 };
 
-/** Canonical container name Openship gives a compose service on a server —
+/** Canonical container name Vibrail gives a compose service on a server —
  *  mirrors `createServiceContainer` in packages/adapters/src/runtime/docker.ts. */
 export function canonicalServiceContainerName(slug: string, serviceName: string): string | null {
   if (!slug || !serviceName) return null;
-  return `openship-${slug}-${serviceName}`;
+  return `vibrail-${slug}-${serviceName}`;
 }
 
 /**
@@ -172,7 +172,7 @@ export function resolveLiveServiceState(input: ResolveLiveStateInput): Map<strin
     {
       kind: "label",
       matches: (svc, c) =>
-        c.labels["openship.project"] === projectId && c.labels["openship.service"] === svc.name,
+        c.labels["vibrail.project"] === projectId && c.labels["vibrail.service"] === svc.name,
     },
     {
       kind: "name",

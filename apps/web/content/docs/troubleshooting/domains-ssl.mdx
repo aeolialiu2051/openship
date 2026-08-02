@@ -4,8 +4,8 @@ description: Fix a custom domain that won't verify, DNS that hasn't propagated, 
 ---
 
 Adding a custom domain has two moving parts: the **DNS records** you paste at your registrar, and the
-**verification** step where Openship looks those records up and confirms them. Almost every domain problem is
-really one of those two records not resolving the way Openship expects. This page walks through the exact
+**verification** step where Vibrail looks those records up and confirms them. Almost every domain problem is
+really one of those two records not resolving the way Vibrail expects. This page walks through the exact
 messages you'll see and what each one means.
 
 If you haven't added a domain yet, start with the [custom domains guide](/docs/guides/custom-domains) — this
@@ -13,7 +13,7 @@ page is for when something is already stuck.
 
 <Callout title="The two records, in one sentence">
 Every custom domain needs a **routing record** (an `A` or `CNAME` that points the name at your app) and a
-**TXT ownership record** at host `_openship-challenge` (a secret code that proves the domain is yours).
+**TXT ownership record** at host `_vibrail-challenge` (a secret code that proves the domain is yours).
 Verify checks both.
 </Callout>
 
@@ -21,26 +21,26 @@ Verify checks both.
 
 <Callout type="error" title="Symptom / what you see">
 You click **Verify** and it doesn't turn green. A toast titled **"Verification failed"** appears, and its body
-is the exact reason Openship returned — one or both of:
+is the exact reason Vibrail returned — one or both of:
 
-- `A record not pointing to server for app.example.com` (self-hosted) or `CNAME record not found for app.example.com` (Openship Cloud)
-- `TXT record _openship-challenge.app.example.com must equal "…"`
+- `A record not pointing to server for app.example.com` (self-hosted) or `CNAME record not found for app.example.com` (Vibrail Cloud)
+- `TXT record _vibrail-challenge.app.example.com must equal "…"`
 
-(If Openship can't produce a specific reason it falls back to the generic *"\{hostname} could not be verified yet."*)
+(If Vibrail can't produce a specific reason it falls back to the generic *"\{hostname} could not be verified yet."*)
 
 From the API, `POST /api/domains/:id/verify` returns **422** with `cnameVerified` and `txtVerified` flags that
 tell you which check is still failing.
 </Callout>
 
-**What it means.** Openship ran two independent lookups and at least one came back wrong. The message names the
+**What it means.** Vibrail ran two independent lookups and at least one came back wrong. The message names the
 record that failed, so you never have to guess. Fix whichever record is mentioned — the other one is already
 fine.
 
 | Message you see | Which record | What's wrong |
 |---|---|---|
 | `A record not pointing to server for …` | Routing (`A`) — self-hosted | The `A` record is missing, or points at a different IP than your server. |
-| `CNAME record not found for …` | Routing (`CNAME`) — Openship Cloud | The `CNAME` is missing or doesn't point at the Cloud target. |
-| `TXT record _openship-challenge.… must equal "…"` | Ownership (`TXT`) | The `_openship-challenge` TXT record is missing, or its value doesn't match the secret code. |
+| `CNAME record not found for …` | Routing (`CNAME`) — Vibrail Cloud | The `CNAME` is missing or doesn't point at the Cloud target. |
+| `TXT record _vibrail-challenge.… must equal "…"` | Ownership (`TXT`) | The `_vibrail-challenge` TXT record is missing, or its value doesn't match the secret code. |
 
 <Callout title="Why the API says “cnameVerified” even on a self-hosted A record" type="info">
 The verify response reports the routing check as `cnameVerified` regardless of whether your project uses an
@@ -53,11 +53,11 @@ check — only the record *type* differs. `txtVerified` is always the ownership 
 **How to fix**
 
 1. Open your project's **Domains** tab and reopen the **DNS Records** panel for the domain (or run
-   `openship domain records <domainId>`).
+   `vibrail domain records <domainId>`).
 2. Compare the routing row against what's actually at your registrar. Self-hosted expects an `A` record with
    host `@` pointing at your **server's public IP**; Cloud expects a `CNAME` with host `@` pointing at the
-   **Openship Cloud target**.
-3. Fix any mismatch — copy the value from Openship, don't retype it. Delete any old, conflicting record for the
+   **Vibrail Cloud target**.
+3. Fix any mismatch — copy the value from Vibrail, don't retype it. Delete any old, conflicting record for the
    same name first (a stale `A`/`CNAME` left in place is a common cause).
 4. Wait for the change to take effect, then click **Verify** again.
 
@@ -71,14 +71,14 @@ failing — point the record at the address the outside world actually sees.
 
 **How to fix**
 
-1. At your registrar, add (or correct) a **TXT** record with host `_openship-challenge` — Openship looks it up
-   at `_openship-challenge.<your-domain>`.
+1. At your registrar, add (or correct) a **TXT** record with host `_vibrail-challenge` — Vibrail looks it up
+   at `_vibrail-challenge.<your-domain>`.
 2. Set its value to the exact string from the **DNS Records** panel. Use the **Copy** button; a single extra
    space or a missing character will fail the match.
 3. Save, wait for propagation, and click **Verify** again.
 
 <Callout title="Already verified?" type="info">
-If you re-run Verify on a domain that's already done, Openship simply replies **"Already verified"** and
+If you re-run Verify on a domain that's already done, Vibrail simply replies **"Already verified"** and
 changes nothing — that's expected, not an error.
 </Callout>
 
@@ -90,7 +90,7 @@ sometimes minutes after you saved them.
 </Callout>
 
 **What it means.** DNS isn't instant. After you save a record, it has to spread across the internet's caches
-before Openship's lookup can see it. As the DNS Records panel itself notes: *"DNS changes can take up to 48
+before Vibrail's lookup can see it. As the DNS Records panel itself notes: *"DNS changes can take up to 48
 hours to propagate globally."* Usually it's a few minutes; occasionally it's much longer.
 
 **How to fix**
@@ -98,14 +98,14 @@ hours to propagate globally."* Usually it's a few minutes; occasionally it's muc
 1. Double-check there are no typos in the **Host** field and no leftover conflicting record for the same name.
 2. Wait. Save the records, give it several minutes, then click **Verify** again — re-clicking once DNS
    resolves is the reliable path.
-3. Openship also ships a *pending-verification sweep* (`POST /api/domains/verify-pending`) that re-checks
+3. Vibrail also ships a *pending-verification sweep* (`POST /api/domains/verify-pending`) that re-checks
    still-**Pending** domains and flips them to **Verified** on their own. It isn't on by default — it only runs
    if your operator has wired it to a scheduler (cron / systemd timer) — so don't wait on it; re-click Verify.
 
 <Callout title="Confirm propagation yourself" type="info">
-To check what the world currently sees, look the record up directly — e.g. `dig TXT _openship-challenge.app.example.com`
-or `dig A app.example.com`. If your own lookup doesn't return the new value yet, Openship won't see it either;
-that's a propagation delay, not an Openship problem.
+To check what the world currently sees, look the record up directly — e.g. `dig TXT _vibrail-challenge.app.example.com`
+or `dig A app.example.com`. If your own lookup doesn't return the new value yet, Vibrail won't see it either;
+that's a propagation delay, not a Vibrail problem.
 </Callout>
 
 ## SSL stuck on "Provisioning" (or no certificate issued)
@@ -131,13 +131,13 @@ certificate is still being requested (or a request hasn't finished). It normally
    through its configured certificate resolver.
 
 <Callout title="Renewing certificates" type="info">
-On self-hosted installations, Traefik owns certificate issuance and renewal. Openship does not expose
+On self-hosted installations, Traefik owns certificate issuance and renewal. Vibrail does not expose
 application-side renew, recheck, or certificate-upload actions. If issuance fails, inspect Traefik's resolver
 configuration and logs, confirm ports 80/443 and DNS are correct, then redeploy after correcting the cause.
 </Callout>
 
 <Callout title="Pending domains are intentionally not published" type="warn">
-A custom hostname remains unpublished until its `_openship-challenge` TXT record verifies. This prevents an
+A custom hostname remains unpublished until its `_vibrail-challenge` TXT record verifies. This prevents an
 unverified hostname from being advertised by Traefik. After verification, redeploy the project to publish it.
 </Callout>
 
@@ -145,12 +145,12 @@ unverified hostname from being advertised by Traefik. After verification, redepl
 
 <Callout type="error" title="Symptom / what you see">
 Your app already sits behind a Cloudflare Tunnel, a load balancer, or another reverse proxy that handles
-HTTPS — but Openship keeps asking for an `A`/`CNAME` and tries to issue its own certificate, which you don't
+HTTPS — but Vibrail keeps asking for an `A`/`CNAME` and tries to issue its own certificate, which you don't
 want.
 </Callout>
 
-**What it means.** By default Openship assumes it's the edge: it wants the domain to resolve to it and it
-issues the certificate. When **your** edge terminates TLS, that's the wrong model — Openship should only
+**What it means.** By default Vibrail assumes it's the edge: it wants the domain to resolve to it and it
+issues the certificate. When **your** edge terminates TLS, that's the wrong model — Vibrail should only
 confirm you own the name and stay out of the certificate business.
 
 **How to fix**
@@ -158,19 +158,19 @@ confirm you own the name and stay out of the certificate business.
 1. When adding the domain, turn on **External ingress & TLS**. As the toggle explains: *"TLS terminates
    upstream (Cloudflare Tunnel, load balancer). Verify by TXT only — the domain need not point at this server,
    and we won't issue a certificate."* From the API, pass `"externalIngress": true` on `POST /api/domains`.
-2. Add **only** the `TXT` record with host `_openship-challenge` — there's no routing record to add, because
+2. Add **only** the `TXT` record with host `_vibrail-challenge` — there's no routing record to add, because
    your edge already controls where the name points.
-3. Click **Verify**. Openship checks the TXT alone and confirms with *"Domain verified — TLS is handled by
+3. Click **Verify**. Vibrail checks the TXT alone and confirms with *"Domain verified — TLS is handled by
    your external ingress; no certificate is issued here."*
 
 <Callout title="What the SSL pill shows" type="info">
 An external-ingress domain reads **External TLS** for its SSL status — that's correct and final. Your upstream
-ingress owns HTTPS; Openship publishes only the plain-HTTP origin route after TXT verification and redeploy.
+ingress owns HTTPS; Vibrail publishes only the plain-HTTP origin route after TXT verification and redeploy.
 </Callout>
 
 <Callout title="Turn it on only if you mean it" type="warn">
 If your edge does **not** handle HTTPS, leave External ingress off — otherwise the domain will verify but
-serve plain HTTP, with no certificate from anyone. When in doubt, leave it off and let Openship issue the
+serve plain HTTP, with no certificate from anyone. When in doubt, leave it off and let Vibrail issue the
 certificate.
 </Callout>
 

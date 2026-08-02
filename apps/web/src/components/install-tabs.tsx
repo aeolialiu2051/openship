@@ -15,13 +15,13 @@ const TABS: { key: TabKey; label: string; prompt: string; cmd: string }[] = [
     key: "unix",
     label: "macOS / Linux",
     prompt: "$",
-    cmd: "curl -fsSL https://get.openship.io | sh",
+    cmd: "curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh",
   },
   {
     key: "windows",
     label: "Windows",
     prompt: "PS>",
-    cmd: "irm https://git.openship.io/windows | iex",
+    cmd: "irm https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.ps1 | iex",
   },
 ];
 

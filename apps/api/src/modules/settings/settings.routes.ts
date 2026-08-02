@@ -2,7 +2,7 @@
  * Settings routes - mounted at /api/settings in app.ts.
  *
  * All routes require authentication. Manages user platform preferences
- * (build mode, etc.) that sync across devices and to Openship Cloud.
+ * (build mode, etc.) that sync across devices and to Vibrail Cloud.
  *
  * System-level settings (SSH creds, server connection) are stored locally
  * in Electron's ConfigStore - they never touch this API.

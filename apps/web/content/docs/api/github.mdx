@@ -5,7 +5,7 @@ description: Connect a GitHub account or App, browse repos, branches and files, 
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The GitHub API connects an Openship instance to GitHub — via the Vibrail GitHub App, an OAuth account,
+The GitHub API connects a Vibrail instance to GitHub — via the Vibrail GitHub App, an OAuth account,
 or the local `gh` CLI — and then lets you browse the accounts, repositories, branches and files you can
 deploy from. It also manages the push webhooks that drive [auto-deploy](/docs/guides/deploy-from-github).
 In the dashboard this is the **GitHub** connection card in Settings and the repo picker in the deploy wizard.
@@ -13,7 +13,7 @@ In the dashboard this is the **GitHub** connection card in Settings and the repo
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/github/home`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model and [Auth](/docs/security/auth) for how GitHub
 credentials are stored.
 </Callout>
@@ -21,7 +21,7 @@ credentials are stored.
 <Callout title="Both cloud and self-hosted" type="info">
 This module is mounted on every instance. Two routes — `GET /api/github/local-status` and
 `GET /api/github/connect/poll` — are self-hosted only (they back the local `gh` CLI login flow) and
-return 404 on Openship Cloud.
+return 404 on Vibrail Cloud.
 </Callout>
 
 ## Endpoints
@@ -45,7 +45,7 @@ return 404 on Openship Cloud.
 | `GET /api/github/repos/:owner/:repo/files` | `github:list` | List files/dirs at a path (query: `path`, `branch`). |
 | `GET /api/github/repos/:owner/:repo/file` | `github:read` | Read a single file's contents (query: `file`, `branch`). |
 | `GET /api/github/repos/:owner/:repo/webhooks` | `github:list` | List a repo's webhooks. |
-| `POST /api/github/repos/:owner/:repo/webhooks` | `github:write` | Register (or reuse) the Openship push webhook. |
+| `POST /api/github/repos/:owner/:repo/webhooks` | `github:write` | Register (or reuse) the Vibrail push webhook. |
 | `DELETE /api/github/repos/:owner/:repo/webhooks` | `github:admin` | Delete a webhook. |
 
 ## Connection state
@@ -57,12 +57,12 @@ installUrl, cloudUnreachable }`.
 
 ```bash
 curl https://your-host/api/github/home \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ```bash
 # The CLI has no dedicated `github` command; use the raw-request escape hatch:
-openship api /github/home
+vibrail api /github/home
 ```
 
 ## Connect
@@ -85,7 +85,7 @@ auth mode.
 
 ```bash
 curl -X POST https://your-host/api/github/connect \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"source":"oauth"}'
 ```
@@ -96,12 +96,12 @@ curl -X POST https://your-host/api/github/connect \
 POST /api/github/disconnect
 ```
 
-Body (or `?source=`): `source` is `"oauth"`, `"cli"`, or `"all"` (default `"all"`). This drops Openship's
+Body (or `?source=`): `source` is `"oauth"`, `"cli"`, or `"all"` (default `"all"`). This drops Vibrail's
 stored credentials for that source; it does **not** uninstall the GitHub App — that happens only when you
-remove it from github.com (Openship reacts to the uninstall webhook).
+remove it from github.com (Vibrail reacts to the uninstall webhook).
 
 ```bash
-openship api /github/disconnect -X POST -d '{"source":"cli"}'
+vibrail api /github/disconnect -X POST -d '{"source":"cli"}'
 ```
 
 ## Create a repository
@@ -121,13 +121,13 @@ POST /api/github/repos
 
 ```bash
 curl -X POST https://your-host/api/github/repos \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"my-app","private":true,"owner":"acme"}'
 ```
 
 ```bash
-openship api /github/repos -X POST -d '{"name":"my-app","private":true}'
+vibrail api /github/repos -X POST -d '{"name":"my-app","private":true}'
 ```
 
 Returns `201` with `{ data }` (the created repository).
@@ -139,13 +139,13 @@ List repos for the connected account (`?owner=` narrows to one account), or for 
 
 ```bash
 # Repos for one owner
-openship api /github/repos --query owner=acme
+vibrail api /github/repos --query owner=acme
 
 # Branches for a repo
-openship api /github/repos/acme/my-app/branches
+vibrail api /github/repos/acme/my-app/branches
 
 # One repo, with its branches inlined
-openship api /github/repos/acme/my-app --query branches=true
+vibrail api /github/repos/acme/my-app --query branches=true
 ```
 
 File browsing reads directly from GitHub:
@@ -157,12 +157,12 @@ File browsing reads directly from GitHub:
 
 ```bash
 curl "https://your-host/api/github/repos/acme/my-app/file?file=package.json&branch=main" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Webhooks
 
-`POST /api/github/repos/:owner/:repo/webhooks` registers the Openship push webhook on the repo (or reuses an
+`POST /api/github/repos/:owner/:repo/webhooks` registers the Vibrail push webhook on the repo (or reuses an
 existing one) so pushes trigger auto-deploy. It takes **no request body** — the target repo comes from the
 path. `GET` lists the repo's hooks. To remove one, `DELETE` with the hook id:
 
@@ -177,7 +177,7 @@ DELETE /api/github/repos/:owner/:repo/webhooks
 />
 
 ```bash
-openship api /github/repos/acme/my-app/webhooks -X DELETE -d '{"hookId":123456}'
+vibrail api /github/repos/acme/my-app/webhooks -X DELETE -d '{"hookId":123456}'
 ```
 
 ## Clone token
@@ -199,8 +199,8 @@ installation token, so this route 409s. Install the Vibrail GitHub App on that a
 </Callout>
 
 <Callout title="503 — cloud_unreachable" type="error">
-On a self-hosted instance connected to Openship Cloud, GitHub OAuth and App-install URLs are resolved
-through openship.io. If the SaaS is unreachable, `connect` returns 503 rather than a dead install link. Check
+On a self-hosted instance connected to Vibrail Cloud, GitHub OAuth and App-install URLs are resolved
+through vibrail.warpgateapi.com. If the SaaS is unreachable, `connect` returns 503 rather than a dead install link. Check
 network / the cloud connection in Settings, then retry.
 </Callout>
 

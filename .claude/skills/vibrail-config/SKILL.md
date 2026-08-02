@@ -1,14 +1,14 @@
 ---
-name: openship-config
-description: Author or fix an openship.json — Openship's declarative deploy config (like vercel.json / railway.toml). Use when the user asks to "make this repo deployable on Openship", "add an openship.json", "configure the Openship deploy", set the framework/build/env/domains/services/resources for an Openship deploy, or fix a failing `openship config validate`.
+name: vibrail-config
+description: Author or fix a vibrail.json — Vibrail's declarative deploy config (like vercel.json / railway.toml). Use when the user asks to "make this repo deployable on Vibrail", "add a vibrail.json", "configure the Vibrail deploy", set the framework/build/env/domains/services/resources for a Vibrail deploy, or fix a failing `vibrail config validate`.
 ---
 
-# Authoring `openship.json`
+# Authoring `vibrail.json`
 
-`openship.json` is a repo-root file that declares how Openship builds, runs, routes, and
-scales a project. It is an **authoritative overlay**: Openship auto-detects everything first,
-then every field present in `openship.json` overrides the detected value. Absent fields keep
-the detected value — so a good `openship.json` is **small**: declare only what you want to pin
+`vibrail.json` is a repo-root file that declares how Vibrail builds, runs, routes, and
+scales a project. It is an **authoritative overlay**: Vibrail auto-detects everything first,
+then every field present in `vibrail.json` overrides the detected value. Absent fields keep
+the detected value — so a good `vibrail.json` is **small**: declare only what you want to pin
 or override, not the whole detected config.
 
 ## Workflow
@@ -20,15 +20,15 @@ or override, not the whole detected config.
 2. **Decide what to override.** If detection would already get it right, leave it out. Add a
    field only when the repo needs a non-default (custom build command, a fixed port, a custom
    domain, secrets, compose services, cloud sizing).
-3. **Write `openship.json`** at the repo root. Always start with the `$schema` line for editor
+3. **Write `vibrail.json`** at the repo root. Always start with the `$schema` line for editor
    autocomplete:
    ```json
    {
-     "$schema": "https://openship.io/openship.schema.json"
+     "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json"
    }
    ```
-4. **Validate** with `openship config validate` (or `openship config validate path/to/openship.json`).
-   Fix every reported error. `openship config init` scaffolds a starter if none exists.
+4. **Validate** with `vibrail config validate` (or `vibrail config validate path/to/vibrail.json`).
+   Fix every reported error. `vibrail config init` scaffolds a starter if none exists.
 
 ## The essentials (cover these first)
 
@@ -47,7 +47,7 @@ or override, not the whole detected config.
 **Static site**
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "framework": "vite",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
@@ -58,7 +58,7 @@ or override, not the whole detected config.
 **Server app with a custom domain + secret**
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "framework": "nextjs",
   "port": 3000,
   "runtime": "docker",
@@ -73,7 +73,7 @@ or override, not the whole detected config.
 **Compose services** — declaring `services` makes it a multi-service project (Docker runtime):
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "services": [
     { "name": "web", "build": ".", "ports": ["3000"], "exposed": true, "domain": "app.acme.com" },
     { "name": "db", "image": "postgres:17", "volumes": ["pgdata:/var/lib/postgresql/data"],
@@ -89,7 +89,7 @@ or override, not the whole detected config.
 - Keep it minimal. Every field overrides detection; unused fields just add noise.
 - `services` (compose) and `monorepo` are alternatives to a single-app config, not additions.
 - `monorepo.apps[]` entries **override detected sub-apps** matched by `rootDirectory`; they don't
-  declare apps from scratch (Openship's detector finds the apps).
+  declare apps from scratch (Vibrail's detector finds the apps).
 - `resources` is a cloud concern (tier or explicit cpu/mem/disk); it's ignored on self-hosted.
 - `runtime`, `productionMode`, `domains`, `resources` seed the deploy wizard **and** headless
   deploys. `sleepMode` and monorepo `sharedPaths` are **not** supported yet — don't add them.

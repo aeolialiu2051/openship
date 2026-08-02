@@ -1,6 +1,6 @@
 ---
 title: Modules overview
-description: A tour of the backend modules that make up the Openship API — what each one owns, grouped by job, with a link to its reference page.
+description: A tour of the backend modules that make up the Vibrail API — what each one owns, grouped by job, with a link to its reference page.
 ---
 
 The API from the [architecture overview](/docs/architecture/overview) isn't one giant blob of code. It's split into **modules** — think of them as the departments of a company. Each department owns one area (projects, domains, backups…), and each is mounted at its own address under `/api`. Ask about domains? You talk to the domains department at `/api/domains`. Ask about backups? A different department, a different address.
@@ -17,10 +17,10 @@ The core pipeline: turn your code into a running app.
 
 | Module | What it owns |
 |---|---|
-| [projects](/docs/api/projects) | The heart of everything. A **project** is one app Openship manages — its source (a GitHub repo, an uploaded folder, or a local path), its environment variables, its resource limits, and its settings. This module creates and configures them. |
+| [projects](/docs/api/projects) | The heart of everything. A **project** is one app Vibrail manages — its source (a GitHub repo, an uploaded folder, or a local path), its environment variables, its resource limits, and its settings. This module creates and configures them. |
 | [deployments](/docs/api/deployments) | One **deployment** is a single attempt to build and run a project's current code. Starts a build, streams its logs, and handles what comes after: redeploy, rollback, restart, and cancel. |
 | [services](/docs/api/services) | When a project has more than one moving part (a Docker Compose stack or a monorepo), each running piece is a **service**. Manage, start, stop, and configure each one on its own. Mounted under `/api/projects/:id/services`. |
-| [images](/docs/api/images) | A searchable catalog of ready-made container images (databases, tools) you can drop into a project, sourced from the Openship Cloud image catalog. |
+| [images](/docs/api/images) | A searchable catalog of ready-made container images (databases, tools) you can drop into a project, sourced from the Vibrail Cloud image catalog. |
 
 ## Traffic and source
 
@@ -29,7 +29,7 @@ How your app is reached, and where its code comes from.
 | Module | What it owns |
 |---|---|
 | [domains](/docs/api/domains) | Attaches web addresses to a project, previews and verifies the DNS records they need, and manages the HTTPS certificate. |
-| [github](/docs/api/github) | Connects your GitHub account and lists your repositories, branches, and files so Openship can deploy from them. |
+| [github](/docs/api/github) | Connects your GitHub account and lists your repositories, branches, and files so Vibrail can deploy from them. |
 | [webhooks](/docs/api/webhooks) | The single inbound door for events from outside — a GitHub push (which can trigger a redeploy) or a Stripe billing event. It checks each event's signature instead of requiring a login. |
 
 ## Watching and staying informed
@@ -52,7 +52,7 @@ Who can do what, and a record of what they did.
 | [settings](/docs/api/settings) | Your organization's workspace preferences (build mode, deploy defaults) that sync across your devices. |
 | [tokens](/docs/api/tokens) | **Personal access tokens** — the bearer keys the CLI and scripts use to talk to the API — plus the list of connected MCP clients. |
 | [audit](/docs/api/audit) | A read-only log of who did what: every meaningful action, filterable by actor, event type, or resource. |
-| [mcp](/docs/api/mcp) | A **Model Context Protocol** endpoint (MCP is a standard way for AI assistants to call tools). It exposes Openship's actions to agents — a client connects over OAuth or with a personal access token — and every call is gated by the very same permissions. |
+| [mcp](/docs/api/mcp) | A **Model Context Protocol** endpoint (MCP is a standard way for AI assistants to call tools). It exposes Vibrail's actions to agents — a client connects over OAuth or with a personal access token — and every call is gated by the very same permissions. |
 
 ## Cloud and billing
 
@@ -60,8 +60,8 @@ The managed-hosting option and what it costs.
 
 | Module | What it owns |
 |---|---|
-| [cloud](/docs/api/cloud) | Links a self-hosted instance to Openship Cloud (connect, disconnect, list cloud workspaces) and, on the SaaS side, handles the sign-in handoff between the two. |
-| [billing](/docs/api/billing) | Plans, subscriptions, and usage. The public plan list runs on every instance; Stripe-backed subscription management runs on Openship Cloud, and a self-hosted instance proxies to it. |
+| [cloud](/docs/api/cloud) | Links a self-hosted instance to Vibrail Cloud (connect, disconnect, list cloud workspaces) and, on the SaaS side, handles the sign-in handoff between the two. |
+| [billing](/docs/api/billing) | Plans, subscriptions, and usage. The public plan list runs on every instance; Stripe-backed subscription management runs on Vibrail Cloud, and a self-hosted instance proxies to it. |
 
 ## Data protection
 
@@ -71,7 +71,7 @@ The managed-hosting option and what it costs.
 
 ## Self-hosted machinery
 
-These modules only exist on a self-hosted instance — on Openship Cloud they're never loaded.
+These modules only exist on a self-hosted instance — on Vibrail Cloud they're never loaded.
 
 | Module | What it owns |
 |---|---|

@@ -3,7 +3,7 @@
  *
  * THE single authorization gate for "may this caller act on this GitHub
  * repo/installation?". Default-DENY by design: GitHub access belongs to
- * the org OWNER (who connected Openship Cloud and owns the App identity);
+ * the org OWNER (who connected Vibrail Cloud and owns the App identity);
  * everyone else — admins included — gets nothing until the owner grants
  * it. Grants come in three widths, checked specific → broad:
  *

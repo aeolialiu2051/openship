@@ -5,8 +5,8 @@
  *
  * Instead of dead-ending invites, we tell the operator exactly what to do based
  * on the instance-reachability detector (the single source of truth from the API
- * `getInstanceReachability`): install Openship as an app, or add a domain to it —
- * with a direct link to the Openship app's Domains tab. Renders nothing once the
+ * `getInstanceReachability`): install Vibrail as an app, or add a domain to it —
+ * with a direct link to the Vibrail app's Domains tab. Renders nothing once the
  * instance is reachable (then invites are on).
  */
 

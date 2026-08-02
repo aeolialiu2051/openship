@@ -5,7 +5,7 @@ import { githubDeployKey } from "../schema";
 export type GithubDeployKey = typeof githubDeployKey.$inferSelect;
 export type NewGithubDeployKey = typeof githubDeployKey.$inferInsert;
 
-/** Per-(server, owner, repo) GitHub deploy keys minted by Openship. */
+/** Per-(server, owner, repo) GitHub deploy keys minted by Vibrail. */
 export function createGithubDeployKeyRepo(db: Database) {
   return {
     async getByRepo(

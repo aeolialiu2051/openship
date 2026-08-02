@@ -6,7 +6,7 @@
  * Mirrors the `workspaces/` and `languages/` registries: one file per source, a
  * registry in `index.ts`, and a normalized shape every parser returns. The stack
  * detector folds these hints over its own heuristic detection so a repo that
- * already tells a PaaS how to build it deploys the same way on openship.
+ * already tells a PaaS how to build it deploys the same way on vibrail.
  *
  * Adding a source is exactly one file + one registry entry + a fixture test -
  * the detector doesn't change.
@@ -15,7 +15,7 @@
 import type { ProxySettings } from "../proxy-settings";
 
 export type DeploymentMetadataSource =
-  | "openship"
+  | "vibrail"
   | "vercel"
   | "railway"
   | "render"

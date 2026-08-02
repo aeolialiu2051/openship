@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { clearToken, getActiveContext, getContext } from "../lib/config";
 
 export const logoutCommand = new Command("logout")
-  .description("Remove the stored Openship token")
+  .description("Remove the stored Vibrail token")
   .option("--context <name>", "Log out of a specific context (defaults to active)")
   .action((opts) => {
     const name: string = opts.context || getActiveContext();
@@ -14,6 +14,6 @@ export const logoutCommand = new Command("logout")
     clearToken(name);
     console.log(
       chalk.green(`\n  Logged out`) +
-        chalk.dim(` (context "${name}"). Token removed from ~/.openship/config.json\n`),
+        chalk.dim(` (context "${name}"). Token removed from ~/.vibrail/config.json\n`),
     );
   });

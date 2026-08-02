@@ -29,7 +29,7 @@ afterEach(() => {
 
 // ─── list ────────────────────────────────────────────────────────────────────
 
-describe("openship domain list", () => {
+describe("vibrail domain list", () => {
   const DOMAINS = [
     { id: "d1", hostname: "app.example.com", domainType: "primary", isPrimary: true, verified: true, status: "active", sslStatus: "issued" },
     { id: "d2", hostname: "www.example.com", verified: false, status: "pending" },
@@ -63,7 +63,7 @@ describe("openship domain list", () => {
 
 // ─── add ─────────────────────────────────────────────────────────────────────
 
-describe("openship domain add", () => {
+describe("vibrail domain add", () => {
   const ADDED = {
     data: { id: "d9", hostname: "app.example.com" },
     records: { mode: "selfhosted", records: [{ type: "CNAME", host: "app", value: "edge.example.net" }] },
@@ -76,7 +76,7 @@ describe("openship domain add", () => {
     expect(fetchStub.calls[0].method).toBe("POST");
     expect(fetchStub.calls[0].url).toBe(`${API}/domains`);
     expect(fetchStub.calls[0].body).toEqual({ projectId: "prj1", hostname: "app.example.com", isPrimary: false });
-    expect(err).toContain("openship domain verify d9"); // next-step hint names the new id
+    expect(err).toContain("vibrail domain verify d9"); // next-step hint names the new id
   });
 
   it("sets isPrimary when --primary is passed", async () => {
@@ -95,8 +95,8 @@ describe("openship domain add", () => {
 
 // ─── preview (no changes saved) ──────────────────────────────────────────────
 
-describe("openship domain preview", () => {
-  const PREVIEW = { data: { mode: "cloud", records: [{ type: "TXT", host: "_openship", value: "verify=abc" }] } };
+describe("vibrail domain preview", () => {
+  const PREVIEW = { data: { mode: "cloud", records: [{ type: "TXT", host: "_vibrail", value: "verify=abc" }] } };
 
   it("POSTs the hostname to /domains/preview and prints the record table", async () => {
     fetchStub = stubFetch(() => ({ json: PREVIEW }));
@@ -119,7 +119,7 @@ describe("openship domain preview", () => {
 
 // ─── verify (apiRaw: 200 verified vs 422 not-propagated-yet) ──────────────────
 
-describe("openship domain verify", () => {
+describe("vibrail domain verify", () => {
   it("reports a verified domain and exits 0", async () => {
     fetchStub = stubFetch(() => ({ json: { verified: true, cnameVerified: true, txtVerified: true, message: "Domain verified" } }));
     const { err, code } = await runCommand(domainCommand, ["verify", "d1"]);
@@ -157,7 +157,7 @@ describe("openship domain verify", () => {
 
 // ─── primary ─────────────────────────────────────────────────────────────────
 
-describe("openship domain primary", () => {
+describe("vibrail domain primary", () => {
   const PRIMARY = { data: { id: "d1", hostname: "app.example.com", isPrimary: true } };
 
   it("POSTs /domains/:id/primary", async () => {
@@ -178,7 +178,7 @@ describe("openship domain primary", () => {
 
 // ─── records ─────────────────────────────────────────────────────────────────
 
-describe("openship domain records", () => {
+describe("vibrail domain records", () => {
   const RECORDS = { data: { mode: "selfhosted", records: [{ type: "A", host: "@", value: "203.0.113.5" }] } };
 
   it("GETs the existing DNS records for a domain", async () => {
@@ -201,7 +201,7 @@ describe("openship domain records", () => {
 
 // ─── auth + error handling (shared across subcommands) ───────────────────────
 
-describe("openship domain error + auth handling", () => {
+describe("vibrail domain error + auth handling", () => {
   it("surfaces the API {error} message and exits 1", async () => {
     fetchStub = stubFetch(() => ({ status: 500, json: { error: "db down" } }));
     const { err, code } = await runCommand(domainCommand, ["list", "-p", "prj1"]);

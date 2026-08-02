@@ -115,7 +115,7 @@ export interface PrepareProjectResponse extends PrepareAppConfig {
   rootEnv?: Record<string, string>;
   /** Routing config parsed from the repo's vercel.json (persisted on the project). */
   routing?: RoutingConfig;
-  // ── Declared overlay (repo-root openship.json) — present only when the repo
+  // ── Declared overlay (repo-root vibrail.json) — present only when the repo
   //    ships the file. Seed wizard defaults; absent → detection is unchanged. ──
   /** Declared serve mode ("static" ⇒ no server). Seeds `options.hasServer`. */
   productionMode?: "host" | "static" | "standalone";

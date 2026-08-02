@@ -5,25 +5,25 @@ description: Install and adopt an iRedMail stack over SSH, run the mail admin pa
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The Mail API drives Openship's self-hosted email feature: it installs an [iRedMail](https://www.iredmail.org)
+The Mail API drives Vibrail's self-hosted email feature: it installs an [iRedMail](https://www.iredmail.org)
 stack on one of your servers over SSH, tracks the wizard's progress, then exposes an admin panel for the
 running server — domains, mailboxes, stats, backups, DNS health, and per-component control — plus a one-click
 webmail deploy. In the dashboard this is the **Emails** page.
 
 <Callout title="Self-hosted only">
-Every route here is gated by `localOnly` and is **never mounted in Openship Cloud** — the module is
+Every route here is gated by `localOnly` and is **never mounted in Vibrail Cloud** — the module is
 dynamically imported only on self-hosted instances. On a cloud instance these paths return `404`.
 </Callout>
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api/mail`** — e.g. `https://your-host/api/mail/status`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and [auth model](/docs/security/auth) for details.
 </Callout>
 
 <Callout title="Every route is server-scoped" type="info">
-Most paths carry a `:serverId` (or take one in the body / `?serverId=`). Openship checks that the server
+Most paths carry a `:serverId` (or take one in the body / `?serverId=`). Vibrail checks that the server
 belongs to your organization on every call — a `mail_server` grants SSH-level reach into the box, so a
 `serverId` outside your org returns `404`, indistinguishable from one that doesn't exist.
 </Callout>
@@ -36,7 +36,7 @@ belongs to your organization on every call — a `mail_server` grants SSH-level 
 |---|---|---|
 | `GET /api/mail/steps` | `mail_server:read` | List all setup steps and the total count. |
 | `GET /api/mail/status?serverId=` | `mail_server:read` | Current setup progress for a server (rendered from its on-server state file). |
-| `GET /api/mail/servers` | `mail_server:list` | List every server Openship has provisioned (or is provisioning) mail on. |
+| `GET /api/mail/servers` | `mail_server:list` | List every server Vibrail has provisioned (or is provisioning) mail on. |
 | `DELETE /api/mail/servers/:serverId` | `mail_server:admin` | Stop managing a server (drops the DB row only; leaves the stack + state file intact). |
 | `POST /api/mail/scan` | `mail_server:write` | Probe a server for an existing iRedMail install + its on-server state (read-only). |
 | `POST /api/mail/adopt` | `mail_server:write` | Re-adopt a scanned server whose orchestrator state was lost. |
@@ -111,7 +111,7 @@ POST /api/mail/setup
 
 <TypeTable
   type={{
-    serverId: { type: 'string', description: 'The Openship server to install onto.', required: true },
+    serverId: { type: 'string', description: 'The Vibrail server to install onto.', required: true },
     domain: { type: 'string', description: 'The mail domain, e.g. example.com. Mail is served from mail.<domain>.', required: true },
     startStep: { type: 'number', description: 'Step to start/resume from (clamped to 1..total).', default: '1' },
     config: { type: 'IRedMailConfig', description: 'Optional install config (see below).' },
@@ -130,7 +130,7 @@ POST /api/mail/setup
 
 ```bash
 curl -N -X POST https://your-host/api/mail/setup \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"serverId":"srv_123","domain":"example.com"}'
 ```
@@ -166,7 +166,7 @@ The same `{ serverId }` body applies to `POST /api/mail/scan`, `POST /api/mail/a
 
 ## Adopt an existing install
 
-If Openship lost its record of a mail server (rebuilt desktop, wiped DB), scan the server, then adopt it —
+If Vibrail lost its record of a mail server (rebuilt desktop, wiped DB), scan the server, then adopt it —
 no reinstall, nothing changes on the box.
 
 ```
@@ -177,13 +177,13 @@ POST /api/mail/adopt
 ```bash
 # 1. Probe for iRedMail + its on-server state
 curl -X POST https://your-host/api/mail/scan \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"serverId":"srv_123"}'
 
 # 2. Re-adopt it (idempotent)
 curl -X POST https://your-host/api/mail/adopt \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"serverId":"srv_123"}'
 ```
@@ -222,7 +222,7 @@ POST /api/mail/admin/:serverId/domains
 
 ```bash
 curl -X POST https://your-host/api/mail/admin/srv_123/domains \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain":"example.com","defaultQuotaMB":2048}'
 ```
@@ -248,7 +248,7 @@ POST /api/mail/admin/:serverId/mailboxes
 
 ```bash
 curl -X POST https://your-host/api/mail/admin/srv_123/mailboxes \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"localPart":"alice","domain":"example.com","password":"a-strong-password"}'
 ```
@@ -306,12 +306,12 @@ POST /api/mail/webmail/deploy-project
 
 `target` is one of:
 
-- `{ "kind": "self", "serverId": "srv_123" }` — self-hosted on one of your Openship servers.
-- `{ "kind": "cloud" }` — managed by Openship Cloud.
+- `{ "kind": "self", "serverId": "srv_123" }` — self-hosted on one of your Vibrail servers.
+- `{ "kind": "cloud" }` — managed by Vibrail Cloud.
 
 ```bash
 curl -X POST https://your-host/api/mail/webmail/deploy-project \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"mailServerId":"srv_123","hostname":"mail.example.com","target":{"kind":"self","serverId":"srv_123"}}'
 ```
@@ -334,6 +334,6 @@ while its setup is active. Wait for it to finish, or cancel it with `POST /api/m
 </Callout>
 
 <Callout title="502 — Scan / adopt failed" type="warn">
-Openship couldn't reach the server over SSH, or the probe threw. Check the server is online and its SSH
+Vibrail couldn't reach the server over SSH, or the probe threw. Check the server is online and its SSH
 credentials are valid, then retry.
 </Callout>

@@ -3,16 +3,16 @@ import type { ReactNode } from "react";
 
 const TITLE = "Download";
 const DESCRIPTION =
-  "Install Openship on macOS, Windows, Linux, or grab the CLI. Native desktop app and command-line - same backend, same deploys, your choice of surface.";
+  "Install Vibrail on macOS, Windows, Linux, or grab the CLI. Native desktop app and command-line - same backend, same deploys, your choice of surface.";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
   alternates: { canonical: "/download" },
   keywords: [
-    "openship download",
-    "openship CLI",
-    "openship desktop",
+    "vibrail download",
+    "vibrail CLI",
+    "vibrail desktop",
     "deploy CLI",
     "macOS deploy tool",
     "Windows deploy tool",
@@ -20,16 +20,16 @@ export const metadata: Metadata = {
     "self host CLI",
   ],
   openGraph: {
-    title: `${TITLE} - Openship`,
+    title: `${TITLE} - Vibrail`,
     description: DESCRIPTION,
     url: "/download",
     type: "website",
-    siteName: "Openship",
+    siteName: "Vibrail",
     locale: "en_US",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${TITLE} - Openship`,
+    title: `${TITLE} - Vibrail`,
     description: DESCRIPTION,
   },
 };
@@ -37,12 +37,12 @@ export const metadata: Metadata = {
 const softwareLd = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  name: "Openship",
+  name: "Vibrail",
   applicationCategory: "DeveloperApplication",
   applicationSubCategory: "Deployment Platform",
   operatingSystem: "macOS, Windows, Linux",
-  url: "https://openship.io/download",
-  downloadUrl: "https://openship.io/download",
+  url: "https://vibrail.warpgateapi.com/download",
+  downloadUrl: "https://vibrail.warpgateapi.com/download",
   softwareVersion: "latest",
   offers: {
     "@type": "Offer",
@@ -51,8 +51,8 @@ const softwareLd = {
   },
   publisher: {
     "@type": "Organization",
-    name: "Openship",
-    url: "https://openship.io",
+    name: "Vibrail",
+    url: "https://vibrail.warpgateapi.com",
   },
   description: DESCRIPTION,
   license: "https://www.apache.org/licenses/LICENSE-2.0",
@@ -62,8 +62,8 @@ const breadcrumbLd = {
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
   itemListElement: [
-    { "@type": "ListItem", position: 1, name: "Home", item: "https://openship.io" },
-    { "@type": "ListItem", position: 2, name: "Download", item: "https://openship.io/download" },
+    { "@type": "ListItem", position: 1, name: "Home", item: "https://vibrail.warpgateapi.com" },
+    { "@type": "ListItem", position: 2, name: "Download", item: "https://vibrail.warpgateapi.com/download" },
   ],
 };
 

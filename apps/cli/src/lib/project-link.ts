@@ -1,6 +1,6 @@
 /**
- * Project-link file written by `openship init` and read by deploy/logs to
- * resolve a projectId without a flag. Lives at `.openship/project.json` in the
+ * Project-link file written by `vibrail init` and read by deploy/logs to
+ * resolve a projectId without a flag. Lives at `.vibrail/project.json` in the
  * project root; commands search upward from cwd so they work from subdirs.
  */
 import { readFileSync, existsSync } from "node:fs";
@@ -11,15 +11,18 @@ export interface ProjectLink {
   branch?: string;
 }
 
-const LINK_REL = join(".openship", "project.json");
+const LINK_REL = join(".vibrail", "project.json");
+const LEGACY_LINK_REL = join(".openship", "project.json");
 
-/** Absolute path of the nearest `.openship/project.json`, or null. */
+/** Absolute path of the nearest `.vibrail/project.json`, or null. */
 export function findProjectLinkPath(from: string = process.cwd()): string | null {
   let dir = from;
   const root = parse(dir).root;
   for (;;) {
     const candidate = join(dir, LINK_REL);
     if (existsSync(candidate)) return candidate;
+    const legacyCandidate = join(dir, LEGACY_LINK_REL);
+    if (existsSync(legacyCandidate)) return legacyCandidate;
     if (dir === root) return null;
     dir = dirname(dir);
   }

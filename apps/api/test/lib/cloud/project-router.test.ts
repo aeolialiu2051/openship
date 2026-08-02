@@ -109,7 +109,7 @@ describe("proxyToSaaS", () => {
       headers: {
         "x-organization-id": "org-local",
         "content-type": "application/json",
-        cookie: "openship-session=secret",
+        cookie: "vibrail-session=secret",
       },
       body: JSON.stringify({ a: 1 }),
     });

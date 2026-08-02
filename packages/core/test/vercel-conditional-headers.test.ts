@@ -4,7 +4,7 @@ import { parseVercelConfig } from "../src/metadata/vercel";
 
 // Vercel's `headers` rules — like `redirects` and `rewrites` — support `has` and
 // `missing` conditions (match only when a header/cookie/host/query is present or
-// absent). openship reproduces routing with plain nginx locations, which can't
+// absent). vibrail reproduces routing with plain nginx locations, which can't
 // express those conditions, so a conditional rule must be DROPPED. Applying its
 // headers anyway would set them on EVERY request, not just the matching ones.
 //

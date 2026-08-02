@@ -34,7 +34,7 @@ describe("buildAdoptedServiceRows — repo-service rename (migration mapping)", 
         name: "postgres",
         image: "postgres:16-alpine",
         volumes: [
-          { type: "volume", source: "openship-openship-postgres", target: "/var/lib/postgresql/data", rw: true },
+          { type: "volume", source: "vibrail-vibrail-postgres", target: "/var/lib/postgresql/data", rw: true },
         ] as DiscoveredService["volumes"],
       }),
     ];
@@ -46,7 +46,7 @@ describe("buildAdoptedServiceRows — repo-service rename (migration mapping)", 
     );
     expect(rows).toHaveLength(1);
     expect(rows[0]!.name).toBe("db"); // adopted under the repo service name
-    expect(rows[0]!.volumes).toEqual(["openship-openship-postgres:/var/lib/postgresql/data"]); // volume verbatim
+    expect(rows[0]!.volumes).toEqual(["vibrail-vibrail-postgres:/var/lib/postgresql/data"]); // volume verbatim
     expect(rows[0]!.image).toBe("postgres:16-alpine"); // running image reused, no build
     expect(rows[0]!.build).toBeUndefined();
     expect(renames).toEqual({ postgres: "db" });
@@ -75,19 +75,19 @@ describe("buildAdoptedServiceRows — native rows from the mapped repo compose",
     // repo `build:` service, the row must carry the BUILD context (so Redeploy
     // reclones + rebuilds), NOT the frozen tag — and the running image is reused
     // exactly once via `handover`.
-    const chosen = [svc({ name: "openship-api", image: "openship/openship-api:bld_stale" })];
+    const chosen = [svc({ name: "vibrail-api", image: "vibrail/vibrail-api:bld_stale" })];
     const repoServices = new Map([["api", repoSvc({ name: "api", build: "./apps/api" })]]);
     const { rows, handover } = buildAdoptedServiceRows(
       chosen,
-      new Set(["openship-api"]),
+      new Set(["vibrail-api"]),
       undefined,
-      { "openship-api": "api" },
+      { "vibrail-api": "api" },
       repoServices,
     );
     expect(rows[0]!.name).toBe("api");
     expect(rows[0]!.build).toBe("./apps/api"); // native source → Redeploy rebuilds
     expect(rows[0]!.image).toBeUndefined(); // NOT the stale bld_ tag
-    expect(handover).toEqual({ api: "openship/openship-api:bld_stale" }); // reuse once
+    expect(handover).toEqual({ api: "vibrail/vibrail-api:bld_stale" }); // reuse once
   });
 
   it("an image: repo service (postgres) → pulls its registry image, no build, no handover", () => {

@@ -2,7 +2,7 @@
  * Destination key paths for backup artifacts.
  *
  * Format (relative to destination.pathPrefix):
- *   openship/<projectSlug>/<serviceName>/<runId>/<artifactName>
+ *   vibrail/<projectSlug>/<serviceName>/<runId>/<artifactName>
  *
  * Why this layout:
  *   - User-readable hierarchy: ops can hand-restore by browsing the bucket.
@@ -29,7 +29,7 @@ export interface KeyParts {
  *  refuse `..`, leading `/`, embedded null bytes, and Windows drive-style
  *  prefixes — even though projectSlug/serviceName come from columns that
  *  validate at write time, defense-in-depth costs nothing and keeps an
- *  attacker from poking a destination key like `openship/../../../etc/`
+ *  attacker from poking a destination key like `vibrail/../../../etc/`
  *  through the artifactName argument. */
 function assertSafeSegment(segment: string, originalParts: ReadonlyArray<string | null | undefined>): void {
   if (segment.includes("\0")) {
@@ -61,7 +61,7 @@ function joinKey(parts: Array<string | null | undefined>): string {
 export function runPrefix(parts: KeyParts): string {
   return joinKey([
     parts.pathPrefix,
-    "openship",
+    "vibrail",
     parts.projectSlug,
     parts.serviceName,
     parts.runId,

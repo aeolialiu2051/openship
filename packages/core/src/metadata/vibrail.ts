@@ -1,5 +1,5 @@
 /**
- * `openship.json` as a metadata parser — projects the native config's
+ * `vibrail.json` as a metadata parser — projects the native config's
  * build-shaping subset (framework, install/build/start commands, outputDirectory,
  * routing) into the shared {@link DeploymentMetadata} so it folds over heuristic
  * detection through the same engine as vercel.json, for the repo root AND each
@@ -12,20 +12,20 @@
  * prepare.service. Env is handled there too (to preserve `secret` flags), not here.
  */
 
-import { parseOpenshipConfigJson } from "../openship-config/parse";
+import { parseVibrailConfigJson } from "../vibrail-config/parse";
 import type { DeploymentMetadata, MetadataParser } from "./types";
 
-export const openshipMetadataParser: MetadataParser = {
-  source: "openship",
-  files: ["openship.json"],
+export const vibrailMetadataParser: MetadataParser = {
+  source: "vibrail",
+  files: ["vibrail.json", "openship.json"],
   parse(fileContents) {
-    const raw = fileContents["openship.json"];
+    const raw = fileContents["vibrail.json"] ?? fileContents["openship.json"];
     if (!raw) return null;
 
-    const { config } = parseOpenshipConfigJson(raw);
+    const { config } = parseVibrailConfigJson(raw);
     if (!config) return null;
 
-    const metadata: DeploymentMetadata = { source: "openship" };
+    const metadata: DeploymentMetadata = { source: "vibrail" };
     if (config.installCommand) metadata.installCommand = config.installCommand;
     if (config.buildCommand) metadata.buildCommand = config.buildCommand;
     if (config.outputDirectory) metadata.outputDirectory = config.outputDirectory;

@@ -848,7 +848,7 @@ export const STACKS = {
     defaultStartCommand: "",
   },
 
-  // ── Opinionated openship installs (commands fixed by the runner) ───────────
+  // ── Opinionated vibrail installs (commands fixed by the runner) ───────────
 
   webmail: {
     name: "Webmail",

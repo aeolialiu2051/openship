@@ -4,7 +4,7 @@ import { packageManagerEnsureCommand } from "@repo/core";
 import { sq } from "./build-pipeline";
 import { normalizeDockerRootDirectory } from "./docker-paths";
 
-const DOCKER_BUILD_EVENT_PREFIX = "[openship-build]";
+const DOCKER_BUILD_EVENT_PREFIX = "[vibrail-build]";
 const INLINE_BUILD_ENV_EXCLUDES = new Set(["FORCE_COLOR", "TERM"]);
 
 function formatDockerBuildEvent(
@@ -59,11 +59,11 @@ function buildRunCommand(command: string, envPrefix: string): string {
  * The outer shell is replaced after printing, so the banner wrapper does not
  * remain as an extra process around the existing command semantics.
  */
-export function withOpenshipRuntimeBanner(
+export function withVibrailRuntimeBanner(
   command: string,
   message: string,
 ): string {
-  return `printf '%s\\n' ${sq(`[openship] ${message}`)}; exec sh -c ${sq(command)}`;
+  return `printf '%s\\n' ${sq(`[vibrail] ${message}`)}; exec sh -c ${sq(command)}`;
 }
 
 function runtimeCopyDirectives(config: BuildConfig, sourceDir: string): string[] {
@@ -248,7 +248,7 @@ function generateStaticDockerfile(config: BuildConfig): string {
     `RUN printf '%s\\n' ${nginxTemplate} > /etc/nginx/conf.d/app.conf`,
     `EXPOSE ${config.port}`,
     `CMD ["sh", "-c", ${JSON.stringify(
-      withOpenshipRuntimeBanner(
+      withVibrailRuntimeBanner(
         "nginx -g 'daemon off;'",
         `Static server listening on port ${config.port}`,
       ),
@@ -311,7 +311,7 @@ export function generateDockerfile(config: BuildConfig): string {
   if (config.startCommand) {
     lines.push(
       `CMD ["sh", "-c", ${JSON.stringify(
-        withOpenshipRuntimeBanner(
+        withVibrailRuntimeBanner(
           config.startCommand,
           `Application starting on port ${config.port}`,
         ),

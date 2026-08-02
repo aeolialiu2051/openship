@@ -1,5 +1,5 @@
 /**
- * `openship project` — project lifecycle grounded in
+ * `vibrail project` — project lifecycle grounded in
  * apps/api/src/modules/projects/project.routes.ts (mounted at /api/projects).
  *
  * One parent Command with subcommands; each subcommand hits exactly one route.
@@ -457,7 +457,7 @@ const sleepModeCmd = new Command("sleep-mode")
 // (project.routes.ts:119-120, localOnly). Gate with requireSelfHost.
 const TRANSFER_DIRS = ["to-cloud", "to-self-hosted"];
 const transferCmd = new Command("transfer")
-  .description("Promote a project to Openship Cloud, or bring it back (self-hosted only)")
+  .description("Promote a project to Vibrail Cloud, or bring it back (self-hosted only)")
   .argument("<id>", "Project ID")
   .argument("<direction>", `One of: ${TRANSFER_DIRS.join(", ")}`)
   .action(
@@ -592,7 +592,7 @@ function printLogEntry(entry: Record<string, unknown>): void {
 // ─── parent ────────────────────────────────────────────────────────────────────
 export const projectCommand = new Command("project")
   .alias("projects")
-  .description("Manage Openship projects");
+  .description("Manage Vibrail projects");
 
 projectCommand.addCommand(listCmd);
 projectCommand.addCommand(getCmd);

@@ -122,7 +122,7 @@ export async function prepareSourceTarArgs(
     // exist so a missing path can't abort the whole pack.
     const extra = await existingRelativePaths(localPath, options?.alsoInclude);
     const entries = extra.length ? [...files, ...extra] : files;
-    const tmpDir = await mkdtemp(join(tmpdir(), "openship-tarlist-"));
+    const tmpDir = await mkdtemp(join(tmpdir(), "vibrail-tarlist-"));
     const listFile = join(tmpDir, "files.null");
     await writeFile(listFile, entries.join("\0"));
     const args = [...tarCreateBaseArgs(localPath), "--null", "-T", listFile];

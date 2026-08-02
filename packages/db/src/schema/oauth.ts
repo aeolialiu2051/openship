@@ -8,7 +8,7 @@ import { user } from "./auth";
  * Column names + types must match the plugin's model fields (the JS property
  * keys are the Better Auth field names; the SQL column names are snake_case).
  * See `better-auth/dist/plugins/oidc-provider/schema`. Managed entirely by the
- * plugin at runtime — openship never writes these directly.
+ * plugin at runtime — vibrail never writes these directly.
  *
  * NOTE: `refreshToken`/`refreshTokenExpiresAt` are nullable — not every grant
  * issues a refresh token; Postgres unique indexes allow multiple NULLs.

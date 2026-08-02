@@ -1,6 +1,6 @@
 /*
  * ─────────────────────────────────────────────────────────────────
- *  OPENSHIP LANDING - ANIMATIONS & VISUAL FX
+ *  VIBRAIL LANDING - ANIMATIONS & VISUAL FX
  *  Premium mesh-gradient blobs, grid, terminal, navbar pill.
  * ─────────────────────────────────────────────────────────────────
  *
@@ -1375,7 +1375,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   COMPARISON - table with highlighted Openship column
+   COMPARISON - table with highlighted Vibrail column
    ═══════════════════════════════════════════════════════════════ */
 .cmp-section {
   position: relative;
@@ -1417,7 +1417,7 @@
   color: var(--th-text-body);
 }
 
-/* Table - Openship column is highlighted via a positioned background rail */
+/* Table - Vibrail column is highlighted via a positioned background rail */
 .cmp {
   position: relative;
   margin: 0 auto;
@@ -1450,7 +1450,7 @@
   border-bottom: 1px solid var(--th-bd-default);
 }
 
-/* Group band - deliberately has no background so the highlighted Openship
+/* Group band - deliberately has no background so the highlighted Vibrail
  * column reads as one unbroken rail down the whole table. */
 .cmp-group {
   position: relative;
@@ -1568,7 +1568,7 @@
     padding-bottom: 6px;
     display: block;
   }
-  .cmp-cell--win::after { content: "Openship"; }
+  .cmp-cell--win::after { content: "Vibrail"; }
   .cmp-cell:nth-child(3)::after { content: "Managed"; }
   .cmp-cell:nth-child(4)::after { content: "Self-host"; }
   .cmp-cell--win::after,

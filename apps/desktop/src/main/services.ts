@@ -2,7 +2,7 @@
  * Local service supervisor for the PACKAGED desktop app.
  *
  * A shipped installer has no dev servers behind it, so the app boots its own:
- *   - API:       the bundled `openship-api` binary (bun --compile). Embedded
+ *   - API:       the bundled `vibrail-api` binary (bun --compile). Embedded
  *                PGlite (no external Postgres), in-process job runner (no Redis).
  *   - Dashboard: the bundled Next standalone server, run with Electron's own
  *                Node (ELECTRON_RUN_AS_NODE) — no separate Node install needed.
@@ -22,7 +22,7 @@ import { createServer } from "node:net";
 import { join } from "node:path";
 import { LOCAL_API_URL, LOCAL_DASHBOARD_URL } from "@repo/core";
 
-const API_BIN = process.platform === "win32" ? "openship-api.exe" : "openship-api";
+const API_BIN = process.platform === "win32" ? "vibrail-api.exe" : "vibrail-api";
 
 type DashProc = ReturnType<typeof utilityProcess.fork> | ChildProcess;
 
@@ -169,11 +169,11 @@ async function startDashboard(
   const env: NodeJS.ProcessEnv = {
     ...process.env,
     NODE_ENV: "production",
-    OPENSHIP_TARGET: "local",
+    VIBRAIL_TARGET: "local",
     HOSTNAME: "127.0.0.1",
     PORT: String(dashPort),
     // Tell the dashboard (SSR + injected into the browser) where the API is.
-    OPENSHIP_LOCAL_API_URL: apiOrigin,
+    VIBRAIL_LOCAL_API_URL: apiOrigin,
   };
 
   // 1. Preferred — utilityProcess (no Dock tile, owned by the app).
@@ -181,7 +181,7 @@ async function startDashboard(
   let upDead = false;
   up.on("exit", (code) => {
     upDead = true;
-    console.log(`[openship] dashboard(utility) exited (code=${code})`);
+    console.log(`[vibrail] dashboard(utility) exited (code=${code})`);
   });
   pipeLogs("dashboard", up);
   if (await waitForPort(url, () => upDead, 45)) return up;
@@ -192,7 +192,7 @@ async function startDashboard(
   } catch {
     // already gone
   }
-  console.log("[openship] dashboard utilityProcess did not start — falling back to node spawn");
+  console.log("[vibrail] dashboard utilityProcess did not start — falling back to node spawn");
   const sp = spawn(process.execPath, [serverJs], {
     cwd: dashboardDir,
     env: { ...env, ELECTRON_RUN_AS_NODE: "1" },
@@ -201,7 +201,7 @@ async function startDashboard(
   let spDead = false;
   sp.on("exit", (code, signal) => {
     spDead = true;
-    console.log(`[openship] dashboard exited (code=${code ?? "null"} signal=${signal ?? "none"})`);
+    console.log(`[vibrail] dashboard exited (code=${code ?? "null"} signal=${signal ?? "none"})`);
   });
   pipeLogs("dashboard", sp);
   if (await waitForPort(url, () => spDead, 60)) return sp;
@@ -249,7 +249,7 @@ export async function startLocalServices(internalToken: string): Promise<void> {
     if (dashPort === apiPort) dashPort = await getFreePort();
 
     // Use 127.0.0.1, not localhost: the API/dashboard bind IPv4 loopback only
-    // (OPENSHIP_API_HOST=127.0.0.1), and clients that resolve `localhost` → ::1
+    // (VIBRAIL_API_HOST=127.0.0.1), and clients that resolve `localhost` → ::1
     // first (e.g. Bun's fetch) get connection-refused before OAuth starts (#119).
     const apiOrigin = `http://127.0.0.1:${apiPort}`;
     const dashOrigin = `http://127.0.0.1:${dashPort}`;
@@ -274,21 +274,21 @@ export async function startLocalServices(internalToken: string): Promise<void> {
     }
     Object.assign(apiEnv, {
       DEPLOY_MODE: "desktop",
-      OPENSHIP_TARGET: "local",
-      OPENSHIP_JOB_RUNNER: "in-process", // no Redis in desktop; skip the probe
+      VIBRAIL_TARGET: "local",
+      VIBRAIL_JOB_RUNNER: "in-process", // no Redis in desktop; skip the probe
       NODE_ENV: "production",
       PORT: String(apiPort),
       // Bind the API to loopback ONLY. Desktop runs authMode=none (zero-auth),
       // so a 0.0.0.0 listener would let any host on the LAN reach the local
-      // session-mint endpoints. Mirrors the CLI `up` path (OPENSHIP_API_HOST).
-      OPENSHIP_API_HOST: "127.0.0.1",
+      // session-mint endpoints. Mirrors the CLI `up` path (VIBRAIL_API_HOST).
+      VIBRAIL_API_HOST: "127.0.0.1",
       PGLITE_DATA_DIR: dataDir,
-      OPENSHIP_MIGRATIONS_DIR: migrationsDir,
-      OPENSHIP_PGLITE_ASSETS_DIR: pgliteDir,
+      VIBRAIL_MIGRATIONS_DIR: migrationsDir,
+      VIBRAIL_PGLITE_ASSETS_DIR: pgliteDir,
       // The dashboard + API run on dynamic ports not in the API's static origin
       // table — trust both loopback spellings of each explicitly so CORS /
       // origin-guard / auth accept them regardless of which a client resolves.
-      OPENSHIP_EXTRA_TRUSTED_ORIGINS: [
+      VIBRAIL_EXTRA_TRUSTED_ORIGINS: [
         `http://127.0.0.1:${dashPort}`,
         `http://localhost:${dashPort}`,
         `http://127.0.0.1:${apiPort}`,
@@ -296,14 +296,14 @@ export async function startLocalServices(internalToken: string): Promise<void> {
       ].join(","),
       // Where the API redirects after desktop-login / desktop-claim / cloud auth
       // (else it'd send the window to the static localhost:3001 → white screen).
-      OPENSHIP_LOCAL_DASHBOARD_URL: dashOrigin,
+      VIBRAIL_LOCAL_DASHBOARD_URL: dashOrigin,
       // The origin external MCP/OAuth clients actually reach this API at. Feeds
       // the OAuth discovery/issuer/authorize/token URLs (resolveAuthBaseUrl) so
       // they're reachable on the dynamic port instead of the static localhost:4000
-      // fallback (#119). URL-construction ONLY — it must NOT be OPENSHIP_PUBLIC_URL,
+      // fallback (#119). URL-construction ONLY — it must NOT be VIBRAIL_PUBLIC_URL,
       // which would trip zeroAuthAllowed's "publicly-served" rejection and kill
       // the desktop's zero-auth session.
-      OPENSHIP_ADVERTISED_ORIGIN: apiOrigin,
+      VIBRAIL_ADVERTISED_ORIGIN: apiOrigin,
       BETTER_AUTH_SECRET: authSecret,
       INTERNAL_TOKEN: internalToken,
       // The compiled API binary loads ssh2/dockerode (externalized from the
@@ -325,7 +325,7 @@ export async function startLocalServices(internalToken: string): Promise<void> {
     });
     apiProc.on("exit", (code, signal) => {
       apiDead = true;
-      console.log(`[openship] api exited (code=${code ?? "null"} signal=${signal ?? "none"})`);
+      console.log(`[vibrail] api exited (code=${code ?? "null"} signal=${signal ?? "none"})`);
     });
     pipeLogs("api", apiProc);
 
@@ -341,7 +341,7 @@ export async function startLocalServices(internalToken: string): Promise<void> {
       localApiUrl = apiOrigin;
       localDashboardUrl = dashOrigin;
       saveStoredPorts(apiPort, dashPort); // reuse next launch → session persists
-      console.log(`[openship] services ready — api=${apiOrigin} dashboard=${dashOrigin}`);
+      console.log(`[vibrail] services ready — api=${apiOrigin} dashboard=${dashOrigin}`);
       return;
     }
 

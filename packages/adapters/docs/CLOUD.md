@@ -1,10 +1,10 @@
 # Cloud Architecture
 
-> How Openship connects to Oblien cloud infrastructure - same pipeline, two auth paths.
+> How Vibrail connects to Oblien cloud infrastructure - same pipeline, two auth paths.
 
 ## Overview
 
-Openship runs in two modes. Both use the **exact same** `CloudRuntime` and build/deploy pipeline. The only difference is how the Oblien SDK client gets authenticated:
+Vibrail runs in two modes. Both use the **exact same** `CloudRuntime` and build/deploy pipeline. The only difference is how the Oblien SDK client gets authenticated:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -37,7 +37,7 @@ Openship runs in two modes. Both use the **exact same** `CloudRuntime` and build
 
 ## Mode 1: SaaS (`CLOUD_MODE=true`)
 
-When Openship runs as the hosted SaaS platform (api.openship.io):
+When Vibrail runs as the hosted SaaS platform (vibrail.warpgateapi.com):
 
 ```
 Server startup
@@ -60,21 +60,21 @@ POST /api/cloud/token  (requires auth)
 
 | File | Purpose |
 |---|---|
-| `apps/api/src/lib/openship-cloud.ts` | `ensureNamespace()` + `issueNamespaceToken()` |
+| `apps/api/src/lib/vibrail-cloud.ts` | `ensureNamespace()` + `issueNamespaceToken()` |
 | `apps/api/src/modules/cloud/cloud.controller.ts` | `getToken()` handler |
 | `apps/api/src/modules/cloud/cloud.routes.ts` | `cloudSaasRoutes` → `POST /token` |
 
 ## Mode 2: Local (`CLOUD_MODE=false`)
 
-When Openship runs locally (desktop app, self-hosted, CLI):
+When Vibrail runs locally (desktop app, self-hosted, CLI):
 
-### Step 1: User connects their Openship Cloud account
+### Step 1: User connects their Vibrail Cloud account
 
 ```
 Dashboard Settings page
   → user enters email + password
   → POST /api/cloud/connect
-  → Local API proxies login to api.openship.io/api/auth/sign-in/email
+  → Local API proxies login to vibrail.warpgateapi.com/api/auth/sign-in/email
   → Receives session token
   → Encrypts + stores in user_settings.cloud_session_token
 ```
@@ -86,7 +86,7 @@ build.service.ts → executeBuildAndDeploy()
   → detects !CLOUD_MODE && target === "cloud"
   → getCloudToken(userId)
       → reads encrypted session from DB
-      → POST api.openship.io/api/cloud/token (with Bearer session)
+      → POST vibrail.warpgateapi.com/api/cloud/token (with Bearer session)
       → receives namespace-scoped Oblien token (cached in memory, 30min TTL)
   → createPlatform({ target: "cloud", cloudToken: result.token })
       → new Oblien({ token })                  ← namespace-scoped
@@ -121,7 +121,7 @@ LOCAL MODE - full round trip:
                                { email, password }       │
                                                          ▼
                                                   ┌──────────────┐
-                                                  │ Openship     │
+                                                  │ Vibrail     │
                                                   │ Cloud SaaS   │
                                                   │              │
                                                   │ Returns      │
@@ -152,7 +152,7 @@ DEPLOY TIME:
        │  createPlatform({                               │
        │    target: "cloud",                              ▼
        │    cloudToken: token             ┌──────────────────────────┐
-       │  })                              │ Openship Cloud SaaS      │
+       │  })                              │ Vibrail Cloud SaaS      │
        │                                  │                          │
        ▼                                  │ ensureNamespace(userId)  │
 ┌──────────────┐                          │ issueNamespaceToken()    │
@@ -186,7 +186,7 @@ The namespace token gives full access to everything in that namespace:
 | Concern | Approach |
 |---|---|
 | Cloud session at rest | AES-256 encrypted via `encrypt()`/`decrypt()` in `encryption.ts` |
-| Session in transit | HTTPS only (api.openship.io) |
+| Session in transit | HTTPS only (vibrail.warpgateapi.com) |
 | Expired sessions | Auto-cleared on 401 from SaaS API |
 | Namespace tokens | 30min TTL, 5min refresh buffer, in-memory cache only |
 | Token scope | Namespace-scoped - user can only access their own resources |
@@ -223,7 +223,7 @@ if (env.CLOUD_MODE) {
   // SaaS: mint tokens for local instances
   app.route("/api/cloud", cloudSaasRoutes);
 } else {
-  // Local: manage connection to Openship Cloud
+  // Local: manage connection to Vibrail Cloud
   app.route("/api/cloud", cloudLocalRoutes);
 }
 ```
@@ -234,6 +234,6 @@ Dynamic imports ensure zero code bleed between modes.
 
 | Table | Column | Type | Purpose |
 |---|---|---|---|
-| `user_settings` | `cloud_session_token` | `text` (nullable) | Encrypted Openship Cloud session |
+| `user_settings` | `cloud_session_token` | `text` (nullable) | Encrypted Vibrail Cloud session |
 
 Migration: `packages/db/drizzle/0004_add_cloud_session_token.sql`

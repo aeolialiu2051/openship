@@ -5,7 +5,7 @@ description: Run your own mail server from the dashboard — provision or adopt 
 
 The **Email Server** screen (route `/emails`) is where you stand up a complete, self-hosted mail
 server on one of your own servers and then run it day to day — domains, mailboxes, DNS, health, backups.
-Openship installs the whole stack (Postfix, Dovecot, anti-spam, SSL, DKIM/SPF/DMARC) over SSH and then
+Vibrail installs the whole stack (Postfix, Dovecot, anti-spam, SSL, DKIM/SPF/DMARC) over SSH and then
 gives you an admin panel so you never have to touch the box by hand.
 
 You can run more than one. Each mail server lives on its own host (one mail setup per server), and the screen
@@ -13,25 +13,25 @@ lists them all so you pick which to manage — a single server opens straight in
 several land you on a **Mail servers** list with an **Add mail server** action to provision or adopt another.
 
 <Callout title="Self-hosted only">
-This screen manages a mail server on **your own connected server** over SSH. It isn't part of Openship
+This screen manages a mail server on **your own connected server** over SSH. It isn't part of Vibrail
 Cloud — you provision it against a server you've added under **Servers**. For a friendly walkthrough of the
 whole flow (including webmail), see [Email &amp; webmail](/docs/guides/email-webmail).
 </Callout>
 
 ## Why run your own — and how deliverability works
 
-Two things usually stop people self-hosting email, and Openship's model is built around exactly those two
+Two things usually stop people self-hosting email, and Vibrail's model is built around exactly those two
 gaps: **deliverability** (a brand-new server IP lands in spam) and the fact that transactional senders like
 **Amazon SES**, Postmark, or SendGrid **only send** — they give you no inbox, no IMAP, no webmail, and no
 ownership of your messages.
 
-- **You own the inbox.** Openship self-hosts the *receiving* side those providers don't offer — real Postfix +
+- **You own the inbox.** Vibrail self-hosts the *receiving* side those providers don't offer — real Postfix +
   Dovecot mailboxes, IMAP/POP3, and webmail — so your messages, domains, and mailbox data live on **your**
   server. You own the infrastructure and the data, not a vendor.
 - **You borrow the reputation for sending.** Outbound can go direct-to-MX, or **relay through a trusted
   provider's SMTP** (Amazon SES, or any SMTP relay). When you relay, your mail inherits the provider's warmed,
   high-reputation sending IPs — the deliverability of a managed sender — while everything else stays on your
-  box. Openship writes the Postfix relay (`relayhost` + SASL) for you and aligns SPF, DKIM, and MAIL FROM
+  box. Vibrail writes the Postfix relay (`relayhost` + SASL) for you and aligns SPF, DKIM, and MAIL FROM
   (SES-aware) so messages authenticate.
 
 <Callout title="A realistic promise" type="info">
@@ -63,7 +63,7 @@ server's domain (or name), its host, and a status pill:
 | Pill | Meaning |
 |---|---|
 | **Installing** | An install is currently running on this server. |
-| **Running** | Provisioned and managed by Openship. |
+| **Running** | Provisioned and managed by Vibrail. |
 | **Incomplete** | Registered, but the install didn't finish. |
 
 Click a card to open it. **Add mail server** starts a new provision/adopt. The trash icon (**Remove from
@@ -136,9 +136,9 @@ and the install finishes with SSL.
 
 ## Adopt an existing mail server
 
-Already installed a mail server with Openship but lost the dashboard record (e.g. you re-imaged the
+Already installed a mail server with Vibrail but lost the dashboard record (e.g. you re-imaged the
 orchestrator)? On the setup form, click **Already have a mail server? Adopt it**. In the **Adopt existing
-mail server** dialog, pick the server and press **Scan server** — Openship reads the box (detects the mail
+mail server** dialog, pick the server and press **Scan server** — Vibrail reads the box (detects the mail
 stack and its on-server state file) without changing anything. If a mail stack is found, **Adopt** brings it
 back under management with no reinstall and no data loss.
 
@@ -221,7 +221,7 @@ spam folder.
 
 ### Backup
 
-Backups run through Openship's general backup system, so the mail server is just another backup source.
+Backups run through Vibrail's general backup system, so the mail server is just another backup source.
 Choose **what to back up**: accounts, domains &amp; aliases (always included), **Mailbox message data** (the
 maildirs — can be large), and **DKIM keys &amp; secrets**.
 
@@ -245,7 +245,7 @@ The power-user surface, top to bottom:
 - **Mail-stack tools** — **Restart stack** cycles every mail daemon at once (a quick fix after a deploy
   hiccup); it doesn't touch mailboxes, queues, or state.
 - **Danger zone** — **Re-run setup wizard** (**Open wizard**), **Reset on-server state** (**Reset state** —
-  clears Openship's tracking but leaves the running stack intact), and **Remove mail server** (**Remove** —
+  clears Vibrail's tracking but leaves the running stack intact), and **Remove mail server** (**Remove** —
   drops it from the list only, re-adoptable later).
 - **Install metadata** — Server ID, Primary domain, and the Started / Finished timestamps.
 

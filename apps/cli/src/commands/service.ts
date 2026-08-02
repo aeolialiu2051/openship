@@ -1,5 +1,5 @@
 /**
- * `openship service` — manage the services inside a compose stack.
+ * `vibrail service` — manage the services inside a compose stack.
  *
  * A "stack" is a multi-service project: services are mounted under
  * /api/projects/:id/services (service.routes.ts), so every subcommand
@@ -22,7 +22,7 @@ import { isJsonMode, printJson, printTable, ok, err, info } from "../lib/output"
 
 function requireAuth(): void {
   if (!getToken()) {
-    err("  Not logged in. Run `openship login` first.");
+    err("  Not logged in. Run `vibrail login` first.");
     process.exit(1);
   }
 }
@@ -686,7 +686,7 @@ const execCmd = stackCommand("exec")
   .argument("[service]", "Service name or id")
   .action(() => {
     err(
-      "  `openship service exec` is not available yet — an interactive terminal needs a\n" +
+      "  `vibrail service exec` is not available yet — an interactive terminal needs a\n" +
         "  WebSocket client (the CLI ships no ws dependency). Use the dashboard's service\n" +
         "  terminal for now.",
     );

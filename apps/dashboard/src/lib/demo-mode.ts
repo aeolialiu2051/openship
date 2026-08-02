@@ -6,8 +6,8 @@ import { useSyncExternalStore } from "react";
  * (localStorage), so it's off by default and never touches the server. Consumed
  * by <BlurIp> and toggled from Settings → General → Demo mode.
  */
-const KEY = "openship:demo-mode";
-const EVENT = "openship:demo-mode-change";
+const KEY = "vibrail:demo-mode";
+const EVENT = "vibrail:demo-mode-change";
 
 function read(): boolean {
   if (typeof window === "undefined") return false;

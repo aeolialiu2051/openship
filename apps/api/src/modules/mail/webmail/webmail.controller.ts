@@ -44,8 +44,8 @@ export async function getTargetsHandler(c: Context) {
  *     hostname: string,
  *     internalPort?: number,
  *     target:
- *       | { kind: "self", serverId: string }   // self-hosted on an openship server
- *       | { kind: "cloud" }                    // managed by Opshcloud
+ *       | { kind: "self", serverId: string }   // self-hosted on a Vibrail server
+ *       | { kind: "cloud" }                    // managed by Vibrail Cloud
  *   }
  *
  * Creates (or reuses) the webmail project + a queued deployment + a build

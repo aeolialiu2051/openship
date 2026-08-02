@@ -2,7 +2,7 @@
  * Request-scoped memoization via AsyncLocalStorage.
  *
  * Some reads are expensive and idempotent *within a single inbound request* but
- * must stay fresh *across* requests — the canonical case is the Openship Cloud
+ * must stay fresh *across* requests — the canonical case is the Vibrail Cloud
  * session validation (`GET /api/cloud/account`), which a single `/github/status`
  * fans out into ~6 times (auth-mode resolution + one per cloudClient call). The
  * existing single-flight only collapses *concurrent* calls; sequential awaits

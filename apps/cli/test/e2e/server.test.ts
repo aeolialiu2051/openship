@@ -25,7 +25,7 @@ const SERVERS = [
   { id: "srv2", name: null, sshHost: "5.6.7.8", sshPort: 22, sshUser: "deploy" },
 ];
 
-describe("openship server list", () => {
+describe("vibrail server list", () => {
   it("GETs /system/servers and tabulates them", async () => {
     fetchStub = stubFetch(() => ({ json: SERVERS }));
     const { out, code } = await runCommand(serverCommand, ["list"]);
@@ -48,7 +48,7 @@ describe("openship server list", () => {
   });
 });
 
-describe("openship server rm", () => {
+describe("vibrail server rm", () => {
   it("DELETEs the server by id", async () => {
     fetchStub = stubFetch(() => ({ status: 204 }));
     const { err, code } = await runCommand(serverCommand, ["rm", "srv1"]);

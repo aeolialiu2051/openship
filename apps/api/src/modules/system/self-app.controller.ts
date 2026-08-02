@@ -3,14 +3,14 @@
  *
  * The CLI setup wizard calls these AFTER bootstrap-admin (internal-token gated,
  * self-hosted only). They reuse the ordinary app + domain pipes so that, once
- * setup finishes, Openship itself shows up under the dashboard's **Apps** tab
+ * setup finishes, Vibrail itself shows up under the dashboard's **Apps** tab
  * with a real domain:
- *   - createProject({ isApp:true, appTemplateId:"openship" })  → the Apps row
+ *   - createProject({ isApp:true, appTemplateId:"vibrail" })  → the Apps row
  *   - free  domain → Oblien edge proxy (slug.vibrail.warpgateapi.com → this box), reusing
- *     cloudClient().edgeProxy.sync — needs the owner connected to Openship Cloud
+ *     cloudClient().edgeProxy.sync — needs the owner connected to Vibrail Cloud
  *   - custom domain → external/shared Traefik ingress
  *
- * No new routing/SSL machinery — Openship deploys itself with its own tools.
+ * No new routing/SSL machinery — Vibrail deploys itself with its own tools.
  */
 
 import type { Context } from "hono";
@@ -26,11 +26,11 @@ import { ensureAdoptDeployment } from "../../lib/startup/self-deploy";
 import { refreshSelfAppPublicUrl } from "../../lib/public-url";
 import { selfAppManagedOrigin } from "../../lib/self-app-origin";
 
-const APP_SLUG = "openship";
-const APP_TEMPLATE_ID = "openship";
+const APP_SLUG = "vibrail";
+const APP_TEMPLATE_ID = "vibrail";
 
 /**
- * The org that OWNS this box. Once connected to Openship Cloud, the mirrored
+ * The org that OWNS this box. Once connected to Vibrail Cloud, the mirrored
  * cloud user is the admin and its personal org `org_<id>` carries the cloud
  * link — prefer that. Otherwise fall back to the deterministic local owner
  * (fresh / self-hosted-only box). Single source of truth so cloud-status and
@@ -73,7 +73,7 @@ async function ensureControlPlaneApp(organizationId: string, port?: number): Pro
   if (existing) return existing.id;
   const created = await createProject(
     {
-      name: "Openship",
+      name: "Vibrail",
       isApp: true,
       appTemplateId: APP_TEMPLATE_ID,
       hasBuild: false,
@@ -87,7 +87,7 @@ async function ensureControlPlaneApp(organizationId: string, port?: number): Pro
 }
 
 /**
- * GET /api/system/cloud-status — is the org's owner connected to Openship Cloud?
+ * GET /api/system/cloud-status — is the org's owner connected to Vibrail Cloud?
  * The wizard checks this before offering / after driving the free-domain path.
  */
 export async function cloudStatus(c: Context) {
@@ -100,7 +100,7 @@ export async function cloudStatus(c: Context) {
 
 /**
  * POST /api/system/cloud-connect — finalize the browser PKCE handshake AND make
- * the Openship Cloud account this box's admin, reusing the EXACT desktop
+ * the Vibrail Cloud account this box's admin, reusing the EXACT desktop
  * identity pipe (no duplication): `mirrorCloudUser` provisions a local user from
  * the cloud identity (+ its personal org + owner membership), we store the cloud
  * session against it, and switch the box to `authMode="cloud"` so the local
@@ -120,10 +120,10 @@ export async function cloudConnect(c: Context) {
       await import("../../lib/cloud-auth-proxy");
     const { clearAuthModeCache } = await import("../../lib/auth-mode");
     const data = await exchangeCodeWithCloud(body.code, body.codeVerifier);
-    if (!data) return c.json({ error: "Could not verify with Openship Cloud" }, 401);
+    if (!data) return c.json({ error: "Could not verify with Vibrail Cloud" }, 401);
     const email = (data.user as { email?: string | null }).email ?? null;
 
-    // If this box ALREADY has a real local admin account, Openship Cloud is linked
+    // If this box ALREADY has a real local admin account, Vibrail Cloud is linked
     // for SERVICES ONLY — the free .vibrail.warpgateapi.com domain and managed mail. Store the cloud
     // session against the existing owner so the edge-proxy has a token, and DO NOT
     // change the login method. Only a fresh box with NO local admin (the free-domain
@@ -181,7 +181,7 @@ export async function selfRegister(c: Context) {
     .catch(() => ({}) as Record<string, never>);
 
   const domainType = body.domainType ?? "byo";
-  const dashPort = Number(body.dashPort) || env.OPENSHIP_DASHBOARD_PORT || 3001;
+  const dashPort = Number(body.dashPort) || env.VIBRAIL_DASHBOARD_PORT || 3001;
   const { organizationId } = await resolveOrg();
   const projectId = await ensureControlPlaneApp(organizationId, dashPort);
 
@@ -209,7 +209,7 @@ export async function selfRegister(c: Context) {
       );
     }
     // The control plane is an adopted host process rather than a Docker workload,
-    // so it cannot publish Traefik Docker labels. `openship up` binds the dashboard
+    // so it cannot publish Traefik Docker labels. `vibrail up` binds the dashboard
     // publicly when this managed URL is configured; Cloud terminates TLS and
     // forwards plain HTTP to that explicit dashboard origin.
     const target = selfAppManagedOrigin(host, dashPort);
@@ -217,7 +217,7 @@ export async function selfRegister(c: Context) {
       const result = await cloudClient({ organizationId }).edgeProxy.sync({ slug, target });
       if (!result) {
         return c.json(
-          { error: "Openship Cloud is not connected — connect it to use a free .vibrail.warpgateapi.com domain." },
+          { error: "Vibrail Cloud is not connected — connect it to use a free .vibrail.warpgateapi.com domain." },
           409,
         );
       }

@@ -1,5 +1,5 @@
 /**
- * Single bootstrap point for every user identity in Openship.
+ * Single bootstrap point for every user identity in Vibrail.
  *
  * Every authenticated user MUST end up with:
  *   1. A row in the `user` table (Better Auth's identity record).
@@ -14,7 +14,7 @@
  *     inserted the user, so the user upsert is a no-op and only the org
  *     bootstrap does work.
  *   - Cloud auth mirror (cloud-auth-proxy.mirrorCloudUser) — the user
- *     authenticated against Openship Cloud; we provision a local mirror.
+ *     authenticated against Vibrail Cloud; we provision a local mirror.
  *   - Desktop zero-auth (local-user.ensureLocalUser) — the API trusts
  *     127.0.0.1 traffic and provisions an admin user lazily on first hit.
  *

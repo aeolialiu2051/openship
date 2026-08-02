@@ -9,18 +9,18 @@ import { resolveSafeSshKeyPath } from "../../src/lib/ssh-key-path";
 
 describe("resolveSafeSshKeyPath", () => {
   describe("allowed roots", () => {
-    it("accepts a key under /var/lib/openship/ssh-keys", () => {
-      expect(resolveSafeSshKeyPath("/var/lib/openship/ssh-keys/id_ed25519")).toBe(
-        "/var/lib/openship/ssh-keys/id_ed25519",
+    it("accepts a key under /var/lib/vibrail/ssh-keys", () => {
+      expect(resolveSafeSshKeyPath("/var/lib/vibrail/ssh-keys/id_ed25519")).toBe(
+        "/var/lib/vibrail/ssh-keys/id_ed25519",
       );
     });
 
-    it("accepts a key under /etc/openship/ssh-keys", () => {
+    it("accepts a key under /etc/vibrail/ssh-keys", () => {
       // A documented DEFAULT_ROOT that sits under the broad `/etc` denylist
       // entry. config/env.ts advertises it too ("The default allowlist already
-      // includes /var/lib/openship/ssh-keys and /etc/openship/ssh-keys").
-      expect(resolveSafeSshKeyPath("/etc/openship/ssh-keys/id_ed25519")).toBe(
-        "/etc/openship/ssh-keys/id_ed25519",
+      // includes /var/lib/vibrail/ssh-keys and /etc/vibrail/ssh-keys").
+      expect(resolveSafeSshKeyPath("/etc/vibrail/ssh-keys/id_ed25519")).toBe(
+        "/etc/vibrail/ssh-keys/id_ed25519",
       );
     });
 
@@ -39,7 +39,7 @@ describe("resolveSafeSshKeyPath", () => {
     });
 
     it("rejects a sibling of the allowed root that is still under /etc", () => {
-      expect(() => resolveSafeSshKeyPath("/etc/openship-secrets/key")).toThrow(
+      expect(() => resolveSafeSshKeyPath("/etc/vibrail-secrets/key")).toThrow(
         /protected system directory \(\/etc\)/,
       );
     });
@@ -73,7 +73,7 @@ describe("resolveSafeSshKeyPath", () => {
     });
 
     it("rejects a null byte", () => {
-      expect(() => resolveSafeSshKeyPath("/var/lib/openship/ssh-keys/id\0")).toThrow(/null byte/);
+      expect(() => resolveSafeSshKeyPath("/var/lib/vibrail/ssh-keys/id\0")).toThrow(/null byte/);
     });
 
     it("rejects a relative path", () => {
@@ -81,7 +81,7 @@ describe("resolveSafeSshKeyPath", () => {
     });
 
     it("rejects a traversal segment", () => {
-      expect(() => resolveSafeSshKeyPath("/var/lib/openship/ssh-keys/../../../etc/shadow")).toThrow(
+      expect(() => resolveSafeSshKeyPath("/var/lib/vibrail/ssh-keys/../../../etc/shadow")).toThrow(
         /traversal segment/,
       );
     });
@@ -91,8 +91,8 @@ describe("resolveSafeSshKeyPath", () => {
     });
 
     it("trims surrounding whitespace", () => {
-      expect(resolveSafeSshKeyPath("  /var/lib/openship/ssh-keys/id_ed25519  ")).toBe(
-        "/var/lib/openship/ssh-keys/id_ed25519",
+      expect(resolveSafeSshKeyPath("  /var/lib/vibrail/ssh-keys/id_ed25519  ")).toBe(
+        "/var/lib/vibrail/ssh-keys/id_ed25519",
       );
     });
   });

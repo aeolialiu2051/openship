@@ -4,9 +4,9 @@
  * Team-mode migration wizard. Promotes a single_user instance into a
  * multi-user deployment via one of three paths:
  *
- *   - Server (A) — SSH-deploy openship onto the operator's own VPS.
+ *   - Server (A) — SSH-deploy vibrail onto the operator's own VPS.
  *                  Triggers /migration/preflight then /migration/start.
- *   - Cloud  (B) — push dump to api.openship.io. Triggers /start-cloud.
+ *   - Cloud  (B) — push dump to vibrail.warpgateapi.com. Triggers /start-cloud.
  *   - Tunnel (C) — keep data local, expose via Oblien edge tunnel.
  *                  Triggers /start-tunnel.
  *

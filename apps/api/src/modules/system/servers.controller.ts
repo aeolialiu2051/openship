@@ -384,7 +384,7 @@ export async function deleteServer(c: Context) {
   const existing = await repos.server.getInOrganization(id, ctx.organizationId);
   if (!existing) return c.json({ error: "Server not found" }, 404);
   // The auto-registered host ("This Server") is not user-removable — it IS the
-  // machine OpenShip runs on, and the boot reconcile would just recreate it.
+  // machine Vibrail runs on, and the boot reconcile would just recreate it.
   if (existing.isLocal) {
     return c.json({ error: "This is the current host and can't be removed." }, 400);
   }

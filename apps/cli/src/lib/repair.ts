@@ -1,12 +1,12 @@
 /**
- * Shared health-gathering + database-repair logic behind `openship doctor` and
- * the bare-`openship` control panel. Kept in one place so both entry points
+ * Shared health-gathering + database-repair logic behind `vibrail doctor` and
+ * the bare-`vibrail` control panel. Kept in one place so both entry points
  * present the same status readout and run the identical, well-tested repair
  * sequence.
  *
  * The repair itself lives here (not in the API) because a corrupt PGlite dir
  * crash-loops the API on boot — so recovery must run with the service STOPPED,
- * from this same-machine CLI, against ~/.openship/data directly. See lib/heal.ts.
+ * from this same-machine CLI, against ~/.vibrail/data directly. See lib/heal.ts.
  */
 
 import { spawnSync } from "node:child_process";
@@ -125,7 +125,7 @@ export function lastServiceError(): string | null {
 const CORRUPTION_RE = /aborted\(\)|malformed|corrupt|database disk image|locked/i;
 
 /** Heuristic: the box is installed but not running, and the log carries a
- *  DB-corruption signature — the case `openship doctor` exists to fix. */
+ *  DB-corruption signature — the case `vibrail doctor` exists to fix. */
 export function looksCorrupted(): boolean {
   const svc = serviceStatus();
   if (!svc.installed || svc.running) return false;
@@ -159,14 +159,14 @@ function mapState(dockerState: string): ServiceState {
   return "stopped"; // exited / created / paused
 }
 
-/** Live list of deployed-app containers (all openship deployments), via one
+/** Live list of deployed-app containers (all vibrail deployments), via one
  *  `docker ps`. Empty when docker isn't the runtime / isn't reachable. */
 export function dockerServices(): ServiceRow[] {
   if (!dockerAvailable()) return [];
-  const fmt = '{{.Names}}\t{{.State}}\t{{.Label "openship.project"}}';
+  const fmt = '{{.Names}}\t{{.State}}\t{{.Label "vibrail.project"}}';
   const r = spawnSync(
     "docker",
-    ["ps", "-a", "--filter", "label=openship.deployment", "--format", fmt],
+    ["ps", "-a", "--filter", "label=vibrail.deployment", "--format", fmt],
     { encoding: "utf8", timeout: 6000 },
   );
   if (r.status !== 0 || !r.stdout.trim()) return [];

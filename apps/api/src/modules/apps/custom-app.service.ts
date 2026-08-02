@@ -26,7 +26,7 @@ export async function saveCustomApp(ctx: RequestContext, raw: unknown): Promise<
   if (!decision.ok) {
     throw new ValidationError(
       decision.reason === "schema-too-new"
-        ? "This app targets a newer catalog schema than this Openship version supports."
+        ? "This app targets a newer catalog schema than this Vibrail version supports."
         : `Invalid app definition${decision.detail ? `: ${decision.detail}` : ""}.`,
     );
   }

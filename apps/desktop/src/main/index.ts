@@ -1,5 +1,5 @@
 /**
- * Openship Desktop - Electron main process.
+ * Vibrail Desktop - Electron main process.
  *
  * Flow:
  *   1. App starts → check if onboarding is complete
@@ -54,7 +54,7 @@ import { closeUpdateWindow, openUpdateWindow } from "./update-window";
  */
 
 interface AppConfig {
-  /** URL of the Openship API server */
+  /** URL of the Vibrail API server */
   apiUrl: string;
   /** URL of the dashboard */
   dashboardUrl: string;
@@ -175,7 +175,7 @@ async function pushInstanceSettings(
     });
   } catch (err) {
     // Log but don't block - settings can be pushed again later
-    console.error("[openship] Failed to push instance settings:", err);
+    console.error("[vibrail] Failed to push instance settings:", err);
   }
 }
 
@@ -231,7 +231,7 @@ function createWindow() {
     y: bounds?.y,
     minWidth: 800,
     minHeight: 560,
-    title: "Openship",
+    title: "Vibrail",
     // Seamless native frame (like VS Code / Spotify): no OS title-bar strip,
     // traffic lights inlaid top-left. The dashboard reserves top-left space +
     // a drag region for them (see the `is-desktop` handling in the web app).
@@ -316,7 +316,7 @@ const LOADING_HTML = `<!doctype html><html><head><meta charset="utf-8"><style>
   @keyframes spin{to{transform:rotate(360deg)}}
   p{font-size:14px;opacity:.55;margin:0}
 </style></head><body><div class="box">
-  <div class="spinner"></div><p>Starting Openship…</p>
+  <div class="spinner"></div><p>Starting Vibrail…</p>
 </div></body></html>`;
 
 function showLoading() {
@@ -327,11 +327,11 @@ function showLoading() {
 /**
  * First-run onboarding is OPT-IN — disabled by default, so the desktop app goes
  * straight to the dashboard (the instance is treated as already set up). Set
- * `OPENSHIP_ENABLE_ONBOARDING=1` (or `true`) to bring the onboarding wizard back.
+ * `VIBRAIL_ENABLE_ONBOARDING=1` (or `true`) to bring the onboarding wizard back.
  */
 const ONBOARDING_ENABLED =
-  process.env.OPENSHIP_ENABLE_ONBOARDING === "1" ||
-  process.env.OPENSHIP_ENABLE_ONBOARDING === "true";
+  process.env.VIBRAIL_ENABLE_ONBOARDING === "1" ||
+  process.env.VIBRAIL_ENABLE_ONBOARDING === "true";
 
 /** Decide the first real view once services are up: onboarding vs dashboard. */
 function routeInitialView() {
@@ -359,7 +359,7 @@ function loadDashboard() {
       store.set("onboardingComplete", false);
       loadOnboarding();
     } else {
-      console.error("[openship] Dashboard failed to load:", err);
+      console.error("[vibrail] Dashboard failed to load:", err);
     }
   });
 }
@@ -377,7 +377,7 @@ app.whenReady().then(async () => {
       await startLocalServices(internalToken);
     } catch (err) {
       dialog.showErrorBox(
-        "Openship failed to start",
+        "Vibrail failed to start",
         err instanceof Error ? err.message : String(err),
       );
       app.quit();
@@ -643,7 +643,7 @@ ipcMain.handle("onboarding:cloud-auth", async () => {
   // it redirects to login first, then back to authorize after auth.
   const callbackUrl = `${getLocalApiUrl()}/api/auth/cloud-callback`;
   const machine = hostname();
-  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Openship Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
+  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
   shell.openExternal(cloudAuthUrl);
 
   return { ok: true, cloudAuthUrl, nonce };
@@ -745,7 +745,7 @@ ipcMain.handle("cloud:connect", async () => {
 
   const callbackUrl = `${getLocalApiUrl()}/api/auth/cloud-callback`;
   const machine = hostname();
-  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Openship Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
+  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
   shell.openExternal(cloudAuthUrl);
 
   return { ok: true, cloudAuthUrl, nonce };

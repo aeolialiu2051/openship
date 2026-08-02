@@ -61,7 +61,7 @@ healthRoutes.get("/", (c) => {
 healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
   // authMode tells the dashboard which login flow to use:
   //   "none"   → zero-auth, auto-provisioned local user (desktop default)
-  //   "cloud"  → external auth on Openship Cloud
+  //   "cloud"  → external auth on Vibrail Cloud
   //   "local"  → local Better Auth (self-hosted server / SaaS)
   let authMode: string;
   // teamMode tells the dashboard whether this instance has been
@@ -87,7 +87,7 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
   } else {
     // Not desktop-only: zero-auth is valid for any DEPLOY_MODE (see
     // lib/auth-mode.ts). The operator opts in through the settings endpoint,
-    // which gates it behind OPENSHIP_ALLOW_ZERO_AUTH plus an explicit
+    // which gates it behind VIBRAIL_ALLOW_ZERO_AUTH plus an explicit
     // `confirm` string. Read the persisted value so this agrees with
     // getAuthMode() — hardcoding "local" told the dashboard to render a login
     // screen on an instance whose API requires no login.
@@ -108,7 +108,7 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     selfHosted: !env.CLOUD_MODE,
     userServers: USER_SERVERS_ENABLED,
     deployMode: env.DEPLOY_MODE,
-    // Server-host ("VPS") mode: OpenShip is installed ON a server (docker/bare
+    // Server-host ("VPS") mode: Vibrail is installed ON a server (docker/bare
     // self-host, not the desktop app, not cloud SaaS). In this mode the host is
     // itself a deployable target and is auto-registered as an isLocal server.
     isServerHost: !env.CLOUD_MODE && env.DEPLOY_MODE !== "desktop",
@@ -117,7 +117,7 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     teamMode,
     migrationTargetUrl,
     migrationInProgress,
-    // Both respect OPENSHIP_CLOUD_TARGET (cloudRuntimeTarget). The dashboard
+    // Both respect VIBRAIL_CLOUD_TARGET (cloudRuntimeTarget). The dashboard
     // must use these, not its static table, to reach the right cloud.
     cloudAuthUrl: cloudRuntimeTarget.dashboard,
     cloudApiUrl: cloudRuntimeTarget.api,

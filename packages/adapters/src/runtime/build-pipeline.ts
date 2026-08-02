@@ -84,7 +84,7 @@ export class BuildLogger {
  * exec API, docker exec) behind this interface.
  */
 export interface BuildEnvironment {
-  /** The working directory where the project is cloned (e.g. "/app", "/tmp/openship/proj-id") */
+  /** The working directory where the project is cloned (e.g. "/app", "/tmp/vibrail/proj-id") */
   readonly projectDir: string;
 
   /** When true, env vars are set at the container/workspace level - pipeline skips shell export prefix. */

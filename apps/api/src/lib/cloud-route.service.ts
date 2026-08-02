@@ -53,7 +53,7 @@ interface CloudHandle {
 /**
  * Resolve the org-scoped Oblien client + the active deployment's cloud handle.
  * Returns null (caller no-ops) when the project isn't cloud, has no active
- * deployment/container, or no org member has linked Openship Cloud.
+ * deployment/container, or no org member has linked Vibrail Cloud.
  */
 async function resolveCloudHandle(project: CloudRouteProject): Promise<CloudHandle | null> {
   if (!project.cloudWorkspaceId || !project.activeDeploymentId) return null;

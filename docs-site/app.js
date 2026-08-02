@@ -248,8 +248,8 @@ backups|get_backup_restores_by_restoreId|GET /api/backup-restores/:restoreId|rea
 backups|get_backup_runs_by_runId|GET /api/backup-runs/:runId|read|Get%20one%20backup%20run's%20details%2Fstatus.
 backups|get_projects_by_projectId_backup_policies|GET /api/projects/:projectId/backup-policies|read|List%20a%20project's%20backup%20policies%20(schedules%2Fretention).
 backups|get_projects_by_projectId_backup_runs|GET /api/projects/:projectId/backup-runs|read|List%20a%20project's%20backup%20runs%20(history%2C%20status).
-cloud-local|get_cloud_status|GET /api/cloud/status|read|Openship%20Cloud%20connection%20status%20for%20this%20instance.
-cloud-local|get_cloud_workspaces|GET /api/cloud/workspaces|read|List%20the%20org's%20Openship%20Cloud%20(Oblien)%20workspaces.
+cloud-local|get_cloud_status|GET /api/cloud/status|read|Vibrail%20Cloud%20connection%20status%20for%20this%20instance.
+cloud-local|get_cloud_workspaces|GET /api/cloud/workspaces|read|List%20the%20org's%20Vibrail%20Cloud%20(Oblien)%20workspaces.
 deployments|get_deployments|GET /api/deployments|read|List%20deployments%20in%20the%20org%20(optionally%20filter%20with%20query.projectId).
 deployments|post_deployments|POST /api/deployments|write|Git-based%20deploy%20%E2%80%94%20redeploy%20an%20already-linked%20project%20from%20its%20git%20source.%20To%20deploy%20a%20LOCAL%20FOLDER%20instead%2C%20use%20the%20folder-upload%20flow%3A%20projects%20folder%2Fsession%20%E2%86%92%20(upload)%20%E2%86%92%20folder%2Fscan%20%E2%86%92%20projects%2Fensure%20%E2%86%92%20deployments%2Fbuild%2Faccess.
 deployments|get_deployments_by_id|GET /api/deployments/:id|read|Get%20a%20deployment%20by%20id%20%E2%80%94%20status%2C%20urls%2C%20timing%2C%20error%20summary.
@@ -373,7 +373,7 @@ settings|patch_settings_transfer|PATCH /api/settings/transfer|write|Set%20the%20
 settings|get_settings_webhook_deliveries|GET /api/settings/webhook-deliveries|read|List%20the%20org's%20webhook%20delivery%20feed%2C%20including%20pushes%20forwarded%20to%20Cloud%20or%20from%20unmanaged%20repos%20(paginated).
 system|get_system_servers|GET /api/system/servers|read|List%20the%20current%20organization's%20servers%20so%20a%20server%20id%20can%20be%20selected%20for%20inspection.
 system|get_system_servers_by_id|GET /api/system/servers/:id|read|Get%20one%20server's%20non-secret%20connection%20details.
-system|get_system_servers_by_id_docker_overview|GET /api/system/servers/:id/docker/overview|read|Inspect%20a%20server%20and%20its%20live%20Docker%20workloads.%20Returns%20the%20server%20summary%2C%20running%20Openship%20projects%20correlated%20from%20trusted%20project%20records%2C%20all%20Docker%20containers%20with%20state%2Fhealth%2Fresource%20metrics%2C%20and%20aggregate%20counts.
+system|get_system_servers_by_id_docker_overview|GET /api/system/servers/:id/docker/overview|read|Inspect%20a%20server%20and%20its%20live%20Docker%20workloads.%20Returns%20the%20server%20summary%2C%20running%20Vibrail%20projects%20correlated%20from%20trusted%20project%20records%2C%20all%20Docker%20containers%20with%20state%2Fhealth%2Fresource%20metrics%2C%20and%20aggregate%20counts.
 updates|get_updates|GET /api/updates|read|List%20update%20statuses%20for%20the%20org%20(apps%2C%20projects%2C%20self-app%2C%20webmail).%20%3Fbehind%3D1%20filters%20to%20those%20with%20an%20update%20available.
 updates|post_updates_by_projectId_apply|POST /api/updates/:projectId/apply|write|Apply%20the%20available%20update%20to%20a%20project%2Fapp%20(force-pulls%20image%20tags%2C%20redeploys%2C%20pre-deploy%20backup).
 updates|post_updates_scan|POST /api/updates/scan|write|Trigger%20a%20fresh%20update%20scan%20across%20the%20org's%20projects%2Fapps.

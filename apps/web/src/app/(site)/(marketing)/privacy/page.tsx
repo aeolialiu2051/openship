@@ -3,21 +3,21 @@ import { Navbar, Footer } from "@/components/landing";
 
 const PAGE_TITLE = "Privacy Policy";
 const PAGE_DESCRIPTION =
-  "How Openship handles your data. What we collect, why, where it lives, how to remove it. We do not sell personal data and we do not show ads.";
+  "How Vibrail handles your data. What we collect, why, where it lives, how to remove it. We do not sell personal data and we do not show ads.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/privacy" },
   openGraph: {
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
     url: "/privacy",
     type: "article",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
   },
 };
@@ -27,7 +27,7 @@ const SECTIONS = [
     id: "overview",
     title: "Overview",
     body: [
-      "Openship is a deployment platform. We host code, secrets, and infrastructure on your behalf when you use Openship Cloud. When you self-host, everything stays on your own machines and this policy applies only to the parts of our service you interact with (account, billing, support).",
+      "Vibrail is a deployment platform. We host code, secrets, and infrastructure on your behalf when you use Vibrail Cloud. When you self-host, everything stays on your own machines and this policy applies only to the parts of our service you interact with (account, billing, support).",
       "This policy describes what we collect, why, where it lives, and how to remove it. We do not sell personal data. We do not show ads.",
     ],
   },
@@ -80,7 +80,7 @@ const SECTIONS = [
       "Access - request an export of everything we have about you, in machine-readable form.",
       "Deletion - delete your account at any time; we erase identifying data within 30 days and retain only what's required by tax law.",
       "Portability - every deployment is a plain container image and a standard manifest. You can leave Cloud and re-run on your own servers without rewriting anything.",
-      "Contact privacy@openship.io for any of the above. We respond within 5 business days.",
+      "Contact privacy@vibrail.warpgateapi.com for any of the above. We respond within 5 business days.",
     ],
   },
   {
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
             <p className="legal-meta">
               Last updated <time dateTime="2026-05-18">May&nbsp;18, 2026</time>
               <span className="legal-meta-sep">·</span>
-              <a href="https://github.com/oblien/openship/commits/main/PRIVACY.md" className="legal-meta-link" target="_blank" rel="noreferrer">
+              <a href="https://github.com/aeolialiu2051/vibrail/commits/main/PRIVACY.md" className="legal-meta-link" target="_blank" rel="noreferrer">
                 Version history on GitHub
               </a>
             </p>
@@ -150,7 +150,7 @@ export default function PrivacyPage() {
                 <footer className="legal-foot">
                   <p>
                     Questions or requests? Email{" "}
-                    <a href="mailto:privacy@openship.io">privacy@openship.io</a>.
+                    <a href="mailto:privacy@vibrail.warpgateapi.com">privacy@vibrail.warpgateapi.com</a>.
                   </p>
                 </footer>
               </article>

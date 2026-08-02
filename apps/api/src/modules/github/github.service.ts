@@ -46,9 +46,9 @@ const MAX_FALLBACK_TREE_ENTRIES = 5000;
 export const WEBHOOK_SECRET_BYTES = 32;
 
 /**
- * OAuth scopes that strictly exceed Openship's needs and should warn a
+ * OAuth scopes that strictly exceed Vibrail's needs and should warn a
  * user when present on a saved PAT. These are the broad, account- or
- * org-administrative scopes; possessing them does not break Openship,
+ * org-administrative scopes; possessing them does not break Vibrail,
  * but the dashboard's PAT save handler should surface a clear warning
  * so the user understands they handed us more access than necessary.
  *
@@ -325,7 +325,7 @@ export async function createRepository(
     owner: opts.owner,
     params: {
       name,
-      description: opts.description ?? `Repository created by Openship`,
+      description: opts.description ?? `Repository created by Vibrail`,
       private: opts.private ?? false,
     },
   });
@@ -794,7 +794,7 @@ export function getWebhookStrategy(): WebhookStrategy {
   if (getGitHubAuthMode() === "app") return "app";
 
   // For non-app modes, check if the URL is publicly reachable. Uses the
-  // resolved PUBLIC url (OPENSHIP_PUBLIC_URL via the same-origin proxy) so a
+  // resolved PUBLIC url (VIBRAIL_PUBLIC_URL via the same-origin proxy) so a
   // `--public-url` VPS gets "repo" instead of "none" — the localhost fallback
   // is only hit when no public URL is configured.
   const url = resolveApiPublicUrl();
@@ -1130,7 +1130,7 @@ export async function rotateProjectWebhookSecret(
 
   const fresh = mintWebhookSecret();
   // Preserve the hook's delivery URL for its strategy — a domain-strategy hook
-  // must keep pointing at the project's `/_openship/hooks/` vhook, NOT get
+  // must keep pointing at the project's `/_vibrail/hooks/` vhook, NOT get
   // rewritten to the shared endpoint (which previously broke delivery on rotate).
   const webhookUrl = project.webhookDomain
     ? domainWebhookUrl(project.webhookDomain)

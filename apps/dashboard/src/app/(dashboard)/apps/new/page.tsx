@@ -23,7 +23,7 @@ import DropdownMenu from "@/components/ui/DropdownMenu";
 // present in the catalog are shown.
 const CATEGORY_ORDER = ["backend", "database", "cms", "analytics", "automation", "mail", "other"] as const;
 
-/** Not installable right now: coming-soon OR needs a newer Openship. */
+/** Not installable right now: coming-soon OR needs a newer Vibrail. */
 const isLocked = (a: AppCatalogEntry) => !!a.comingSoon || !!a.requiresUpdate;
 
 export default function NewAppPage() {
@@ -71,7 +71,7 @@ export default function NewAppPage() {
         return `${a.name} ${a.description} ${(a.tags ?? []).join(" ")}`.toLowerCase().includes(q);
       })
       // Installable apps lead (grouped up front); locked ones (coming-soon or
-      // needs-newer-Openship) after — a stable sort keeps order within a group.
+      // needs-newer-Vibrail) after — a stable sort keeps order within a group.
       .sort((a, b) => Number(isLocked(a)) - Number(isLocked(b)));
   }, [catalog, category, query]);
 
@@ -151,7 +151,7 @@ export default function NewAppPage() {
                 icon: <BookOpen className="size-4" />,
                 onClick: () =>
                   window.open(
-                    "https://github.com/oblien/openship/tree/main/packages/core/src/apps",
+                    "https://github.com/aeolialiu2051/vibrail/tree/main/packages/core/src/apps",
                     "_blank",
                     "noopener,noreferrer",
                   ),
@@ -161,7 +161,7 @@ export default function NewAppPage() {
                 label: ap.support,
                 icon: <LifeBuoy className="size-4" />,
                 onClick: () =>
-                  window.open("https://github.com/oblien/openship/issues", "_blank", "noopener,noreferrer"),
+                  window.open("https://github.com/aeolialiu2051/vibrail/issues", "_blank", "noopener,noreferrer"),
               },
             ]}
           />

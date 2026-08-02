@@ -55,7 +55,7 @@ async function runDesktopCloudAuth(
 
   setStatus({
     title: labels.completingSignIn,
-    message: labels.returningToOpenship,
+    message: labels.returningToVibrail,
   });
   return { ok: true };
 }

@@ -1,19 +1,19 @@
 /**
- * Shared helpers for pulling release assets from the openship GitHub releases —
- * used by `openship install` (desktop app) and `openship up` (dashboard bundle).
+ * Shared helpers for pulling release assets from the vibrail GitHub releases —
+ * used by `vibrail install` (desktop app) and `vibrail up` (dashboard bundle).
  * All assets are published by .github/workflows/release.yml with a `.sha256`
  * sidecar; callers verify downloads against it.
  */
 import { parseSha256 } from "./cache";
 
-export const REPO = "oblien/openship";
+export const REPO = "aeolialiu2051/vibrail";
 export const RELEASES = `https://github.com/${REPO}/releases`;
 const LATEST_API = `https://api.github.com/repos/${REPO}/releases/latest`;
 
 /** Resolve the newest published release tag (e.g. "v0.1.9"). */
 export async function resolveLatestTag(): Promise<string> {
   const res = await fetch(LATEST_API, {
-    headers: { Accept: "application/vnd.github+json", "User-Agent": "openship-cli" },
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "vibrail-cli" },
     signal: AbortSignal.timeout(10_000),
   });
   if (!res.ok) throw new Error(`GitHub latest-release lookup failed: HTTP ${res.status}`);
@@ -30,7 +30,7 @@ export function assetUrl(tag: string, name: string): string {
 /** Fetch a `.sha256` sidecar body, or null on 404 (asset published without one). */
 export async function fetchSidecar(url: string): Promise<string | null> {
   const res = await fetch(url, {
-    headers: { "User-Agent": "openship-cli" },
+    headers: { "User-Agent": "vibrail-cli" },
     signal: AbortSignal.timeout(15_000),
   });
   if (res.status === 404) return null;

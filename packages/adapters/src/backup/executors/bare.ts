@@ -152,9 +152,9 @@ export class BareBackupExecutor implements BackupExecutor {
   ): Promise<ExecExitInfo> {
     const exec = this.executor();
     const id = randomBytes(6).toString("hex");
-    const localDir = join(tmpdir(), `openship-bare-restore-${id}`);
+    const localDir = join(tmpdir(), `vibrail-bare-restore-${id}`);
     const localFile = join(localDir, "artifact.bin");
-    const remoteDir = `/tmp/openship-bare-restore-${id}`;
+    const remoteDir = `/tmp/vibrail-bare-restore-${id}`;
     const remoteFile = `${remoteDir}/artifact.bin`;
 
     await fs.mkdir(localDir, { recursive: true });

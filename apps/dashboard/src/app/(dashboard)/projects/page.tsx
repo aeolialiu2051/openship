@@ -183,7 +183,7 @@ export default function ProjectsPage() {
                       </button>
                     ) : (
                       <a
-                        href="https://openship.io/download"
+                        href="https://vibrail.warpgateapi.com/download"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-muted/50 text-foreground text-[13px] font-medium transition-colors hover:bg-muted"

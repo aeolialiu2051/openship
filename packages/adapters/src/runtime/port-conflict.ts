@@ -180,7 +180,7 @@ export async function ensurePortAvailable(
   logger.log(`Port ${port} is occupied by ${occupant.command}. Waiting for user decision...\n`, "warn");
 
   const freeActionLabel = occupant.isManagedDeployment
-    ? "Stop Openship Deployment & Continue"
+    ? "Stop Vibrail Deployment & Continue"
     : occupant.systemdUnit
       ? "Stop Service & Continue"
       : "Free Port & Continue";

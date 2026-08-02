@@ -27,9 +27,9 @@ export interface DiscoveredService {
   command?: string;
   restart?: string;
   /** Set when this container IS the edge proxy (80/443) — dropped from import;
-   *  Openship's Traefik replaces it. */
+   *  Vibrail's Traefik replaces it. */
   proxyKind?: "nginx" | "caddy" | "apache" | "traefik" | "haproxy" | "traefik";
-  /** Host edge ports (80/443) it publishes — reserved for Openship's edge. */
+  /** Host edge ports (80/443) it publishes — reserved for Vibrail's edge. */
   edgePorts?: number[];
   /** Routes the server's existing (foreign) reverse proxy already serves for this
    *  container, matched by published host port. ONE ENTRY PER (port,path): a
@@ -64,8 +64,8 @@ export interface DiscoveredGroup {
   services: DiscoveredService[];
 }
 
-/** An Openship project recovered from the server (see api docker-reconcile.ts). */
-export interface OpenshipProjectGroup {
+/** A Vibrail project recovered from the server (see api docker-reconcile.ts). */
+export interface VibrailProjectGroup {
   projectId: string;
   suggestedName: string;
   slug?: string;
@@ -98,8 +98,8 @@ export interface DiscoveredStack {
   adoptable: boolean;
   /** Live containers already managed by a project in this instance's DB (count). */
   alreadyManaged: number;
-  /** Openship projects found on the server; `knownHere: false` are re-importable. */
-  openshipProjects: OpenshipProjectGroup[];
+  /** Vibrail projects found on the server; `knownHere: false` are re-importable. */
+  vibrailProjects: VibrailProjectGroup[];
   /** Every route the foreign proxy serves, flattened (one per port+path) — for
    *  the route review. Unmatched ones (no adopted service on that port) also
    *  appear in `warnings`. */
@@ -178,7 +178,7 @@ export interface MigrationPreview {
   volumesToMove: string[];
   hasBlocked: boolean;
   downtimeWarning: boolean;
-  /** Reverse proxies that won't be imported (Openship's edge replaces them). */
+  /** Reverse proxies that won't be imported (Vibrail's edge replaces them). */
   droppedProxies: string[];
   warnings: string[];
   /** Cross-server transfer plan (payload sizes). Absent for same-server.
@@ -272,7 +272,7 @@ export const dockerMigrationApi = {
   /** Read-only: inspect a server's Docker and return the adoptable stack.
    *  SSH connect + `docker inspect` across every container easily exceeds the
    *  client's 15s default (esp. through the same-origin proxy's extra hop under
-   *  `openship up`), so give it real headroom like checkServer does. */
+   *  `vibrail up`), so give it real headroom like checkServer does. */
   scan: (serverId: string, opts: { flatDocker?: boolean } = {}) =>
     api.post<{ success: boolean; stack: DiscoveredStack }>(
       endpoints.dockerMigration.scan,
@@ -371,11 +371,11 @@ export const dockerMigrationApi = {
       })();
     }),
 
-  /** Create an Openship project from the selected discovered services (records only). */
+  /** Create a Vibrail project from the selected discovered services (records only). */
   adopt: (input: { serverId: string; projectName: string; serviceNames: string[] }) =>
     api.post<AdoptResult>(endpoints.dockerMigration.adopt, input),
 
-  /** Re-import an orphaned Openship project (DR / cross-instance), preserving its id.
+  /** Re-import an orphaned Vibrail project (DR / cross-instance), preserving its id.
    *  Records only — the user redeploys from the project to finalize live state. */
   reimport: (input: {
     serverId: string;
@@ -447,7 +447,7 @@ export const dockerMigrationApi = {
     >;
     /** serviceName → target-volume conflict resolution (override/clone/keep). */
     conflictResolution?: Record<string, ConflictAction>;
-    /** Adopt Openship-managed containers too (raw Docker) — must match the scan. */
+    /** Adopt Vibrail-managed containers too (raw Docker) — must match the scan. */
     flatDocker?: boolean;
   }) =>
     api.post<{ success: boolean; migrationId: string; confirmationToken: string }>(

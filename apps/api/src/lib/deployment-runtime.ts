@@ -33,14 +33,14 @@ export interface DeploymentMeta {
   serverId?: string;
   /**
    * Adopt an already-running, externally-supervised process instead of building
-   * + starting one. Set for the self-deployed control plane (the "openship"
+   * + starting one. Set for the self-deployed control plane (the "vibrail"
    * self-app): the deployment is real (row + activeDeploymentId + routes/SSL via
    * the normal pipeline) but the bare runtime never starts a unit. Inert for
    * `resolveEffectiveTarget`; only the runtime's deploy step reads it (via the
    * `adopt` flag threaded onto DeployConfig).
    */
   adopt?: boolean;
-  /** Internal-only discriminator for the Openship self-app's adopted host
+  /** Internal-only discriminator for the Vibrail self-app's adopted host
    * process. Generic adopt/migration deployments must remain Docker workloads. */
   controlPlaneAdopt?: boolean;
   /**
@@ -194,7 +194,7 @@ export function resolveEffectiveTarget(
     // UI chose "server" target but serverId may be missing → still route to SSH
     if (snapshot.deployTarget === "server") return "server";
     // Local-orchestrated cloud deploy: build on THIS host, upload the output to
-    // an Openship Cloud workspace, and run it there — the project stays
+    // a Vibrail Cloud workspace, and run it there — the project stays
     // local-canonical (no promote/transfer). This is the ONLY combo that keeps
     // the cloud target on a self-hosted box; a server-build cloud deploy is
     // promoted to the SaaS earlier (deployment.controller) and never reaches here.
@@ -218,7 +218,7 @@ export function usesManagedRouting(base: Platform["target"], effectiveTarget: De
  * Resolve a cloud-target Platform using ANY cloud-linked org member's
  * token. The deployment doesn't carry a user_id anymore — its
  * `organization_id` is the source of truth. We pick whichever member
- * has linked their Openship Cloud account and use their token to mint
+ * has linked their Vibrail Cloud account and use their token to mint
  * cloud requests on behalf of the org.
  */
 async function resolveCloudPlatformForOrg(organizationId?: string): Promise<Platform> {
@@ -235,8 +235,8 @@ async function resolveCloudPlatformForOrg(organizationId?: string): Promise<Plat
     const linkedUserId = await resolveOrgCloudUserId(organizationId).catch(() => null);
     throw new Error(
       linkedUserId
-        ? "Openship Cloud is unreachable right now — couldn't validate the linked session. Check the connection in Settings and try again."
-        : "No member of this organization has linked Openship Cloud. Connect via Settings.",
+        ? "Vibrail Cloud is unreachable right now — couldn't validate the linked session. Check the connection in Settings and try again."
+        : "No member of this organization has linked Vibrail Cloud. Connect via Settings.",
     );
   }
 
@@ -376,7 +376,7 @@ export async function resolveTargetPlatform(
       organizationId,
     );
 
-    // The auto-registered "This Server" row IS the OpenShip host (VPS /
+    // The auto-registered "This Server" row IS the Vibrail host (VPS /
     // server-host mode): local host executor, host docker socket (DooD),
     // everything on-box.
     if (isLocal) {
@@ -415,7 +415,7 @@ export async function resolveTargetPlatform(
 
 /**
  * Build a DockerRuntime pointed at an org server's Docker daemon over SSH, for
- * READ-ONLY inspection (migrating an existing Docker deployment into Openship).
+ * READ-ONLY inspection (migrating an existing Docker deployment into Vibrail).
  *
  * Unlike `resolveTargetPlatform`, this skips routing/ssl/system managers and the
  * provision lock — inspection never provisions. The dockerode calls multiplex

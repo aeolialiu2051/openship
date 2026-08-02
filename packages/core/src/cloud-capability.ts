@@ -1,5 +1,5 @@
 /**
- * Single source of truth for "this action requires an Openship Cloud connection".
+ * Single source of truth for "this action requires a Vibrail Cloud connection".
  *
  * A capability names one cloud-requiring action. Everything else keys off this:
  * the API's `requireCloud(capability)` guard + typed error, the dashboard's
@@ -65,7 +65,7 @@ export function parseCloudRequiredCode(code: string | null | undefined): CloudCa
 }
 
 // ─── The ONE needs-cloud predicate ───────────────────────────────────────────
-// A managed/free domain (`domainType !== "custom"`) routes through the Openship
+// A managed/free domain (`domainType !== "custom"`) routes through the Vibrail
 // Cloud edge, so it needs a cloud connection; a custom domain works self-hosted.
 // This is the single definition every gate (client + server) shares.
 

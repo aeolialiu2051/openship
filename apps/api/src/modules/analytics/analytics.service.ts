@@ -2,7 +2,7 @@
  * Analytics service - request analytics, resource usage, and deployment stats.
  *
  * Source selection is deployment-mode aware:
- *   - SaaS / OpenShip Cloud: Oblien analytics is the source of truth
+ *   - SaaS / Vibrail Cloud: Oblien analytics is the source of truth
  *   - Self-hosted: Traefik JSON access logs are parsed and aggregated directly
  */
 
@@ -149,7 +149,7 @@ function assertCloudTimeseriesOk(raw: unknown): void {
         (typeof obj.error === "string" && obj.error) ||
         (typeof obj.message === "string" && obj.message) ||
         "request rejected";
-      throw new Error(`Openship Cloud analytics: ${detail}`);
+      throw new Error(`Vibrail Cloud analytics: ${detail}`);
     }
     if (Array.isArray(obj.data)) return; // reached the bucket array — done
     node = obj.data ?? obj.result;
@@ -368,7 +368,7 @@ export async function getAnalyticsOverview(
     if (ok.length === 0) {
       const reason = settled.find((r) => r.status === "rejected") as PromiseRejectedResult | undefined;
       throw new AppError(
-        `Analytics upstream (Openship Cloud) is unavailable${reason ? `: ${safeErrorMessage(reason.reason)}` : ""}`,
+        `Analytics upstream (Vibrail Cloud) is unavailable${reason ? `: ${safeErrorMessage(reason.reason)}` : ""}`,
         502,
         "ANALYTICS_UPSTREAM_UNAVAILABLE",
       );

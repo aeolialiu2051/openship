@@ -2,7 +2,7 @@
  * Headless instance provisioning — the non-interactive counterpart to the
  * `@clack` install wizard (commands/wizard.ts). Turns install flags into the
  * exact loopback API calls the wizard makes (bootstrap-admin + self-register),
- * so `openship up --non-interactive …` provisions a box end-to-end without a TTY.
+ * so `vibrail up --non-interactive …` provisions a box end-to-end without a TTY.
  *
  * The loopback API is internal-token-gated; the caller passes the token
  * (from `ensureInternalToken()`) so this module has no dependency on the `up`
@@ -63,12 +63,12 @@ export interface InstallFlags {
 /**
  * Resolve headless install inputs from flags/env. Throws HeadlessInputError with
  * a precise message on anything missing/invalid — never silently defaults a
- * credential. Admin password falls back to OPENSHIP_ADMIN_PASSWORD so it stays
+ * credential. Admin password falls back to VIBRAIL_ADMIN_PASSWORD so it stays
  * out of argv/shell history.
  */
 export function resolveInstallInputs(flags: InstallFlags): InstallInputs {
   const email = flags.adminEmail?.trim();
-  const password = flags.adminPassword ?? process.env.OPENSHIP_ADMIN_PASSWORD;
+  const password = flags.adminPassword ?? process.env.VIBRAIL_ADMIN_PASSWORD;
   const name = flags.adminName?.trim() || (email ? email.split("@")[0]! : "");
 
   if (!email || !EMAIL_RE.test(email)) {
@@ -76,7 +76,7 @@ export function resolveInstallInputs(flags: InstallFlags): InstallInputs {
   }
   if (!password || password.length < 8) {
     throw new HeadlessInputError(
-      "Missing --admin-password (or OPENSHIP_ADMIN_PASSWORD env), min 8 chars, for a non-interactive install.",
+      "Missing --admin-password (or VIBRAIL_ADMIN_PASSWORD env), min 8 chars, for a non-interactive install.",
     );
   }
   const admin = { name: name || "Admin", email, password };
@@ -142,7 +142,7 @@ export async function headlessProvision(opts: {
   dashPort?: string;
   inputs: InstallInputs;
   /** Internal token for the loopback calls. Bare install → omit (falls back to
-   *  the ~/.openship token file); Compose install → the stack's compose/.env
+   *  the ~/.vibrail token file); Compose install → the stack's compose/.env
    *  token (composeInternalToken). */
   token?: string;
   /** Install method. Informational; provisioning calls are identical. */
@@ -155,7 +155,7 @@ export async function headlessProvision(opts: {
 
   log("Waiting for the API to become healthy…");
   if (!(await waitHealthy(port))) {
-    throw new HeadlessInputError("The API did not become healthy in time — check `openship logs`.");
+    throw new HeadlessInputError("The API did not become healthy in time — check `vibrail logs`.");
   }
 
   log("Creating the admin account…");
@@ -195,7 +195,7 @@ export async function headlessProvision(opts: {
     if (!res.ok) {
       warnings.push(
         `Free .vibrail.warpgateapi.com domain not registered: ${res.data?.error || "failed"}. ` +
-          `A free domain needs the box connected to Openship Cloud first — connect it, or use --domain-kind byo.`,
+          `A free domain needs the box connected to Vibrail Cloud first — connect it, or use --domain-kind byo.`,
       );
     }
   }

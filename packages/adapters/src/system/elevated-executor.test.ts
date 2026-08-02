@@ -82,7 +82,7 @@ describe("elevatedExecutor", () => {
 
     // 1. staged into a user-writable temp (unelevated write)
     const staged = writeFile.mock.calls[0]!;
-    expect(String(staged[0])).toMatch(/^\/tmp\/\.openship-elev-/);
+    expect(String(staged[0])).toMatch(/^\/tmp\/\.vibrail-elev-/);
     expect(staged[1]).toBe("worker_processes 1;");
 
     // 2. moved into place via a single elevated command

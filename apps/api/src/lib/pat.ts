@@ -5,10 +5,11 @@ import { createHash, randomBytes } from "node:crypto";
  * PAT is minted, displayed, and hashed. Shared by the auth middleware (verify)
  * and the tokens controller (create).
  *
- * Format: `opsh_pat_<43-char base64url secret>` (256 bits of entropy). Only the
+ * Format: `vibrail_pat_<43-char base64url secret>` (256 bits of entropy). Only the
  * SHA-256 hash is persisted; the plaintext is shown to the user once.
  */
-export const PAT_PREFIX = "opsh_pat_";
+export const PAT_PREFIX = "vibrail_pat_";
+export const LEGACY_PAT_PREFIX = "opsh_pat_";
 
 /** SHA-256 hex of the full token — the DB lookup key. */
 export function hashPatToken(token: string): string {

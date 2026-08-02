@@ -41,7 +41,7 @@ import {
 } from "@repo/adapters";
 import { decryptEnvMap, encrypt } from "../../../lib/encryption";
 import { resolveServerHost } from "../../../lib/server-target";
-import { resolveRootExecutor } from "../../../lib/openship-server-store";
+import { resolveRootExecutor } from "../../../lib/vibrail-server-store";
 import { containerIdForService } from "../../services/service-container";
 import { isConnectionLoss } from "../../../lib/remote-state";
 import {
@@ -186,13 +186,13 @@ function hostPublishedPorts(service: Service): number[] {
 /**
  * Persistent on-host root for app template config files bind-mounted into
  * service containers (Kong's `kong.yml`, Postgres init `.sql`). Sibling of the
- * other openship host state (`/var/lib/openship/ssh-keys`); overridable for
- * hosts that keep openship state elsewhere. Files land at
+ * other vibrail host state (`/var/lib/vibrail/ssh-keys`); overridable for
+ * hosts that keep vibrail state elsewhere. Files land at
  * `<root>/<projectId>/<service>/<container-path>` — the executor creates parent
  * dirs — and the container-absolute path is appended verbatim so binds are
  * unique and self-describing.
  */
-const APP_CONFIG_HOST_ROOT = process.env.OPENSHIP_APP_CONFIG_DIR || "/var/lib/openship/app-config";
+const APP_CONFIG_HOST_ROOT = process.env.VIBRAIL_APP_CONFIG_DIR || "/var/lib/vibrail/app-config";
 
 function appConfigHostPath(projectId: string, serviceName: string, containerPath: string): string {
   const safeSvc = serviceName.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -1281,7 +1281,7 @@ export async function deployComposeServices(
       // Sync the managed edge proxy for EACH free .vibrail.warpgateapi.com route (a multi-port
       // service has several). Best-effort: the container is already running and
       // any custom domain is routed locally; the edge proxy only wires up the
-      // free URL via Openship Cloud, so a failure here (403, slug taken,
+      // free URL via Vibrail Cloud, so a failure here (403, slug taken,
       // unreachable) must not flip a healthy service to "failed".
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);
       if (

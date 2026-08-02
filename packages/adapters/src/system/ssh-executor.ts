@@ -688,10 +688,10 @@ export class SshExecutor implements CommandExecutor {
       includes: options?.includes,
       alsoInclude: options?.alsoInclude,
     });
-    const tmpLocalDir = await mkdtemp(join(tmpdir(), "openship-xfer-"));
+    const tmpLocalDir = await mkdtemp(join(tmpdir(), "vibrail-xfer-"));
     const localArchive = join(tmpLocalDir, "context.tar.gz");
     // Sibling of the destination dir so it lands on the same filesystem.
-    const remoteArchive = `${remotePath}.openship-xfer.tar.gz`;
+    const remoteArchive = `${remotePath}.vibrail-xfer.tar.gz`;
 
     try {
       onLog?.(logEntry("Packing source into a single archive..."));

@@ -23,9 +23,9 @@ import {
 import { usePlatform } from "@/context/PlatformContext";
 import { getRestApiBaseUrl } from "@/lib/api/urls";
 
-const LS_MUTED = "openship_update_muted";
-const LS_DISMISSED = "openship_dismissed_advisories";
-const LS_LAST_SEEN = "openship_last_seen_version";
+const LS_MUTED = "vibrail_update_muted";
+const LS_DISMISSED = "vibrail_dismissed_advisories";
+const LS_LAST_SEEN = "vibrail_last_seen_version";
 
 function isDesktop(): boolean {
   return typeof window !== "undefined" && !!window.desktop?.isDesktop;

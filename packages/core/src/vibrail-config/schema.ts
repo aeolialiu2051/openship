@@ -1,10 +1,10 @@
 /**
- * `openship.json` — the native, declarative deploy config (à la vercel.json /
- * railway.toml). A repo-root file that tells Openship how to build, run, route,
+ * `vibrail.json` — the native, declarative deploy config (à la vercel.json /
+ * railway.toml). A repo-root file that tells Vibrail how to build, run, route,
  * and scale a project, covering the deploy wizard's options. It's an
  * AUTHORITATIVE OVERLAY: auto-detection runs first, then each field present here
  * overrides it (absent fields keep the detected value). It seeds the wizard and
- * is authoritative for headless deploys (auto-deploy on push, `openship deploy`).
+ * is authoritative for headless deploys (auto-deploy on push, `vibrail deploy`).
  *
  * This is the typed shape. `parse.ts` validates/coerces raw JSON into it; the
  * published JSON Schema (for editor autocomplete) is generated from the same
@@ -16,26 +16,26 @@ import type { StackId } from "../stacks";
 import type { RoutingConfig } from "../metadata/types";
 
 /** User workloads deployed to a server always run in Docker. */
-export type OpenshipRuntime = "docker";
-export type OpenshipProductionMode = "host" | "static" | "standalone";
-export type OpenshipDomainType = "free" | "custom";
-export type OpenshipRestart = "no" | "always" | "on-failure" | "unless-stopped";
-export type OpenshipResourceTier = "micro" | "low" | "medium" | "high";
+export type VibrailRuntime = "docker";
+export type VibrailProductionMode = "host" | "static" | "standalone";
+export type VibrailDomainType = "free" | "custom";
+export type VibrailRestart = "no" | "always" | "on-failure" | "unless-stopped";
+export type VibrailResourceTier = "micro" | "low" | "medium" | "high";
 
-export const OPENSHIP_RUNTIMES: readonly OpenshipRuntime[] = ["docker"];
-export const OPENSHIP_PRODUCTION_MODES: readonly OpenshipProductionMode[] = [
+export const VIBRAIL_RUNTIMES: readonly VibrailRuntime[] = ["docker"];
+export const VIBRAIL_PRODUCTION_MODES: readonly VibrailProductionMode[] = [
   "host",
   "static",
   "standalone",
 ];
-export const OPENSHIP_DOMAIN_TYPES: readonly OpenshipDomainType[] = ["free", "custom"];
-export const OPENSHIP_RESTARTS: readonly OpenshipRestart[] = [
+export const VIBRAIL_DOMAIN_TYPES: readonly VibrailDomainType[] = ["free", "custom"];
+export const VIBRAIL_RESTARTS: readonly VibrailRestart[] = [
   "no",
   "always",
   "on-failure",
   "unless-stopped",
 ];
-export const OPENSHIP_RESOURCE_TIERS: readonly OpenshipResourceTier[] = [
+export const VIBRAIL_RESOURCE_TIERS: readonly VibrailResourceTier[] = [
   "micro",
   "low",
   "medium",
@@ -43,20 +43,20 @@ export const OPENSHIP_RESOURCE_TIERS: readonly OpenshipResourceTier[] = [
 ];
 
 /** Env value: a plain string, or `{ value, secret }` to encrypt it at rest. */
-export type OpenshipEnvValue = { value: string; secret?: boolean };
-export type OpenshipEnv = Record<string, string | OpenshipEnvValue>;
+export type VibrailEnvValue = { value: string; secret?: boolean };
+export type VibrailEnv = Record<string, string | VibrailEnvValue>;
 
-export interface OpenshipDomain {
+export interface VibrailDomain {
   /** Hostname. A `.vibrail.warpgateapi.com`-style label = a free subdomain; anything with a dot = custom. */
   domain: string;
   /** Which service/exposed port this hostname routes to (defaults to the app port). */
   port?: number;
   /** Path prefix on the target (defaults to "/"). */
   targetPath?: string;
-  type?: OpenshipDomainType;
+  type?: VibrailDomainType;
 }
 
-export interface OpenshipHealthcheck {
+export interface VibrailHealthcheck {
   test?: string | string[];
   interval?: string;
   timeout?: string;
@@ -65,7 +65,7 @@ export interface OpenshipHealthcheck {
   disable?: boolean;
 }
 
-export interface OpenshipService {
+export interface VibrailService {
   name: string;
   image?: string;
   build?: string;
@@ -73,13 +73,13 @@ export interface OpenshipService {
   ports?: string[];
   volumes?: string[];
   dependsOn?: string[];
-  env?: OpenshipEnv;
+  env?: VibrailEnv;
   command?: string;
-  restart?: OpenshipRestart;
+  restart?: VibrailRestart;
   exposed?: boolean;
   exposedPort?: string;
   domain?: string;
-  healthcheck?: OpenshipHealthcheck;
+  healthcheck?: VibrailHealthcheck;
 }
 
 /**
@@ -88,7 +88,7 @@ export interface OpenshipService {
  * fields are supported in v1 — per-app `domain`/`env`/`exposed` are set in the
  * wizard, not here (declare shared vars under the top-level `env`/`domains`).
  */
-export interface OpenshipMonorepoApp {
+export interface VibrailMonorepoApp {
   name: string;
   rootDirectory: string;
   framework?: StackId;
@@ -101,20 +101,20 @@ export interface OpenshipMonorepoApp {
   port?: number;
 }
 
-export interface OpenshipMonorepo {
+export interface VibrailMonorepo {
   workspace?: { packageManager: string; prepareCommand?: string };
-  apps?: OpenshipMonorepoApp[];
+  apps?: VibrailMonorepoApp[];
 }
 
 /** Cloud sizing tier OR an explicit production resource allocation. */
-export interface OpenshipResources {
-  tier?: OpenshipResourceTier;
+export interface VibrailResources {
+  tier?: VibrailResourceTier;
   cpuCores?: number;
   memoryMb?: number;
   diskMb?: number;
 }
 
-export interface OpenshipConfig {
+export interface VibrailConfig {
   // ── Build ──
   framework?: StackId;
   packageManager?: string;
@@ -126,25 +126,25 @@ export interface OpenshipConfig {
   buildImage?: string;
   productionPaths?: string[];
   // ── Runtime ──
-  runtime?: OpenshipRuntime;
-  productionMode?: OpenshipProductionMode;
+  runtime?: VibrailRuntime;
+  productionMode?: VibrailProductionMode;
   port?: number;
   // ── Env ──
-  env?: OpenshipEnv;
+  env?: VibrailEnv;
   // ── Domains + routing ──
-  domains?: OpenshipDomain[];
+  domains?: VibrailDomain[];
   routes?: RoutingConfig;
   // ── Resources ──
-  resources?: OpenshipResources;
+  resources?: VibrailResources;
   // ── Services (compose) ──
-  services?: OpenshipService[];
+  services?: VibrailService[];
   // ── Monorepo ──
-  monorepo?: OpenshipMonorepo;
+  monorepo?: VibrailMonorepo;
 }
 
 export interface ParseResult {
   /** Valid fields, partial — only what parsed cleanly. null if `raw` isn't an object. */
-  config: OpenshipConfig | null;
+  config: VibrailConfig | null;
   /** Hard validation failures (bad type / unknown enum / out-of-range). */
   errors: string[];
   /** Soft issues (unknown keys) — non-fatal; the field is ignored. */

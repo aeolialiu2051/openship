@@ -8,13 +8,13 @@ import { TypeTable } from 'fumadocs-ui/components/type-table';
 The Backups API manages a project's backup **policies** (what to back up and on what schedule), the **runs**
 they produce, and the **restores** that put a run's data back. It pairs with the
 [Backup Destinations API](/docs/api/backup-destinations) (where backups are stored) — in the dashboard this
-is the project's **Backups** tab, and from the terminal it's the [`openship backup`](/docs/cli/projects)
+is the project's **Backups** tab, and from the terminal it's the [`vibrail backup`](/docs/cli/projects)
 command.
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/backup-runs/<id>`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model.
 </Callout>
 
@@ -22,7 +22,7 @@ The routes are split across a few prefixes: policy **creation and listing** are 
 (`/api/projects/:projectId/backup-policies`), while an **existing** policy, run, or restore is addressed by
 its own id (`/api/backup-policies/:id`, `/api/backup-runs/:id`, `/api/backup-restores/:id`). The inbound
 `POST /api/webhooks/backup` trigger lives on its own unauthenticated prefix. Available on both self-hosted
-and cloud instances; the project-scoped policy and run routes proxy to Openship Cloud for cloud projects.
+and cloud instances; the project-scoped policy and run routes proxy to Vibrail Cloud for cloud projects.
 
 ## Endpoints
 
@@ -80,14 +80,14 @@ POST /api/projects/:projectId/backup-policies
 
 ```bash
 curl -X POST https://your-host/api/projects/proj_123/backup-policies \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"destinationId":"dst_abc","cronExpression":"0 3 * * *","retainCount":7}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship backup policy create --project proj_123 --destination dst_abc \
+vibrail backup policy create --project proj_123 --destination dst_abc \
   --cron "0 3 * * *" --retain-count 7
 ```
 
@@ -129,12 +129,12 @@ POST /api/backup-policies/:policyId/run
 
 ```bash
 curl -X POST https://your-host/api/backup-policies/bkp_abc/run \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ```bash
 # Trigger and stream to completion:
-openship backup policy run bkp_abc --follow
+vibrail backup policy run bkp_abc --follow
 ```
 
 ## Protect a run from retention
@@ -155,8 +155,8 @@ POST /api/backup-runs/:runId/protect
 
 ```bash
 # Lock indefinitely, or release it:
-openship backup run protect run_xyz
-openship backup run protect run_xyz --release
+vibrail backup run protect run_xyz
+vibrail backup run protect run_xyz --release
 ```
 
 ## Stage and apply a restore
@@ -190,12 +190,12 @@ POST /api/backup-restores/:restoreId/apply
 
 ```bash
 # Prepare, then apply with the returned token:
-openship backup run restore run_xyz
-openship backup restore apply rst_123 --token <confirmationToken>
+vibrail backup run restore run_xyz
+vibrail backup restore apply rst_123 --token <confirmationToken>
 ```
 
 Cancel a staged or in-flight restore with `POST /api/backup-restores/:restoreId/cancel`
-(`openship backup restore cancel rst_123`).
+(`vibrail backup restore cancel rst_123`).
 
 ## Live progress (SSE)
 
@@ -211,8 +211,8 @@ GET /api/backup-restores/:restoreId/stream
 
 ```bash
 # The CLI's --follow flag consumes these streams:
-openship backup run get run_xyz --follow
-openship backup restore get rst_123 --follow
+vibrail backup run get run_xyz --follow
+vibrail backup restore get rst_123 --follow
 ```
 
 ## Trigger a backup by webhook

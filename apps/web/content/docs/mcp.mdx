@@ -1,16 +1,16 @@
 ---
 title: MCP
-description: Let AI clients like Claude drive your Openship instance as tools, over the Model Context Protocol.
+description: Let AI clients like Claude drive your Vibrail instance as tools, over the Model Context Protocol.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
 **MCP (Model Context Protocol)** is a standard way for AI clients — Codex, ChatGPT, Claude, Cursor, VS Code Copilot, and
-others — to call an app's features as *tools*. Point one of those clients at Openship and it can list your
+others — to call an app's features as *tools*. Point one of those clients at Vibrail and it can list your
 projects, kick off deployments, check logs, add domains, and more — using the exact same permissions you'd
 have yourself.
 
-The important part: it's not a second, looser door into Openship. **Every tool call re-runs the full auth
+The important part: it's not a second, looser door into Vibrail. **Every tool call re-runs the full auth
 and permission stack**, so an agent can only ever see and do what its credential is allowed to — nothing more.
 
 <Callout title="Where this lives in the dashboard">
@@ -21,7 +21,7 @@ clients you've already connected.
 
 ## The endpoint
 
-There's one endpoint, and it's the same on self-hosted and Openship Cloud:
+There's one endpoint, and it's the same on self-hosted and Vibrail Cloud:
 
 ```
 POST /api/mcp
@@ -43,7 +43,7 @@ There are two ways to authenticate, and most clients pick one for you. Use the t
 
 <Tab value="OAuth (recommended)">
 
-Openship is a standards-compliant **OAuth 2.1** MCP server, so capable clients need nothing but the URL.
+Vibrail is a standards-compliant **OAuth 2.1** MCP server, so capable clients need nothing but the URL.
 
 <Steps>
 
@@ -53,17 +53,17 @@ Openship is a standards-compliant **OAuth 2.1** MCP server, so capable clients n
 Give the client your endpoint — `https://<your-host>/api/mcp`. In Claude Code that's one command:
 
 ```bash
-claude mcp add --transport http openship https://<your-host>/api/mcp
+claude mcp add --transport http vibrail https://<your-host>/api/mcp
 ```
 
 In Codex, add the server and then start the OAuth login flow:
 
 ```bash
-codex mcp add openship --url https://<your-host>/api/mcp
-codex mcp login openship
+codex mcp add vibrail --url https://<your-host>/api/mcp
+codex mcp login vibrail
 ```
 
-In ChatGPT Desktop, open **Settings → Plugins → MCPs**, add an MCP server named Openship, select
+In ChatGPT Desktop, open **Settings → Plugins → MCPs**, add an MCP server named Vibrail, select
 **Streamable HTTP** as its type, and paste the endpoint as its URL. ChatGPT requires a public HTTPS endpoint;
 `localhost` URLs are not supported.
 
@@ -105,9 +105,9 @@ and token into your client's config:
 ```json
 {
   "mcpServers": {
-    "openship": {
+    "vibrail": {
       "url": "https://<your-host>/api/mcp",
-      "headers": { "Authorization": "Bearer opsh_pat_…" }
+      "headers": { "Authorization": "Bearer vibrail_pat_…" }
     }
   }
 }
@@ -116,8 +116,8 @@ and token into your client's config:
 For Claude Code, add the header on the command:
 
 ```bash
-claude mcp add --transport http openship https://<your-host>/api/mcp \
-  --header "Authorization: Bearer opsh_pat_…"
+claude mcp add --transport http vibrail https://<your-host>/api/mcp \
+  --header "Authorization: Bearer vibrail_pat_…"
 ```
 
 <Callout title="Give an agent a narrow token" type="warn">
@@ -174,7 +174,7 @@ UI can flag a destructive call before it runs.
 | `get_cloud_status`, `get_cloud_workspaces` | `/api/cloud` | [Cloud API](/docs/api/cloud) |
 | `get_jobs`, `post_jobs_by_key_run` | `/api/jobs` | [Jobs guide](/docs/guides/jobs) |
 | `get_apps_catalog`, `post_apps` | `/api/apps` | *(REST reference pending)* |
-| `get_updates`, `post_updates_scan` | `/api/updates` | [Updating Openship](/docs/guides/updating) |
+| `get_updates`, `post_updates_scan` | `/api/updates` | [Updating Vibrail](/docs/guides/updating) |
 
 <Callout title="Credentials and auth are never exposed" type="info">
 The `tokens`, `auth`, and `mcp` modules are hard-blocked from ever becoming tools — a full-access MCP token
@@ -188,7 +188,7 @@ To confirm a token works and see what it can do, ask for the tool list:
 
 ```bash
 curl -s https://<your-host>/api/mcp \
-  -H "Authorization: Bearer opsh_pat_…" \
+  -H "Authorization: Bearer vibrail_pat_…" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
 ```

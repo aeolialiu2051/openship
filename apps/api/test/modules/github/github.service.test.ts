@@ -75,7 +75,7 @@ describe("listRepositoryTree", () => {
       throw new Error(`Unexpected URL ${url}`);
     });
 
-    const tree = await listRepositoryTree("user-1", "openship", "repo", { branch: "main" });
+    const tree = await listRepositoryTree("user-1", "vibrail", "repo", { branch: "main" });
 
     expect(tree).toEqual([
       { path: "apps", type: "dir" },

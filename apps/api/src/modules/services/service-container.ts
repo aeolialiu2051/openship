@@ -116,7 +116,7 @@ export async function liveContainerIdWithRuntime(
  * silently provisioned a DUPLICATE container next to the running one.
  *
  * So: ask the host what exists, match it to this service by identity
- * (`openship.project`+`openship.service` label → canonical `openship-<slug>-<svc>`
+ * (`vibrail.project`+`vibrail.service` label → canonical `vibrail-<slug>-<svc>`
  * name → recorded id → compose labels — see live-state.ts), and return that.
  *
  * - live query succeeded, no match → null (the container really is gone; callers

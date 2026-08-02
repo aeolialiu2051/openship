@@ -23,9 +23,9 @@ import { compareSemver } from "../updates/semver";
 export const MAX_SUPPORTED_SCHEMA = 1;
 
 /**
- * Is a template's `minEngine` satisfied by this instance's Openship version?
+ * Is a template's `minEngine` satisfied by this instance's Vibrail version?
  * No `minEngine` (or no known engine) ⇒ always ok. Shared by the catalog
- * resolver + the install gate so "needs a newer Openship" is decided one way.
+ * resolver + the install gate so "needs a newer Vibrail" is decided one way.
  */
 export function templateEngineOk(
   minEngine: string | undefined,
@@ -297,7 +297,7 @@ export type AppTemplateRejection =
  * Full ingest decision for one catalog entry: shape + schemaVersion + minEngine.
  * Returns `{ ok: true }` (the CALLER keeps the raw object, so forward-added
  * fields survive) or a typed rejection. `engineVersion` is this instance's
- * Openship version; omit to skip the engine gate (e.g. in pure-shape tests).
+ * Vibrail version; omit to skip the engine gate (e.g. in pure-shape tests).
  */
 export function parseAppTemplate(
   raw: unknown,

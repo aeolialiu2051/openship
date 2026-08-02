@@ -120,7 +120,7 @@ export default function AppInstallPage() {
   // Desktop mode → the "open on localhost / forward the port" hints are relevant
   // (a VPS is already public; a local app is already localhost).
   const isDesktop = deployMode === "desktop";
-  // Free .vibrail.warpgateapi.com routing needs Openship Cloud; when it's not connected we
+  // Free .vibrail.warpgateapi.com routing needs Vibrail Cloud; when it's not connected we
   // default the install to a port-only (no-domain) deploy instead of letting
   // preflight hard-fail. Forced true on SaaS/native (CloudContext).
   const { connected: cloudConnected, requireCloud } = useCloud();
@@ -253,7 +253,7 @@ export default function AppInstallPage() {
   const cloudInstallComingSoon =
     !APP_CLOUD_INSTALL_AVAILABLE && destination?.deployTarget === "cloud";
   const [routeKey, setRouteKey] = useState<string>();
-  // Project name shown in Openship. Editable for a fresh install (a second
+  // Project name shown in Vibrail. Editable for a fresh install (a second
   // install of the same app auto-suffixes server-side, e.g. "Convex 2"); hidden
   // when reopening an existing draft, which already has its name.
   const [appName, setAppName] = useState(() => template?.name ?? "");
@@ -489,7 +489,7 @@ export default function AppInstallPage() {
       showToast(w.customRequired, "error");
       return;
     }
-    // Free subdomains route through Openship Cloud. If it isn't connected,
+    // Free subdomains route through Vibrail Cloud. If it isn't connected,
     // requireCloud pops the same connect modal the deploy wizard uses and
     // returns false — bail so the user connects first, then re-clicks Install.
     if (
@@ -675,7 +675,7 @@ export default function AppInstallPage() {
         <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
           {/* LEFT — business settings + public URL */}
           <div className="min-w-0 space-y-5">
-            {/* Name — how the app appears in Openship. A fresh install can name
+            {/* Name — how the app appears in Vibrail. A fresh install can name
                 it (a 2nd install of the same type auto-suffixes server-side);
                 reopening a draft keeps its existing name, so hide it then. */}
             {!adoptedProjectId && (

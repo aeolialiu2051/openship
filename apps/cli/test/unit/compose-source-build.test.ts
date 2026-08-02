@@ -4,7 +4,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
  * A from-source ("dev") install must BUILD the images we own from its checkout,
  * never pull them: it tracks a branch, so `__CLI_VERSION__` names an unreleased
  * tag and `docker compose pull` dies with `denied` from the registry — which is
- * exactly how a dev `openship` run got as far as stopping the host's nginx and
+ * exactly how a dev `vibrail` run got as far as stopping the host's nginx and
  * then failed with the stack down.
  */
 
@@ -46,7 +46,7 @@ vi.mock("@repo/adapters", () => ({ systemCatalog: { installs: { docker: () => ({
 
 import { composeUp, sourceBuildDir } from "../../src/lib/compose";
 
-const REPO = "/root/.openship-dev/cli-src";
+const REPO = "/root/.vibrail-dev/cli-src";
 const DOCKERFILES = [
   `${REPO}/apps/api/Dockerfile`,
   `${REPO}/apps/dashboard/Dockerfile`,
@@ -77,7 +77,7 @@ beforeEach(() => {
 
 describe("composeUp — from-source install", () => {
   it("builds api/dashboard from the checkout and never pulls them", () => {
-    h.sourceInstall = { repo: "oblien/openship", ref: "main", dir: REPO };
+    h.sourceInstall = { repo: "aeolialiu2051/vibrail", ref: "main", dir: REPO };
     for (const f of DOCKERFILES) h.existing.add(f);
 
     const res = composeUp({ version: "0.3.0" });
@@ -109,14 +109,14 @@ describe("composeUp — from-source install", () => {
   });
 
   it("falls back to pulling when the checkout has no Dockerfiles (stale marker)", () => {
-    h.sourceInstall = { repo: "oblien/openship", ref: "main", dir: "/gone" };
+    h.sourceInstall = { repo: "aeolialiu2051/vibrail", ref: "main", dir: "/gone" };
     const res = composeUp({ version: "0.3.0" });
     expect(res.ok).toBe(true);
     expect(verbs()).toEqual([["pull"], ["up", "-d"]]);
   });
 
   it("build:false forces the pull path even on a source install", () => {
-    h.sourceInstall = { repo: "oblien/openship", ref: "main", dir: REPO };
+    h.sourceInstall = { repo: "aeolialiu2051/vibrail", ref: "main", dir: REPO };
     for (const f of DOCKERFILES) h.existing.add(f);
 
     composeUp({ version: "0.3.0", build: false });

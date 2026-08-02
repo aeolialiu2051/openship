@@ -11,7 +11,7 @@ import { repos } from "@repo/db";
  *
  * Unlike the server-terminal routes, this is NOT `localOnly` —
  * service terminals work on BOTH self-hosted (Docker exec into the
- * service's container) AND openship cloud (Oblien workspace terminal).
+ * service's container) AND vibrail cloud (Oblien workspace terminal).
  * The adapter selection happens inside the controller via
  * resolveDeploymentRuntime(), driven by the deployment's meta.
  *

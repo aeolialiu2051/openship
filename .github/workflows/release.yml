@@ -15,8 +15,8 @@ permissions:
   contents: write
 
 jobs:
-  build-openship:
-    name: Build openship release artifact
+  build-vibrail:
+    name: Build vibrail release artifact
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
@@ -45,7 +45,7 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build openship release
+      - name: Build vibrail release
         run: bun run --cwd apps/api build-release
 
       - name: Package release artifact
@@ -53,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          ARTIFACT="openship-${TAG}-linux-amd64.tar.gz"
+          ARTIFACT="vibrail-${TAG}-linux-amd64.tar.gz"
           tar -czf "${ARTIFACT}" -C apps/api/release-dist .
           sha256sum "${ARTIFACT}" > "${ARTIFACT}.sha256"
           echo "artifact=${ARTIFACT}" >> "$GITHUB_OUTPUT"
@@ -61,7 +61,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: openship-release
+          name: vibrail-release
           path: |
             ${{ steps.package.outputs.artifact }}
             ${{ steps.package.outputs.artifact }}.sha256
@@ -69,7 +69,7 @@ jobs:
           retention-days: 7
 
   build-email:
-    name: Build openship email release artifact
+    name: Build vibrail email release artifact
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
@@ -106,7 +106,7 @@ jobs:
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
-          ARTIFACT="openship-email-${TAG}-linux-amd64.tar.gz"
+          ARTIFACT="vibrail-email-${TAG}-linux-amd64.tar.gz"
           # The email build script outputs to apps/email/dist/ (not
           # release-dist — the api and email build scripts use different
           # output dir conventions; matching their actual layouts here).
@@ -117,7 +117,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: openship-email-release
+          name: vibrail-email-release
           path: |
             ${{ steps.package.outputs.artifact }}
             ${{ steps.package.outputs.artifact }}.sha256
@@ -125,7 +125,7 @@ jobs:
           retention-days: 7
 
   build-dashboard:
-    name: Build dashboard bundle (lazy-downloaded by `openship up`)
+    name: Build dashboard bundle (lazy-downloaded by `vibrail up`)
     if: github.event_name == 'push'
     runs-on: ubuntu-24.04
     steps:
@@ -161,7 +161,7 @@ jobs:
         env:
           NODE_ENV: production
           CLOUD_MODE: "false"
-          OPENSHIP_TARGET: local
+          VIBRAIL_TARGET: local
           NEXT_PUBLIC_API_PROXY: "true"
 
       - name: Package dashboard bundle
@@ -181,7 +181,7 @@ jobs:
           if [ -d apps/dashboard/public ]; then
             cp -a apps/dashboard/public "$STAGING/apps/dashboard/public"
           fi
-          ARTIFACT="openship-dashboard-${TAG}.tar.gz"
+          ARTIFACT="vibrail-dashboard-${TAG}.tar.gz"
           tar -czf "$ARTIFACT" -C "$STAGING" .
           sha256sum "$ARTIFACT" > "$ARTIFACT.sha256"
           echo "artifact=$ARTIFACT" >> "$GITHUB_OUTPUT"
@@ -189,7 +189,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: openship-dashboard-release
+          name: vibrail-dashboard-release
           path: |
             ${{ steps.package.outputs.artifact }}
             ${{ steps.package.outputs.artifact }}.sha256
@@ -206,19 +206,19 @@ jobs:
           - os: windows-latest
             label: Windows x64
             find: "-name *.zip"
-            asset: Openship-win32-x64.zip
+            asset: Vibrail-win32-x64.zip
           - os: ubuntu-latest
             label: Linux x64
             find: "-name *.AppImage -o -name *.deb -o -name *.rpm"
-            asset: Openship.AppImage
+            asset: Vibrail.AppImage
           # GitHub-hosted native aarch64 runner → stage.ts derives arm64 from
           # process.arch, so the API bun --compile + the AppImage build are arm64.
-          # x64 keeps the legacy `Openship.AppImage` name (auto-update compat);
+          # x64 keeps the legacy `Vibrail.AppImage` name (auto-update compat);
           # arm64 is a NEW asset selected only by arm64 clients.
           - os: ubuntu-24.04-arm
             label: Linux arm64
             find: "-name *.AppImage"
-            asset: Openship-arm64.AppImage
+            asset: Vibrail-arm64.AppImage
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
@@ -284,12 +284,12 @@ jobs:
           # Collect .deb
           DEB="$(find apps/desktop/out/make -type f -name '*.deb' | head -n1)"
           if [[ -n "${DEB}" ]]; then
-            cp "${DEB}" "dist/Openship.deb"
+            cp "${DEB}" "dist/Vibrail.deb"
             cd dist
             if command -v shasum >/dev/null 2>&1; then
-              shasum -a 256 "Openship.deb" > "Openship.deb.sha256"
+              shasum -a 256 "Vibrail.deb" > "Vibrail.deb.sha256"
             else
-              sha256sum "Openship.deb" > "Openship.deb.sha256"
+              sha256sum "Vibrail.deb" > "Vibrail.deb.sha256"
             fi
             cd ..
           else
@@ -298,12 +298,12 @@ jobs:
           # Collect .rpm
           RPM="$(find apps/desktop/out/make -type f -name '*.rpm' | head -n1)"
           if [[ -n "${RPM}" ]]; then
-            cp "${RPM}" "dist/Openship.rpm"
+            cp "${RPM}" "dist/Vibrail.rpm"
             cd dist
             if command -v shasum >/dev/null 2>&1; then
-              shasum -a 256 "Openship.rpm" > "Openship.rpm.sha256"
+              shasum -a 256 "Vibrail.rpm" > "Vibrail.rpm.sha256"
             else
-              sha256sum "Openship.rpm" > "Openship.rpm.sha256"
+              sha256sum "Vibrail.rpm" > "Vibrail.rpm.sha256"
             fi
             cd ..
           else
@@ -379,7 +379,7 @@ jobs:
         if: env.APPLE_IDENTITY != ''
         run: |
           set -euo pipefail
-          KEYCHAIN="$RUNNER_TEMP/openship-signing.keychain-db"
+          KEYCHAIN="$RUNNER_TEMP/vibrail-signing.keychain-db"
           KEYCHAIN_PASSWORD="$(openssl rand -base64 24)"
           CERT="$RUNNER_TEMP/certificate.p12"
           echo "$APPLE_CERTIFICATE_P12_BASE64" | base64 --decode > "$CERT"
@@ -420,7 +420,7 @@ jobs:
         run: |
           set -euo pipefail
           for arch in arm64 x64; do
-            dmg="apps/desktop/out/make/Openship-${arch}.dmg"
+            dmg="apps/desktop/out/make/Vibrail-${arch}.dmg"
             echo "▸ signing ${dmg}"
             codesign --force --timestamp --sign "$APPLE_IDENTITY" "${dmg}"
             echo "▸ notarizing ${dmg}"
@@ -439,12 +439,12 @@ jobs:
           set -euo pipefail
           mkdir -p dist
           for arch in arm64 x64; do
-            src="apps/desktop/out/make/Openship-${arch}.dmg"
+            src="apps/desktop/out/make/Vibrail-${arch}.dmg"
             if [[ ! -f "${src}" ]]; then
               echo "Missing ${src}"; ls -R apps/desktop/out/make || true; exit 1
             fi
-            cp "${src}" "dist/Openship-${arch}.dmg"
-            ( cd dist && shasum -a 256 "Openship-${arch}.dmg" > "Openship-${arch}.dmg.sha256" )
+            cp "${src}" "dist/Vibrail-${arch}.dmg"
+            ( cd dist && shasum -a 256 "Vibrail-${arch}.dmg" > "Vibrail-${arch}.dmg.sha256" )
           done
 
       - name: Upload artifact
@@ -452,10 +452,10 @@ jobs:
         with:
           name: desktop-macos
           path: |
-            dist/Openship-arm64.dmg
-            dist/Openship-arm64.dmg.sha256
-            dist/Openship-x64.dmg
-            dist/Openship-x64.dmg.sha256
+            dist/Vibrail-arm64.dmg
+            dist/Vibrail-arm64.dmg.sha256
+            dist/Vibrail-x64.dmg
+            dist/Vibrail-x64.dmg.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -524,7 +524,7 @@ jobs:
   publish:
     name: Publish GitHub release
     if: github.event_name == 'push'
-    needs: [build-openship, build-email, build-dashboard, build-desktop, build-desktop-macos]
+    needs: [build-vibrail, build-email, build-dashboard, build-desktop, build-desktop-macos]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -532,22 +532,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download openship artifact
+      - name: Download vibrail artifact
         uses: actions/download-artifact@v8
         with:
-          name: openship-release
+          name: vibrail-release
           path: dist
 
       - name: Download email artifact
         uses: actions/download-artifact@v8
         with:
-          name: openship-email-release
+          name: vibrail-email-release
           path: dist
 
       - name: Download dashboard artifact
         uses: actions/download-artifact@v8
         with:
-          name: openship-dashboard-release
+          name: vibrail-dashboard-release
           path: dist
 
       - name: Download desktop installers
@@ -568,15 +568,15 @@ jobs:
             PRERELEASE_FLAG="--prerelease"
           fi
           gh release create "${TAG}" \
-            --title "Openship ${TAG}" \
+            --title "Vibrail ${TAG}" \
             --notes-from-tag \
             ${PRERELEASE_FLAG} \
-            dist/openship-${TAG}-linux-amd64.tar.gz \
-            dist/openship-${TAG}-linux-amd64.tar.gz.sha256 \
-            dist/openship-email-${TAG}-linux-amd64.tar.gz \
-            dist/openship-email-${TAG}-linux-amd64.tar.gz.sha256 \
-            dist/openship-dashboard-${TAG}.tar.gz \
-            dist/openship-dashboard-${TAG}.tar.gz.sha256
+            dist/vibrail-${TAG}-linux-amd64.tar.gz \
+            dist/vibrail-${TAG}-linux-amd64.tar.gz.sha256 \
+            dist/vibrail-email-${TAG}-linux-amd64.tar.gz \
+            dist/vibrail-email-${TAG}-linux-amd64.tar.gz.sha256 \
+            dist/vibrail-dashboard-${TAG}.tar.gz \
+            dist/vibrail-dashboard-${TAG}.tar.gz.sha256
 
       - name: Attach desktop installers
         env:
@@ -586,7 +586,7 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           # Upload whichever desktop installers built (fail-fast:false means a
           # single-OS failure shouldn't block the release).
-          for asset in Openship-arm64.dmg Openship-x64.dmg Openship-win32-x64.zip Openship.AppImage Openship-arm64.AppImage Openship.deb Openship.rpm; do
+          for asset in Vibrail-arm64.dmg Vibrail-x64.dmg Vibrail-win32-x64.zip Vibrail.AppImage Vibrail-arm64.AppImage Vibrail.deb Vibrail.rpm; do
             if [[ -f "dist/${asset}" ]]; then
               gh release upload "${TAG}" "dist/${asset}" "dist/${asset}.sha256" --clobber
             else

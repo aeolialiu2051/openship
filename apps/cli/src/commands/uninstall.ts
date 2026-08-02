@@ -1,10 +1,10 @@
 /**
- * `openship uninstall` — remove Openship from this machine.
+ * `vibrail uninstall` — remove Vibrail from this machine.
  *
- * The counterpart to `openship up`. Where `stop` just halts things (compose down /
+ * The counterpart to `vibrail up`. Where `stop` just halts things (compose down /
  * unload the service, keeping data), uninstall is the DESTRUCTIVE version: it also
  * drops the stack's volumes and database, deletes
- * the images we own, and removes ~/.openship.
+ * the images we own, and removes ~/.vibrail.
  *
  * Two things it deliberately does NOT do, because this box is usually shared with
  * the operator's own workloads:
@@ -26,11 +26,11 @@ import { OS_DIR } from "../lib/paths";
 
 export const uninstallCommand = new Command("uninstall")
   .description(
-    "Remove Openship from this machine: stop it, delete its data and images, and remove ~/.openship. Deployed apps are left running.",
+    "Remove Vibrail from this machine: stop it, delete its data and images, and remove ~/.vibrail. Deployed apps are left running.",
   )
   .option("-y, --yes", "Skip the confirmation prompt (for scripts)")
-  .option("--keep-data", "Keep the database/certs volumes and ~/.openship — remove only the running stack")
-  .option("--keep-images", "Don't delete the Openship container images")
+  .option("--keep-data", "Keep the database/certs volumes and ~/.vibrail — remove only the running stack")
+  .option("--keep-images", "Don't delete the Vibrail container images")
   .action(async (opts: { yes?: boolean; keepData?: boolean; keepImages?: boolean }) => {
     const method = readInstallMethod();
     const destructive = !opts.keepData;
@@ -39,15 +39,15 @@ export const uninstallCommand = new Command("uninstall")
       const lines = [
         method === "compose"
           ? "  • stop the Docker Compose stack (api, dashboard, postgres, redis)"
-          : "  • stop and remove the Openship service",
+          : "  • stop and remove the Vibrail service",
         destructive ? "  • DELETE its database and local state" : null,
         destructive ? `  • DELETE ${OS_DIR} (config, tokens, local database)` : null,
-        !opts.keepImages && method === "compose" ? "  • delete the Openship container images" : null,
+        !opts.keepImages && method === "compose" ? "  • delete the Vibrail container images" : null,
         "  • leave your DEPLOYED apps and their data untouched",
       ].filter(Boolean);
       console.log(chalk.yellow("\n  This will:\n") + lines.join("\n") + "\n");
       const go = await confirm({
-        message: destructive ? "Permanently remove Openship and its data?" : "Remove Openship (keeping data)?",
+        message: destructive ? "Permanently remove Vibrail and its data?" : "Remove Vibrail (keeping data)?",
         initialValue: false,
       });
       if (isCancel(go) || !go) {
@@ -87,7 +87,7 @@ export const uninstallCommand = new Command("uninstall")
     }
 
     console.log(
-      chalk.green("\n  ✔ Openship uninstalled.\n") +
+      chalk.green("\n  ✔ Vibrail uninstalled.\n") +
         chalk.dim("  Deployed apps are still running — `docker ps` to review them.\n"),
     );
   });

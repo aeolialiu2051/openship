@@ -164,7 +164,7 @@ export async function create(c: Context) {
     // Jobs are a self-hosted control-plane feature (Jobs API is localOnly). No
     // job hooks on the SaaS — else a tenant could arm instance-global jobs.
     if (env.CLOUD_MODE) {
-      return c.json({ error: "Job webhooks are not available on Openship Cloud" }, 400);
+      return c.json({ error: "Job webhooks are not available on Vibrail Cloud" }, 400);
     }
     if (!actionConfig.jobKey) {
       return c.json({ error: "A job is required for a job webhook" }, 400);
@@ -225,7 +225,7 @@ export async function update(c: Context) {
   const enabling = body?.enabled === true;
   if (finalType === "job" && (touchesActionOrAuth || enabling)) {
     if (env.CLOUD_MODE) {
-      return c.json({ error: "Job webhooks are not available on Openship Cloud" }, 400);
+      return c.json({ error: "Job webhooks are not available on Vibrail Cloud" }, 400);
     }
     const finalAuth = body?.authMode ?? existing.authMode;
     if (finalAuth === "none") {

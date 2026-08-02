@@ -372,7 +372,7 @@ export async function updateService(
     patch.domainType = normalized.domainType;
     patch.publicEndpoints = normalized.publicEndpoints;
 
-    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Openship
+    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Vibrail
     // Cloud edge. Refuse before the DB write so a disconnected instance can't
     // persist a dead "Pending" route. resolveServicePublicEndpoints is the same
     // resolver the deploy loop uses, so the gate sees the exact routes to apply.
@@ -605,11 +605,11 @@ export async function deleteService(ctx: RequestContext, projectId: string, serv
           });
           // Reclaim this service's built image NOW — the FK cascade in
           // repos.service.remove() below erases the imageRef record, so a later
-          // teardown could never enumerate it. Guarded to `openship/…` build tags:
+          // teardown could never enumerate it. Guarded to `vibrail/…` build tags:
           // a base/third-party image (postgres:16-alpine, redis:7-alpine) is PULLED,
           // shared, and must never be removed. Best-effort; images:gc is the backstop.
           if (
-            serviceDeployment.imageRef?.startsWith("openship/") &&
+            serviceDeployment.imageRef?.startsWith("vibrail/") &&
             platform.runtime instanceof DockerRuntime
           ) {
             await platform.runtime.removeImage(serviceDeployment.imageRef).catch((err: unknown) => {
@@ -782,7 +782,7 @@ export interface LiveServiceContainer {
  * The Services panel's state, read LIVE from the host every time.
  *
  * The service ROWS are the config (DB); their state never is. Earlier this asked
- * docker for `label=openship.deployment=<active dep>` and intersected with each
+ * docker for `label=vibrail.deployment=<active dep>` and intersected with each
  * row's stored container id, which made every ADOPTED container invisible — a
  * migration attaches running containers in place and docker labels can't be
  * changed in place, so an attached container keeps the OLD deployment label and
@@ -1072,7 +1072,7 @@ const VOL_SIZE_TTL_MS = 60_000;
 const volSizeCache = new Map<string, { at: number; value: ServiceVolumeSizes }>();
 
 /** Resolve a named volume's real on-host name (it may be namespaced at deploy
- *  time as `openship-<slug>-<name>`) and `du` its mountpoint. Only used as a
+ *  time as `vibrail-<slug>-<name>`) and `du` its mountpoint. Only used as a
  *  fallback when the container isn't running to report authoritative mounts. */
 async function namedVolumeBytesByName(
   exec: CommandExecutor,

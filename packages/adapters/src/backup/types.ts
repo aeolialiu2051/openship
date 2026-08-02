@@ -42,7 +42,7 @@ export interface ServiceHandle {
   /** Project slug — used in destination key paths. */
   projectSlug: string;
   /** Whether this service's NAMED volumes are project-scoped
-   *  (openship-<slug>-<name>). Mirrors service.namespaceVolumes so the DB
+   *  (vibrail-<slug>-<name>). Mirrors service.namespaceVolumes so the DB
    *  fallback in listSources resolves the same name deploy used. False for
    *  grandfathered pre-migration services (bare names). */
   namespaceVolumes: boolean;
@@ -288,7 +288,7 @@ export type DestinationCapability =
 export type DestinationKind =
   | "s3_compatible"
   | "sftp"
-  | "openship_server"
+  | "vibrail_server"
   | "local"
   | "http_upload";
 
@@ -307,7 +307,7 @@ export interface BackupDestinationRow {
   sshHost: string | null;
   sshPort: number | null;
   sshUser: string | null;
-  /** When kind="openship_server" this is the user's servers.id. The
+  /** When kind="vibrail_server" this is the user's servers.id. The
    *  apps/api layer hydrates SSH creds from that server BEFORE handing
    *  the row to resolveDestination — the adapter never queries the DB. */
   serverId?: string | null;

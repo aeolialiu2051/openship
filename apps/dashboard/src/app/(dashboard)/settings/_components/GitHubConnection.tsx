@@ -33,7 +33,7 @@ import { SettingsSection } from "./SettingsSection";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 const EMPTY_STATE: GitHubConnectionState = {
-  sources: { openshipApp: { connected: false }, ghCli: { available: false } },
+  sources: { vibrailApp: { connected: false }, ghCli: { available: false } },
   primary: null,
 };
 
@@ -110,8 +110,8 @@ export function GitHubConnection() {
     [ctxDisconnect, loadStatus],
   );
 
-  // Self-hosted needs an active Openship Cloud connection to use the
-  // GitHub App at all — the App private key lives in openship.io and
+  // Self-hosted needs an active Vibrail Cloud connection to use the
+  // GitHub App at all — the App private key lives in vibrail.warpgateapi.com and
   // self-hosted instances proxy through it. PAT + gh CLI escape hatches
   // don't require cloud.
   const { connected: cloudConnected, startConnect: startCloudConnect } = useCloud();
@@ -141,7 +141,7 @@ export function GitHubConnection() {
   };
 
   // STRICT source-of-truth for the GitHub App card. Read ONLY from
-  // state.sources.openshipApp (which the backend computes from the SaaS
+  // state.sources.vibrailApp (which the backend computes from the SaaS
   // /api/cloud/github/user-status response in cloud-app mode, or from
   // local OAuth in app mode). NEVER use `connected` from useGitHub() —
   // that's derived from state.primary, which can be "gh-cli" when only
@@ -150,8 +150,8 @@ export function GitHubConnection() {
   // here would lie about which orgs the App can actually deploy from
   // (they could be completely different sets, and the user would think
   // the App is installed where it isn't).
-  const appConnected = state.sources.openshipApp.connected;
-  const appLogin = state.sources.openshipApp.login;
+  const appConnected = state.sources.vibrailApp.connected;
+  const appLogin = state.sources.vibrailApp.login;
   // accounts is only meaningful when the App itself is connected. When
   // primary is "gh-cli" the backend returns CLI orgs in this field
   // (tagged source: "cli") — gate on appConnected AND filter to
@@ -169,7 +169,7 @@ export function GitHubConnection() {
       {/* ─── Vibrail GitHub App card (legacy single-source layout) ─────
           The clean accounts table that was already good. On self-hosted
           + not cloud-connected we swap the "Connect GitHub" CTA for a
-          "Connect Openship Cloud" prompt, because the App can't function
+          "Connect Vibrail Cloud" prompt, because the App can't function
           without cloud minting tokens for the local instance.            */}
       <SettingsSection
         icon={Github}

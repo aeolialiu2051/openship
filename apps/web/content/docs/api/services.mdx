@@ -9,19 +9,19 @@ A **service** is one runnable unit inside a project: a container in a docker-com
 a monorepo. Both live in the same table (discriminated by `kind`), so this API covers listing and editing
 services, syncing them from a `docker-compose` file, starting/stopping/restarting their containers,
 resolving compose drift, and setting per-service environment variables. In the dashboard this is a project's
-**Services** tab; from the terminal it's [`openship service`](/docs/cli/projects).
+**Services** tab; from the terminal it's [`vibrail service`](/docs/cli/projects).
 
 <Callout title="Base path & auth">
 Every path is nested under a project — relative to your instance, under **`/api/projects/:id/services`**,
 where `:id` is the project id (e.g. `https://your-host/api/projects/proj_123/services`).
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model and [security/auth](/docs/security/auth) for permissions.
 </Callout>
 
 <Callout title="Self-hosted and cloud" type="info">
-This module is available on both self-hosted and Openship Cloud. When `:id` is a cloud project the request
-is transparently proxied to Openship Cloud; a local project is served by your own instance.
+This module is available on both self-hosted and Vibrail Cloud. When `:id` is a cloud project the request
+is transparently proxied to Vibrail Cloud; a local project is served by your own instance.
 </Callout>
 
 ## Endpoints
@@ -103,14 +103,14 @@ and optional; the `kind` decides which subset is the source of truth. Unknown ke
 
 ```bash
 curl -X POST https://your-host/api/projects/proj_123/services \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"db","kind":"compose","image":"postgres:16","ports":["5432:5432"]}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship service create -p my-stack db --image postgres:16 --port 5432:5432
+vibrail service create -p my-stack db --image postgres:16 --port 5432:5432
 ```
 
 ## Update a service
@@ -125,7 +125,7 @@ under the new kind instead.
 
 ```bash
 curl -X PATCH https://your-host/api/projects/proj_123/services/svc_456 \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"restart":"unless-stopped","enabled":true}'
 ```
@@ -141,7 +141,7 @@ POST /api/projects/:id/services/sync
 ```
 
 ```bash
-openship service sync -p my-stack docker-compose.yml
+vibrail service sync -p my-stack docker-compose.yml
 ```
 
 ## Resolve compose drift
@@ -155,8 +155,8 @@ POST /api/projects/:id/services/:serviceId/drift/keep     # keep your edits, sto
 ```
 
 ```bash
-openship service drift accept -p my-stack web
-openship service drift keep   -p my-stack web
+vibrail service drift accept -p my-stack web
+vibrail service drift keep   -p my-stack web
 ```
 
 ## Container actions
@@ -171,10 +171,10 @@ POST /api/projects/:id/services/:serviceId/restart
 ```
 
 ```bash
-openship service restart -p my-stack web
+vibrail service restart -p my-stack web
 ```
 
-Use `GET /api/projects/:id/services/containers` (`openship service containers -p my-stack`) to list the
+Use `GET /api/projects/:id/services/containers` (`vibrail service containers -p my-stack`) to list the
 running containers across the whole stack.
 
 ## Environment variables
@@ -196,14 +196,14 @@ PUT /api/projects/:id/services/:serviceId/env
 
 ```bash
 curl -X PUT https://your-host/api/projects/proj_123/services/svc_456/env \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"environment":"production","vars":[{"key":"DATABASE_URL","value":"postgres://…","isSecret":true}]}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship service env set -p my-stack web DATABASE_URL=postgres://… --env production
+vibrail service env set -p my-stack web DATABASE_URL=postgres://… --env production
 ```
 
 <Callout title="PUT replaces, it doesn't merge" type="warn">

@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { parseOpenshipConfig, parseOpenshipConfigJson } from "./parse";
+import { parseVibrailConfig, parseVibrailConfigJson } from "./parse";
 
-describe("parseOpenshipConfig", () => {
+describe("parseVibrailConfig", () => {
   it("accepts a full, valid config and strips undefined fields", () => {
-    const { config, errors, warnings } = parseOpenshipConfig({
+    const { config, errors, warnings } = parseVibrailConfig({
       framework: "nextjs",
       packageManager: "pnpm",
       installCommand: "pnpm install",
@@ -35,57 +35,57 @@ describe("parseOpenshipConfig", () => {
   });
 
   it("rejects an unknown framework and out-of-range port", () => {
-    const { errors } = parseOpenshipConfig({ framework: "coldfusion", port: 99999 });
+    const { errors } = parseVibrailConfig({ framework: "coldfusion", port: 99999 });
     expect(errors.some((e) => e.startsWith("framework:"))).toBe(true);
     expect(errors.some((e) => e.startsWith("port:"))).toBe(true);
   });
 
   it("rejects a bad enum (runtime) and bad resource range", () => {
-    const { errors } = parseOpenshipConfig({ runtime: "vm", resources: { cpuCores: 99 } });
+    const { errors } = parseVibrailConfig({ runtime: "vm", resources: { cpuCores: 99 } });
     expect(errors.some((e) => e.startsWith("runtime:"))).toBe(true);
     expect(errors.some((e) => e.includes("resources.cpuCores"))).toBe(true);
   });
 
   it("rejects the removed bare user-workload runtime", () => {
-    const { errors } = parseOpenshipConfig({ runtime: "bare" });
+    const { errors } = parseVibrailConfig({ runtime: "bare" });
     expect(errors.some((e) => e.startsWith("runtime:"))).toBe(true);
   });
 
   it("coerces a string port and validates env value shape", () => {
-    const ok = parseOpenshipConfig({ port: "8080", env: { A: "1" } });
+    const ok = parseVibrailConfig({ port: "8080", env: { A: "1" } });
     expect(ok.errors).toEqual([]);
     expect(ok.config?.port).toBe(8080);
-    const bad = parseOpenshipConfig({ env: { A: { secret: true } } }); // missing value
+    const bad = parseVibrailConfig({ env: { A: { secret: true } } }); // missing value
     expect(bad.errors.some((e) => e.includes("env.A.value"))).toBe(true);
   });
 
   it("validates a service and requires its name", () => {
-    const ok = parseOpenshipConfig({
+    const ok = parseVibrailConfig({
       services: [{ name: "db", image: "postgres:17", ports: ["5432"], restart: "unless-stopped" }],
     });
     expect(ok.errors).toEqual([]);
     expect(ok.config?.services?.[0]).toMatchObject({ name: "db", restart: "unless-stopped" });
-    const noName = parseOpenshipConfig({ services: [{ image: "x" }] });
+    const noName = parseVibrailConfig({ services: [{ image: "x" }] });
     expect(noName.errors.some((e) => e.includes("requires a `name`"))).toBe(true);
-    const badRestart = parseOpenshipConfig({ services: [{ name: "x", restart: "sometimes" }] });
+    const badRestart = parseVibrailConfig({ services: [{ name: "x", restart: "sometimes" }] });
     expect(badRestart.errors.some((e) => e.includes("restart"))).toBe(true);
   });
 
   it("warns on unknown top-level keys but does not error", () => {
-    const { errors, warnings, config } = parseOpenshipConfig({ framework: "vite", nope: 1 });
+    const { errors, warnings, config } = parseVibrailConfig({ framework: "vite", nope: 1 });
     expect(errors).toEqual([]);
     expect(warnings.some((w) => w.includes("nope"))).toBe(true);
     expect(config?.framework).toBe("vite");
   });
 
   it("reports invalid JSON and non-object roots", () => {
-    expect(parseOpenshipConfigJson("{ not json").errors[0]).toMatch(/invalid JSON/);
-    expect(parseOpenshipConfig([]).config).toBeNull();
-    expect(parseOpenshipConfig("x").errors[0]).toMatch(/must be a JSON object/);
+    expect(parseVibrailConfigJson("{ not json").errors[0]).toMatch(/invalid JSON/);
+    expect(parseVibrailConfig([]).config).toBeNull();
+    expect(parseVibrailConfig("x").errors[0]).toMatch(/must be a JSON object/);
   });
 
   // The examples printed in the docs/skill must validate cleanly, or the docs
-  // are lying. Keep these in sync with reference/openship-json.mdx.
+  // are lying. Keep these in sync with reference/vibrail-json.mdx.
   it("accepts every documented example with no errors", () => {
     const examples = [
       { $schema: "x", framework: "vite", buildCommand: "pnpm build", outputDirectory: "dist", productionMode: "static" },
@@ -114,7 +114,7 @@ describe("parseOpenshipConfig", () => {
       { $schema: "x", domains: ["app.acme.com", { domain: "api.acme.com", port: 8080, type: "custom" }] },
     ];
     for (const ex of examples) {
-      const { errors } = parseOpenshipConfig(ex);
+      const { errors } = parseVibrailConfig(ex);
       expect(errors, JSON.stringify(ex)).toEqual([]);
     }
   });

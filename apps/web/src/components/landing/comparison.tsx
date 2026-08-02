@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 
 /**
- * Comparison - grouped table, Openship column highlighted with a tinted rail.
+ * Comparison - grouped table, Vibrail column highlighted with a tinted rail.
  * Each cell carries a refined status mark (win / loss / neutral) so it reads at
  * a glance without bright colors.
  *
@@ -14,7 +14,7 @@ import { Fragment } from "react";
  *    manufactured `loss`. Every claim here is verified against Vercel/Netlify
  *    and Coolify/Dokploy/Dokku as of July 2026.
  *
- * 2. SAY IT THE CALM WAY. These capabilities involve Openship touching servers
+ * 2. SAY IT THE CALM WAY. These capabilities involve Vibrail touching servers
  *    the reader already runs, so the wording leads with what they get, not with
  *    what we do to their box. "Works with the proxy you already run", never
  *    "take over your proxy"; "picks up what's already running", never "adopt and
@@ -26,7 +26,7 @@ import { Fragment } from "react";
 
 type Status = "win" | "loss" | "neutral";
 type Cell = { text: string; status: Status };
-type Row = { feature: string; openship: Cell; managed: Cell; selfhost: Cell };
+type Row = { feature: string; vibrail: Cell; managed: Cell; selfhost: Cell };
 type Group = { title: string; rows: Row[] };
 
 const GROUPS: Group[] = [
@@ -35,8 +35,8 @@ const GROUPS: Group[] = [
     rows: [
       {
         feature: "Who runs your workload",
-        openship: {
-          text: "Openship Cloud runs it, or self-host free on machines you own. One tool, one dashboard, and you can move either direction later.",
+        vibrail: {
+          text: "Vibrail Cloud runs it, or self-host free on machines you own. One tool, one dashboard, and you can move either direction later.",
           status: "win",
         },
         managed: {
@@ -50,7 +50,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "What has to stay switched on",
-        openship: {
+        vibrail: {
           text: "A native Mac, Windows and Linux app. The control plane runs on your machine only while the app is open - no extra box to keep alive just to deploy.",
           status: "win",
         },
@@ -65,7 +65,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "Where your source code travels",
-        openship: {
+        vibrail: {
           text: "From the desktop app, your folder or repo goes straight to the machine that will run it. Nothing always-on sits in the middle holding your code.",
           status: "win",
         },
@@ -85,7 +85,7 @@ const GROUPS: Group[] = [
     rows: [
       {
         feature: "Email from your own domain",
-        openship: {
+        vibrail: {
           text: "A real mail server, set up for you: mailboxes, webmail, the SPF/DKIM/DMARC chain, and sending through SES or your own SMTP.",
           status: "win",
         },
@@ -100,7 +100,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "Traffic rules at the edge",
-        openship: {
+        vibrail: {
           text: "Per-route rate limits, IP allowlists, and in-flight request caps configured from the dashboard.",
           status: "win",
         },
@@ -115,7 +115,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "Who is actually hitting your app",
-        openship: {
+        vibrail: {
           text: "Per-route traffic, country breakdown and a live request log, built in.",
           status: "win",
         },
@@ -130,7 +130,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "Access control and audit",
-        openship: {
+        vibrail: {
           text: "Grant access down to a single project, start teammates at zero permissions, and export a record of every change - on every plan.",
           status: "win",
         },
@@ -150,7 +150,7 @@ const GROUPS: Group[] = [
     rows: [
       {
         feature: "Servers with things already on them",
-        openship: {
+        vibrail: {
           text: "Point it at a server and it picks up the containers already running there. Nothing is rebuilt, nothing is restarted.",
           status: "win",
         },
@@ -165,7 +165,7 @@ const GROUPS: Group[] = [
       },
       {
         feature: "The proxy you already run",
-        openship: {
+        vibrail: {
           text: "Carries on with your existing Traefik, nginx or Caddy on :80 and :443, and the switch is reversible in one step.",
           status: "win",
         },
@@ -180,8 +180,8 @@ const GROUPS: Group[] = [
       },
       {
         feature: "Settings that live in your repo",
-        openship: {
-          text: "openship.json describes build, env, domains, services and resources - reviewed in a pull request like the rest of your code.",
+        vibrail: {
+          text: "vibrail.json describes build, env, domains, services and resources - reviewed in a pull request like the rest of your code.",
           status: "win",
         },
         managed: {
@@ -200,7 +200,7 @@ const GROUPS: Group[] = [
     rows: [
       {
         feature: "Moving to a different server",
-        openship: {
+        vibrail: {
           text: "Move a running app with its volumes and certificates to another machine, then cut traffic over once it checks out.",
           status: "win",
         },
@@ -214,9 +214,9 @@ const GROUPS: Group[] = [
         },
       },
       {
-        feature: "Leaving Openship",
-        openship: {
-          text: "On your own servers, removing a project deletes our record and nothing else. Containers, data and config keep serving traffic, and Openship can pick them back up later.",
+        feature: "Leaving Vibrail",
+        vibrail: {
+          text: "On your own servers, removing a project deletes our record and nothing else. Containers, data and config keep serving traffic, and Vibrail can pick them back up later.",
           status: "win",
         },
         managed: {
@@ -261,7 +261,7 @@ export function Comparison() {
         <header className="cmp-head">
           <p className="cmp-eyebrow">Straight comparison</p>
           <h2 className="cmp-title">
-            Where Openship is<br />genuinely different.
+            Where Vibrail is<br />genuinely different.
           </h2>
           <p className="cmp-sub">
             Git deploys, TLS, databases, backups, cron &mdash; every tool here has those, so
@@ -276,7 +276,7 @@ export function Comparison() {
           {/* Header */}
           <div className="cmp-row cmp-row--head">
             <div className="cmp-cell cmp-cell--feature">Feature</div>
-            <div className="cmp-cell cmp-cell--win">Openship</div>
+            <div className="cmp-cell cmp-cell--win">Vibrail</div>
             <div className="cmp-cell">Managed (Vercel, Netlify)</div>
             <div className="cmp-cell">Self-host (Coolify, Dokploy, Dokku)</div>
           </div>
@@ -289,8 +289,8 @@ export function Comparison() {
                 <div key={r.feature} className="cmp-row">
                   <div className="cmp-cell cmp-cell--feature">{r.feature}</div>
                   <div className="cmp-cell cmp-cell--win">
-                    <StatusMark status={r.openship.status} />
-                    <span>{r.openship.text}</span>
+                    <StatusMark status={r.vibrail.status} />
+                    <span>{r.vibrail.text}</span>
                   </div>
                   <div className="cmp-cell">
                     <StatusMark status={r.managed.status} />
@@ -308,7 +308,7 @@ export function Comparison() {
 
         <p className="cmp-foot">
           Compared against the shipping versions of each tool, July 2026. A dash means
-          that tool genuinely matches Openship, or that the row does not apply to it.
+          that tool genuinely matches Vibrail, or that the row does not apply to it.
           We would rather score a row even than invent a cross.
         </p>
       </div>

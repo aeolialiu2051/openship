@@ -8,6 +8,18 @@ export const DEFAULT_PORT = {
 
 const localhost = (port: number) => `http://localhost:${port}`;
 
+/**
+ * Keep upgrades from existing OpenShip installs working while Vibrail becomes
+ * the canonical public prefix. Explicit VIBRAIL_* values always win.
+ */
+if (typeof process !== "undefined" && process.env) {
+  for (const [key, value] of Object.entries(process.env)) {
+    if (!key.startsWith("OPENSHIP_") || value === undefined) continue;
+    const vibrailKey = `VIBRAIL_${key.slice("OPENSHIP_".length)}`;
+    process.env[vibrailKey] ??= value;
+  }
+}
+
 // Standalone URL exports — consumed by desktop, CLI, and onboarding
 // flows that want "the localhost dashboard URL" without going through
 // the runtime-target table. They're the same strings used inside
@@ -19,7 +31,7 @@ export const LOCAL_API_URL = localhost(DEFAULT_PORT.api);
 // The production cloud endpoints — env-overridable so a dev instance can point
 // "cloud" at a LOCAL SaaS without editing code or flipping the whole target row.
 // Unset (production / the default) → the real remote cloud, so self-hosted
-// production is unaffected. Set OPENSHIP_CLOUD_API_URL / OPENSHIP_CLOUD_DASHBOARD_URL
+// production is unaffected. Set VIBRAIL_CLOUD_API_URL / VIBRAIL_CLOUD_DASHBOARD_URL
 // (e.g. http://localhost:4100 / http://localhost:3002) to exercise cloud flows
 // against a local `dev:saas` instance. Only consulted for the `cloud-saas` row.
 const envUrl = (key: string): string | undefined => {
@@ -27,19 +39,19 @@ const envUrl = (key: string): string | undefined => {
   return v && v.trim() ? v.trim() : undefined;
 };
 export const CLOUD_DASHBOARD_URL =
-  envUrl("OPENSHIP_CLOUD_DASHBOARD_URL") ?? "https://app.openship.io";
-export const CLOUD_API_URL = envUrl("OPENSHIP_CLOUD_API_URL") ?? "https://api.openship.io";
+  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? "https://vibrail.warpgateapi.com";
+export const CLOUD_API_URL = envUrl("VIBRAIL_CLOUD_API_URL") ?? "https://vibrail.warpgateapi.com";
 
 /**
  * THE runtime-target table. Keyed by id — the id IS the key, no
  * redundant `id` field on the row. To enable a runtime target,
- * uncomment its entry. OPENSHIP_TARGET picks one row.
+ * uncomment its entry. VIBRAIL_TARGET picks one row.
  *
- *   OPENSHIP_TARGET=local        (default — self-hosted; talks to cloud-saas)
- *   OPENSHIP_TARGET=cloud-saas   (the SaaS — api.openship.io in prod, or a
+ *   VIBRAIL_TARGET=local        (default — self-hosted; talks to cloud-saas)
+ *   VIBRAIL_TARGET=cloud-saas   (the SaaS — vibrail.warpgateapi.com in prod, or a
  *                                tunneled localhost during dev:saas)
- *   OPENSHIP_TARGET=local-saas   (a localhost-only SaaS for dev without
- *                                tunneling api.openship.io)
+ *   VIBRAIL_TARGET=local-saas   (a localhost-only SaaS for dev without
+ *                                tunneling vibrail.warpgateapi.com)
  *
  * No NODE_ENV magic, no CLOUD_MODE-based inference. Invalid value
  * throws — fail-loud beats silently picking the wrong URL.
@@ -59,7 +71,7 @@ export const DASHBOARD_RUNTIME_TARGETS = {
     ports: { dashboard: DEFAULT_PORT.saasDashboard, api: DEFAULT_PORT.saasApi },
     // Self-referential — dev:saas IS the SaaS when this row is active,
     // so cloud calls land back on itself at localhost:4100 instead of
-    // round-tripping to api.openship.io.
+    // round-tripping to vibrail.warpgateapi.com.
     cloudTargetId: "local-saas",
     selfHosted: false,
     // This development SaaS also orchestrates user-owned VPS targets. Keep
@@ -88,13 +100,13 @@ export const DASHBOARD_RUNTIME_TARGETS = {
 export type DashboardRuntimeTargetId = keyof typeof DASHBOARD_RUNTIME_TARGETS;
 export type DashboardRuntimeTarget = (typeof DASHBOARD_RUNTIME_TARGETS)[DashboardRuntimeTargetId];
 
-// SINGLE knob, resolved ONCE at module load. process.env.OPENSHIP_TARGET
+// SINGLE knob, resolved ONCE at module load. process.env.VIBRAIL_TARGET
 // picks the row. Invalid value throws fail-loud.
 const rawTarget =
-  (typeof process !== "undefined" ? process.env?.OPENSHIP_TARGET : undefined) ?? "local";
+  (typeof process !== "undefined" ? process.env?.VIBRAIL_TARGET : undefined) ?? "local";
 if (!(rawTarget in DASHBOARD_RUNTIME_TARGETS)) {
   throw new Error(
-    `OPENSHIP_TARGET="${rawTarget}" is not a valid runtime target. ` +
+    `VIBRAIL_TARGET="${rawTarget}" is not a valid runtime target. ` +
       `Use one of: ${Object.keys(DASHBOARD_RUNTIME_TARGETS).join(", ")}.`,
   );
 }
@@ -103,12 +115,12 @@ export const runtimeTargetId = rawTarget as DashboardRuntimeTargetId;
 export const runtimeTarget = DASHBOARD_RUNTIME_TARGETS[runtimeTargetId];
 
 // Optional override for WHERE "cloud" points. A self-hosted instance normally
-// talks to cloud-saas (api.openship.io); set OPENSHIP_CLOUD_TARGET=local-saas to
+// talks to cloud-saas (vibrail.warpgateapi.com); set VIBRAIL_CLOUD_TARGET=local-saas to
 // point it at a localhost SaaS (localhost:4100) for end-to-end local testing.
 // Unset/invalid → falls back to the active target's own cloudTargetId, so
 // production self-hosted is unaffected (no env = cloud-saas as before).
 const rawCloudTarget =
-  typeof process !== "undefined" ? process.env?.OPENSHIP_CLOUD_TARGET : undefined;
+  typeof process !== "undefined" ? process.env?.VIBRAIL_CLOUD_TARGET : undefined;
 export const cloudRuntimeTargetId: DashboardRuntimeTargetId =
   rawCloudTarget && rawCloudTarget in DASHBOARD_RUNTIME_TARGETS
     ? (rawCloudTarget as DashboardRuntimeTargetId)

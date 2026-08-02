@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────
-# Openship — Docker Compose (SELF-HOSTED, pull-based)
+# Vibrail — Docker Compose (SELF-HOSTED, pull-based)
 #
 # Run from the REPO ROOT (paths below are relative to docker/):
 #   cp .env.example .env          # then edit
@@ -8,7 +8,7 @@
 # Upgrade:  docker compose -f docker/docker-compose.yml --env-file .env pull && \
 #           docker compose -f docker/docker-compose.yml --env-file .env up -d
 #
-# Names every container/volume/network `openship-*` instead of letting compose
+# Names every container/volume/network `vibrail-*` instead of letting compose
 # derive the prefix from this directory (which produced `docker-api-1`).
 #
 # UPGRADING AN EXISTING STACK: the project name is also the VOLUME prefix, so
@@ -17,13 +17,13 @@
 # mounted. Either keep the old name (`docker compose -p docker …`) or copy the
 # volumes over first.
 #
-# NOTE: `openship up` (the CLI) does NOT use this file — it generates its own
-# equivalent stack at ~/.openship/compose/. This file is the reference for
+# NOTE: `vibrail up` (the CLI) does NOT use this file — it generates its own
+# equivalent stack at ~/.vibrail/compose/. This file is the reference for
 # advanced git-clone self-hosters. Keep the two in sync (apps/cli/src/lib/compose.ts).
 #
 # PULL-BASED by default: `api` + `dashboard` come from published images
-#   on GHCR (ghcr.io/oblien/*; OPENSHIP_IMAGE_REGISTRY overrides for a mirror).
-#   Pin OPENSHIP_VERSION in .env for reproducible upgrades. To BUILD from source
+#   on GHCR (ghcr.io/aeolialiu2051/*; VIBRAIL_IMAGE_REGISTRY overrides for a mirror).
+#   Pin VIBRAIL_VERSION in .env for reproducible upgrades. To BUILD from source
 #   instead, layer the override:
 #     docker compose -f docker/docker-compose.yml -f docker/docker-compose.build.yml \
 #       --env-file .env up -d --build
@@ -45,13 +45,13 @@
 # reverse proxy maps public domains to the api/dashboard ports.
 #
 # REMOTE ACCESS: reaching this from another machine (LAN IP or a reverse proxy)
-# requires OPENSHIP_PUBLIC_URL in .env — else the dashboard loads but login is
+# requires VIBRAIL_PUBLIC_URL in .env — else the dashboard loads but login is
 # rejected (403 ORIGIN_REJECTED). Behind a proxy also set TRUST_PROXY=true. Set
-# OPENSHIP_BIND_ADDR to publish the ports on one interface instead of all. See
+# VIBRAIL_BIND_ADDR to publish the ports on one interface instead of all. See
 # .env.example → "Remote access".
 # ──────────────────────────────────────────────────────────
 
-name: openship
+name: vibrail
 
 services:
   # ─── Database (storage, private) ──────────────────────
@@ -59,16 +59,16 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-openship}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — re-run `openship up` to regenerate .env}
-      POSTGRES_DB: ${POSTGRES_DB:-openship}
+      POSTGRES_USER: ${POSTGRES_USER:-vibrail}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — re-run `vibrail up` to regenerate .env}
+      POSTGRES_DB: ${POSTGRES_DB:-vibrail}
     # PRIVATE: not published to the host. api reaches it at postgres:5432.
     expose:
       - "5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-openship} -d ${POSTGRES_DB:-openship}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vibrail} -d ${POSTGRES_DB:-vibrail}"]
       interval: 5s
       timeout: 3s
       retries: 12
@@ -91,22 +91,22 @@ services:
 
   # ─── API (control plane) ──────────────────────────────
   api:
-    image: ${OPENSHIP_IMAGE_REGISTRY:-ghcr.io/oblien}/openship-api:${OPENSHIP_VERSION:-latest}
+    image: ${VIBRAIL_IMAGE_REGISTRY:-ghcr.io/aeolialiu2051}/vibrail-api:${VIBRAIL_VERSION:-latest}
     restart: unless-stopped
     ports:
-      # Publish on all interfaces by default; OPENSHIP_BIND_ADDR pins one.
+      # Publish on all interfaces by default; VIBRAIL_BIND_ADDR pins one.
       # API_PORT overrides the port (host + container move together).
-      - "${OPENSHIP_BIND_ADDR:-0.0.0.0}:${API_PORT:-4000}:${API_PORT:-4000}"
+      - "${VIBRAIL_BIND_ADDR:-0.0.0.0}:${API_PORT:-4000}:${API_PORT:-4000}"
     # Host Docker socket → the API (dockerode) builds + runs deployed apps on the
     # host daemon. dockerode's local transport targets this exact path.
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     # Reach the HOST over the internal docker bridge (host.docker.internal →
-    # host-gateway) for host-OS ops when configured (OPENSHIP_HOST_SSH_*, set up
-    # by `openship up`). Harmless when unset. Linux needs the explicit mapping.
+    # host-gateway) for host-OS ops when configured (VIBRAIL_HOST_SSH_*, set up
+    # by `vibrail up`). Harmless when unset. Linux needs the explicit mapping.
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    # Mode + secrets (CLOUD_MODE, DEPLOY_MODE, OPENSHIP_TARGET, Oblien, GitHub
+    # Mode + secrets (CLOUD_MODE, DEPLOY_MODE, VIBRAIL_TARGET, Oblien, GitHub
     # App, auth secrets, …) all come from .env. The values below OVERRIDE it
     # with the fixed internal port + in-cluster service DNS (compose
     # `environment` wins over `env_file`).
@@ -115,7 +115,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "${API_PORT:-4000}"
-      DATABASE_URL: postgresql://${POSTGRES_USER:-openship}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — re-run `openship up` to regenerate .env}@postgres:5432/${POSTGRES_DB:-openship}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vibrail}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required — re-run `vibrail up` to regenerate .env}@postgres:5432/${POSTGRES_DB:-vibrail}
       REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
@@ -131,10 +131,10 @@ services:
 
   # ─── Dashboard (app UI) ───────────────────────────────
   dashboard:
-    image: ${OPENSHIP_IMAGE_REGISTRY:-ghcr.io/oblien}/openship-dashboard:${OPENSHIP_VERSION:-latest}
+    image: ${VIBRAIL_IMAGE_REGISTRY:-ghcr.io/aeolialiu2051}/vibrail-dashboard:${VIBRAIL_VERSION:-latest}
     restart: unless-stopped
     ports:
-      - "${OPENSHIP_BIND_ADDR:-0.0.0.0}:${DASHBOARD_PORT:-3001}:${DASHBOARD_PORT:-3001}"
+      - "${VIBRAIL_BIND_ADDR:-0.0.0.0}:${DASHBOARD_PORT:-3001}:${DASHBOARD_PORT:-3001}"
     env_file:
       - ../.env
     environment:

@@ -42,7 +42,7 @@ r.get(
     readOnly: true,
     rateLimit: "server-probe",
     mcp: {
-      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Openship projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
+      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Vibrail projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
     },
   },
   dockerOverview.getDockerOverview,

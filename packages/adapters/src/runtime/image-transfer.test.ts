@@ -45,7 +45,7 @@ function fakeTarget(
   } as unknown as DockerRuntime;
 }
 
-const IMG = { id: "sha256:abcdef0123456789", tag: "openship/app:sess" };
+const IMG = { id: "sha256:abcdef0123456789", tag: "vibrail/app:sess" };
 
 describe("transferImage", () => {
   test("streams save → load and counts bytes + progress", async () => {

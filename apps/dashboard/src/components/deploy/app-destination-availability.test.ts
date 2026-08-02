@@ -11,7 +11,7 @@ describe("app destination availability", () => {
     expect(canUseLocalAppDestination({ allowLocal: true, deployMode: "desktop" })).toBe(true);
   });
 
-  it("hides This machine on a server-hosted Openship instance", () => {
+  it("hides This machine on a server-hosted Vibrail instance", () => {
     expect(canUseLocalAppDestination({ allowLocal: true, deployMode: "docker" })).toBe(false);
   });
 
@@ -19,7 +19,7 @@ describe("app destination availability", () => {
     expect(canUseLocalAppDestination({ allowLocal: false, deployMode: "desktop" })).toBe(false);
   });
 
-  it("keeps Openship Cloud app installation in coming-soon state", () => {
+  it("keeps Vibrail Cloud app installation in coming-soon state", () => {
     expect(APP_CLOUD_INSTALL_AVAILABLE).toBe(false);
   });
 

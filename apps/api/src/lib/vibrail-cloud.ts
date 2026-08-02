@@ -1,5 +1,5 @@
 /**
- * Openship Cloud - namespace provisioning + token minting.
+ * Vibrail Cloud - namespace provisioning + token minting.
  *
  * Runs on the SaaS API (CLOUD_MODE=true) only. Local instances
  * call POST /api/cloud/token to get a namespace-scoped token,
@@ -77,7 +77,7 @@ export async function ensureOblienWebhook(): Promise<void> {
   if (!env.CLOUD_MODE) return;
 
   const secret = env.OBLIEN_WEBHOOK_SECRET;
-  const base = env.OPENSHIP_PUBLIC_URL?.trim();
+  const base = env.VIBRAIL_PUBLIC_URL?.trim();
   if (!secret) {
     console.warn(
       "[oblien] OBLIEN_WEBHOOK_SECRET unset — skipping webhook registration (deliveries would be unverifiable)",
@@ -86,7 +86,7 @@ export async function ensureOblienWebhook(): Promise<void> {
   }
   if (!base) {
     console.warn(
-      "[oblien] OPENSHIP_PUBLIC_URL unset — skipping webhook registration (no public URL for Oblien to reach)",
+      "[oblien] VIBRAIL_PUBLIC_URL unset — skipping webhook registration (no public URL for Oblien to reach)",
     );
     return;
   }
@@ -109,7 +109,7 @@ export async function ensureOblienWebhook(): Promise<void> {
       url,
       events,
       secret,
-      description: "Openship billing (credits + quota)",
+      description: "Vibrail billing (credits + quota)",
     });
     console.log(`[oblien] webhook ${created.webhook?.id ?? "?"} registered → ${url}`);
   } catch (err) {
@@ -148,7 +148,7 @@ export async function ensureNamespace(organizationId: string): Promise<string> {
   const slug = namespaceSlugForOrg(organizationId);
 
   const ensured = await client.namespaces.ensure({
-    name: `Openship ${organizationId}`,
+    name: `Vibrail ${organizationId}`,
     slug,
   });
 

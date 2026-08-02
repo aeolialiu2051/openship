@@ -58,7 +58,7 @@ async function probeLogin(token: string): Promise<string | null> {
 
 /** Generate an Ed25519 keypair via ssh-keygen (OpenSSH private + public line). */
 async function generateEd25519(comment: string): Promise<{ privateKey: string; publicKey: string }> {
-  const dir = await mkdtemp(path.join(tmpdir(), "opsh-ghkey-"));
+  const dir = await mkdtemp(path.join(tmpdir(), "vibrail-ghkey-"));
   const keyPath = path.join(dir, "id_ed25519");
   try {
     await execFileAsync("ssh-keygen", ["-t", "ed25519", "-N", "", "-C", comment, "-f", keyPath], {
@@ -136,7 +136,7 @@ export async function ensureServerKey(ctx: RequestContext, serverId: string): Pr
   if (existing?.mode === "ssh-server-key" && existing.serverKeyPublic) {
     return { publicKey: existing.serverKeyPublic };
   }
-  const { privateKey, publicKey } = await generateEd25519(`openship-${serverId}`);
+  const { privateKey, publicKey } = await generateEd25519(`vibrail-${serverId}`);
   await repos.serverGithubAuth.upsert({
     serverId,
     organizationId: ctx.organizationId,
@@ -170,7 +170,7 @@ async function ensureDeployKey(
   const existing = await repos.githubDeployKey.getByRepo(serverId, owner, repo);
   if (existing) return { privateKey: decrypt(existing.privateKeyEncrypted) };
 
-  const { privateKey, publicKey } = await generateEd25519(`openship-${serverId}-${owner}/${repo}`);
+  const { privateKey, publicKey } = await generateEd25519(`vibrail-${serverId}-${owner}/${repo}`);
   // Register read-only. A 403 here means the resolved token lacks repo Admin —
   // surfaced to the operator (grant the App Administration permission or use a
   // repo-admin PAT).
@@ -178,7 +178,7 @@ async function ensureDeployKey(
     ctx,
     owner,
     repo,
-    `openship-${serverId.slice(0, 8)}`,
+    `vibrail-${serverId.slice(0, 8)}`,
     publicKey,
     true,
   );

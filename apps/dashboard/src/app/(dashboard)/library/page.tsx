@@ -23,7 +23,7 @@ import { useToast } from "@/context/ToastContext";
 type Tab = "folder" | "repositories" | "url" | "template" | "server";
 
 /** One-time gh-CLI repo-read consent flag (per browser — desktop is single-user). */
-const GH_CLI_CONSENT_KEY = "openship.gh-cli-consent";
+const GH_CLI_CONSENT_KEY = "vibrail.gh-cli-consent";
 
 interface TabItem {
   key: Tab;

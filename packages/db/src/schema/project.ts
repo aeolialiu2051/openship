@@ -294,7 +294,7 @@ export const project = pgTable(
      *                  Disk + archive remain attached to the workspace;
      *                  compute paused. Rollback starts it back up.
      *   - "offload"  → Reserved for future self-hosted external-S3
-     *                  shipping. Not implemented on Openship Cloud.
+     *                  shipping. Not implemented on Vibrail Cloud.
      *
      * Bare/Docker runtimes ignore this column.
      */

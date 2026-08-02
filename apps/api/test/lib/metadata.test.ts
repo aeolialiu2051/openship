@@ -102,7 +102,7 @@ describe("vercelMetadataParser", () => {
     expect(meta).toBeNull(); // the only rule was conditional → no usable signal
   });
 
-  it("maps framework slugs that differ from openship stack ids", () => {
+  it("maps framework slugs that differ from vibrail stack ids", () => {
     const fw = (slug: string) =>
       vercelMetadataParser.parse({ "vercel.json": JSON.stringify({ framework: slug }) })?.framework;
     expect(fw("nuxtjs")).toBe("nuxt");
@@ -173,7 +173,7 @@ describe("railwayMetadataParser", () => {
       startCommand: "npm run start:prod",
     });
     expect(meta?.fillOnly).toBeUndefined(); // authoritative, not fill-only
-    expect(meta?.framework).toBeUndefined(); // NIXPACKS → let openship detect
+    expect(meta?.framework).toBeUndefined(); // NIXPACKS → let vibrail detect
   });
 
   it("reads railway.json (build/deploy tables)", () => {

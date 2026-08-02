@@ -1,5 +1,5 @@
 /**
- * Dump the current Openship DB to a JSON file.
+ * Dump the current Vibrail DB to a JSON file.
  *
  *   bun --cwd packages/db db:dump > backup.json
  *   bun --cwd packages/db db:dump --out path/to/dump.json
@@ -8,11 +8,11 @@
  *   bun --cwd packages/db db:dump --scope project --project <projectId>
  *
  * The output is a `DatabaseDump` envelope — drop it into another
- * Openship install (same migration version) via `db:restore`. Written
+ * Vibrail install (same migration version) via `db:restore`. Written
  * to stdout when --out is omitted so it can be piped to ssh / pv / etc.
  *
  * Used by the team-mode migration wizards (path A: copy to operator's
- * VPS; path B: upload to Openship Cloud) but works standalone for
+ * VPS; path B: upload to Vibrail Cloud) but works standalone for
  * ad-hoc snapshots too.
  */
 

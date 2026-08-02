@@ -9,7 +9,7 @@ Once your app is online, the next question is always the same: *what is it actua
 how you find out. Think of them like a diary the app keeps — every time it starts, prints a message, or handles
 a visitor, it writes a line. When something goes wrong, that diary is the first place to look.
 
-Openship gives you two kinds of diary and one big-picture view:
+Vibrail gives you two kinds of diary and one big-picture view:
 
 - **Runtime logs** — what your app itself prints (startup messages, errors, `console.log`). This is what you
   want when the app is crashing or misbehaving.
@@ -76,7 +76,7 @@ picker appears above the terminal. Choose the project runtime or a specific serv
 
 <Callout title="Static sites don't have a Terminal tab" type="info">
 A static site is just files — there's no process running to print anything — so there are no runtime logs and
-the **Terminal** sub-tab is hidden. On **Openship Cloud**, a static site still gets request logs, shown on a
+the **Terminal** sub-tab is hidden. On **Vibrail Cloud**, a static site still gets request logs, shown on a
 single sub-tab labelled **Requests**. On a **self-hosted** static deploy there's no runtime to stream, so the
 Logs tab simply reads *"No runtime logs."* That's expected, not a bug.
 </Callout>
@@ -133,28 +133,28 @@ A quick map so you don't have to guess:
 
 ## Prefer the terminal?
 
-Everything above is available from the CLI too. First grab your project's ID with `openship project list`, then:
+Everything above is available from the CLI too. First grab your project's ID with `vibrail project list`, then:
 
 ```bash
 # Runtime (container) logs — what your app prints
-openship project logs <project-id>              # recent lines
-openship project logs <project-id> --tail 200   # last 200 lines
-openship project logs <project-id> -f           # follow / stream live
+vibrail project logs <project-id>              # recent lines
+vibrail project logs <project-id> --tail 200   # last 200 lines
+vibrail project logs <project-id> -f           # follow / stream live
 
 # HTTP request logs — every web request that hit the app
-openship project server-logs <project-id>                 # recent entries (JSON)
-openship project server-logs <project-id> --limit 200     # up to 200 entries
-openship project server-logs <project-id> --domain yourapp.com   # one domain only
-openship project server-logs <project-id> -f              # stream live
+vibrail project server-logs <project-id>                 # recent entries (JSON)
+vibrail project server-logs <project-id> --limit 200     # up to 200 entries
+vibrail project server-logs <project-id> --domain yourapp.com   # one domain only
+vibrail project server-logs <project-id> -f              # stream live
 
-# A specific deployment's build/run log (grab the id with: openship deployment list)
-openship logs <deployment-id>          # snapshot
-openship logs <deployment-id> --tail 100
-openship logs <deployment-id> -f       # stream until the deployment finishes
+# A specific deployment's build/run log (grab the id with: vibrail deployment list)
+vibrail logs <deployment-id>          # snapshot
+vibrail logs <deployment-id> --tail 100
+vibrail logs <deployment-id> -f       # stream until the deployment finishes
 ```
 
 <Callout title="Live request streaming is self-hosted only (for now)" type="info">
-`openship project server-logs -f` streams live on self-hosted projects. For Openship Cloud projects the CLI
+`vibrail project server-logs -f` streams live on self-hosted projects. For Vibrail Cloud projects the CLI
 prints the recent entries instead and points you to the dashboard for the live tail — the **Server** sub-tab
 there streams cloud requests fine.
 </Callout>
@@ -164,7 +164,7 @@ there streams cloud requests fine.
 <Callout title="The Terminal tab is empty or says “Press Start”" type="warn">
 Either the app hasn't printed anything yet, or it isn't running. Make sure the deployment is live (check the
 **Deployments** tab), then press **Start**. If the project is a **static site**, there's no Terminal at all —
-on Openship Cloud use the **Requests** sub-tab; a self-hosted static deploy has no runtime logs to show.
+on Vibrail Cloud use the **Requests** sub-tab; a self-hosted static deploy has no runtime logs to show.
 </Callout>
 
 <Callout title="“Container exited with code …” pops up" type="error">
@@ -182,7 +182,7 @@ points at that second case.
 
 <Callout title="The CLI says “Failed to connect to terminal logs”" type="error">
 This means the project isn't running, so there's no live stream to attach to. Confirm the deployment is up
-(`openship project list` shows its status), start it if needed, then try `openship project logs <project-id> -f`
+(`vibrail project list` shows its status), start it if needed, then try `vibrail project logs <project-id> -f`
 again.
 </Callout>
 

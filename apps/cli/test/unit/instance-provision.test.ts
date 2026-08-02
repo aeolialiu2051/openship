@@ -1,17 +1,17 @@
 import { describe, it, expect, afterEach } from "vitest";
 import { resolveInstallInputs, HeadlessInputError } from "../../src/lib/instance-provision";
 
-// resolveInstallInputs is the pure arg→inputs resolver behind `openship up
+// resolveInstallInputs is the pure arg→inputs resolver behind `vibrail up
 // --non-interactive`. It must NEVER silently default a credential and must give
 // a precise error on anything missing/invalid.
 
 const OK = { adminEmail: "a@b.com", adminPassword: "supersecret" };
 
 describe("resolveInstallInputs", () => {
-  const prev = process.env.OPENSHIP_ADMIN_PASSWORD;
+  const prev = process.env.VIBRAIL_ADMIN_PASSWORD;
   afterEach(() => {
-    if (prev === undefined) delete process.env.OPENSHIP_ADMIN_PASSWORD;
-    else process.env.OPENSHIP_ADMIN_PASSWORD = prev;
+    if (prev === undefined) delete process.env.VIBRAIL_ADMIN_PASSWORD;
+    else process.env.VIBRAIL_ADMIN_PASSWORD = prev;
   });
 
   it("resolves a byo install from flags", () => {
@@ -27,8 +27,8 @@ describe("resolveInstallInputs", () => {
     expect(r.domain).toEqual({ kind: "byo", hostname: "ops.example.com" });
   });
 
-  it("reads the password from OPENSHIP_ADMIN_PASSWORD when the flag is absent", () => {
-    process.env.OPENSHIP_ADMIN_PASSWORD = "fromenvsecret";
+  it("reads the password from VIBRAIL_ADMIN_PASSWORD when the flag is absent", () => {
+    process.env.VIBRAIL_ADMIN_PASSWORD = "fromenvsecret";
     const r = resolveInstallInputs({ adminEmail: "a@b.com" });
     expect(r.admin.password).toBe("fromenvsecret");
   });
@@ -41,7 +41,7 @@ describe("resolveInstallInputs", () => {
   });
 
   it("throws on a too-short / missing password", () => {
-    delete process.env.OPENSHIP_ADMIN_PASSWORD;
+    delete process.env.VIBRAIL_ADMIN_PASSWORD;
     expect(() => resolveInstallInputs({ adminEmail: "a@b.com" })).toThrow(HeadlessInputError);
     expect(() => resolveInstallInputs({ adminEmail: "a@b.com", adminPassword: "short" })).toThrow(
       HeadlessInputError,

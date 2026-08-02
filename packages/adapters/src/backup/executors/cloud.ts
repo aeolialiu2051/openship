@@ -1,5 +1,5 @@
 /**
- * CloudBackupExecutor — backup primitives for Openship Cloud services
+ * CloudBackupExecutor — backup primitives for Vibrail Cloud services
  * (services running on Oblien workspaces).
  *
  * Each compose service maps to its own Oblien workspace (see
@@ -231,7 +231,7 @@ export class CloudBackupExecutor implements BackupExecutor {
     // read or overwrite the staged bytes (a restore artifact contains
     // every secret a service can decrypt). 12 hex chars = 48 bits of
     // entropy, comfortably above the collision floor for a tmp path.
-    const tmpPath = `/tmp/openship-restore-stdin-${randomBytes(6).toString("hex")}`;
+    const tmpPath = `/tmp/vibrail-restore-stdin-${randomBytes(6).toString("hex")}`;
 
     await rt.transfer.upload({
       body: body as unknown as ReadableStream<Uint8Array>,

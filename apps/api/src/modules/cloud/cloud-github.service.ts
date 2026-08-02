@@ -70,7 +70,7 @@ async function resolveCloudOwnerById(
  * doesn't need any session cookie to complete the OAuth callback.
  *
  * If we ever forwarded the SaaS session cookie here, we'd silently log
- * the popup window into the SaaS dashboard at api.openship.io from a
+ * the popup window into the SaaS dashboard at vibrail.warpgateapi.com from a
  * popup opened by a local self-hosted instance — that's confused-deputy
  * territory. Future Better Auth versions might start emitting unexpected
  * Set-Cookie headers during linkSocialAccount; this allowlist makes that

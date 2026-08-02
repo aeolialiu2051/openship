@@ -53,9 +53,9 @@ export const domain = pgTable(
      * Externally-managed ingress + TLS. When true, an upstream (Cloudflare Tunnel,
      * a load balancer, etc.) terminates TLS and forwards HTTP to this box, so the
      * hostname does NOT resolve to the server's (possibly Tailscale) SSH address.
-     * Openship then: verifies ownership via TXT only (no A-record check), skips
+     * Vibrail then: verifies ownership via TXT only (no A-record check), skips
      * local certificate issuance, and serves a plain-HTTP Traefik route. DNS/LB/firewall stay
-     * outside Openship.
+     * outside Vibrail.
      */
     externalIngress: boolean("external_ingress").notNull().default(false),
 
@@ -75,7 +75,7 @@ export const domain = pgTable(
     /* ── Verification ───────────────────────────────────────────────────── */
     /** Domain status: pending | active | failed | removing */
     status: text("status").notNull().default("pending"),
-    /** DNS TXT verification value (e.g. "openship-verify=abc123") */
+    /** DNS TXT verification value (e.g. "vibrail-verify=abc123") */
     verificationToken: text("verification_token"),
     /** Whether DNS verification has passed */
     verified: boolean("verified").notNull().default(false),

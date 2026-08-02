@@ -891,7 +891,7 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
       ? `${config.branch}@${config.commitSha.slice(0, 7)}`
       : config.branch;
     const checkoutRef = config.commitSha ?? "FETCH_HEAD";
-    const sourceDir = "/openship/dockerfile-source";
+    const sourceDir = "/vibrail/dockerfile-source";
     let sourceWorkspaceId: string | undefined;
 
     try {
@@ -1159,7 +1159,7 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
     if (source.kind === "local") {
       await transferLocalDirectory(
         source.contextRoot,
-        { kind: "cloud-runtime", runtime, path: "/openship/context" },
+        { kind: "cloud-runtime", runtime, path: "/vibrail/context" },
         logger,
         { excludes: [...TRANSFER_EXCLUDES] },
       );
@@ -1175,8 +1175,8 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
     targetRuntime: CloudWorkspaceRuntime,
     logger: BuildLogger,
   ): Promise<void> {
-    const repoRoot = "/openship/repo";
-    const contextRoot = "/openship/context";
+    const repoRoot = "/vibrail/repo";
+    const contextRoot = "/vibrail/context";
     const contextRelativePath = normalizeDockerRelativePath(source.contextRelativePath);
 
     if (contextRelativePath.startsWith("..")) {
@@ -1199,7 +1199,7 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
     const cloneCommand = [
       "set -e",
       `rm -rf ${sq(repoRoot)} ${sq(contextRoot)}`,
-      "mkdir -p /openship",
+      "mkdir -p /vibrail",
       // See fetchCommand above for env-var rationale; --progress keeps
       // the clone visible in the streamed log even though stdout/stderr
       // are pipes, not a tty.
@@ -1249,7 +1249,7 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
     logger: BuildLogger;
   }): Promise<void> {
     const { copy, stageRefs, runtime, logger } = opts;
-    let sourceBase = "/openship/context";
+    let sourceBase = "/vibrail/context";
     let sourcePaths = copy.sources;
     let copyFromStage = false;
 
@@ -2065,7 +2065,7 @@ fi`;
     try {
       data = await ws.get();
     } catch (err) {
-      // ABSENT: the workspace was deleted on Openship Cloud out-of-band →
+      // ABSENT: the workspace was deleted on Vibrail Cloud out-of-band →
       // report `missing` (drift). A transient Oblien/network error is NOT a
       // 404 and propagates so callers can tell "gone" from "can't reach".
       if (isRuntimeNotFoundError(err)) {

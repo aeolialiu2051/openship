@@ -22,7 +22,7 @@ import type {
 import { classifyProxy } from "@repo/adapters";
 import type { ComposeHealthcheck } from "@repo/core";
 import type { ComposeService } from "../../lib/compose-parser";
-import type { ManifestProjectEntry } from "../../lib/openship-manifest";
+import type { ManifestProjectEntry } from "../../lib/vibrail-manifest";
 import type { ExistingRoute } from "./proxy-route-scan";
 
 export interface DiscoveredVolumeMount {
@@ -38,7 +38,7 @@ export interface DiscoveredVolumeMount {
 export interface DiscoveredService {
   /** compose service name, or the container name for a standalone container. */
   name: string;
-  /** Where it was discovered — informs how much Openship can reconstruct. */
+  /** Where it was discovered — informs how much Vibrail can reconstruct. */
   source: "compose" | "container";
   containerId?: string;
   containerName?: string;
@@ -62,7 +62,7 @@ export interface DiscoveredService {
   restart?: string;
   healthcheck?: ComposeHealthcheck;
   /** Reverse-proxy kind when this container IS the edge proxy (image/command
-   *  matches AND it binds a host edge port). Openship's Traefik replaces it,
+   *  matches AND it binds a host edge port). Vibrail's Traefik replaces it,
    *  so it's dropped from import — importing it is the 80/443 conflict. */
   proxyKind?: ProxyKind;
   /** Host edge ports (80/443) this service publishes. Reserved for Traefik:
@@ -92,15 +92,15 @@ export interface DiscoveredGroup {
 }
 
 /**
- * An OPENSHIP-owned project recovered from a server's live containers (matched by
- * the `openship.project` label) + its `.openship/manifest.json` entry. `knownHere`
+ * An VIBRAIL-owned project recovered from a server's live containers (matched by
+ * the `vibrail.project` label) + its `.vibrail/manifest.json` entry. `knownHere`
  * = this project id already exists in the scanning instance's DB (genuinely
  * managed here → not re-importable, just counted). `knownHere: false` = orphaned:
- * the DB was reset (DR) or the server came from another Openship instance →
+ * the DB was reset (DR) or the server came from another Vibrail instance →
  * re-importable, preserving the original id/slug so the live containers re-attach.
  */
-export interface OpenshipProjectGroup {
-  /** Original Openship project id from the `openship.project` label. */
+export interface VibrailProjectGroup {
+  /** Original Vibrail project id from the `vibrail.project` label. */
   projectId: string;
   /** Best-effort display name (manifest name/slug → compose project → derived). */
   suggestedName: string;
@@ -142,14 +142,14 @@ export interface DiscoveredStack {
   services: DiscoveredService[];
   volumes: Array<{ name: string; driver: string; inUseBy: string[] }>;
   networks: Array<{ name: string; driver: string }>;
-  /** Stack-level notes for things Openship can't carry over 1:1. */
+  /** Stack-level notes for things Vibrail can't carry over 1:1. */
   warnings: string[];
   adoptable: boolean;
   /** Live containers already managed by a project in THIS instance's DB (count). */
   alreadyManaged: number;
-  /** Openship projects recovered from the server (see {@link OpenshipProjectGroup});
+  /** Vibrail projects recovered from the server (see {@link VibrailProjectGroup});
    *  `knownHere: false` entries are re-importable. Empty when none found. */
-  openshipProjects: OpenshipProjectGroup[];
+  vibrailProjects: VibrailProjectGroup[];
   /** Every route the foreign proxy serves, flattened (one per port+path). Lets the
    *  wizard SHOW each detected domain/path + its guessed service, so a fan-out
    *  path isn't silently dropped; unmatched ones also appear in `warnings`. */
@@ -209,7 +209,7 @@ function portsToComposeStrings(ports: DockerPortBinding[]): string[] {
   return out;
 }
 
-/** The host ports Openship's Traefik edge owns — never re-published by an
+/** The host ports Vibrail's Traefik edge owns — never re-published by an
  *  imported workload. */
 export const EDGE_PORTS = new Set([80, 443]);
 
@@ -277,10 +277,10 @@ function inspectHealthcheckToCompose(
  * service adopts. Priority:
  *   1. an explicit compose-file declaration (`declared.name`)
  *   2. the `com.docker.compose.service` label (a real compose stack)
- *   3. Openship's own `openship.service` label — Openship deploys compose
- *      services as plain dockerode containers (`openship-<slug>-<svc>`) that
+ *   3. Vibrail's own `vibrail.service` label — Vibrail deploys compose
+ *      services as plain dockerode containers (`vibrail-<slug>-<svc>`) that
  *      carry NO compose label, so without this step the moved service was named
- *      after the CONTAINER (`openship-openship-web`) and no longer matched its
+ *      after the CONTAINER (`vibrail-vibrail-web`) and no longer matched its
  *      git-compose definition (`web`) → the reconcile created a DUPLICATE
  *      bare-name row instead of updating the moved one in place.
  *   4. the raw container name (last resort).
@@ -289,27 +289,27 @@ export function discoveredServiceName(
   detail: { composeService?: string; labels?: Record<string, string>; name: string },
   declared: { name?: string } | undefined,
 ): string {
-  return declared?.name ?? detail.composeService ?? detail.labels?.["openship.service"] ?? detail.name;
+  return declared?.name ?? detail.composeService ?? detail.labels?.["vibrail.service"] ?? detail.name;
 }
 
 /**
- * Display-grouping key for an Openship-DEPLOYED container that carries no
- * compose label. Openship runs compose services as plain containers named
- * `openship-<slug>-<svc>` (labels `openship.project`/`openship.service`, but NO
+ * Display-grouping key for a Vibrail-DEPLOYED container that carries no
+ * compose label. Vibrail runs compose services as plain containers named
+ * `vibrail-<slug>-<svc>` (labels `vibrail.project`/`vibrail.service`, but NO
  * `com.docker.compose.project`), so without this they all collapse into the
  * single "standalone" bucket — the exact symptom in flat-docker mode where a
  * moved stack (supabase / mongodb / …) showed as N loose containers instead of
  * one group. Derive the stack SLUG from the container name minus the EXACT
- * `openship.service` suffix (using the label makes it precise even for
+ * `vibrail.service` suffix (using the label makes it precise even for
  * hyphenated service names like `mongo-express`). Returns null when the
- * container isn't an Openship compose service (→ truly standalone).
+ * container isn't a Vibrail compose service (→ truly standalone).
  */
-export function openshipStackName(
+export function vibrailStackName(
   containerName: string | undefined,
   serviceLabel: string | undefined,
 ): string | null {
   if (!containerName || !serviceLabel) return null;
-  const stripped = containerName.replace(/^openship-/, "");
+  const stripped = containerName.replace(/^vibrail-/, "");
   const suffix = `-${serviceLabel}`;
   if (!stripped.endsWith(suffix)) return null;
   return stripped.slice(0, -suffix.length) || null;
@@ -433,8 +433,8 @@ export function reconcileStack(opts: {
   /** image ref → its baked-in default CMD tokens, dropped when the container
    *  only restates it (see toDiscoveredService). */
   imageCmds?: Map<string, string[]>;
-  /** Openship projects recovered from the server (computed in the IO shell). */
-  openshipProjects?: OpenshipProjectGroup[];
+  /** Vibrail projects recovered from the server (computed in the IO shell). */
+  vibrailProjects?: VibrailProjectGroup[];
   /** published host port → route the foreign proxy already serves (from the
    *  IO-shell proxy scan). Attached per-service by matching published ports. */
   proxyRoutesByPort?: Map<number, ExistingRoute[]>;
@@ -446,13 +446,13 @@ export function reconcileStack(opts: {
   ];
 
   // Build each service alongside the group it belongs to, then group. Priority:
-  // the real compose project → else the Openship stack slug (openship-deployed
+  // the real compose project → else the Vibrail stack slug (vibrail-deployed
   // services have no compose label, so this keeps a moved stack together instead
   // of flattening it into standalone) → else truly standalone (null).
   const built = details.map((d) => ({
     project:
       d.composeProject ??
-      openshipStackName(d.name, d.labels?.["openship.service"]) ??
+      vibrailStackName(d.name, d.labels?.["vibrail.service"]) ??
       null,
     service: toDiscoveredService(
       d,
@@ -489,7 +489,7 @@ export function reconcileStack(opts: {
     .filter((v) => inUse.has(v.name))
     .map((v) => ({ name: v.name, driver: v.driver, inUseBy: [...(inUse.get(v.name) ?? [])] }));
 
-  // Stack-level warnings for topology Openship flattens or can't model.
+  // Stack-level warnings for topology Vibrail flattens or can't model.
   const warnings: string[] = [];
   const customNetworks = networks
     .map((n) => n.name)
@@ -497,12 +497,12 @@ export function reconcileStack(opts: {
     .filter((name) => services.some((s) => s.networks.includes(name)));
   if (customNetworks.length > 0) {
     warnings.push(
-      `Openship runs all services on one project network; custom networks (${customNetworks.join(", ")}) will be flattened. Services still reach each other by name.`,
+      `Vibrail runs all services on one project network; custom networks (${customNetworks.join(", ")}) will be flattened. Services still reach each other by name.`,
     );
   }
   if (composeProjects.length > 0 || declared.size > 0) {
     warnings.push(
-      "Compose `configs`, `secrets`, `expose`, and `depends_on` conditions are not modeled by Openship and won't carry over.",
+      "Compose `configs`, `secrets`, `expose`, and `depends_on` conditions are not modeled by Vibrail and won't carry over.",
     );
   }
   if (services.some((s) => Object.keys(s.env).length > 0)) {
@@ -537,36 +537,36 @@ export function reconcileStack(opts: {
     warnings,
     adoptable: services.length > 0,
     alreadyManaged,
-    openshipProjects: opts.openshipProjects ?? [],
+    vibrailProjects: opts.vibrailProjects ?? [],
     proxyRoutes,
   };
 }
 
 /**
- * A TRANSIENT build-helper container — not a live app. The `openship.build`
+ * A TRANSIENT build-helper container — not a live app. The `vibrail.build`
  * label alone is NOT sufficient: it's baked into every locally-built image
- * (`openship/<app>:bld_…`) and Docker inherits image labels onto the running
+ * (`vibrail/<app>:bld_…`) and Docker inherits image labels onto the running
  * container, so real deploy containers carry it too. A genuine build helper has
- * `openship.build` but NO `openship.deployment`/`openship.service` (those are
+ * `vibrail.build` but NO `vibrail.deployment`/`vibrail.service` (those are
  * set only when a real app container is created). Used to keep transient
  * builders out of both the adopt grid and the re-import set without dropping the
  * real (locally-built) app containers.
  */
 export const isBuildHelper = (labels: Record<string, string>) =>
-  !!labels["openship.build"] && !labels["openship.deployment"] && !labels["openship.service"];
+  !!labels["vibrail.build"] && !labels["vibrail.deployment"] && !labels["vibrail.service"];
 
 /**
- * Reconstruct OPENSHIP-owned projects from their live containers + the server's
- * `.openship/manifest.json`. Pure — the DB cross-reference (which ids are
+ * Reconstruct VIBRAIL-owned projects from their live containers + the server's
+ * `.vibrail/manifest.json`. Pure — the DB cross-reference (which ids are
  * `knownHere`) and the manifest read happen in the IO shell and are passed in.
  *
- * Containers are grouped by their `openship.project` label. Build-helper
- * containers (`openship.build`, no live app) are skipped. A single-app deploy
- * container carries only `openship.project`/`openship.deployment` (no
- * `openship.service`), so we DON'T require a service label — we recover the
- * service name from `openship.service` when present, else the container name.
+ * Containers are grouped by their `vibrail.project` label. Build-helper
+ * containers (`vibrail.build`, no live app) are skipped. A single-app deploy
+ * container carries only `vibrail.project`/`vibrail.deployment` (no
+ * `vibrail.service`), so we DON'T require a service label — we recover the
+ * service name from `vibrail.service` when present, else the container name.
  */
-export function reconcileOpenshipProjects(opts: {
+export function reconcileVibrailProjects(opts: {
   managedDetails: DockerContainerDetail[];
   /** Manifest entries keyed by project id (null when the server has no manifest). */
   manifestById: Map<string, ManifestProjectEntry> | null;
@@ -576,12 +576,12 @@ export function reconcileOpenshipProjects(opts: {
   snapshotIds: Set<string>;
   imageDefaults?: Map<string, Set<string>>;
   imageCmds?: Map<string, string[]>;
-}): OpenshipProjectGroup[] {
+}): VibrailProjectGroup[] {
   const { managedDetails, manifestById, knownHereIds, snapshotIds, imageDefaults, imageCmds } = opts;
 
   const byProject = new Map<string, DockerContainerDetail[]>();
   for (const d of managedDetails) {
-    const projectId = d.labels["openship.project"];
+    const projectId = d.labels["vibrail.project"];
     if (!projectId) continue; // not project-owned (infra/network helper) — skip
     if (isBuildHelper(d.labels)) continue; // transient build container — not a service
     const list = byProject.get(projectId) ?? [];
@@ -589,16 +589,16 @@ export function reconcileOpenshipProjects(opts: {
     byProject.set(projectId, list);
   }
 
-  const out: OpenshipProjectGroup[] = [];
+  const out: VibrailProjectGroup[] = [];
   for (const [projectId, details] of byProject) {
     const entry = manifestById?.get(projectId);
     const services = details.map((d) => {
       const svc = toDiscoveredService(d, undefined, imageDefaults?.get(d.image ?? ""), imageCmds?.get(d.image ?? ""));
-      const serviceLabel = d.labels["openship.service"];
+      const serviceLabel = d.labels["vibrail.service"];
       return serviceLabel ? { ...svc, name: serviceLabel } : svc;
     });
     const deploymentId =
-      details.find((d) => d.labels["openship.deployment"])?.labels["openship.deployment"] ??
+      details.find((d) => d.labels["vibrail.deployment"])?.labels["vibrail.deployment"] ??
       entry?.deployment?.id;
 
     out.push({
@@ -609,7 +609,7 @@ export function reconcileOpenshipProjects(opts: {
         entry?.name ||
         entry?.slug ||
         details.find((d) => d.composeProject)?.composeProject ||
-        `openship-${projectId.replace(/^proj_/, "").slice(0, 8)}`,
+        `vibrail-${projectId.replace(/^proj_/, "").slice(0, 8)}`,
       slug: entry?.slug,
       routeKey: entry?.routeKey ?? undefined,
       domains: entry?.domains,

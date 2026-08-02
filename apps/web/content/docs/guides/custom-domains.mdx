@@ -5,21 +5,21 @@ description: Put your app on your own address like app.example.com, with automat
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-When you first deploy, Openship gives your app a working web address for free. This guide is about the next
+When you first deploy, Vibrail gives your app a working web address for free. This guide is about the next
 step: putting it on a name **you** own, like `app.example.com`, with the little padlock (HTTPS) turned on
 automatically.
 
 Here's the idea in plain terms. A **domain** is the name people type to reach your app. **DNS** is the
 internet's phone book — it's how a name like `app.example.com` gets connected to the actual computer running
 your app. **SSL** (that padlock) is what makes the address start with `https://` and keeps traffic private.
-Openship handles the padlock for you; your only real job is adding a couple of entries to your domain's phone
+Vibrail handles the padlock for you; your only real job is adding a couple of entries to your domain's phone
 book. This guide walks you through all of it.
 
 <Callout title="What you need first">
-- A project already deployed in Openship (see [Your first deployment](/docs/getting-started/first-deployment)).
+- A project already deployed in Vibrail (see [Your first deployment](/docs/getting-started/first-deployment)).
 - A domain you own, bought from a **registrar** (Namecheap, Cloudflare, GoDaddy, Google Domains, etc.).
 - Access to that registrar's **DNS settings** — the page where you add records. That's where you'll paste
-  the two lines Openship gives you.
+  the two lines Vibrail gives you.
 </Callout>
 
 ## The click-by-click way
@@ -44,7 +44,7 @@ Press **Add domain**. In the form that opens, choose **Custom domain**, then typ
 like `app.example.com`.
 
 If your project runs a server, you'll also see a **Maps to port** field — this is which internal port the
-domain sends traffic to. Openship pre-fills it with your app's port, so you can usually leave it.
+domain sends traffic to. Vibrail pre-fills it with your app's port, so you can usually leave it.
 
 There are two optional toggles:
 
@@ -67,21 +67,21 @@ that's the next two steps.
 
 <Step>
 
-### Copy the DNS records Openship shows you
+### Copy the DNS records Vibrail shows you
 
 Right after you add the domain, a **DNS Records** panel appears with the exact entries to create at your
 registrar. Each row has a **Type**, a **Host**, and a **Value**, and a **Copy** button next to it.
 
 There are usually two records:
 
-- A **routing record** (an `A` or `CNAME` — Openship picks the right one for you, see below) that points the
+- A **routing record** (an `A` or `CNAME` — Vibrail picks the right one for you, see below) that points the
   name at your app.
-- A **TXT** record with host `_openship-challenge`. This is a secret code that proves you own the domain.
-  Nobody else can add it, so it's how Openship knows the domain is really yours.
+- A **TXT** record with host `_vibrail-challenge`. This is a secret code that proves you own the domain.
+  Nobody else can add it, so it's how Vibrail knows the domain is really yours.
 
 Copy each value exactly as shown — don't retype it, use the Copy button.
 
-<Callout title="Screenshot">The DNS Records panel with the routing record and the `_openship-challenge` TXT record, each with a Copy button. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">The DNS Records panel with the routing record and the `_vibrail-challenge` TXT record, each with a Copy button. *(screenshot pending)*</Callout>
 
 </Step>
 
@@ -90,12 +90,12 @@ Copy each value exactly as shown — don't retype it, use the Copy button.
 ### Paste them into your registrar
 
 Open your domain registrar in another tab and find its **DNS** or **DNS records** page. Add each record from
-Openship — matching the Type, Host, and Value. Save.
+Vibrail — matching the Type, Host, and Value. Save.
 
 <Callout title="What does “Host” mean at my registrar?" type="info">
-Registrars phrase it differently — you might see "Host", "Name", or "@". Paste the host exactly as Openship
+Registrars phrase it differently — you might see "Host", "Name", or "@". Paste the host exactly as Vibrail
 shows it. If your registrar rejects `@`, it usually means "the root of the domain"; and a host like
-`_openship-challenge` is added as a subdomain entry. When in doubt, copy Openship's value verbatim.
+`_vibrail-challenge` is added as a subdomain entry. When in doubt, copy Vibrail's value verbatim.
 </Callout>
 
 </Step>
@@ -104,16 +104,16 @@ shows it. If your registrar rejects `@`, it usually means "the root of the domai
 
 ### Verify
 
-Back in Openship, click **Verify** next to the domain (it reads **Verify app.example.com**). Openship looks up
-your DNS and checks two things: the routing record points the right way, and the `_openship-challenge` TXT
+Back in Vibrail, click **Verify** next to the domain (it reads **Verify app.example.com**). Vibrail looks up
+your DNS and checks two things: the routing record points the right way, and the `_vibrail-challenge` TXT
 matches its secret code.
 
-If both check out, the domain flips to **Verified** and Openship starts setting up HTTPS in the background —
+If both check out, the domain flips to **Verified** and Vibrail starts setting up HTTPS in the background —
 you don't do anything for that part.
 
 <Callout title="DNS is not instant" type="info">
 After you save records at your registrar, they can take a few minutes — occasionally up to 48 hours — to
-spread across the internet. If Verify doesn't work on the first try, wait a bit and click it again. Openship
+spread across the internet. If Verify doesn't work on the first try, wait a bit and click it again. Vibrail
 also re-checks pending domains on its own in the background.
 </Callout>
 
@@ -123,7 +123,7 @@ also re-checks pending domains on its own in the background.
 
 ### Watch HTTPS turn on
 
-Once verified, the **SSL** status shows **Provisioning** while Openship requests a free certificate from
+Once verified, the **SSL** status shows **Provisioning** while Vibrail requests a free certificate from
 Let's Encrypt (a trusted certificate authority). When it lands, the status becomes **Active** and your app is
 reachable at `https://app.example.com` with the padlock. Certificates also renew automatically before they
 expire, so this is a one-time setup.
@@ -136,10 +136,10 @@ expire, so this is a one-time setup.
 
 ## DNS setup, three ways
 
-Openship figures out which records you need based on where your project runs. You don't choose the first two —
+Vibrail figures out which records you need based on where your project runs. You don't choose the first two —
 they're picked for you. The records panel tells you which one applies.
 
-<Tabs items={['Self-hosted (A record)', 'Openship Cloud (CNAME)', 'External edge (TXT only)']}>
+<Tabs items={['Self-hosted (A record)', 'Vibrail Cloud (CNAME)', 'External edge (TXT only)']}>
 
 <Tab value="Self-hosted (A record)">
 
@@ -148,37 +148,37 @@ Your project runs on your own server, so the domain points straight at that mach
 | Type | Host | Value |
 |---|---|---|
 | `A` | `@` | your server's public IP |
-| `TXT` | `_openship-challenge` | a long verification string |
+| `TXT` | `_vibrail-challenge` | a long verification string |
 
-Openship checks that the `A` record resolves to your server and that the TXT matches, then issues the HTTPS
+Vibrail checks that the `A` record resolves to your server and that the TXT matches, then issues the HTTPS
 certificate for you.
 
 </Tab>
 
-<Tab value="Openship Cloud (CNAME)">
+<Tab value="Vibrail Cloud (CNAME)">
 
-Your project runs on Openship Cloud, so the domain points at a Cloud address using a `CNAME` (a "this name is
+Your project runs on Vibrail Cloud, so the domain points at a Cloud address using a `CNAME` (a "this name is
 an alias for that name" record).
 
 | Type | Host | Value |
 |---|---|---|
-| `CNAME` | `@` | an Openship Cloud target |
-| `TXT` | `_openship-challenge` | a long verification string |
+| `CNAME` | `@` | a Vibrail Cloud target |
+| `TXT` | `_vibrail-challenge` | a long verification string |
 
-Openship confirms the `CNAME` and the TXT, then handles HTTPS for you.
+Vibrail confirms the `CNAME` and the TXT, then handles HTTPS for you.
 
 </Tab>
 
 <Tab value="External edge (TXT only)">
 
 For advanced setups where **your own edge already terminates HTTPS** — a Cloudflare Tunnel, a load balancer, or
-another reverse proxy in front of Openship. Turn on **External ingress & TLS** when adding the domain.
+another reverse proxy in front of Vibrail. Turn on **External ingress & TLS** when adding the domain.
 
 | Type | Host | Value |
 |---|---|---|
-| `TXT` | `_openship-challenge` | a long verification string |
+| `TXT` | `_vibrail-challenge` | a long verification string |
 
-Here Openship only checks the TXT record to confirm you own the name. It does **not** require the domain to
+Here Vibrail only checks the TXT record to confirm you own the name. It does **not** require the domain to
 point at it and does **not** issue a certificate — your edge is doing that job. The SSL status will read
 **External TLS**.
 
@@ -195,10 +195,10 @@ For setups where your upstream needs the **origin** to present a real certificat
 2. Paste the **certificate** (full chain, PEM) and the matching **private key** (PEM). A free
    [Cloudflare Origin CA](https://developers.cloudflare.com/ssl/origin-configuration/origin-ca/) certificate
    (15-year) is a great fit here.
-3. Openship serves HTTPS from that certificate and stops running Let's Encrypt for this domain.
+3. Vibrail serves HTTPS from that certificate and stops running Let's Encrypt for this domain.
 
 <Callout title="Uploaded certificates don't auto-renew" type="info">
-There's nothing for Openship to renew, so it watches the expiry and reminds you — upload a fresh certificate
+There's nothing for Vibrail to renew, so it watches the expiry and reminds you — upload a fresh certificate
 before it lapses.
 </Callout>
 
@@ -209,37 +209,37 @@ ID to verify.
 
 ```bash
 # See exactly which records a domain will need (nothing is saved)
-openship domain preview app.example.com
+vibrail domain preview app.example.com
 
 # Add the domain to a project (prints the records + the domain ID)
-openship domain add app.example.com --project <projectId>
+vibrail domain add app.example.com --project <projectId>
 
 # Once your DNS is in place, verify it
-openship domain verify <domainId>
+vibrail domain verify <domainId>
 
 # List a project's domains and their status
-openship domain list --project <projectId>
+vibrail domain list --project <projectId>
 ```
 
 <Callout title="Other domain commands" type="info">
-`openship domain records <domainId>` reprints the records for an existing domain, `openship domain primary
-<domainId>` makes a domain the project's main address, and `openship domain renew <domainId>` /
-`openship domain verify-ssl <domainId>` manage the certificate. Full details are in the
+`vibrail domain records <domainId>` reprints the records for an existing domain, `vibrail domain primary
+<domainId>` makes a domain the project's main address, and `vibrail domain renew <domainId>` /
+`vibrail domain verify-ssl <domainId>` manage the certificate. Full details are in the
 [Domains API reference](/docs/api/domains).
 </Callout>
 
 ## If something goes wrong
 
 <Callout title="Verify keeps failing" type="warn">
-Openship tells you which of the two checks is still missing. If the **routing record** (`A`/`CNAME`) is the
-problem, it hasn't resolved to your app yet. If the **TXT** is the problem, the `_openship-challenge` record is
+Vibrail tells you which of the two checks is still missing. If the **routing record** (`A`/`CNAME`) is the
+problem, it hasn't resolved to your app yet. If the **TXT** is the problem, the `_vibrail-challenge` record is
 missing or its value doesn't match. Open the DNS Records panel again, compare each record against your
 registrar character-for-character (copy/paste, don't retype), fix any mismatch, then click Verify again.
 </Callout>
 
 <Callout title="DNS is not propagating" type="error">
 This is the most common hold-up and it's usually just time. DNS changes can take minutes, and occasionally up
-to 48 hours, to spread worldwide. Save the records, then wait and retry Verify — Openship also re-checks
+to 48 hours, to spread worldwide. Save the records, then wait and retry Verify — Vibrail also re-checks
 pending domains automatically in the background. A frequent cause of "never propagates": a typo in the host,
 or leaving an old conflicting record in place. Delete any stale record for the same name before adding the new
 one.

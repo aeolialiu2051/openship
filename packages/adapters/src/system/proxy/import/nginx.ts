@@ -40,7 +40,7 @@ function parseUpstreams(config: string): Map<string, string> {
 }
 
 /**
- * Turn a raw proxy_pass value into a concrete Openship route target, or reject
+ * Turn a raw proxy_pass value into a concrete Vibrail route target, or reject
  * it (so the caller warns and skips) when it can't be resolved to a real
  * host:port — an unknown/undeclared upstream, an nginx variable, or a unix
  * socket would otherwise produce a vhost that fails `traefik -t`.
@@ -98,7 +98,7 @@ function extractLocationProxies(serverBody: string): { path: string; proxyPass: 
  *
  * certbot writes exactly one of these per host beside the real :443 vhost, so a
  * 5-site nginx yields 5 blocks with no proxy_pass and no root. They carry NO
- * route to migrate (the TLS vhost beside them has it) and Openship's edge issues
+ * route to migrate (the TLS vhost beside them has it) and Vibrail's edge issues
  * that redirect itself, so they're skipped SILENTLY — warning about them reads as
  * "5 of your sites won't migrate" when every one of them did.
  *

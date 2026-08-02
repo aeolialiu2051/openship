@@ -15,7 +15,7 @@ exact place you mean.
 <Callout title="Screenshot">Settings page with the tab nav showing all tabs (General, Tokens, MCP, Team, Notifications, Audit log, Cloud, Instance) and the General tab open. *(screenshot pending)*</Callout>
 
 <Callout title="Some tabs and sections only appear in some setups" type="info">
-The **Cloud** tab is hidden on the managed Openship Cloud — it shows on self-hosted and desktop installs
+The **Cloud** tab is hidden on the managed Vibrail Cloud — it shows on self-hosted and desktop installs
 only. The **Audit log** tab is always listed, but the log itself loads only for **admins and owners**
 (members get an empty feed). Within **Instance**, the **Updates** and **data export/import** sections appear
 only where they make sense — a self-hosted or desktop install. If something described here isn't where you
@@ -28,7 +28,7 @@ The home tab: your GitHub connection and the defaults applied to new deployments
 
 ### GitHub
 
-The **GitHub** card is where you link the account Openship reads your repositories from. If you're not
+The **GitHub** card is where you link the account Vibrail reads your repositories from. If you're not
 connected yet, press **Connect GitHub** and approve the window that pops up. Once linked, the card shows
 your login and how many installations you have, with **Add account**, **Install GitHub App**,
 **Manage on GitHub**, and **Disconnect**. There's also an optional **gh CLI** fallback for cloning repos
@@ -41,7 +41,7 @@ See [Deploy from GitHub](/docs/guides/deploy-from-github) for the full walk-thro
 ### Deploy Defaults
 
 *(Self-hosted and desktop only.)* Pick where new deployments should land by default — **This Machine**
-(local Docker/runtime), **My Server** (a configured SSH server), or **Openship Cloud**. The chosen target
+(local Docker/runtime), **My Server** (a configured SSH server), or **Vibrail Cloud**. The chosen target
 is preselected on the deploy picker; you can still override it per deployment, or **Clear default
 (ask every time)**.
 
@@ -70,7 +70,7 @@ deploy.
 This card also has **Forward my git identity to build servers** — a single per-operator switch (replacing
 the old per-deploy checkbox). When on, a build that runs on a remote server clones directly on that server
 using your local `gh` login, tunneled over SSH just for the clone; nothing is written to the server. When
-off, the server falls back to its own git login, a stored token, the public path, or cloning on Openship
+off, the server falls back to its own git login, a stored token, the public path, or cloning on Vibrail
 and transferring. See [Git authentication for private repos](/docs/guides/git-authentication) for the full
 chain.
 
@@ -96,14 +96,14 @@ make a new one.
 
 ## MCP
 
-Connect AI agents (Codex, ChatGPT Desktop, Claude, Cursor, VS Code, Windsurf, …) to your Openship API over the Model Context
+Connect AI agents (Codex, ChatGPT Desktop, Claude, Cursor, VS Code, Windsurf, …) to your Vibrail API over the Model Context
 Protocol. The tab shows this instance's **Endpoint** — a Streamable-HTTP JSON-RPC URL, typically
 `https://<your-host>/api/mcp` — plus per-client install snippets.
 
 Two ways to authenticate:
 
 - **OAuth** — the client opens a browser to authorize; you approve access and pick what it can reach.
-  Nothing to copy. Openship is a standards-compliant OAuth 2.1 MCP server.
+  Nothing to copy. Vibrail is a standards-compliant OAuth 2.1 MCP server.
 - **Static token** — for clients without OAuth, drop a fixed, scoped token (created in the **Tokens** tab)
   into the client config.
 
@@ -153,16 +153,16 @@ when. Search across events, actors, and resources, filter by event type, and exp
 
 ## Cloud
 
-*(Self-hosted and desktop only.)* Link this instance to Openship Cloud to unlock cloud deployments, managed SSL, and the
-global CDN. Press **Connect to Openship Cloud** and sign in; once connected the card shows your cloud
+*(Self-hosted and desktop only.)* Link this instance to Vibrail Cloud to unlock cloud deployments, managed SSL, and the
+global CDN. Press **Connect to Vibrail Cloud** and sign in; once connected the card shows your cloud
 account with a **Disconnect** option. This connection is also what enables migrating your instance to the
 cloud — see [Connect to Cloud & migrate](/docs/guides/cloud-connect-migration).
 
-<Callout title="Screenshot">Cloud tab in the disconnected state showing the "Connect to Openship Cloud" button and the features it unlocks. *(screenshot pending)*</Callout>
+<Callout title="Screenshot">Cloud tab in the disconnected state showing the "Connect to Vibrail Cloud" button and the features it unlocks. *(screenshot pending)*</Callout>
 
 ## Instance
 
-Everything about *this install*. Two cards at the top show the instance type (**Desktop**, **Openship
+Everything about *this install*. Two cards at the top show the instance type (**Desktop**, **Vibrail
 Cloud**, or **Self-Hosted**) with its deploy mode and version, and the auth mode (**Zero Auth**, **Cloud
 Auth**, or **Local Auth**) with the signed-in user. On a zero-auth desktop install a **Change** link lets
 you add an email + password login without losing any projects or history.
@@ -171,8 +171,8 @@ you add an email + password login without losing any projects or history.
 
 *(Self-hosted and desktop.)* Shows your current version and whether a newer release is available, with
 **Check now** / **Update now**, a toggle for **Automatic updates** (off by default), and a toggle for
-**Update & security notifications**. Openship only ever *pulls* this data from the public GitHub releases —
-nothing can push updates to your install. More in [Updating Openship](/docs/guides/updating).
+**Update & security notifications**. Vibrail only ever *pulls* this data from the public GitHub releases —
+nothing can push updates to your install. More in [Updating Vibrail](/docs/guides/updating).
 
 ### Export / Import data
 

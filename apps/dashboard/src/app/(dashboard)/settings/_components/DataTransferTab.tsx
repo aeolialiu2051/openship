@@ -93,7 +93,7 @@ function ExportCard({ onToast }: { onToast: Toast }) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `openship-export-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+      a.download = `vibrail-export-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
       a.click();
       URL.revokeObjectURL(url);
       onToast(
@@ -240,7 +240,7 @@ function ImportModal({
     setError(null);
     try {
       const parsed = JSON.parse(await f.text()) as DataTransferFile;
-      if (parsed?.kind !== "openship-instance-export") {
+      if (parsed?.kind !== "vibrail-instance-export") {
         setError(t.settings.dataTransfer.import.notExport);
         setFile(null);
         return;

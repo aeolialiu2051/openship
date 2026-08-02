@@ -55,7 +55,7 @@ interface BareSystemManager {
 }
 
 export interface BareRuntimeOptions {
-  /** Base directory for project working directories (default: /opt/openship) */
+  /** Base directory for project working directories (default: /opt/vibrail) */
   workDir?: string;
   /** Max time for build commands in ms (default: 10 min) */
   buildTimeout?: number;
@@ -71,19 +71,19 @@ export interface BareRuntimeOptions {
   systemManager?: BareSystemManager;
 }
 
-const DEFAULT_WORK_DIR = "/opt/openship";
+const DEFAULT_WORK_DIR = "/opt/vibrail";
 const DEFAULT_BUILD_TIMEOUT = 10 * 60 * 1000;
 
 /**
  * Dedicated base for static doc-roots — deliberately separate from
  * DEFAULT_WORK_DIR. Static sites build in a Docker sandbox and serve their
  * extracted files from here; this is the ONE directory shared into the edge
- * container (via the `openship_static` volume) in docker-edge mode, so it must
+ * container (via the `vibrail_static` volume) in docker-edge mode, so it must
  * NOT contain server bundles, node_modules, or release secrets. A static-serve
  * BareRuntime is constructed with `workDir = STATIC_RELEASE_BASE` so its
  * releases/.builds subdirs confine here and promote stays same-FS.
  */
-export const STATIC_RELEASE_BASE = "/opt/openship/static";
+export const STATIC_RELEASE_BASE = "/opt/vibrail/static";
 
 
 
@@ -530,7 +530,7 @@ export class BareRuntime implements RuntimeAdapter {
 
   async deploy(config: DeployConfig, _onLog?: LogCallback): Promise<DeploymentResult> {
     // Adopt mode: attach to an already-running, externally-supervised process
-    // (e.g. the Openship control plane launched by `openship up`). We never
+    // (e.g. the Vibrail control plane launched by `vibrail up`). We never
     // promote a build artifact or start a supervisor unit — that would bind a
     // second process to the port. We only health-probe and return a running
     // result so the routing/SSL pipeline can own this deployment. containerId is

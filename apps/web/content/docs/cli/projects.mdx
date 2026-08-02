@@ -1,6 +1,6 @@
 ---
 title: Projects, services & domains
-description: Link a directory and manage projects, compose services, and custom domains from the terminal with openship init, project, service, and domain.
+description: Link a directory and manage projects, compose services, and custom domains from the terminal with vibrail init, project, service, and domain.
 ---
 
 These commands are the terminal side of the dashboard's project screens: they create and inspect
@@ -8,24 +8,24 @@ projects, manage the services inside a compose stack, and attach custom domains.
 your instance's `/api` under the hood, so the same rules apply as anywhere else in the CLI.
 
 <Callout title="Before you start">
-Log in once with `openship login`, and (optionally) run `openship init` in a project directory so deploy
+Log in once with `vibrail login`, and (optionally) run `vibrail init` in a project directory so deploy
 commands know which project to act on. Add `--json` to any command for machine-readable output (stdout
-becomes a clean data stream). Where a command wants a project, most accept a `proj_…` id; `openship service`
+becomes a clean data stream). Where a command wants a project, most accept a `proj_…` id; `vibrail service`
 also accepts a slug or name.
 </Callout>
 
-## `openship init`
+## `vibrail init`
 
-Links the current directory to a project by writing `.openship/project.json`. Later commands (like
-`openship deploy`) read that file so you don't have to pass a project every time. With no `--project`, it
+Links the current directory to a project by writing `.vibrail/project.json`. Later commands (like
+`vibrail deploy`) read that file so you don't have to pass a project every time. With no `--project`, it
 lists your projects and prompts you to pick one.
 
 ```bash
 # Interactive picker
-openship init
+vibrail init
 
 # Link a specific project non-interactively
-openship init --project proj_123 --environment production
+vibrail init --project proj_123 --environment production
 ```
 
 | Flag | Purpose |
@@ -36,10 +36,10 @@ openship init --project proj_123 --environment production
 | `--force` | Overwrite an existing project link. |
 | `-y, --yes` | Non-interactive: fail instead of prompting. |
 
-## `openship project`
+## `vibrail project`
 
 Project lifecycle: list, inspect, create, delete, plus environment variables, git linkage, power state,
-sleep mode, cloud transfer, and logs. Alias: `openship projects`.
+sleep mode, cloud transfer, and logs. Alias: `vibrail projects`.
 
 ### Subcommands
 
@@ -59,14 +59,14 @@ sleep mode, cloud transfer, and logs. Alias: `openship projects`.
 | `project enable <id>` | Start a stopped project. |
 | `project disable <id>` | Stop a running project. |
 | `project sleep-mode <id> <mode>` | Set the project sleep mode. |
-| `project transfer <id> <direction>` | Promote to Openship Cloud or bring it back (self-hosted only). |
+| `project transfer <id> <direction>` | Promote to Vibrail Cloud or bring it back (self-hosted only). |
 | `project logs <id>` | Show or stream runtime (container) logs. |
 | `project server-logs <id>` | Show or stream HTTP request logs (edge / Traefik). |
 
 ### create
 
 ```bash
-openship project create --name "My App" --slug my-app \
+vibrail project create --name "My App" --slug my-app \
   --git-owner acme --git-repo my-app --git-branch main --framework nextjs
 ```
 
@@ -88,7 +88,7 @@ Tears down containers, routes, and (optionally) volumes, then removes the projec
 confirmation unless you pass `-y`.
 
 ```bash
-openship project delete proj_123 --wipe-volumes -y
+vibrail project delete proj_123 --wipe-volumes -y
 ```
 
 | Flag | Purpose |
@@ -106,10 +106,10 @@ deletes the keys you `--unset`, leaving everything else untouched. See the
 
 ```bash
 # List production vars
-openship project env get proj_123 --environment production
+vibrail project env get proj_123 --environment production
 
 # Upsert two secret vars and remove another (other keys are left untouched)
-openship project env set proj_123 \
+vibrail project env set proj_123 \
   --set DATABASE_URL=postgres://… --set API_TOKEN=sk-… --secret \
   --unset OLD_KEY
 ```
@@ -132,10 +132,10 @@ Manage the GitHub link and push-to-deploy. After linking a repo, `auto-deploy` t
 [auto-deploy guide](/docs/guides/auto-deploy) for the full flow.
 
 ```bash
-openship project git link proj_123 --owner acme --repo my-app --branch main
-openship project git auto-deploy proj_123 --enable
-openship project git branch proj_123 develop
-openship project git webhook-domain proj_123 app.example.com   # or: --clear
+vibrail project git link proj_123 --owner acme --repo my-app --branch main
+vibrail project git auto-deploy proj_123 --enable
+vibrail project git branch proj_123 develop
+vibrail project git webhook-domain proj_123 app.example.com   # or: --clear
 ```
 
 | Flag (on `git link`) | Purpose |
@@ -159,7 +159,7 @@ Attaches a custom domain and prints the DNS records to add. Verification then ru
 records resolve.
 
 ```bash
-openship project connect proj_123 app.example.com --include-www
+vibrail project connect proj_123 app.example.com --include-www
 ```
 
 | Flag | Purpose |
@@ -167,7 +167,7 @@ openship project connect proj_123 app.example.com --include-www
 | `--include-www` | Also connect the `www.` variant. |
 
 <Callout title="Two ways to add a domain">
-`project connect` and [`domain add`](#openship-domain) both attach a custom domain to a project and return
+`project connect` and [`domain add`](#vibrail-domain) both attach a custom domain to a project and return
 the records to create. `connect` is the quickest one-liner; the `domain` command group adds verify, renew,
 and primary-selection on top. See the [custom domains guide](/docs/guides/custom-domains).
 </Callout>
@@ -177,8 +177,8 @@ and primary-selection on top. See the [custom domains guide](/docs/guides/custom
 Power a project on or off without deleting it.
 
 ```bash
-openship project disable proj_123
-openship project enable proj_123
+vibrail project disable proj_123
+vibrail project enable proj_123
 ```
 
 ### sleep-mode
@@ -187,7 +187,7 @@ Controls whether the project sleeps when idle. See the
 [sleep mode & resources guide](/docs/guides/sleep-mode-resources).
 
 ```bash
-openship project sleep-mode proj_123 auto_sleep   # or: always_on
+vibrail project sleep-mode proj_123 auto_sleep   # or: always_on
 ```
 
 | Mode | Meaning |
@@ -197,11 +197,11 @@ openship project sleep-mode proj_123 auto_sleep   # or: always_on
 
 ### transfer
 
-Moves a project between your self-hosted instance and Openship Cloud. Only available on a self-hosted
+Moves a project between your self-hosted instance and Vibrail Cloud. Only available on a self-hosted
 instance; see the [cloud connect & migration guide](/docs/guides/cloud-connect-migration).
 
 ```bash
-openship project transfer proj_123 to-cloud        # or: to-self-hosted
+vibrail project transfer proj_123 to-cloud        # or: to-self-hosted
 ```
 
 ### logs / server-logs
@@ -211,8 +211,8 @@ print recent lines by default, or stream with `-f`. More context in the
 [logs & monitoring guide](/docs/guides/logs-monitoring).
 
 ```bash
-openship project logs proj_123 --tail 100 -f
-openship project server-logs proj_123 --limit 200 --domain app.example.com
+vibrail project logs proj_123 --tail 100 -f
+vibrail project server-logs proj_123 --limit 200 --domain app.example.com
 ```
 
 | Flag (on `logs`) | Purpose |
@@ -226,9 +226,9 @@ openship project server-logs proj_123 --limit 200 --domain app.example.com
 | `--domain <domain>` | Restrict to a specific domain. |
 | `-f, --follow` | Stream request logs until interrupted (self-hosted). |
 
-## `openship service`
+## `vibrail service`
 
-Manage the services inside a compose **stack** (a multi-service project). Alias: `openship services`. Every
+Manage the services inside a compose **stack** (a multi-service project). Alias: `vibrail services`. Every
 subcommand targets a stack with `-p, --project <id|slug|name>` and then a service by its name or `svc_…` id.
 For the bigger picture, see the [multi-service compose guide](/docs/guides/compose-multi-service).
 
@@ -260,10 +260,10 @@ Because services live under a project, each subcommand below requires `-p, --pro
 ### create
 
 ```bash
-openship service create -p my-stack db \
+vibrail service create -p my-stack db \
   --image postgres:16 --port 5432:5432 --env POSTGRES_PASSWORD=secret
 
-openship service create -p my-stack web \
+vibrail service create -p my-stack web \
   --build ./web --dockerfile Dockerfile --port 3000:3000 \
   --depends-on db --expose --exposed-port 3000 --domain my-web
 ```
@@ -289,7 +289,7 @@ services **not** in the file are removed. Parsing is delegated to Docker Compose
 must be installed locally.
 
 ```bash
-openship service sync -p my-stack ./docker-compose.yml -y
+vibrail service sync -p my-stack ./docker-compose.yml -y
 ```
 
 | Flag | Purpose |
@@ -299,7 +299,7 @@ openship service sync -p my-stack ./docker-compose.yml -y
 ### delete
 
 ```bash
-openship service delete -p my-stack db -y
+vibrail service delete -p my-stack db -y
 ```
 
 | Flag | Purpose |
@@ -312,8 +312,8 @@ When an upstream compose change touches a value you edited in the dashboard, the
 pending drift. Resolve it by taking the upstream values (`accept`) or keeping your edits (`keep`).
 
 ```bash
-openship service drift accept -p my-stack web
-openship service drift keep   -p my-stack web
+vibrail service drift accept -p my-stack web
+vibrail service drift keep   -p my-stack web
 ```
 
 ### env
@@ -322,8 +322,8 @@ Read or set a service's environment variables, scoped to one environment. Unlike
 `set` command targets a single environment and merges into it by default; `--replace` swaps the whole set.
 
 ```bash
-openship service env get -p my-stack web --env production
-openship service env set -p my-stack web LOG_LEVEL=debug FEATURE_X=on --env production
+vibrail service env get -p my-stack web --env production
+vibrail service env set -p my-stack web LOG_LEVEL=debug FEATURE_X=on --env production
 ```
 
 | Flag (on `env get`) | Purpose |
@@ -339,7 +339,7 @@ openship service env set -p my-stack web LOG_LEVEL=debug FEATURE_X=on --env prod
 ### logs
 
 ```bash
-openship service logs -p my-stack web --tail 200 -f
+vibrail service logs -p my-stack web --tail 200 -f
 ```
 
 | Flag | Purpose |
@@ -348,11 +348,11 @@ openship service logs -p my-stack web --tail 200 -f
 | `--tail <n>` | Number of lines to show from the end. Default `200`. |
 
 <Callout title="service exec is not available yet" type="info">
-`openship service exec` is stubbed — an interactive terminal needs a WebSocket client the CLI doesn't yet
+`vibrail service exec` is stubbed — an interactive terminal needs a WebSocket client the CLI doesn't yet
 ship. Use the dashboard's service terminal for now.
 </Callout>
 
-## `openship domain`
+## `vibrail domain`
 
 Manage custom domains, DNS verification, and SSL certificates. This is the terminal side of a project's
 **Domains** tab; the same operations are documented as HTTP endpoints in the
@@ -377,13 +377,13 @@ Manage custom domains, DNS verification, and SSL certificates. This is the termi
 
 ```bash
 # 1. See the records a hostname will need
-openship domain preview app.example.com
+vibrail domain preview app.example.com
 
 # 2. Attach it to a project (prints the exact records to add)
-openship domain add app.example.com -p proj_123 --primary
+vibrail domain add app.example.com -p proj_123 --primary
 
 # 3. After the DNS records propagate, verify
-openship domain verify <domainId>
+vibrail domain verify <domainId>
 ```
 
 | Flag (on `list`) | Purpose |

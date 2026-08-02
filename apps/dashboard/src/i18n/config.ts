@@ -2,7 +2,7 @@ export const locales = ["en", "ar", "es", "fr", "de", "pt", "ja", "zh", "tr"] as
 export type Locale = (typeof locales)[number];
 
 export const defaultLocale: Locale = "en";
-export const LOCALE_COOKIE = "openship-locale";
+export const LOCALE_COOKIE = "vibrail-locale";
 
 const rtlLocales = new Set<Locale>(["ar"]);
 

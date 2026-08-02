@@ -53,13 +53,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   if (!page) notFound();
 
   const data = page.data as DocData;
-  const title = `${data.title} – Openship Docs`;
+  const title = `${data.title} – Vibrail Docs`;
   const description = data.description;
 
   return {
     title,
     description,
-    openGraph: { title, description, url: page.url, siteName: "Openship", type: "article" },
+    openGraph: { title, description, url: page.url, siteName: "Vibrail", type: "article" },
     twitter: { card: "summary_large_image", title, description },
     // Advertise the raw-markdown variant (llms.txt convention) alongside canonical.
     alternates: {

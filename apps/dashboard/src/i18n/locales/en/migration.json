@@ -1,7 +1,7 @@
 {
   "wizard": {
     "title": "Migrate apps",
-    "intro": "Inspect this server's Docker and adopt its containers as an Vibrail project. Inspection is read-only — nothing changes on the server until you deploy.",
+    "intro": "Inspect this server's Docker and adopt its containers as a Vibrail project. Inspection is read-only — nothing changes on the server until you deploy.",
     "selectServer": "Select a server",
     "scan": "Scan server",
     "scanning": "Scanning…",

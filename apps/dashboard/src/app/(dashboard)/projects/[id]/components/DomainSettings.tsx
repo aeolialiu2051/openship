@@ -241,12 +241,12 @@ export const DomainSettings = () => {
   const router = useRouter();
   const { baseDomain, selfHosted } = usePlatform();
   // `selfHosted` is INSTANCE-level (this install runs self-hosted). A cloud-OWNED
-  // project (deployTarget "cloud") is canonical on Openship Cloud and uses the
+  // project (deployTarget "cloud") is canonical on Vibrail Cloud and uses the
   // Cloud routing — self-hosted route controls aren't
   // proxied for it, so their local endpoints 404. Gate those on the PROJECT being
   // non-cloud, not on the instance flag.
   const isCloudProject = projectData.deployTarget === "cloud";
-  // Free .<baseDomain> subdomains route through the Openship Cloud edge, so
+  // Free .<baseDomain> subdomains route through the Vibrail Cloud edge, so
   // choosing "free" without a cloud connection opens the connect-cloud modal
   // (requireCloud returns true immediately on SaaS / when already connected).
   const { requireCloud } = useCloud();
@@ -909,7 +909,7 @@ export const DomainSettings = () => {
   };
 
   const handleSavePublicEndpoints = async () => {
-    // Free .<baseDomain> domains route through the Openship Cloud edge — block
+    // Free .<baseDomain> domains route through the Vibrail Cloud edge — block
     // the save (opening the connect-cloud modal) when one is present without a
     // cloud connection, so an edit can't persist a domain that can't route.
     if (publicEndpoints.some((e) => e.domainType === "free") && !(await freeNeedsCloud())) return;
@@ -1104,7 +1104,7 @@ export const DomainSettings = () => {
   const handleAddRoute = async () => {
     setAddRouteError(null);
     const { domainType, domain, port } = addRouteDraft;
-    // Free *.vibrail.warpgateapi.com routes only resolve behind the Openship Cloud edge — gate
+    // Free *.vibrail.warpgateapi.com routes only resolve behind the Vibrail Cloud edge — gate
     // the add on a cloud connection, identical to handleSaveRoute /
     // handleSavePublicEndpoints. requireCloud opens the connect modal and
     // returns false when not connected, so the free route is never persisted.

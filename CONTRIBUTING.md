@@ -1,4 +1,4 @@
-# Contributing to Openship
+# Contributing to Vibrail
 
 Thanks for your interest in contributing! This guide covers everything you need to get started.
 
@@ -58,8 +58,8 @@ A focused, verified, well-explained PR — AI-assisted or not — is exactly wha
 ## Development Setup
 
 ```bash
-git clone https://github.com/oblien/openship.git
-cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git
+cd vibrail
 bun install --frozen-lockfile
 cp apps/api/.env.example apps/api/.env
 cp apps/dashboard/.env.example apps/dashboard/.env
@@ -93,7 +93,7 @@ the dashboard, and the web app; its web app is exposed at `http://localhost:3000
 ```
 apps/
   api/            → Hono API engine (port 4000)
-  cli/            → CLI tool (`openship deploy`)
+  cli/            → CLI tool (`vibrail deploy`)
   dashboard/      → Next.js deployment dashboard (port 3001)
   desktop/        → Electron desktop app and local service launcher
   email/          → Email engine and Zero server/client orchestrator

@@ -1,4 +1,4 @@
-<h1 align="center">Openship</h1>
+<h1 align="center">Vibrail</h1>
 
 <p align="center">
   Open-Source-Deployment-Plattform zum Selbsthosten mit integriertem CI/CD.<br>
@@ -6,9 +6,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/openship"><img src="https://img.shields.io/npm/v/openship?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://openship.io"><img src="https://img.shields.io/badge/website-openship.io-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -32,7 +32,7 @@
 </p>
 
 <p align="center">
-  <img src="../screenshots/screen.png" alt="Openship dashboard" width="800" />
+  <img src="../screenshots/screen.png" alt="Vibrail dashboard" width="800" />
 </p>
 
 ---
@@ -40,37 +40,37 @@
 ## Schnellstart
 
 ```bash
-npm i -g openship     # or: curl -fsSL https://get.openship.io | sh
-openship up           # installs Openship as a background service (starts on boot, auto-restarts)
+npm i -g vibrail     # or: curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh
+vibrail up           # installs Vibrail as a background service (starts on boot, auto-restarts)
 ```
 
-`openship open` öffnet das Dashboard; `openship stop` stoppt den Dienst. Lieber ein einmaliger, angehängter Lauf? `openship up --foreground`. Um ein Projekt zu deployen:
+`vibrail open` öffnet das Dashboard; `vibrail stop` stoppt den Dienst. Lieber ein einmaliger, angehängter Lauf? `vibrail up --foreground`. Um ein Projekt zu deployen:
 
 ```bash
 cd your-project
-openship init         # link this directory to a project
-openship deploy
+vibrail init         # link this directory to a project
+vibrail deploy
 ```
 
 Lieber Docker? Klone das Repo und nutze den Compose-Stack:
 
 ```bash
-git clone https://github.com/oblien/openship.git && cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
 cp .env.example .env
 docker compose up -d
 ```
 
-Oder hol dir die Desktop-App (`openship install` oder Download von [openship.io](https://openship.io)).
+Oder hol dir die Desktop-App (`vibrail install` oder Download von [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com)).
 
 ---
 
 ## Was es macht
 
-Richte es auf ein Repo. Openship erkennt deinen Stack, baut ihn, konfiguriert alles und liefert ihn aus — keine Konfigurationsdateien, keine Pipelines, kein YAML.
+Richte es auf ein Repo. Vibrail erkennt deinen Stack, baut ihn, konfiguriert alles und liefert ihn aus — keine Konfigurationsdateien, keine Pipelines, kein YAML.
 
 Datenbanken, Domains, SSL, CDN, E-Mail, Backups — alles an einem Ort verwaltet.
 
-Funktioniert mit **Openship Cloud** (managed) oder **jedem Linux-Server**, der dir gehört. Einzelentwickler, die Nebenprojekte ausliefern, und Teams im Produktivbetrieb nutzen dasselbe Werkzeug.
+Funktioniert mit **Vibrail Cloud** (managed) oder **jedem Linux-Server**, der dir gehört. Einzelentwickler, die Nebenprojekte ausliefern, und Teams im Produktivbetrieb nutzen dasselbe Werkzeug.
 
 ---
 
@@ -94,7 +94,7 @@ Funktioniert mit **Openship Cloud** (managed) oder **jedem Linux-Server**, der d
 
 ## Überall deployen
 
-- **Openship Cloud** — managed, Auto-Scaling, keine Einrichtung
+- **Vibrail Cloud** — managed, Auto-Scaling, keine Einrichtung
 - **Jeder VPS** — Hetzner, DigitalOcean, Linode, OVH und der Rest
 - **Dedizierte Server** — Bare Metal, Colocation, Homelab
 - **Multi-Server** — verteile Workloads über mehrere Maschinen
@@ -132,6 +132,6 @@ Siehe [CONTRIBUTING.md](../../CONTRIBUTING.md).
 
 ## Lizenz
 
-Openship ist **Open-Source**-Software, lizenziert unter der [Apache License 2.0](../../LICENSE).
+Vibrail ist **Open-Source**-Software, lizenziert unter der [Apache License 2.0](../../LICENSE).
 
 Du darfst sie verwenden, ausführen, modifizieren, selbst hosten und weitergeben — auch in kommerziellen und Closed-Source-Produkten — gemäß den Bedingungen der Apache-2.0-Lizenz. Den vollständigen Text findest du in der [LICENSE](../../LICENSE).

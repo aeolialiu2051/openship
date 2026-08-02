@@ -53,7 +53,7 @@ export function createSettingsRepo(db: Database) {
     /**
      * Return the cloud-linked settings row for the org owner.
      *
-     * Only the owner role can connect Openship Cloud — their token IS
+     * Only the owner role can connect Vibrail Cloud — their token IS
      * the org's cloud identity. Every org-scoped cloud operation
      * (edge proxy, analytics, pages, GitHub App tokens) flows through
      * this single bearer. Returns undefined if the owner hasn't linked
@@ -79,7 +79,7 @@ export function createSettingsRepo(db: Database) {
     },
 
     /**
-     * All org ids whose owner has linked Openship Cloud. Same join/filter as
+     * All org ids whose owner has linked Vibrail Cloud. Same join/filter as
      * findOrgOwnerCloudLink, minus the org scope — used to route an org-less
      * inbound webhook to the cloud-linked org that owns the pushed repo.
      */

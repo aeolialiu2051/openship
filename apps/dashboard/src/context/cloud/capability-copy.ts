@@ -4,7 +4,7 @@ import type { CloudCapability } from "@repo/core";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 /**
- * The prompt copy shown in the "Connect Openship Cloud" modal. Owned here (not
+ * The prompt copy shown in the "Connect Vibrail Cloud" modal. Owned here (not
  * in CloudContext) so the context consumes it and the copy stays keyed off the
  * shared capability registry — no free-form strings at call sites.
  */

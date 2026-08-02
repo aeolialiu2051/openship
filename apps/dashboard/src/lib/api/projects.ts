@@ -205,7 +205,7 @@ export const projectsApi = {
       wipeVolumes?: boolean;
       force?: boolean;
       forceOrphan?: boolean;
-      /** Record-only: drop the Openship row, keep the server workload (self-hosted). */
+      /** Record-only: drop the Vibrail row, keep the server workload (self-hosted). */
       recordOnly?: boolean;
     } = {},
   ) => {

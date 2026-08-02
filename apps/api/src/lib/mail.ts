@@ -17,7 +17,7 @@ import { decrypt } from "./encryption";
  *     hard delivery error so required verification cannot silently deadlock.
  *   - self-hosted: Settings → Email instance SMTP first, then environment SMTP.
  *   - a self-hosted organization may explicitly relay an invitation through
- *     Openship Cloud with `preferSource: "cloud"`.
+ *     Vibrail Cloud with `preferSource: "cloud"`.
  */
 
 export type SendMailSource = "local" | "cloud" | "auto";
@@ -29,7 +29,7 @@ export type SendMailOptions = {
   text?: string;
   /**
    * Preferred system-mail source. Default "auto" uses the transports owned by
-   * this Openship process. "local" is an explicit alias for that self-hosted
+   * this Vibrail process. "local" is an explicit alias for that self-hosted
    * path. "cloud" routes through the SaaS invitation relay from a self-hosted
    * instance and resolves to the SaaS environment transport on the SaaS.
    */
@@ -192,9 +192,9 @@ export async function sendInstanceTestEmail(to: string): Promise<void> {
   await active.transport.sendMail({
     from: active.from,
     to,
-    subject: "Openship SMTP test",
+    subject: "Vibrail SMTP test",
     text:
-      "This is a test message from your Openship instance SMTP configuration. " +
+      "This is a test message from your Vibrail instance SMTP configuration. " +
       "If you received it, outbound email (password resets, invites, notifications) works.",
   });
 }

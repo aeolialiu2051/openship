@@ -8,7 +8,7 @@ import { project } from "./project";
  * Links a SOURCE project (a database app — Supabase, MongoDB, …) into a TARGET
  * consumer project: the consumer gets one resolved connection URL injected as a
  * project-level secret env var (`envKey`), and — in `internal` mode — its
- * containers join the source's `openship-<slug>` network so the URL can use the
+ * containers join the source's `vibrail-<slug>` network so the URL can use the
  * internal service alias with no public port. One DB instance, many links (no
  * duplication).
  *

@@ -198,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
   // Clone-strategy gate - only meaningful for self-hosted server deploys
   // where we need to pick how the repo gets cloned on the remote (local
-  // build vs PAT vs existing GitHub credential). Opshcloud has its own
+  // build vs PAT vs existing GitHub credential). Vibrail Cloud has its own
   // connect-account flow, local builds don't need a remote credential.
   const cloneGate = useCloneStrategyGate();
 

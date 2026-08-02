@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { PAT_PREFIX } from "./pat";
+import { LEGACY_PAT_PREFIX, PAT_PREFIX } from "./pat";
 
 /**
  * Parse a `Authorization: Bearer <token>` header. Single source of truth for
@@ -12,7 +12,7 @@ export function parseBearerToken(c: Context): string | null {
   return m ? m[1]!.trim() : null;
 }
 
-/** True when a bearer token is a Personal Access Token (`opsh_pat_…`). */
+/** True for a current Vibrail PAT or a legacy OpenShip PAT. */
 export function isPatToken(token: string | null): token is string {
-  return !!token && token.startsWith(PAT_PREFIX);
+  return !!token && (token.startsWith(PAT_PREFIX) || token.startsWith(LEGACY_PAT_PREFIX));
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 /**
- * Cut a new Openship release.
+ * Cut a new Vibrail release.
  *
  * Usage:
  *   bun scripts/release.ts patch          # 0.1.0      → 0.1.1
@@ -355,7 +355,7 @@ function ghOwnerRepo(): { owner: string; repo: string } | null {
 
 /**
  * `bun release docker [tag]` — trigger the docker-images workflow to publish the
- * openship-api/dashboard/edge images to GHCR. This is the DOCKER-ONLY path: it
+ * vibrail-api/dashboard/edge images to GHCR. This is the DOCKER-ONLY path: it
  * dispatches the workflow (no version bump, no git tag, no GitHub release, no
  * npm/desktop) and the dispatch run never moves `:latest`. Untracked/dirty tree
  * is fine — it builds whatever is on the pushed `--ref` branch, not your working
@@ -408,7 +408,7 @@ function releaseDocker(): void {
   log(``);
   log(`Verify when green:`);
   if (or) {
-    log(`  docker pull ghcr.io/${or.owner}/openship-api:${shown}`);
+    log(`  docker pull ghcr.io/${or.owner}/vibrail-api:${shown}`);
     log(`  Packages: https://github.com/orgs/${or.owner}/packages?repo_name=${or.repo}`);
   }
 }
@@ -611,10 +611,10 @@ function buildAdvisory(
     id: `update-${version}`,
     severity: opts.critical ? "critical" : "recommended",
     affects: `<${version}`,
-    title: `Update to Openship ${version}`,
+    title: `Update to Vibrail ${version}`,
     message:
       opts.message ??
-      `Openship ${version} is available. See the release notes for what's new — updating is recommended.`,
+      `Vibrail ${version} is available. See the release notes for what's new — updating is recommended.`,
     action: { label: "Update now", kind: "update" },
   };
 }

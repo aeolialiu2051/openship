@@ -308,7 +308,7 @@
   },
   "advanced": {
     "resetTitle": "Serverseitigen Status zurücksetzen?",
-    "resetDesc": "Löscht das Tracking dieser Installation durch Vibrail und entfernt die von Vibrail dafür erstellten DNS-Einträge. Die serverseitige Statusdatei (/root/.openship/mail-state.json) und die Registry-Zeile des Mailservers werden gelöscht. Der laufende Mail-Stack bleibt unberührt; zum erneuten Verwalten muss der Einrichtungsassistent erneut ausgeführt werden (Entfernen behält Statusdatei und DNS zur späteren Wiederaufnahme).",
+    "resetDesc": "Löscht das Tracking dieser Installation durch Vibrail und entfernt die von Vibrail dafür erstellten DNS-Einträge. Die serverseitige Statusdatei (/root/.vibrail/mail-state.json) und die Registry-Zeile des Mailservers werden gelöscht. Der laufende Mail-Stack bleibt unberührt; zum erneuten Verwalten muss der Einrichtungsassistent erneut ausgeführt werden (Entfernen behält Statusdatei und DNS zur späteren Wiederaufnahme).",
     "resetSubmit": "Status zurücksetzen",
     "resetSubmitting": "Wird zurückgesetzt…",
     "resetFailed": "Zurücksetzen fehlgeschlagen",
@@ -340,7 +340,7 @@
     "rerunDesc": "Öffnet den Installationsassistenten, ausgerichtet auf diesen Server. Nützlich nach einer DNS-Änderung, einer Domain-Umbenennung oder um einen fehlgeschlagenen Schritt zu wiederholen. Der Assistent erkennt eine bestehende Installation und bietet eine Wiederholung pro Schritt an, statt den Status zu löschen.",
     "openWizard": "Assistenten öffnen",
     "resetCardTitle": "Serverseitigen Status zurücksetzen",
-    "resetCardDesc": "Entfernt das Tracking dieser Installation durch Vibrail – die serverseitige Statusdatei (/root/.openship/mail-state.json) und die Registry-Zeile. Deinstalliert NICHT den Mail-Stack und berührt keine Postfächer; der Server läuft weiter, aber du musst den Einrichtungsassistenten erneut ausführen, um ihn wieder zu verwalten. Verwende dies nach einer manuellen Bereinigung oder einem Neuaufsetzen, wenn das Tracking von der Realität abgewichen ist.",
+    "resetCardDesc": "Entfernt das Tracking dieser Installation durch Vibrail – die serverseitige Statusdatei (/root/.vibrail/mail-state.json) und die Registry-Zeile. Deinstalliert NICHT den Mail-Stack und berührt keine Postfächer; der Server läuft weiter, aber du musst den Einrichtungsassistenten erneut ausführen, um ihn wieder zu verwalten. Verwende dies nach einer manuellen Bereinigung oder einem Neuaufsetzen, wenn das Tracking von der Realität abgewichen ist.",
     "resetStateBtn": "Status zurücksetzen",
     "removeTitle": "Mailserver entfernen",
     "removeDesc": "Beendet die Verwaltung dieses Servers – entfernt ihn nur aus der /emails-Liste. Der Mail-Stack läuft weiter und die serverseitige Statusdatei bleibt intakt, sodass du ihn später über „Nach einer bestehenden Installation suchen“ wieder übernehmen kannst. Verwende dies, um einen veralteten oder falsch markierten Eintrag zu bereinigen.",

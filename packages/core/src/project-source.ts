@@ -38,7 +38,7 @@ export interface ReleaseSource {
   repo?: string;
   /**
    * Asset-name template (mode="github"). Placeholders: {tag} {version} {os} {arch}.
-   * e.g. "openship-{tag}-{os}-{arch}.tar.gz".
+   * e.g. "vibrail-{tag}-{os}-{arch}.tar.gz".
    */
   assetTemplate?: string;
   /** Target OS/arch used to fill the asset name (default "linux"/"amd64"). */

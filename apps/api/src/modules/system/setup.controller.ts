@@ -56,7 +56,7 @@ type AuthModeValidation =
  *
  * Zero-auth on a network-reachable instance means anyone who can hit the
  * API can act as admin, so the operator must opt in via the
- * OPENSHIP_ALLOW_ZERO_AUTH env var (deliberate restart) AND echo the
+ * VIBRAIL_ALLOW_ZERO_AUTH env var (deliberate restart) AND echo the
  * confirmation phrase in the request body (deliberate click) before we
  * write the value. Desktop deployments bypass the gate — loopback-only
  * Electron is the default zero-auth target.
@@ -73,13 +73,13 @@ function validateAuthModeChange(body: Record<string, unknown>): AuthModeValidati
   const value = raw as AuthMode;
 
   if (value === "none" && env.DEPLOY_MODE !== "desktop") {
-    if (!env.OPENSHIP_ALLOW_ZERO_AUTH) {
+    if (!env.VIBRAIL_ALLOW_ZERO_AUTH) {
       return {
         ok: false,
         status: 403,
         body: {
           error:
-            "Zero-auth toggle disabled. Operator must set OPENSHIP_ALLOW_ZERO_AUTH=true and restart.",
+            "Zero-auth toggle disabled. Operator must set VIBRAIL_ALLOW_ZERO_AUTH=true and restart.",
         },
       };
     }
@@ -498,8 +498,8 @@ export async function onboardingStatus(c: Context) {
 /**
  * POST /system/bootstrap-admin — create the FIRST admin from the CLI.
  *
- * How `openship` setup makes a CLI-managed instance without ever using
- * zero-auth: the service boots in local-auth mode (OPENSHIP_REQUIRE_AUTH), and
+ * How `vibrail` setup makes a CLI-managed instance without ever using
+ * zero-auth: the service boots in local-auth mode (VIBRAIL_REQUIRE_AUTH), and
  * the CLI — holding the instance's INTERNAL_TOKEN — calls this to mint the
  * initial email/password admin. It reuses the exact account-creation the
  * desktop onboarding uses (ensureLocalUser → credential account → authMode
@@ -609,7 +609,7 @@ export async function resetAdminPassword(c: Context) {
     .orderBy(schema.user.createdAt)
     .limit(1);
   if (!admin) {
-    return c.json({ error: "No admin account exists yet — run `openship` to create one." }, 409);
+    return c.json({ error: "No admin account exists yet — run `vibrail` to create one." }, 409);
   }
 
   const email =

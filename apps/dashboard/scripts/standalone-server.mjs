@@ -3,7 +3,7 @@
  *
  * Next's App Router proxy can stream ordinary HTTP, but it cannot forward a
  * WebSocket Upgrade. This small front server keeps Next on a loopback port,
- * proxies normal traffic to it, and sends `/_openship/ws/api/*` upgrades
+ * proxies normal traffic to it, and sends `/_vibrail/ws/api/*` upgrades
  * directly to INTERNAL_API_URL. Public deployments therefore expose only the
  * dashboard port while terminal sockets still reach the private API.
  */
@@ -16,13 +16,13 @@ const root = dirname(fileURLToPath(import.meta.url));
 
 const publicPort = Number(process.env.PORT || 3001);
 const publicHost = process.env.HOSTNAME || "0.0.0.0";
-const nextPort = Number(process.env.OPENSHIP_NEXT_INTERNAL_PORT || publicPort + 1);
+const nextPort = Number(process.env.VIBRAIL_NEXT_INTERNAL_PORT || publicPort + 1);
 const nextOrigin = new URL(`http://127.0.0.1:${nextPort}`);
 const apiOrigin = new URL(
-  process.env.INTERNAL_API_URL || process.env.OPENSHIP_LOCAL_API_URL || "http://127.0.0.1:4000",
+  process.env.INTERNAL_API_URL || process.env.VIBRAIL_LOCAL_API_URL || "http://127.0.0.1:4000",
 );
-const WS_PREFIX = "/_openship/ws/api/";
-const nextEntry = process.env.OPENSHIP_NEXT_ENTRY || join(root, "server.js");
+const WS_PREFIX = "/_vibrail/ws/api/";
+const nextEntry = process.env.VIBRAIL_NEXT_ENTRY || join(root, "server.js");
 
 const next = spawn(process.execPath, [nextEntry], {
   cwd: root,

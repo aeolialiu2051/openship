@@ -1,26 +1,26 @@
 #!/bin/sh
-# Openship FROM-SOURCE installer — https://get.openship.io/dev
+# Vibrail FROM-SOURCE installer — https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh
 #
-#   curl -fsSL https://get.openship.io/dev | sh
+#   curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh | sh
 #
-# Builds the Openship CLI from a git checkout (the same way `bun dev` does) and
-# installs it as a SEPARATE `openship-dev` command that runs fully isolated from
-# a production `openship`:
+# Builds the Vibrail CLI from a git checkout (the same way `bun dev` does) and
+# installs it as a SEPARATE `vibrail-dev` command that runs fully isolated from
+# a production `vibrail`:
 #
-#   - its own home           $HOME/.openship-dev   (data, tokens, ports, logs)
-#   - its own boot service    io.openship-dev / openship-dev / OpenshipDev
-#   - the production `openship` (npm) is never touched
+#   - its own home           $HOME/.vibrail-dev   (data, tokens, ports, logs)
+#   - its own boot service    io.vibrail-dev / vibrail-dev / VibrailDev
+#   - the production `vibrail` (npm) is never touched
 #
 # This is a DEV / PREVIEW build: unverified (no signed release asset), and
 # compiling the dashboard needs real RAM/CPU (small boxes can OOM). Update later
-# with `openship-dev update` (pulls latest source + rebuilds — no npm release
-# needed). Remove with:  rm -f "$(command -v openship-dev)" && rm -rf ~/.openship-dev
+# with `vibrail-dev update` (pulls latest source + rebuilds — no npm release
+# needed). Remove with:  rm -f "$(command -v vibrail-dev)" && rm -rf ~/.vibrail-dev
 #
 # Env overrides:
-#   OPENSHIP_REPO=<git url>     default: https://github.com/oblien/openship.git
-#   OPENSHIP_REF=<branch|tag>   default: main
-#   OPENSHIP_HOME=<dir>         default: $HOME/.openship-dev
-#   OPENSHIP_SRC_DIR=<dir>      default: $OPENSHIP_HOME/cli-src
+#   VIBRAIL_REPO=<git url>     default: https://github.com/aeolialiu2051/vibrail.git
+#   VIBRAIL_REF=<branch|tag>   default: main
+#   VIBRAIL_HOME=<dir>         default: $HOME/.vibrail-dev
+#   VIBRAIL_SRC_DIR=<dir>      default: $VIBRAIL_HOME/cli-src
 set -eu
 
 info() { printf '\033[36m==>\033[0m %s\n' "$1"; }
@@ -28,10 +28,10 @@ err()  { printf '\033[31merror:\033[0m %s\n' "$1" >&2; }
 
 command -v curl >/dev/null 2>&1 || { err "curl is required"; exit 1; }
 
-REPO="${OPENSHIP_REPO:-https://github.com/oblien/openship.git}"
-REF="${OPENSHIP_REF:-main}"
-OPENSHIP_HOME="${OPENSHIP_HOME:-$HOME/.openship-dev}"
-SRC_DIR="${OPENSHIP_SRC_DIR:-$OPENSHIP_HOME/cli-src}"
+REPO="${VIBRAIL_REPO:-https://github.com/aeolialiu2051/vibrail.git}"
+REF="${VIBRAIL_REF:-main}"
+VIBRAIL_HOME="${VIBRAIL_HOME:-$HOME/.vibrail-dev}"
+SRC_DIR="${VIBRAIL_SRC_DIR:-$VIBRAIL_HOME/cli-src}"
 
 # 1. Ensure Bun (the runtime + builder). Installs to ~/.bun by default; no Node/npm.
 if ! command -v bun >/dev/null 2>&1; then
@@ -105,22 +105,22 @@ DASH="$SRC_DIR/apps/dashboard/.next/standalone"
 [ -f "$ENTRY" ] || { err "Build produced no CLI at $ENTRY"; exit 1; }
 [ -f "$DASH/apps/dashboard/server.js" ] || { err "Build produced no dashboard at $DASH/apps/dashboard/server.js"; exit 1; }
 
-# 5. Wire the `openship-dev` launcher: run the built CLI under Bun with the dev
+# 5. Wire the `vibrail-dev` launcher: run the built CLI under Bun with the dev
 #    home + locally-built dashboard baked in. A separate name + home means the
-#    production `openship` (and its ~/.openship state) are never touched.
+#    production `vibrail` (and its ~/.vibrail state) are never touched.
 BUN_PATH="$(command -v bun)"
 BIN="${BUN_INSTALL:-$HOME/.bun}/bin"
 [ -d "$BIN" ] || BIN="$HOME/.local/bin"
 mkdir -p "$BIN"
-rm -f "$BIN/openship-dev"
-printf '#!/bin/sh\nexport OPENSHIP_HOME="%s"\nexport OPENSHIP_DASHBOARD_DIR="%s"\nexec "%s" "%s" "$@"\n' \
-  "$OPENSHIP_HOME" "$DASH" "$BUN_PATH" "$ENTRY" > "$BIN/openship-dev"
-chmod +x "$BIN/openship-dev"
+rm -f "$BIN/vibrail-dev"
+printf '#!/bin/sh\nexport VIBRAIL_HOME="%s"\nexport VIBRAIL_DASHBOARD_DIR="%s"\nexec "%s" "%s" "$@"\n' \
+  "$VIBRAIL_HOME" "$DASH" "$BUN_PATH" "$ENTRY" > "$BIN/vibrail-dev"
+chmod +x "$BIN/vibrail-dev"
 
 # 6. Write the source-install marker under the DEV home. Its presence flips
-#    `openship-dev update` to the git-pull + rebuild path (no npm release).
-mkdir -p "$OPENSHIP_HOME"
-cat > "$OPENSHIP_HOME/source-install.json" <<EOF
+#    `vibrail-dev update` to the git-pull + rebuild path (no npm release).
+mkdir -p "$VIBRAIL_HOME"
+cat > "$VIBRAIL_HOME/source-install.json" <<EOF
 {
   "repo": "$REPO",
   "ref": "$REF",
@@ -131,17 +131,17 @@ EOF
 # 7. Next steps.
 cat <<EOF
 
-$(printf '\033[32m✔\033[0m') Openship installed from source ($REF) as $(printf '\033[1mopenship-dev\033[0m').
+$(printf '\033[32m✔\033[0m') Vibrail installed from source ($REF) as $(printf '\033[1mvibrail-dev\033[0m').
 
-  openship-dev            # set up + run (interactive) — isolated dev instance
-  openship-dev up         # run locally with defaults
-  openship-dev update     # pull latest source + rebuild (no npm release needed)
+  vibrail-dev            # set up + run (interactive) — isolated dev instance
+  vibrail-dev up         # run locally with defaults
+  vibrail-dev update     # pull latest source + rebuild (no npm release needed)
 
-  Home:    $OPENSHIP_HOME   (separate from production ~/.openship)
+  Home:    $VIBRAIL_HOME   (separate from production ~/.vibrail)
   Source:  $SRC_DIR
 
-Remove it:  rm -f "$BIN/openship-dev" && rm -rf "$OPENSHIP_HOME"
+Remove it:  rm -f "$BIN/vibrail-dev" && rm -rf "$VIBRAIL_HOME"
 
-If 'openship-dev' isn't found, add the bin dir to your PATH:
+If 'vibrail-dev' isn't found, add the bin dir to your PATH:
   export PATH="$BIN:\$PATH"
 EOF

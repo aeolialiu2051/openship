@@ -10,7 +10,7 @@
  *
  *   1. `middleware/auth.ts` — zero-auth fallback (CRITICAL #4).
  *      Loopback is the FINAL gate. Earlier gates: `authMode === "none"`
- *      AND (`DEPLOY_MODE=desktop` OR `OPENSHIP_ALLOW_ZERO_AUTH=true`).
+ *      AND (`DEPLOY_MODE=desktop` OR `VIBRAIL_ALLOW_ZERO_AUTH=true`).
  *
  *   2. `middleware/internal-auth.ts` — Electron → API desktop fallback
  *      when `INTERNAL_TOKEN` is unset (CRITICAL #5). Earlier gate:

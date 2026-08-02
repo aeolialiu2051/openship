@@ -12,7 +12,7 @@ commit — you redeploy. This guide covers both, plus how to "pin" a good versio
 fall back to.
 
 <Callout title="What you need first">
-- A project in Openship that has been deployed at least once.
+- A project in Vibrail that has been deployed at least once.
 - Nothing else — rollback and redeploy both work on deploys you already have.
 </Callout>
 
@@ -27,7 +27,7 @@ Each row shows the version (like `v3`), a status, the commit message, and small 
 state of that version:
 
 - **Active** — the version currently live and serving your site.
-- **Snapshotted** — Openship still has this version's finished build saved, so you can roll back to it fast, without a rebuild.
+- **Snapshotted** — Vibrail still has this version's finished build saved, so you can roll back to it fast, without a rebuild.
 - **Pinned** — this version is kept safe forever and will never be cleaned up (more on this below).
 
 <Callout title="Screenshot">Project → **Deployments** tab: the "Deploy Latest Changes" card on top and the deploy history list below, showing the **Active** / **Snapshotted** / **Pinned** labels on rows. *(screenshot pending)*</Callout>
@@ -41,7 +41,7 @@ state of that version:
 ### Open the version you want to return to
 
 In the history, find the last row that was healthy. It should show the **Snapshotted** label — that's your
-signal Openship still has its build ready to restore. (A **Pinned** row works too: pinning keeps that saved
+signal Vibrail still has its build ready to restore. (A **Pinned** row works too: pinning keeps that saved
 build around, so pinned versions stay rollback-ready as well.)
 
 Click the **⋮** (three-dots) menu on that row.
@@ -52,11 +52,11 @@ Click the **⋮** (three-dots) menu on that row.
 
 ### Choose "Rollback to this version"
 
-Press **Rollback to this version**. Openship asks you to confirm, and reminds you what rollback does:
+Press **Rollback to this version**. Vibrail asks you to confirm, and reminds you what rollback does:
 
 > This restores the application code only. Database and volume data are unchanged.
 
-Confirm, and Openship switches the live site back to that version.
+Confirm, and Vibrail switches the live site back to that version.
 
 <Callout title="Screenshot">The row **⋮** menu open, with **Rollback to this version** highlighted and the confirmation dialog. *(screenshot pending)*</Callout>
 
@@ -65,17 +65,17 @@ Confirm, and Openship switches the live site back to that version.
 </Steps>
 
 <Callout title="Why rollback is quick — and safe for your data" type="info">
-Rolling back does **not** rebuild anything. Openship kept a copy of that version's finished build, so it
+Rolling back does **not** rebuild anything. Vibrail kept a copy of that version's finished build, so it
 simply switches back to it. Two things follow from that:
 
-- **It's fast, with no long outage.** There's no waiting for a fresh build — Openship restarts the saved
+- **It's fast, with no long outage.** There's no waiting for a fresh build — Vibrail restarts the saved
   version, so your site is back in seconds instead of the minutes a full build takes.
 - **Only your code changes.** Your database and any saved files (volumes) are left exactly as they are.
   Rollback rewinds the app, not your data.
 </Callout>
 
 <Callout title="The rollback option is greyed out" type="warn">
-Rollback needs the saved build (the **Snapshotted** label). Openship only keeps a limited number of old
+Rollback needs the saved build (the **Snapshotted** label). Vibrail only keeps a limited number of old
 builds per project, so very old versions get cleaned up over time. When that happens, the menu offers
 **Redeploy this commit** instead — it rebuilds that exact commit from your source code. It's slower than a
 rollback (a full build runs again), but it gets you to the same place. To stop a version from ever being
@@ -87,7 +87,7 @@ cleaned up, **pin** it — see below.
 Redeploying builds and ships your project again. Reach for it after you push a fix, or when you want the
 live site to pick up the newest commit.
 
-On the **Deployments** tab, press **Redeploy Project**. Openship pulls the latest commit on your deploy
+On the **Deployments** tab, press **Redeploy Project**. Vibrail pulls the latest commit on your deploy
 branch, reuses your project's current settings and environment variables, and creates a new version. There's
 no setup screen — it just goes, and drops you on the build screen to watch.
 
@@ -107,12 +107,12 @@ that row still has its saved build:
   from source and adds it as a new version.
 
 To force a from-source rebuild of a specific commit from the terminal at any time — saved build or not — use
-`openship deployment redeploy <id> --use-existing-commit` (below).
+`vibrail deployment redeploy <id> --use-existing-commit` (below).
 </Callout>
 
 ## Pin a version so it's always there
 
-Openship keeps only so many old builds around, then cleans up the oldest to save space. If there's a
+Vibrail keeps only so many old builds around, then cleans up the oldest to save space. If there's a
 known-good version you always want to be able to snap back to, **pin** it.
 
 In a deploy row's **⋮** menu, choose **Pin**. That version becomes exempt from cleanup and stays instantly
@@ -131,32 +131,32 @@ Every action above works from the CLI. First list the deploys to get their IDs:
 ```bash
 # List this project's deploys (newest first). The "active" column marks the live one.
 # Run it inside your linked project folder, or target another with --project <project-id>.
-openship deployment list
+vibrail deployment list
 
 # Look at one in detail (status, commit, url, whether it's pinned)
-openship deployment get <deployment-id>
+vibrail deployment get <deployment-id>
 ```
 
 Then act on one by its ID:
 
 ```bash
 # Roll back to a previous deploy (pass the ID of the one you want to return TO)
-openship deployment rollback <deployment-id>
+vibrail deployment rollback <deployment-id>
 
 # Redeploy from an existing deploy — picks up the latest commit on its branch
-openship deployment redeploy <deployment-id>
+vibrail deployment redeploy <deployment-id>
 
 # ...or rebuild that deploy's exact commit instead of the latest
-openship deployment redeploy <deployment-id> --use-existing-commit
+vibrail deployment redeploy <deployment-id> --use-existing-commit
 
 # Pin a deploy so it's never cleaned up (add --off to unpin)
-openship deployment pin <deployment-id>
-openship deployment pin <deployment-id> --off
+vibrail deployment pin <deployment-id>
+vibrail deployment pin <deployment-id> --off
 ```
 
 <Callout title="Tip" type="info">
 To simply ship the latest commit of the whole project (the terminal equivalent of **Redeploy Project**), run
-`openship deploy` from the project folder. Use `openship deployment redeploy` when you want to re-run one
+`vibrail deploy` from the project folder. Use `vibrail deployment redeploy` when you want to re-run one
 *specific* deploy from the history.
 </Callout>
 

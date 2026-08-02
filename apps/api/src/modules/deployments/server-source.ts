@@ -8,7 +8,7 @@ import { resolveFromReader, type ProjectInfo } from "./prepare.service";
 
 // Reads a project directory on a remote SERVER over the pooled SSH executor,
 // behind the same ProjectReader interface as GitHub/local. Powers "migrate an
-// existing Docker deployment": point Openship at a compose project's working
+// existing Docker deployment": point Vibrail at a compose project's working
 // dir on the server and reuse the full detectStack/compose pipeline unchanged.
 //
 // Self-hosted only — imported from the migration module, which is gated on

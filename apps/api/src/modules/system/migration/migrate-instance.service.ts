@@ -1,9 +1,9 @@
 /**
- * "Move this Openship instance to a remote server" — orchestration.
+ * "Move this Vibrail instance to a remote server" — orchestration.
  *
  * Sequence:
  *   1. Preflight (SSH, dist, domain) — fail fast on anything broken.
- *   2. Ensure the Openship project row + reconcile config.
+ *   2. Ensure the Vibrail project row + reconcile config.
  *   3. (TODO when deploy-engine integration lands) Trigger the deploy
  *      via the standard project pipeline. The pipeline streams the
  *      release dist to the target server, installs, starts.
@@ -25,7 +25,7 @@
  * this service only owns the path-specific SSH/dump/restore body.
  */
 
-import { ensureOpenshipProject } from "./openship-project.service";
+import { ensureVibrailProject } from "./vibrail-project.service";
 import { runPreflight, type DomainChoice } from "./preflight.service";
 import { sealedRemoteImport } from "./db-migrate-remote.service";
 import { probeTarget, TargetIsCloudError } from "./target-probe";
@@ -59,7 +59,7 @@ export class MigrationPreflightFailedError extends Error {
 /**
  * Build the public URL the operator's instance will live at, derived
  * from the domain choice. Used both for the migrationTargetUrl on the
- * local instance row AND for the route that Openship's deploy
+ * local instance row AND for the route that Vibrail's deploy
  * pipeline configures on the target server.
  */
 function publicUrlFor(domain: DomainChoice): string {
@@ -96,7 +96,7 @@ export async function migrateInstanceToServer(
       }
 
       // ── 2. Project row + reconciled config ───────────────────────────────
-      const { projectId, groupId, project } = await ensureOpenshipProject(
+      const { projectId, groupId, project } = await ensureVibrailProject(
         ctx.input.organizationId,
       );
 

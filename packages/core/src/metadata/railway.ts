@@ -158,7 +158,7 @@ function toMetadata(cfg: RailwayConfig): DeploymentMetadata | null {
   const buildCommand = trimmed(cfg.buildCommand);
   const startCommand = trimmed(cfg.startCommand);
   // A DOCKERFILE builder means "build from the Dockerfile" → the docker stack.
-  // NIXPACKS/RAILPACK auto-detect, so we leave detection to openship.
+  // NIXPACKS/RAILPACK auto-detect, so we leave detection to vibrail.
   const framework = cfg.builder?.toUpperCase() === "DOCKERFILE" ? "docker" : undefined;
   if (!buildCommand && !startCommand && !framework) return null;
 

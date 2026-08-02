@@ -276,7 +276,7 @@
     "noServersLink": "サーバー",
     "noServersPost": " から追加してください。",
     "fieldRemotePath": "リモートパス",
-    "hintRemotePath": "サーバー上の絶対ディレクトリ（例: /backups/openship）",
+    "hintRemotePath": "サーバー上の絶対ディレクトリ（例: /backups/vibrail）",
     "fieldAbsolutePath": "絶対パス",
     "hintAbsolutePath": "API ホスト上のファイルシステムパス。クラウドモードでは無効です。",
     "saving": "保存しています…",

@@ -276,7 +276,7 @@
     "noServersLink": "服务器",
     "noServersPost": " 中添加一台。",
     "fieldRemotePath": "远程路径",
-    "hintRemotePath": "服务器上的绝对目录（例如 /backups/openship）",
+    "hintRemotePath": "服务器上的绝对目录（例如 /backups/vibrail）",
     "fieldAbsolutePath": "绝对路径",
     "hintAbsolutePath": "API 主机上的文件系统路径。云模式下禁用。",
     "saving": "正在保存……",

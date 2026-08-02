@@ -4,7 +4,7 @@ import { isUploadIgnoredPath } from "@repo/core";
  * Build a gzipped tar (.tar.gz) Blob entirely in the browser from a folder the
  * user picked via `<input webkitdirectory>` / drag-drop. Used by the
  * folder-upload deploy flow: the archive is streamed to an Oblien workspace
- * (SaaS) or the openship API (self-hosted), then the normal build pipeline runs.
+ * (SaaS) or the vibrail API (self-hosted), then the normal build pipeline runs.
  *
  * - Honors the shared source-ignore list (`isUploadIgnoredPath` from @repo/core)
  *   so `node_modules`, `.git`, build output, etc. never go over the wire.

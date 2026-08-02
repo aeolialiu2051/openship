@@ -7,7 +7,7 @@ import { LocalExecutor } from "./local-executor";
 import { ensureRemoteJournal, parseFrame, runJournaled } from "./remote-journal";
 
 /**
- * Exercises the opsh-run wrapper end-to-end against the LOCAL machine via
+ * Exercises the vibrail-run wrapper end-to-end against the LOCAL machine via
  * LocalExecutor (the wrapper is POSIX + openssl, so it runs on macOS/Linux).
  * The core property under test: a command that is "still running" when the
  * caller loses it (simulated by a short wait window) is HARVESTED — not re-run —
@@ -19,8 +19,8 @@ describe("remote-journal", () => {
   let scratch: string;
 
   beforeAll(async () => {
-    base = await mkdtemp(join(tmpdir(), "opsh-journal-"));
-    scratch = await mkdtemp(join(tmpdir(), "opsh-scratch-"));
+    base = await mkdtemp(join(tmpdir(), "vibrail-journal-"));
+    scratch = await mkdtemp(join(tmpdir(), "vibrail-scratch-"));
     await ensureRemoteJournal(exec, base);
   });
 
@@ -78,15 +78,15 @@ describe("remote-journal", () => {
 
   it("parses wrapper frames", () => {
     const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
-    expect(parseFrame(`OPSH1 0 ${b64("out")} ${b64("err")}`)).toEqual({
+    expect(parseFrame(`VIBRAIL1 0 ${b64("out")} ${b64("err")}`)).toEqual({
       status: "done",
       code: 0,
       stdout: "out",
       stderr: "err",
     });
-    expect(parseFrame("OPSH-RUNNING 1234").status).toBe("running");
-    expect(parseFrame("OPSH-DEAD").status).toBe("dead");
-    expect(parseFrame("OPSH-COLLISION").status).toBe("collision");
-    expect(parseFrame("OPSH-EIO disk full").status).toBe("eio");
+    expect(parseFrame("VIBRAIL-RUNNING 1234").status).toBe("running");
+    expect(parseFrame("VIBRAIL-DEAD").status).toBe("dead");
+    expect(parseFrame("VIBRAIL-COLLISION").status).toBe("collision");
+    expect(parseFrame("VIBRAIL-EIO disk full").status).toBe("eio");
   });
 });

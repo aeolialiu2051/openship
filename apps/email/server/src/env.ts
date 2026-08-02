@@ -97,14 +97,14 @@ export interface Env {
    *   assets/       - optional uploaded logo/favicon
    * The Zero server fully owns this directory: it serves `/branding.json`
    * publicly, and accepts authenticated `POST /admin/branding` writes
-   * from openship via the shared `BRANDING_ADMIN_TOKEN`. Branding never
-   * crosses host boundaries via SSH - openship calls the Zero server's
+   * from vibrail via the shared `BRANDING_ADMIN_TOKEN`. Branding never
+   * crosses host boundaries via SSH - vibrail calls the Zero server's
    * own HTTP API, so the Zero server can run anywhere reachable from
-   * openship.
+   * vibrail.
    */
   BRANDING_PATH: string;
   /**
-   * Shared secret authenticating openship's branding writes. Sent in
+   * Shared secret authenticating vibrail's branding writes. Sent in
    * the `X-Branding-Admin-Token` header on `POST /admin/branding`.
    * Generated in dev (persisted via dev-secrets) so `bun dev` works
    * without configuration; required in prod.
@@ -117,7 +117,7 @@ export const env: Env = {
   PORT: int('PORT', 3030),
 
   COOKIE_DOMAIN: optional('COOKIE_DOMAIN', 'localhost'),
-  // Defaults include the Zero client (:3000) and the openship dashboard
+  // Defaults include the Zero client (:3000) and the vibrail dashboard
   // (:3001) - the dashboard writes branding here via tRPC and needs CORS
   // to succeed for the operator-facing admin panel.
   TRUSTED_ORIGINS: optional('TRUSTED_ORIGINS', 'http://localhost:3000,http://localhost:3001')

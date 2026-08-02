@@ -1,9 +1,9 @@
 /**
- * OS service backend for `openship up` / `openship stop`.
+ * OS service backend for `vibrail up` / `vibrail stop`.
  *
- * `openship up` (default) installs Openship as a persistent service that
- * auto-restarts on crash and starts on boot, running until `openship stop`.
- * The service runs `openship up --foreground` — the attached supervisor in
+ * `vibrail up` (default) installs Vibrail as a persistent service that
+ * auto-restarts on crash and starts on boot, running until `vibrail stop`.
+ * The service runs `vibrail up --foreground` — the attached supervisor in
  * commands/up.ts — so the OS service manager is what keeps it alive.
  *
  *   - macOS   → launchd LaunchAgent (~/Library/LaunchAgents), KeepAlive + RunAtLoad
@@ -20,15 +20,15 @@ import { IS_ALT_HOME, OS_DIR } from "./paths";
 const HOME = homedir();
 const LOG_DIR = join(OS_DIR, "logs");
 
-// A from-source/dev install (OPENSHIP_HOME set → IS_ALT_HOME) gets its OWN boot
-// service, so `openship up` from source never clobbers or fights a production
+// A from-source/dev install (VIBRAIL_HOME set → IS_ALT_HOME) gets its OWN boot
+// service, so `vibrail up` from source never clobbers or fights a production
 // install's service. Same derivation across install/stop/restart/status.
-const MAC_LABEL = IS_ALT_HOME ? "io.openship-dev.up" : "io.openship.up";
+const MAC_LABEL = IS_ALT_HOME ? "io.vibrail-dev.up" : "io.vibrail.up";
 const MAC_PLIST = join(HOME, "Library", "LaunchAgents", `${MAC_LABEL}.plist`);
-const SYSTEMD_NAME = IS_ALT_HOME ? "openship-dev" : "openship";
-const WIN_TASK = IS_ALT_HOME ? "OpenshipDev" : "Openship";
+const SYSTEMD_NAME = IS_ALT_HOME ? "vibrail-dev" : "vibrail";
+const WIN_TASK = IS_ALT_HOME ? "VibrailDev" : "Vibrail";
 
-/** Flags the user gave to `openship up`, replayed into the service's run command. */
+/** Flags the user gave to `vibrail up`, replayed into the service's run command. */
 export interface UpFlags {
   port?: string;
   dataDir?: string;
@@ -128,16 +128,16 @@ function xmlEscape(s: string): string {
 }
 
 /** Extra env the service should carry, only when set (unset in production so
- *  nothing changes). OPENSHIP_DASHBOARD_DIR lets a from-source install serve its
- *  locally-built dashboard; OPENSHIP_HOME pins the supervised process to the
+ *  nothing changes). VIBRAIL_DASHBOARD_DIR lets a from-source install serve its
+ *  locally-built dashboard; VIBRAIL_HOME pins the supervised process to the
  *  same alternate home (data dir / tokens / ports) the install runs under —
- *  without it the boot service would fall back to the production ~/.openship. */
+ *  without it the boot service would fall back to the production ~/.vibrail. */
 function serviceEnv(): Record<string, string> {
   const extra: Record<string, string> = {};
-  const dashDir = process.env.OPENSHIP_DASHBOARD_DIR?.trim();
-  if (dashDir) extra.OPENSHIP_DASHBOARD_DIR = dashDir;
-  const home = process.env.OPENSHIP_HOME?.trim();
-  if (home) extra.OPENSHIP_HOME = home;
+  const dashDir = process.env.VIBRAIL_DASHBOARD_DIR?.trim();
+  if (dashDir) extra.VIBRAIL_DASHBOARD_DIR = dashDir;
+  const home = process.env.VIBRAIL_HOME?.trim();
+  if (home) extra.VIBRAIL_HOME = home;
   return extra;
 }
 
@@ -175,7 +175,7 @@ function systemdUnit(flags: UpFlags): string {
     .map(([k, v]) => `Environment=${k}=${v}\n`)
     .join("");
   return `[Unit]
-Description=Openship control plane
+Description=Vibrail control plane
 After=network-online.target
 Wants=network-online.target
 
@@ -252,14 +252,14 @@ export function installAndStart(flags: UpFlags): ServiceResult {
   }
 
   throw new Error(
-    "No supported service manager found (need systemd on Linux). Run `openship up --foreground` instead, or use docker compose for always-on.",
+    "No supported service manager found (need systemd on Linux). Run `vibrail up --foreground` instead, or use docker compose for always-on.",
   );
 }
 
 /**
  * Restart the installed service in place (pick up a new bundle after
- * `openship update`). Returns restarted:false when no service is installed —
- * the caller then tells the operator to `openship up` manually.
+ * `vibrail update`). Returns restarted:false when no service is installed —
+ * the caller then tells the operator to `vibrail up` manually.
  */
 export function restart(): { restarted: boolean; detail: string } {
   const kind = detectKind();
@@ -307,7 +307,7 @@ export function restart(): { restarted: boolean; detail: string } {
   return { restarted: false, detail: "no supported service manager" };
 }
 
-/** Is the `openship up` service installed on this box, and is it running now? */
+/** Is the `vibrail up` service installed on this box, and is it running now? */
 export function serviceStatus(): { kind: ServiceKind; installed: boolean; running: boolean } {
   const kind = detectKind();
   if (kind === "launchd") {
@@ -339,7 +339,7 @@ export function serviceStatus(): { kind: ServiceKind; installed: boolean; runnin
 /**
  * Best-effort reaper for processes still holding our canonical API/dashboard
  * ports. The supervisor stop should tear down the tree, but a previously
- * hard-killed `openship up` (kill -9 / OOM / an old build that leaked the
+ * hard-killed `vibrail up` (kill -9 / OOM / an old build that leaked the
  * reaper) can orphan the API + dashboard onto the port — leaving `stop`
  * reporting success while `lsof -i :4000` still shows live processes. Scoped to
  * OUR ports (from ports.json) so it never touches an unrelated app. POSIX only.
@@ -348,7 +348,7 @@ function sweepOrphanPorts(): void {
   if (process.platform === "win32") return;
   let ports: number[] = [];
   try {
-    const raw = readFileSync(join(HOME, ".openship", "ports.json"), "utf8");
+    const raw = readFileSync(join(HOME, ".vibrail", "ports.json"), "utf8");
     const p = JSON.parse(raw) as { api?: number; dashboard?: number };
     ports = [p.api, p.dashboard].filter((n): n is number => typeof n === "number");
   } catch {

@@ -1,16 +1,16 @@
 /**
- * Adopt a discovered Docker stack as an Openship project.
+ * Adopt a discovered Docker stack as a Vibrail project.
  *
  * Re-discovers the server (server truth, not client-sent config), filters to the
  * services the user selected, and creates a `services` project whose service
  * rows mirror the running containers. Same-server adoption reuses the EXISTING
  * named volumes in place by default (`namespaceVolumes=false`, original bare
- * names) so data survives — Openship would otherwise re-scope them to
- * `openship-<slug>-<name>` and mount empty volumes. A service the user marks
+ * names) so data survives — Vibrail would otherwise re-scope them to
+ * `vibrail-<slug>-<name>` and mount empty volumes. A service the user marks
  * "copy" instead keeps the scoped name; its data is duplicated into that new
  * volume during moving_data, leaving the original volume untouched.
  *
- * This creates records only; deploy + cutover (stop old → start Openship's) is a
+ * This creates records only; deploy + cutover (stop old → start Vibrail's) is a
  * separate step so the user reviews before anything on the server changes.
  */
 
@@ -23,20 +23,20 @@ import { getFileContent } from "../github/github.service";
 import { parseComposeFile } from "../../lib/compose-parser";
 import { createServerDockerRuntime } from "../../lib/deployment-runtime";
 import { sshManager } from "../../lib/ssh-manager";
-import { readProjectSnapshot } from "../../lib/openship-manifest";
+import { readProjectSnapshot } from "../../lib/vibrail-manifest";
 import { discoverServerStack } from "./docker-inspect.service";
 import {
   EDGE_PORTS,
   parseComposePort,
   type DiscoveredService,
   type DiscoveredVolumeMount,
-  type OpenshipProjectGroup,
+  type VibrailProjectGroup,
 } from "./docker-reconcile";
 
 type EnsureBody = Parameters<typeof ensureProject>[0];
 type ParsedComposeList = Parameters<typeof repos.service.syncFromCompose>[1];
 
-/** Openship deployment id shape — validated before trusting a server label as a PK. */
+/** Vibrail deployment id shape — validated before trusting a server label as a PK. */
 const DEPLOYMENT_ID_RE = /^dep_[A-Za-z0-9]+$/;
 
 /** Compose file names to probe in a linked repo (mirrors prepare.service COMPOSE_FILES). */
@@ -73,7 +73,7 @@ export async function parseRepoCompose(
   branch?: string,
 ): Promise<RepoComposeService[]> {
   // NB: we deliberately do NOT read the repo's `.env` for `${VAR}` interpolation.
-  // Secrets live in Openship's ENCRYPTED env store — captured from the running
+  // Secrets live in Vibrail's ENCRYPTED env store — captured from the running
   // container for adopted services, or set via the wizard/env UI for new ones —
   // never a committed repo file. Pulling a `.env` here would drop those values
   // into the PLAINTEXT service.environment column. So a bare `${VAR}` with no
@@ -154,9 +154,9 @@ function volumeToComposeString(v: DiscoveredVolumeMount): string | null {
   return `${v.source}:${v.target}${mode}`;
 }
 
-/** Normalize an adopted service's ports for the shared Openship service group:
+/** Normalize an adopted service's ports for the shared Vibrail service group:
  *
- *   - Ports 80/443 belong to Openship's Traefik edge → drop the host side,
+ *   - Ports 80/443 belong to Vibrail's Traefik edge → drop the host side,
  *     keep the container port (e.g. "80:3000" → "3000"); Traefik routes to it.
  *   - Every OTHER host-published port must be UNIQUE across the group — two
  *     containers cannot bind the same host port (the classic "two postgres both
@@ -314,7 +314,7 @@ export async function adoptServerStack(opts: {
    *  later reconcile matches it in place instead of duplicating. */
   serviceRenames?: Record<string, string>;
   /** Adopt in flat-docker mode — must match the scan the user selected from, or
-   *  openship-labeled containers are treated as managed and none are found. */
+   *  vibrail-labeled containers are treated as managed and none are found. */
   flatDocker?: boolean;
   /** Parsed repo compose services (name → spec). When present, adopted rows take
    *  their NATIVE build/image from the mapped repo service (Redeploy rebuilds),
@@ -432,7 +432,7 @@ export async function adoptServerStack(opts: {
     if (!svc) continue;
     // Volume ownership: reuse the original bare-named volumes in place
     // (namespaceVolumes=false) — EXCEPT same-server services the user marked
-    // "copy", which keep the scoped openship-<slug>-<name> name so the deploy
+    // "copy", which keep the scoped vibrail-<slug>-<name> name so the deploy
     // mounts the fresh copy (populated in moving_data) and the original is left
     // untouched. Cross-server always reuses bare names (the A→B stream trick).
     const copy = Boolean(sameServer) && volumeStrategies?.[s.name] === "copy";
@@ -462,13 +462,13 @@ export async function adoptServerStack(opts: {
   };
 }
 
-/** Openship id shape — validated before we trust a server-supplied label as a PK. */
+/** Vibrail id shape — validated before we trust a server-supplied label as a PK. */
 const PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
 
 /**
  * Live re-attach: reconstruct the runtime graph (deployment + service_deployment
  * rows) from the ALREADY-RUNNING containers, PRESERVING the deployment id so the
- * live containers (labelled `openship.deployment=<id>`) stay attached — the
+ * live containers (labelled `vibrail.deployment=<id>`) stay attached — the
  * Services tab reads live docker by that label, so the project shows deployed +
  * running with NO redeploy and no container disruption. Best-effort: returns the
  * reconstructed deployment id, or null when it can't run (no preserved dep id, id
@@ -478,13 +478,13 @@ async function reattachRuntime(opts: {
   projectId: string;
   organizationId: string;
   serverId: string;
-  group: OpenshipProjectGroup;
+  group: VibrailProjectGroup;
   chosen: DiscoveredService[];
   createdServices: Service[];
 }): Promise<string | null> {
   const { projectId, organizationId, serverId, group, chosen, createdServices } = opts;
 
-  // Need the ORIGINAL deployment id (from the openship.deployment label) so the
+  // Need the ORIGINAL deployment id (from the vibrail.deployment label) so the
   // running containers match the live-status query. Absent / malformed → not a
   // standard deploy container; skip (records-only). Refuse if it already exists.
   const depId = group.deploymentId;
@@ -555,7 +555,7 @@ async function reattachRuntime(opts: {
  * live containers (by their existing container id), so the Services tab reads them
  * live immediately. The migrated project is a NEW id, so (unlike re-import) the
  * caller MINTS the deployment id and the adopted containers keep their ORIGINAL
- * `openship.*`/compose labels — labels are immutable in place.
+ * `vibrail.*`/compose labels — labels are immutable in place.
  *
  * Status/logs/terminal therefore CANNOT be label-scoped for these containers: the
  * live read matches them by canonical name and stored container id instead
@@ -648,7 +648,7 @@ export async function attachLiveRuntime(opts: {
 
 /**
  * Pre-join the migration's reused (attach-live) containers to the target project's
- * `openship-<slug>` network with a DNS alias = each row's name, BEFORE the native
+ * `vibrail-<slug>` network with a DNS alias = each row's name, BEFORE the native
  * deploy runs. The deploy's ensureServiceGroup is idempotent (reuses this
  * network), so a freshly-built service resolves the reused container by name from
  * its very first start (e.g. `web` → `postgres:5432`). This is what makes the
@@ -766,9 +766,9 @@ async function restoreFromSnapshot(opts: {
 }
 
 /**
- * Re-import an ORPHANED Openship project recovered from a server (see
- * `reconcileOpenshipProjects`): the DB was reset (DR) or the server came from
- * another Openship instance. Rebuilds the project + compose service rows,
+ * Re-import an ORPHANED Vibrail project recovered from a server (see
+ * `reconcileVibrailProjects`): the DB was reset (DR) or the server came from
+ * another Vibrail instance. Rebuilds the project + compose service rows,
  * PRESERVING the original id (+ slug) so the still-running containers' labels
  * re-attach immediately — teardown/reclaim/network reconcile recognize them. Then
  * LIVE RE-ATTACHES the runtime graph (deployment + service_deployment rows) from
@@ -779,7 +779,7 @@ async function restoreFromSnapshot(opts: {
  * land UNEXPOSED, so routing is untouched here; adding and verifying a domain
  * followed by redeploy publishes it through shared Traefik.
  */
-export async function reimportOpenshipProject(opts: {
+export async function reimportVibrailProject(opts: {
   serverId: string;
   organizationId: string;
   projectId: string;
@@ -790,7 +790,7 @@ export async function reimportOpenshipProject(opts: {
 
   // Never trust a raw label as a primary key without shape-checking it.
   if (!PROJECT_ID_RE.test(projectId)) {
-    throw new Error("Invalid Openship project id.");
+    throw new Error("Invalid Vibrail project id.");
   }
   // Refuse-not-merge: if ANY project (any org, incl. soft-deleted) already owns
   // this id, do not graft server-supplied state onto it.
@@ -800,12 +800,12 @@ export async function reimportOpenshipProject(opts: {
   }
 
   const stack = await discoverServerStack(serverId, organizationId);
-  const group = stack.openshipProjects.find((p) => p.projectId === projectId);
+  const group = stack.vibrailProjects.find((p) => p.projectId === projectId);
   if (!group) {
-    throw new Error("That Openship project was not found on the server.");
+    throw new Error("That Vibrail project was not found on the server.");
   }
   if (group.knownHere) {
-    throw new Error("That Openship project is already managed by this instance.");
+    throw new Error("That Vibrail project is already managed by this instance.");
   }
 
   // PRIMARY: a full server-side subgraph snapshot → restore it faithfully (exact

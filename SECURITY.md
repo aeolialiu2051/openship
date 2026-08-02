@@ -1,7 +1,7 @@
 # Security Policy
 
-We take the security of Openship and the data it manages seriously. We're
-grateful to the researchers and users who help keep Openship and its community
+We take the security of Vibrail and the data it manages seriously. We're
+grateful to the researchers and users who help keep Vibrail and its community
 safe, and we welcome your reports.
 
 ## Reporting a Vulnerability
@@ -13,7 +13,7 @@ chance to address it.
 Use either channel:
 
 - **GitHub Private Vulnerability Reporting (preferred):**
-  <https://github.com/oblien/openship/security/advisories/new>
+  <https://github.com/aeolialiu2051/vibrail/security/advisories/new>
 - **Email:** <security@oblien.com> — if the details are sensitive and you'd like
   to encrypt them, email us first and we'll arrange a secure channel.
 
@@ -57,9 +57,9 @@ violation.
 
 ## Scope
 
-In scope — all Openship components:
+In scope — all Vibrail components:
 
-- Managed Openship Cloud
+- Managed Vibrail Cloud
 - Self-hosted control plane (API, dashboard, CLI)
 - Desktop app
 - GitHub integration & webhooks
@@ -68,16 +68,16 @@ In scope — all Openship components:
 - Domains & TLS, and the edge (Traefik) layer
 - Mail functionality
 
-Openship is open source (Apache 2.0), so the fastest and safest way to test most
+Vibrail is open source (Apache 2.0), so the fastest and safest way to test most
 issues is against **your own self-hosted instance**.
 
 ## Out of Scope
 
 - Vulnerabilities in already-public third-party dependencies (report upstream;
-  do tell us if Openship is exploitable through one)
+  do tell us if Vibrail is exploitable through one)
 - Theoretical issues with no realistic attack scenario or proof-of-concept
 - Self-XSS, or issues requiring physical access to a user's device
-- Social engineering of Openship staff, users, or infrastructure providers
+- Social engineering of Vibrail staff, users, or infrastructure providers
 - Volumetric denial-of-service / resource-exhaustion testing
 - Missing security headers or best-practice suggestions with no demonstrated impact
 - Raw automated-scanner output without a validated, exploitable finding
@@ -108,11 +108,11 @@ We'll keep you updated as we work through it, and tell you when a fix ships.
 ## Recognition
 
 With your permission, we credit reporters of valid, first-to-report issues in the
-relevant advisory or release notes. Openship does not currently run a paid
+relevant advisory or release notes. Vibrail does not currently run a paid
 bug-bounty program.
 
 ## Questions
 
 For anything that isn't itself a vulnerability report, see the
-[Trust & Security](https://openship.io/trust) page or reach us at
+[Trust & Security](https://vibrail.warpgateapi.com/trust) page or reach us at
 <security@oblien.com>.

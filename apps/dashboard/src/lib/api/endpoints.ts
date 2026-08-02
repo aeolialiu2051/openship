@@ -412,7 +412,7 @@ export const endpoints = {
   },
 
   /* ---------------------------------------------------------------- */
-  /*  Cloud (Openship Cloud connection - local/self-hosted only)      */
+  /*  Cloud (Vibrail Cloud connection - local/self-hosted only)      */
   /* ---------------------------------------------------------------- */
   cloud: {
     disconnect: "cloud/disconnect",

@@ -19,7 +19,7 @@ const osxSigning = APPLE_IDENTITY
         identity: APPLE_IDENTITY,
         // Hardened runtime + entitlements are REQUIRED for notarization, and the
         // same entitlements must apply to every nested Mach-O (the compiled
-        // openship-api binary, any native .node addons in the dashboard bundle)
+        // vibrail-api binary, any native .node addons in the dashboard bundle)
         // via optionsForFile — the app spawns/loads them, so they all need
         // allow-jit / disable-library-validation or the hardened app crashes.
         optionsForFile: () => ({
@@ -32,12 +32,12 @@ const osxSigning = APPLE_IDENTITY
 
 module.exports = {
   packagerConfig: {
-    name: "Openship",
-    executableName: "openship",
+    name: "Vibrail",
+    executableName: "vibrail",
     // Stable, owned bundle identifier — used by the code signature, notarization,
     // Keychain, and LaunchServices. Without it packager defaults to the generic
-    // `com.electron.openship`, which collides with other Electron apps.
-    appBundleId: "com.oblien.openship",
+    // `com.electron.vibrail`, which collides with other Electron apps.
+    appBundleId: "com.oblien.vibrail",
     icon: ICON_BASE,
     asar: true,
     // The main/preload are bundled (build/bundle.mjs) into self-contained files,
@@ -88,16 +88,16 @@ module.exports = {
     postPackage: async (_forgeConfig, options) => {
       if (process.platform !== "linux") return;
       for (const out of options.outputPaths) {
-        const p = path.join(out, "resources/bin/openship-api");
+        const p = path.join(out, "resources/bin/vibrail-api");
         if (existsSync(p)) chmodSync(p, 0o755);
 
         // When unprivileged userns is blocked, Electron's sandbox falls back to
         // its SUID helper, which can't run from a nosuid AppImage mount, the
         // app aborts at launch. 
         // This makes wrapper adds --no-sandbox only in these cases
-        const exe = path.join(out, "openship");
+        const exe = path.join(out, "vibrail");
         if (existsSync(exe)) {
-          renameSync(exe, path.join(out, "openship.bin"));
+          renameSync(exe, path.join(out, "vibrail.bin"));
           writeFileSync(
             exe,
             [
@@ -112,7 +112,7 @@ module.exports = {
               '   [ "$(cat /proc/sys/user/max_user_namespaces 2>/dev/null)" = "0" ]; then',
               '  set -- --no-sandbox "$@"',
               "fi",
-              'exec "$dir/openship.bin" "$@"',
+              'exec "$dir/vibrail.bin" "$@"',
               "",
             ].join("\n"),
           );
@@ -129,29 +129,29 @@ module.exports = {
     postMake: async (_forgeConfig, makeResults) => {
       if (process.platform !== "darwin") return makeResults;
       // Forge builds one arch per `make` invocation; take it from the results
-      // so a cross-built x64 make produces Openship-x64.dmg (not the host arch).
+      // so a cross-built x64 make produces Vibrail-x64.dmg (not the host arch).
       const arch = makeResults.find((r) => r.platform === "darwin")?.arch || process.arch;
-      const appPath = path.join(__dirname, "out", `Openship-darwin-${arch}`, "Openship.app");
+      const appPath = path.join(__dirname, "out", `Vibrail-darwin-${arch}`, "Vibrail.app");
       if (!existsSync(appPath)) {
         throw new Error(`postMake: expected packaged app at ${appPath}`);
       }
-      const dmgPath = path.join(__dirname, "out", "make", `Openship-${arch}.dmg`);
+      const dmgPath = path.join(__dirname, "out", "make", `Vibrail-${arch}.dmg`);
       const staging = path.join(__dirname, "out", `dmg-staging-${arch}`);
       execFileSync("rm", ["-rf", staging, dmgPath]);
       execFileSync("mkdir", ["-p", staging]);
       // `ditto` (not `cp -R`) preserves the code signature, symlinks, and
       // extended attributes of the signed .app bundle. `cp -R` can drop xattrs
       // and mangle framework symlinks, invalidating the signature.
-      execFileSync("ditto", [appPath, path.join(staging, "Openship.app")]);
+      execFileSync("ditto", [appPath, path.join(staging, "Vibrail.app")]);
       execFileSync("ln", ["-s", "/Applications", path.join(staging, "Applications")]);
       // hdiutil intermittently fails with "Resource busy" on CI macOS runners:
       // Spotlight/APFS grabs the just-`ditto`'d staging folder as hdiutil tries
-      // to snapshot it, or a stale /Volumes/Openship mount lingers from a prior
+      // to snapshot it, or a stale /Volumes/Vibrail mount lingers from a prior
       // attempt. Detach any leftover volume and retry with a short backoff so
       // the transient contention clears instead of failing the release.
       const detachStale = () => {
         try {
-          execFileSync("hdiutil", ["detach", "-force", "/Volumes/Openship"], { stdio: "ignore" });
+          execFileSync("hdiutil", ["detach", "-force", "/Volumes/Vibrail"], { stdio: "ignore" });
         } catch {
           /* nothing mounted — fine */
         }
@@ -162,7 +162,7 @@ module.exports = {
         try {
           execFileSync(
             "hdiutil",
-            ["create", "-volname", "Openship", "-srcfolder", staging, "-ov", "-format", "UDZO", dmgPath],
+            ["create", "-volname", "Vibrail", "-srcfolder", staging, "-ov", "-format", "UDZO", dmgPath],
             { stdio: "inherit" },
           );
           hdiutilErr = undefined;
@@ -185,20 +185,20 @@ module.exports = {
   makers: [
     {
       name: "@reforged/maker-appimage",
-      config: { options: { bin: "openship", icon: `${ICON_BASE}.png` } },
+      config: { options: { bin: "vibrail", icon: `${ICON_BASE}.png` } },
       platforms: ["linux"],
     },
     {
       name: "@electron-forge/maker-deb",
       config: {
         options: {
-          name: "openship",
-          productName: "Openship",
-          bin: "openship",
+          name: "vibrail",
+          productName: "Vibrail",
+          bin: "vibrail",
           icon: `${ICON_BASE}.png`,
           categories: ["Development", "Utilities"],
           maintainer: "Oblien",
-          homepage: "https://openship.io",
+          homepage: "https://vibrail.warpgateapi.com",
         },
       },
       platforms: ["linux"],
@@ -207,12 +207,12 @@ module.exports = {
       name: "@electron-forge/maker-rpm",
       config: {
         options: {
-          name: "openship",
-          productName: "Openship",
-          bin: "openship",
+          name: "vibrail",
+          productName: "Vibrail",
+          bin: "vibrail",
           icon: `${ICON_BASE}.png`,
           categories: ["Development", "Utilities"],
-          homepage: "https://openship.io",
+          homepage: "https://vibrail.warpgateapi.com",
         },
       },
       platforms: ["linux"],

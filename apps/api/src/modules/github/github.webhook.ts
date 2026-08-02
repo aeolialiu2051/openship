@@ -69,7 +69,7 @@ async function collectDeliverySecrets(
 ): Promise<string[]> {
   const event = headers["x-github-event"];
   // installation / ping events aren't repo-scoped on the deploy side — they hit
-  // api.openship.io's App webhook, verified with the env secret (no project).
+  // vibrail.warpgateapi.com's App webhook, verified with the env secret (no project).
   if (event !== "push" && event !== "check_run") return [];
 
   let parsed: unknown;
@@ -133,7 +133,7 @@ export const githubWebhookProvider: WebhookProvider = {
     const candidates = await collectDeliverySecrets(payload, headers);
     // env.GITHUB_WEBHOOK_SECRET is the legacy/App fallback — append it ONLY when
     // this delivery has no per-project or cloud-binding candidate of its own
-    // (installation/ping, or a repo Openship doesn't manage). Appending it for a
+    // (installation/ping, or a repo Vibrail doesn't manage). Appending it for a
     // routable delivery that already has a per-project secret would make it a
     // cross-repo skeleton key that validates any managed repo's webhook.
     if (candidates.length === 0 && env.GITHUB_WEBHOOK_SECRET) {
@@ -141,7 +141,7 @@ export const githubWebhookProvider: WebhookProvider = {
     }
 
     // No unsigned path — a delivery with no resolvable secret can't be verified,
-    // even self-hosted. Register the webhook through Openship (sets a per-project
+    // even self-hosted. Register the webhook through Vibrail (sets a per-project
     // secret) or configure GITHUB_WEBHOOK_SECRET.
     if (candidates.length === 0) {
       return { valid: false, error: "No webhook secret configured — signature cannot be verified" };

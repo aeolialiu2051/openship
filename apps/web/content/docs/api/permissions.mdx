@@ -5,7 +5,7 @@ description: Manage team organizations, per-resource grants, and invitations wit
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The Permissions API runs Openship's team and access-control model: it reports whether the active org is a
+The Permissions API runs Vibrail's team and access-control model: it reports whether the active org is a
 team, lists the resources you can grant, upgrades a personal workspace into a team org, and manages the
 per-member **grants** and invitations that scope a `restricted` member to specific projects, servers, or
 other resources. In the dashboard this is the organization's **Team** tab. See
@@ -14,7 +14,7 @@ other resources. In the dashboard this is the organization's **Team** tab. See
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/permissions/grants`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) for the full auth model.
 </Callout>
 
@@ -70,7 +70,7 @@ POST /api/permissions/create-team-org
 
 ```bash
 curl -X POST https://your-host/api/permissions/create-team-org \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"Acme Platform"}'
 ```
@@ -88,7 +88,7 @@ GET /api/permissions/resources?type=project
 
 ```bash
 curl "https://your-host/api/permissions/resources?type=server" \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 For `type=billing` or `type=audit` the only entry is the org-wide `*`. For `type=github_repository` you can
@@ -97,7 +97,7 @@ narrow to one account with `&owner=<login>`.
 ## Grant a resource
 
 Idempotent upsert of a single grant tuple. Re-sending the same `(userId, resourceType, resourceId)` replaces
-its `permissions` in place. An **empty `permissions` array revokes** the grant (Openship keeps no
+its `permissions` in place. An **empty `permissions` array revokes** the grant (Vibrail keeps no
 zero-permission placeholder rows).
 
 ```
@@ -115,7 +115,7 @@ POST /api/permissions/grants
 
 ```bash
 curl -X POST https://your-host/api/permissions/grants \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"userId":"user_123","resourceType":"project","resourceId":"proj_abc","permissions":["read","write"]}'
 ```
@@ -151,7 +151,7 @@ Each entry of `grants` is a `Grant` object:
 
 ```bash
 curl -X PUT https://your-host/api/permissions/grants \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "userId":"user_123",
@@ -185,7 +185,7 @@ POST /api/permissions/invite-with-grants
 
 ```bash
 curl -X POST https://your-host/api/permissions/invite-with-grants \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "email":"dev@acme.com",
@@ -208,7 +208,7 @@ POST /api/permissions/invitations/:id/materialize
 
 ```bash
 curl -X POST https://your-host/api/permissions/invitations/inv_123/materialize \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 Returns `{ data: { materialized: <count> } }`.

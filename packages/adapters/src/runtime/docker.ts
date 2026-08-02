@@ -13,7 +13,7 @@
  * Build strategy:
  *   Builds from a staged source context sent to the Docker daemon. If the
  *   repository already provides a Dockerfile, that becomes the source of
- *   truth. Otherwise Openship generates a minimal builder Dockerfile.
+ *   truth. Otherwise Vibrail generates a minimal builder Dockerfile.
  *   Deploy creates a container from the resulting image.
  *
  * SECURITY MODEL:
@@ -97,7 +97,7 @@ import {
   resolveServiceDockerfile,
 } from "./docker-build-context";
 import { resolveDockerfileCandidates } from "./docker-paths";
-import { generateDockerfile, withOpenshipRuntimeBanner } from "./docker-build-plan";
+import { generateDockerfile, withVibrailRuntimeBanner } from "./docker-build-plan";
 import { transferLocalDirectory } from "./transfer";
 import { safeErrorMessage, type ComposeAdvanced, type ComposeHealthcheck } from "@repo/core";
 import {
@@ -748,10 +748,10 @@ export class DockerRuntime implements RuntimeAdapter {
   /** Labels applied to both build images and deploy containers. */
   private labels(config: { deploymentId?: string; projectId: string; sessionId?: string }) {
     const l: Record<string, string> = {
-      "openship.project": config.projectId,
+      "vibrail.project": config.projectId,
     };
-    if (config.deploymentId) l["openship.deployment"] = config.deploymentId;
-    if (config.sessionId) l["openship.build"] = config.sessionId;
+    if (config.deploymentId) l["vibrail.deployment"] = config.deploymentId;
+    if (config.sessionId) l["vibrail.build"] = config.sessionId;
     return l;
   }
 
@@ -1179,7 +1179,7 @@ export class DockerRuntime implements RuntimeAdapter {
       if (!line) return null;
 
       const marker = line.match(
-        /^\[openship-build\]\s+step=(clone|install|build)\s+status=(running|completed|skipped)$/,
+        /^\[vibrail-build\]\s+step=(clone|install|build)\s+status=(running|completed|skipped)$/,
       );
       if (marker) {
         const [, step, status] = marker;
@@ -1274,7 +1274,7 @@ export class DockerRuntime implements RuntimeAdapter {
    *   1. `transferLocalDirectory(...)` - defaults to rsync over the
    *      SYSTEM `ssh` binary (NOT the Node `ssh2` library), with native
    *      `--progress` output streamed straight from rsync. ~10-30 MB/s
-   *      typical. Lands the context at `/tmp/openship-build-<sessionId>`
+   *      typical. Lands the context at `/tmp/vibrail-build-<sessionId>`
    *      on remote. Falls back to tar through the ssh2 channel only if
    *      rsync isn't installed on either side.
    *
@@ -1564,7 +1564,7 @@ export class DockerRuntime implements RuntimeAdapter {
     tag: string,
     log: BuildLogger,
   ): Promise<void> {
-    const remoteContextDir = `/tmp/openship-build-${config.sessionId}`;
+    const remoteContextDir = `/tmp/vibrail-build-${config.sessionId}`;
     try {
       await this.transferBuildContext(buildContext.contextDir, remoteContextDir, log);
       await this.buildImageOnRemote(
@@ -1733,7 +1733,7 @@ export class DockerRuntime implements RuntimeAdapter {
       // Clone the repo ON the remote host and build there — no local clone and
       // no context transfer. Only for SSH server builds that opted in.
       if (sshExecutor && config.cloneOnServer) {
-        const remoteContextDir = `/tmp/openship-build-${config.sessionId}`;
+        const remoteContextDir = `/tmp/vibrail-build-${config.sessionId}`;
         try {
           this.emitDockerStep(log, "clone", "running", "Cloning source on the server...");
           await this.cloneSourceOnRemote(config, remoteContextDir, log);
@@ -1741,7 +1741,7 @@ export class DockerRuntime implements RuntimeAdapter {
           const dockerfileName = await this.resolveRemoteDockerfile(
             config,
             remoteContextDir,
-            "Dockerfile.openship",
+            "Dockerfile.vibrail",
             config.stack === "docker",
           );
           await this.buildImageOnRemote(config, remoteContextDir, dockerfileName, tag, log);
@@ -1890,7 +1890,7 @@ export class DockerRuntime implements RuntimeAdapter {
         // Local socket / TCP: pull the tar via dockerode (portable across a
         // remote TCP daemon where the local `docker` CLI wouldn't apply) and
         // extract onto the API process's own FS — which in docker-edge mode is
-        // the shared openship_static volume mounted into this container. The
+        // the shared vibrail_static volume mounted into this container. The
         // archive is rooted at `html/`, so strip that one leading component.
         const { mkdir } = await import("node:fs/promises");
         const { spawn } = await import("node:child_process");
@@ -1979,7 +1979,7 @@ export class DockerRuntime implements RuntimeAdapter {
     const source = specs[0]!.config;
     const isSsh = this.transport.kind === "ssh" && !!this.connectionOptions?.executor;
     const cloneOnServer = isSsh && !!source.cloneOnServer;
-    const remoteContextDir = `/tmp/openship-build-${source.sessionId}`;
+    const remoteContextDir = `/tmp/vibrail-build-${source.sessionId}`;
 
     // Acquire the shared source ONCE: clone-on-server clones directly on the
     // remote host (no transfer); otherwise clone on the orchestrator (and
@@ -1999,7 +1999,7 @@ export class DockerRuntime implements RuntimeAdapter {
       // per-service generated name so concurrent builds never clobber each other.
       const resolvedList = await Promise.all(
         specs.map(async (spec) => {
-          const generatedName = `Dockerfile.openship.${spec.config.sessionId}`;
+          const generatedName = `Dockerfile.vibrail.${spec.config.sessionId}`;
           const requireRepo = spec.requireRepositoryDockerfile ?? spec.config.stack === "docker";
           try {
             if (cloneOnServer) {
@@ -2151,7 +2151,7 @@ export class DockerRuntime implements RuntimeAdapter {
     // Attempt to find and kill the build container by label
     const containers = await this.docker.listContainers({
       all: true,
-      filters: { label: [`openship.build=${sessionId}`] },
+      filters: { label: [`vibrail.build=${sessionId}`] },
     });
     for (const c of containers) {
       try {
@@ -2190,7 +2190,7 @@ export class DockerRuntime implements RuntimeAdapter {
       ? [
           "sh",
           "-c",
-          withOpenshipRuntimeBanner(
+          withVibrailRuntimeBanner(
             config.startCommand,
             `Application starting on port ${config.port}`,
           ),
@@ -2361,25 +2361,25 @@ export class DockerRuntime implements RuntimeAdapter {
    * Every container (running OR stopped) labeled for this project. Lets
    * project teardown reclaim orphans that have no DB row — e.g. a deploy
    * that started a container then failed during routing, or rows lost to
-   * a crash. The `openship.project` label is stamped at create time
+   * a crash. The `vibrail.project` label is stamped at create time
    * (see `labels()`), so this is authoritative for THIS docker host.
    */
   async listProjectContainerIds(projectId: string): Promise<string[]> {
     if (this.usesRemoteDockerCli()) {
       const output = await this.remoteDockerExec(
-        `ps -aq --filter ${sq(`label=openship.project=${projectId}`)}`,
+        `ps -aq --filter ${sq(`label=vibrail.project=${projectId}`)}`,
       );
       return output.split(/\s+/).filter(Boolean);
     }
     const containers = await this.docker.listContainers({
       all: true,
-      filters: { label: [`openship.project=${projectId}`] },
+      filters: { label: [`vibrail.project=${projectId}`] },
     });
     return containers.map((c) => c.Id);
   }
 
   /**
-   * Built images that belong to this project — the label `openship.project=<id>`
+   * Built images that belong to this project — the label `vibrail.project=<id>`
    * that `labels()` stamps on every FINAL build image. Base/third-party images
    * (postgres, redis, …) are PULLED, never labeled, so they can never appear
    * here — that label filter is the primary guardrail for the image GC, which
@@ -2392,13 +2392,13 @@ export class DockerRuntime implements RuntimeAdapter {
     Array<{ id: string; repoTags: string[]; buildId?: string; deploymentId?: string; size: number }>
   > {
     const images = await this.docker.listImages({
-      filters: { label: [`openship.project=${projectId}`] },
+      filters: { label: [`vibrail.project=${projectId}`] },
     });
     return images.map((img) => ({
       id: img.Id,
       repoTags: (img.RepoTags ?? []).filter((t) => t && t !== "<none>:<none>"),
-      buildId: img.Labels?.["openship.build"],
-      deploymentId: img.Labels?.["openship.deployment"],
+      buildId: img.Labels?.["vibrail.build"],
+      deploymentId: img.Labels?.["vibrail.deployment"],
       size: img.Size ?? 0,
     }));
   }
@@ -2413,7 +2413,7 @@ export class DockerRuntime implements RuntimeAdapter {
   async pruneProjectDanglingImages(projectId: string): Promise<void> {
     try {
       await this.docker.pruneImages({
-        filters: { dangling: ["true"], label: [`openship.project=${projectId}`] },
+        filters: { dangling: ["true"], label: [`vibrail.project=${projectId}`] },
       });
     } catch {
       /* best-effort — a prune failure must never fail a build/deploy */
@@ -2432,7 +2432,7 @@ export class DockerRuntime implements RuntimeAdapter {
   ): Promise<Array<{ containerId: string; status: ContainerStatus; serviceName?: string }>> {
     if (this.usesRemoteDockerCli()) {
       const output = await this.remoteDockerExec(
-        `ps -a --no-trunc --filter ${sq(`label=openship.deployment=${deploymentId}`)}` +
+        `ps -a --no-trunc --filter ${sq(`label=vibrail.deployment=${deploymentId}`)}` +
           ` --format ${sq("{{json .}}")}`,
       );
       const stateMap: Record<string, ContainerStatus> = {
@@ -2453,7 +2453,7 @@ export class DockerRuntime implements RuntimeAdapter {
         const row = JSON.parse(line) as { ID?: string; State?: string };
         if (!row.ID) continue;
         const serviceName = await this.remoteDockerExec(
-          `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` +
+          `inspect --format ${sq('{{index .Config.Labels "vibrail.service"}}')}` +
             ` ${sq(row.ID)}`,
         ).catch(() => "");
         result.push({
@@ -2466,7 +2466,7 @@ export class DockerRuntime implements RuntimeAdapter {
     }
     const containers = await this.docker.listContainers({
       all: true,
-      filters: { label: [`openship.deployment=${deploymentId}`] },
+      filters: { label: [`vibrail.deployment=${deploymentId}`] },
     });
     const stateMap: Record<string, ContainerStatus> = {
       running: "running",
@@ -2482,7 +2482,7 @@ export class DockerRuntime implements RuntimeAdapter {
     return containers.map((c) => ({
       containerId: c.Id,
       status: stateMap[(c.State ?? "").toLowerCase().trim()] ?? "stopped",
-      serviceName: c.Labels?.["openship.service"],
+      serviceName: c.Labels?.["vibrail.service"],
     }));
   }
 
@@ -2602,10 +2602,10 @@ export class DockerRuntime implements RuntimeAdapter {
 
   // ── Docker discovery (label-agnostic) ────────────────────────────────────
   //
-  // Enumerate the ENTIRE daemon, not just openship-labeled resources. Powers
+  // Enumerate the ENTIRE daemon, not just vibrail-labeled resources. Powers
   // "migrate an existing Docker deployment": read whatever already runs on a
   // server (a compose stack or hand-run containers) so it can be adopted as an
-  // Openship project. Strictly read-only.
+  // Vibrail project. Strictly read-only.
 
   /** Every container on the host (running or stopped), summarized. */
   async listAllContainers(): Promise<DockerContainerSummary[]> {
@@ -3477,7 +3477,7 @@ export class DockerRuntime implements RuntimeAdapter {
           if (!/no such network|not found/i.test(safeErrorMessage(error))) throw error;
         }
         return this.remoteDockerExec(
-          `network create --driver bridge --label ${sq(`openship.network=${slug}`)}` +
+          `network create --driver bridge --label ${sq(`vibrail.network=${slug}`)}` +
             ` ${sq(networkName)}`,
           { timeout: SSH_DOCKER_API_ATTEMPT_TIMEOUT_MS },
         );
@@ -3494,7 +3494,7 @@ export class DockerRuntime implements RuntimeAdapter {
       const network = await this.docker.createNetwork({
         Name: networkName,
         Driver: "bridge",
-        Labels: { "openship.network": slug },
+        Labels: { "vibrail.network": slug },
       });
       return network.id;
     };
@@ -3635,7 +3635,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * `vibrail-<slug>` network with a DNS alias each — so a natively-deployed
    * service in the SAME project resolves them by name (e.g. a freshly-built `web`
    * reaching the reused `postgres:5432`). These containers keep their ORIGINAL
-   * openship labels, so the label-scoped reconcileNetworkMembership never joins
+   * vibrail labels, so the label-scoped reconcileNetworkMembership never joins
    * them; this is the explicit, additive join (a network connect does NOT restart
    * the container or touch its volumes). Idempotent + best-effort per member.
    */
@@ -3707,7 +3707,7 @@ export class DockerRuntime implements RuntimeAdapter {
         for (const id of ids) {
           try {
             const owner = await this.remoteDockerExec(
-              `inspect --format ${sq('{{index .Config.Labels "openship.project"}}')}` +
+              `inspect --format ${sq('{{index .Config.Labels "vibrail.project"}}')}` +
                 ` ${sq(id)}`,
             );
             if (!owner) continue;
@@ -3747,7 +3747,7 @@ export class DockerRuntime implements RuntimeAdapter {
     const ownNames = new Set<string>();
     const foreign = new Map<string, string>(); // volume name → other container name
     for (const c of containers) {
-      const owner = c.Labels?.["openship.project"];
+      const owner = c.Labels?.["vibrail.project"];
       if (!owner) continue;
       for (const m of c.Mounts ?? []) {
         if (m.Type !== "volume" || !m.Name || !named.has(m.Name)) continue;
@@ -3780,7 +3780,7 @@ export class DockerRuntime implements RuntimeAdapter {
       let ids: string[] = [];
       try {
         const output = await this.remoteDockerExec(
-          `ps -aq --filter ${sq(`label=openship.project=${projectId}`)}`,
+          `ps -aq --filter ${sq(`label=vibrail.project=${projectId}`)}`,
           { timeout: SSH_DOCKER_RECONCILE_TIMEOUT_MS },
         );
         ids = output.split(/\s+/).filter(Boolean);
@@ -3795,7 +3795,7 @@ export class DockerRuntime implements RuntimeAdapter {
           );
           if (attached.split(/\s+/).includes(networkId)) continue;
           const service = await this.remoteDockerExec(
-            `inspect --format ${sq('{{index .Config.Labels "openship.service"}}')}` + ` ${sq(id)}`,
+            `inspect --format ${sq('{{index .Config.Labels "vibrail.service"}}')}` + ` ${sq(id)}`,
           ).catch(() => "");
           const alias = service ? ` --alias ${sq(service)}` : "";
           await this.remoteDockerExec(`network connect${alias} ${sq(networkId)} ${sq(id)}`);
@@ -3815,7 +3815,7 @@ export class DockerRuntime implements RuntimeAdapter {
     try {
       containers = await this.docker.listContainers({
         all: true,
-        filters: { label: [`openship.project=${projectId}`] },
+        filters: { label: [`vibrail.project=${projectId}`] },
       });
     } catch {
       return;
@@ -3827,7 +3827,7 @@ export class DockerRuntime implements RuntimeAdapter {
         (n) => n?.NetworkID === networkId,
       );
       if (onNetwork) continue;
-      const service = c.Labels?.["openship.service"];
+      const service = c.Labels?.["vibrail.service"];
       try {
         await network.connect({
           Container: c.Id,
@@ -3861,7 +3861,7 @@ export class DockerRuntime implements RuntimeAdapter {
     try {
       containers = await this.docker.listContainers({
         all: true,
-        filters: { label: [`openship.project=${projectId}`] },
+        filters: { label: [`vibrail.project=${projectId}`] },
       });
     } catch {
       return;
@@ -4072,7 +4072,7 @@ export class DockerRuntime implements RuntimeAdapter {
           deploymentId: config.deploymentId,
           projectId: config.projectId,
         }),
-        "openship.service": config.serviceName,
+        "vibrail.service": config.serviceName,
         ...(config.traefik ? buildTraefikLabels(config.traefik) : {}),
       };
       const args: string[] = [
@@ -4102,7 +4102,7 @@ export class DockerRuntime implements RuntimeAdapter {
       const executor = this.connectionOptions?.executor;
       const envFile =
         env.length > 0 && executor
-          ? `/tmp/openship-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}` +
+          ? `/tmp/vibrail-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}` +
             `-${config.serviceName.replace(/[^A-Za-z0-9_.-]/g, "-")}`
           : null;
       if (envFile && executor) {
@@ -4189,7 +4189,7 @@ export class DockerRuntime implements RuntimeAdapter {
           deploymentId: config.deploymentId,
           projectId: config.projectId,
         }),
-        "openship.service": config.serviceName,
+        "vibrail.service": config.serviceName,
         ...(config.traefik ? buildTraefikLabels(config.traefik) : {}),
       },
       ...(healthcheck && { Healthcheck: healthcheck }),

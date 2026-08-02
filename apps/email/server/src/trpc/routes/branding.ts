@@ -5,7 +5,7 @@
  * to live here as a public mutation, which let anyone with reach to the
  * Zero server rewrite the login page. Removed: writes now go through
  * `PATCH /admin/branding` with a shared admin token (see
- * [branding-admin.ts](../../routes/branding-admin.ts)). Openship is the
+ * [branding-admin.ts](../../routes/branding-admin.ts)). Vibrail is the
  * only caller; the token never reaches the browser.
  */
 

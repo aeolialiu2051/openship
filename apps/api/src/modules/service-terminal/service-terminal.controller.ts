@@ -18,9 +18,9 @@
  *   POST /api/services/:serviceId/terminal/ticket → mint a WS ticket
  *   GET  /api/services/:serviceId/terminal/ws     → WS upgrade
  *
- * Subprotocol prefix: "openship.terminal.v1+" (shared with server
+ * Subprotocol prefix: "vibrail.terminal.v1+" (shared with server
  * terminal — the prefix isn't resource-scoped). Resume subprotocol
- * prefix: "openship.terminal.resume+" (same).
+ * prefix: "vibrail.terminal.resume+" (same).
  */
 
 import type { Context } from "hono";
@@ -58,8 +58,8 @@ import {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SUBPROTOCOL_PREFIX = "openship.terminal.v1+";
-const RESUME_SUBPROTOCOL_PREFIX = "openship.terminal.resume+";
+const SUBPROTOCOL_PREFIX = "vibrail.terminal.v1+";
+const RESUME_SUBPROTOCOL_PREFIX = "vibrail.terminal.resume+";
 const HEARTBEAT_INTERVAL_MS = 25_000;
 const COLS_MIN = 1,
   COLS_MAX = 1000;

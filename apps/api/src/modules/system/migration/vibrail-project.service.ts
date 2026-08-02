@@ -1,5 +1,5 @@
 /**
- * Reconciler for the Project row that represents "Openship itself,
+ * Reconciler for the Project row that represents "Vibrail itself,
  * being deployed to the operator's server."
  *
  * Modeled on apps/api/src/modules/mail/webmail/webmail-project.service.ts:
@@ -13,9 +13,9 @@
  */
 
 import { repos, type Project } from "@repo/db";
-import { resolveOpenshipDistDir } from "./openship-dist";
+import { resolveVibrailDistDir } from "./vibrail-dist";
 
-const PROJECT_NAME = "Openship";
+const PROJECT_NAME = "Vibrail";
 const DEFAULT_INTERNAL_PORT = 4000;
 
 /**
@@ -40,8 +40,8 @@ const DEFAULT_INTERNAL_PORT = 4000;
  * startCommand:   bun runs the release orchestrator that boots api +
  *                 dashboard as a single process under one supervisor.
  */
-const OPENSHIP_CONFIG = {
-  framework: "openship",
+const VIBRAIL_CONFIG = {
+  framework: "vibrail",
   packageManager: "bun",
   installCommand: "bun install --production --frozen-lockfile",
   buildCommand: "",
@@ -64,11 +64,11 @@ const OPENSHIP_CONFIG = {
  * the wizard always migrates the org's data; the org id is the stable
  * identity of the migration.
  */
-function openshipDeploySlug(organizationId: string): string {
-  return `openship-instance-${organizationId}`;
+function vibrailDeploySlug(organizationId: string): string {
+  return `vibrail-instance-${organizationId}`;
 }
 
-export interface EnsureOpenshipProjectResult {
+export interface EnsureVibrailProjectResult {
   projectId: string;
   groupId: string;
   project: Project;
@@ -76,20 +76,20 @@ export interface EnsureOpenshipProjectResult {
 }
 
 /**
- * Reconcile the Project + ProjectGroup rows that represent "openship
+ * Reconcile the Project + ProjectGroup rows that represent "vibrail
  * being deployed to operator's server". Idempotent — re-running with
  * the same org returns the same row (and updates if the fixed config
  * drifted since last run).
  *
- * Throws `OpenshipReleaseDistMissingError` (from openship-dist.ts) if
+ * Throws `VibrailReleaseDistMissingError` (from vibrail-dist.ts) if
  * the release dist hasn't been built yet — the wizard's preflight
  * step catches this and surfaces a "build the release first" hint.
  */
-export async function ensureOpenshipProject(
+export async function ensureVibrailProject(
   organizationId: string,
-): Promise<EnsureOpenshipProjectResult> {
-  const releaseDistPath = await resolveOpenshipDistDir();
-  const slug = openshipDeploySlug(organizationId);
+): Promise<EnsureVibrailProjectResult> {
+  const releaseDistPath = await resolveVibrailDistDir();
+  const slug = vibrailDeploySlug(organizationId);
 
   // ProjectGroup + Project rows scoped to the migrating org. Mirror the
   // webmail pattern: find-by-slug globally, then assert org match; if
@@ -111,7 +111,7 @@ export async function ensureOpenshipProject(
     project = undefined;
   }
 
-  const fixedConfig = { ...OPENSHIP_CONFIG, localPath: releaseDistPath };
+  const fixedConfig = { ...VIBRAIL_CONFIG, localPath: releaseDistPath };
 
   if (!project) {
     project = await repos.project.create({

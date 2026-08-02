@@ -65,9 +65,9 @@ const INVITE_RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000;
  */
 // Cookie prefix - distinct per mode so desktop API (port 4000) and
 // SaaS API (port 4100) don't collide on localhost (cookies ignore port).
-export const COOKIE_PREFIX = env.CLOUD_MODE ? "openship-cloud" : "openship";
+export const COOKIE_PREFIX = env.CLOUD_MODE ? "vibrail-cloud" : "vibrail";
 
-// "Is this process the multi-tenant SaaS?" — OPENSHIP_TARGET and CLOUD_MODE are
+// "Is this process the multi-tenant SaaS?" — VIBRAIL_TARGET and CLOUD_MODE are
 // independent env vars (runtime-config.ts does no cross-inference), and the SaaS
 // runs with both; keying off either avoids missing it if only one is set. Used
 // to force email verification before login on SaaS only (self-hosted/desktop
@@ -77,7 +77,7 @@ export const isSaasDeployment = runtimeTargetId === "cloud-saas" || env.CLOUD_MO
 function getSharedCookieDomain() {
   // A localhost / single-label host (dev — including the local SaaS on :4100)
   // can ONLY use host-only cookies: a browser rejects a `Domain=.foo` cookie
-  // (e.g. a leftover BETTER_AUTH_COOKIE_DOMAIN=.openship.io) on a `localhost`
+  // (e.g. a leftover BETTER_AUTH_COOKIE_DOMAIN=.vibrail.warpgateapi.com) on a `localhost`
   // page, which silently drops the session and makes login loop. Force
   // host-only there, IGNORING any configured domain, so a local SaaS always
   // "treats itself as localhost". Real multi-label hosts fall through.
@@ -101,8 +101,8 @@ function getSharedCookieDomain() {
   for (const value of urls) {
     try {
       const hostname = new URL(value).hostname;
-      if (hostname === "openship.io" || hostname.endsWith(".openship.io")) {
-        return ".openship.io";
+      if (hostname === "vibrail.warpgateapi.com" || hostname.endsWith(".vibrail.warpgateapi.com")) {
+        return ".vibrail.warpgateapi.com";
       }
     } catch {
       // Ignore invalid URLs and fall back to host-only cookies.
@@ -342,7 +342,7 @@ export const auth = betterAuth({
     // `false` — which renames the session cookie (`__Secure-` prefix, logging
     // everyone out once) and breaks the pre-TLS HTTP window. Preserve today's
     // exact behavior; secure-cookie hardening is a separate, deliberate change.
-    ...(env.OPENSHIP_PUBLIC_URL ? { useSecureCookies: false } : {}),
+    ...(env.VIBRAIL_PUBLIC_URL ? { useSecureCookies: false } : {}),
     ...(sharedCookieDomain
       ? {
           crossSubDomainCookies: {
@@ -414,7 +414,7 @@ export const auth = betterAuth({
     }),
 
     /**
-     * MCP OAuth 2.1 authorization server. Turns Openship into a standards-
+     * MCP OAuth 2.1 authorization server. Turns Vibrail into a standards-
      * compliant remote MCP server: discovery-based clients (Claude, Cursor)
      * self-register (DCR), run the PKCE authorize flow, hit our consent page,
      * and receive an OAuth access token. That token is then bridged into the
@@ -498,7 +498,7 @@ export const auth = betterAuth({
             });
 
             // Self-hosted instances may deliver through their own system SMTP
-            // or explicitly relay through Openship Cloud. The SaaS itself
+            // or explicitly relay through Vibrail Cloud. The SaaS itself
             // always uses its operator-owned environment SMTP; it must never
             // discover or authenticate to a tenant's hosted mail server.
             //

@@ -14,9 +14,9 @@ import { readState, type MailWebmailState } from "../mail-state";
 // ─── Targets discovery ──────────────────────────────────────────────────────
 
 export interface WebmailTargetOption {
-  /** "mail" → the mail server itself. "server" → another openship server. "opshcloud" → reserved. */
-  kind: "mail" | "server" | "opshcloud";
-  /** openship serverId. For "opshcloud" this is empty and disabled in UI. */
+  /** "mail" → the mail server itself. "server" → another vibrail server. "cloud" → reserved. */
+  kind: "mail" | "server" | "cloud";
+  /** vibrail serverId. For "cloud" this is empty and disabled in UI. */
   serverId: string;
   label: string;
   description?: string;
@@ -26,8 +26,8 @@ export interface WebmailTargetOption {
 
 /**
  * Build the list of places the webmail can be deployed to. The mail
- * server itself is always option #1; every other openship-managed
- * server follows. Opshcloud is listed as a coming-soon placeholder.
+ * server itself is always option #1; every other vibrail-managed
+ * server follows. Vibrail Cloud is listed as a coming-soon placeholder.
  */
 export async function listWebmailTargets(
   mailServerId: string,
@@ -66,9 +66,9 @@ export async function listWebmailTargets(
   }
 
   options.push({
-    kind: "opshcloud",
+    kind: "cloud",
     serverId: "",
-    label: "Opshcloud (managed)",
+    label: "Vibrail Cloud (managed)",
     description: "Managed hosting · we provision the VM, route the domain, and run the cert",
   });
 

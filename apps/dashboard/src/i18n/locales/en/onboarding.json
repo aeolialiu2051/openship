@@ -102,7 +102,7 @@
     "ngrokTokenLabel": "ngrok Auth Token",
     "cloudflarePlaceholder": "Paste your tunnel token",
     "ngrokPlaceholder": "Paste your ngrok auth token",
-    "edgeHint": "Vibrail Edge requires an Vibrail account. You'll sign in to continue.",
+    "edgeHint": "Vibrail Edge requires a Vibrail account. You'll sign in to continue.",
     "signInContinue": "Sign In & Continue"
   },
   "preferences": {
@@ -136,7 +136,7 @@
     "couldNotStartAuthMsg": "The desktop auth flow could not be started.",
     "authFailedMsg": "Please try again and finish sign-in in your browser.",
     "completingSignIn": "Completing sign-in…",
-    "returningToOpenship": "Returning to Vibrail",
+    "returningToVibrail": "Returning to Vibrail",
     "redirectingCloud": "Redirecting to Vibrail Cloud…",
     "newTabSignIn": "You'll complete sign-in in a new tab",
     "couldNotSaveTitle": "Could not save configuration",

@@ -216,7 +216,7 @@ export {
   execReliable,
   parseFrame,
   OpInterruptedError,
-  OPSH_RUN_VERSION,
+  VIBRAIL_RUN_VERSION,
   REMOTE_ENV_PREFIX,
   type JournalRunResult,
   type RunJournaledOptions,

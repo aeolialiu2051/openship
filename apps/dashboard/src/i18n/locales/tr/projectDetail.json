@@ -105,7 +105,7 @@
       "noMatchesTitle": "Eşleşme yok",
       "noMatchesBody": "Farklı bir kategori veya arama terimi deneyin - ya da menüden Özel imaj seçeneğini belirleyin.",
       "localImages": "Yerel imajlar",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "Yerel Docker",
       "customEntryName": "Özel imaj",
       "customEntryDescription": "Etiketine göre herkese açık veya özel bir Docker imajı çekin.",

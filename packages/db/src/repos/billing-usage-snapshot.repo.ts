@@ -5,7 +5,7 @@
  * without a live Oblien round-trip.
  *
  * Oblien is still the authoritative meter; this is a display cache. Credit
- * fields are stored in openship MILLI-credits (Oblien-credit ×1000); the
+ * fields are stored in vibrail MILLI-credits (Oblien-credit ×1000); the
  * per-resource fields are raw physical units. The webhook handler does the
  * unit conversion before calling `upsert` — this repo is unit-agnostic.
  */

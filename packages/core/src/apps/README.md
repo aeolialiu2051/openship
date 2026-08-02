@@ -1,6 +1,6 @@
 # Apps — the curated catalog
 
-This directory is Openship's **App catalog**: the one-click installs in the dashboard's **Apps** tab. This
+This directory is Vibrail's **App catalog**: the one-click installs in the dashboard's **Apps** tab. This
 guide explains what an App is, why it exists, and exactly how to add one to the repo.
 
 - **Catalog source** — one JSON per app in [`catalog/`](./catalog/) (`<id>.json`).
@@ -258,7 +258,7 @@ The catalog JSON is a **stable, versioned public API**. Growth is **additive and
 optional fields, new enum members, new `prepare` phases all default to prior behavior — a field is never
 repurposed or removed within a schema version.
 
-- **`minEngine`** (optional, semver) — **the version knob.** Minimum Openship version required to install
+- **`minEngine`** (optional, semver) — **the version knob.** Minimum Vibrail version required to install
   this app. Set it to the release that introduced whatever new capability the template now uses.
 - **`schemaVersion`** (optional, defaults to 1) — the JSON *shape* revision. An instance can't parse a shape
   newer than it understands (`MAX_SUPPORTED_SCHEMA`); bump it only on a genuinely breaking shape change.
@@ -270,7 +270,7 @@ older than an app's `minEngine`:
 
 - the app **is bundled** in that instance → it keeps serving the bundled copy (works, no break; the dashboard
   may note an update is available);
-- the app **is brand-new** (not bundled) → the catalog shows a guided **"Requires Openship ≥ X"** card and
+- the app **is brand-new** (not bundled) → the catalog shows a guided **"Requires Vibrail ≥ X"** card and
   install is refused (client + server) until the instance updates — never a silent disappearance.
 
 Every entry — bundled and repo-overlay — is validated by the **same** strict schema, including **referential**

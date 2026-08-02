@@ -388,7 +388,7 @@ function sanitizeChannelConfig(
         }
       }
       // Signing-secret policy (revealSecret is returned to the client EXACTLY
-      // ONCE so a receiver can verify X-Openship-Signature-256):
+      // ONCE so a receiver can verify X-Vibrail-Signature-256):
       //   - explicit hmacSecret in the body → (re)set + reveal (create / rotate)
       //   - none supplied but one already stored (an edit of e.g. the URL) → CARRY
       //     the stored secret forward. Do NOT regenerate — that silently breaks

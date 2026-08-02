@@ -9,7 +9,7 @@ interface MigratedLauncherProps {
   /**
    * Migration variant — controls copy.
    *   self_hosted_remote → operator's own VPS
-   *   cloud_hosted       → api.openship.io
+   *   cloud_hosted       → vibrail.warpgateapi.com
    *   tunneled           → Oblien edge tunnel routing back to this machine
    */
   teamMode: "self_hosted_remote" | "cloud_hosted" | "tunneled";

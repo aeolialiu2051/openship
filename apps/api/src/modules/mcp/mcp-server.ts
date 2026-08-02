@@ -8,7 +8,7 @@ import { dispatchTool } from "./mcp-dispatch";
  * tool is a synchronous request/response mapped onto the real HTTP API.
  */
 
-const SERVER_INFO = { name: "openship", version: "1.0.0" };
+const SERVER_INFO = { name: "vibrail", version: "1.0.0" };
 const DEFAULT_PROTOCOL = "2025-06-18";
 /** Versions we can speak; `initialize` negotiates down to one of these. */
 const SUPPORTED_PROTOCOLS = new Set(["2025-06-18", "2025-03-26", "2024-11-05"]);

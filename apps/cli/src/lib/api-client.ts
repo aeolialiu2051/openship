@@ -1,5 +1,5 @@
 /**
- * CLI HTTP client — talks to the Openship API using the active context's PAT.
+ * CLI HTTP client — talks to the Vibrail API using the active context's PAT.
  * No Origin header is sent, so the API accepts the Bearer token (its anti-XSS
  * guard only rejects bearer auth from browser-trusted origins).
  */
@@ -63,7 +63,7 @@ export interface PaginateOptions {
   query?: Record<string, string | number | boolean | undefined>;
   /**
    * Pull the items + total out of one page's body. Default reads the standard
-   * Openship envelope: { data: T[], total?: number }.
+   * Vibrail envelope: { data: T[], total?: number }.
    */
   extract?: (body: unknown) => { items: unknown[]; total?: number };
 }

@@ -24,7 +24,7 @@ import { Modal } from "@/components/ui/Modal";
 import { AdminError, AdminLoading, AdminRefreshButton } from "./_components/admin-ui";
 import { adminCopy } from "./_components/admin-copy";
 
-const PREFERENCES_STORAGE_KEY = "openship.admin.overview-preferences";
+const PREFERENCES_STORAGE_KEY = "vibrail.admin.overview-preferences";
 
 interface TrendPreferences {
   rangeDays: AdminTrendRangeDays;

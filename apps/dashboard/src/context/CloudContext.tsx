@@ -38,7 +38,7 @@ interface CloudUser {
 }
 
 interface CloudState {
-  /** Whether connected to Openship Cloud */
+  /** Whether connected to Vibrail Cloud */
   connected: boolean;
   /** Cloud user info (available when connected) */
   cloudUser: CloudUser | null;
@@ -191,7 +191,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   const isConnected = hasNativeCloudAccess || connected;
 
   // GitHub `cloud-app` mode is backed by the cloud session: connecting or
-  // disconnecting Openship Cloud changes which GitHub auth mode resolves
+  // disconnecting Vibrail Cloud changes which GitHub auth mode resolves
   // and whether a token is available. So whenever the cloud connection
   // TRANSITIONS, re-resolve GitHub state — this is the single wiring point
   // that keeps the GitHub card honest across every connect/disconnect path

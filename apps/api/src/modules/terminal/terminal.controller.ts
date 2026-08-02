@@ -60,7 +60,7 @@ import {
 
 // ─── Constants ──────────────────────────────────────────────────────────────
 
-const SUBPROTOCOL_PREFIX = "openship.terminal.v1+";
+const SUBPROTOCOL_PREFIX = "vibrail.terminal.v1+";
 const HEARTBEAT_INTERVAL_MS = 25_000;
 // Sane bounds applied client-side AND server-side - never trust the wire.
 const COLS_MIN = 1, COLS_MAX = 1000;
@@ -104,7 +104,7 @@ type ErrorCode =
   | "resume_failed"
   | "server_error";
 
-const RESUME_SUBPROTOCOL_PREFIX = "openship.terminal.resume+";
+const RESUME_SUBPROTOCOL_PREFIX = "vibrail.terminal.resume+";
 
 // ─── Ticket endpoint (POST /api/terminal/ticket) ────────────────────────────
 
@@ -156,8 +156,8 @@ export const terminalWsHandler = upgradeWebSocket(async (c) => {
 
   // ── 2. Auth via single-use ticket in Sec-WebSocket-Protocol ────────────
   // Browsers send subprotocols as comma-separated values. We expect a
-  // ticket value `openship.terminal.v1+<token>` (required) and may also
-  // see a `openship.terminal.resume+<resumeToken>` (optional — present
+  // ticket value `vibrail.terminal.v1+<token>` (required) and may also
+  // see a `vibrail.terminal.resume+<resumeToken>` (optional — present
   // when the client is trying to reattach to a parked session).
   const protocols = (c.req.header("sec-websocket-protocol") ?? "")
     .split(",")

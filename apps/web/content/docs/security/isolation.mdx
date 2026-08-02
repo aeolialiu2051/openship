@@ -1,22 +1,22 @@
 ---
 title: Isolation
-description: How Openship keeps deployments and projects apart — separate containers, per-project networks and volumes, and enforced resource limits.
+description: How Vibrail keeps deployments and projects apart — separate containers, per-project networks and volumes, and enforced resource limits.
 ---
 
-Think of your Openship server like an apartment building. Every app you deploy gets its own unit: its own front door, its own electricity meter, its own mailbox. Neighbors can't wander into your unit, and one noisy tenant can't drain the whole building's power. This page explains the walls Openship puts up between your apps — what each one is, and how strong it is on each runtime.
+Think of your Vibrail server like an apartment building. Every app you deploy gets its own unit: its own front door, its own electricity meter, its own mailbox. Neighbors can't wander into your unit, and one noisy tenant can't drain the whole building's power. This page explains the walls Vibrail puts up between your apps — what each one is, and how strong it is on each runtime.
 
 ## Scoping comes first
 
 Before anything runs, access is decided by **organization** (a workspace that owns projects) and **project**. Every API request passes through one permission check, and an organization id from the client is only trusted if you're actually a member. So one team can never list, deploy, or tear down another team's projects. That control-plane boundary is covered in the [permission model](/docs/security/permissions); the rest of this page is about the walls between apps *at runtime*, once a deploy is live.
 
-Everything Openship creates on a host is stamped with the project and deployment it belongs to, using Docker **labels** (key/value tags attached to a container):
+Everything Vibrail creates on a host is stamped with the project and deployment it belongs to, using Docker **labels** (key/value tags attached to a container):
 
-- `openship.project` — which project owns it.
-- `openship.deployment` — which specific deploy created it.
-- `openship.service` — which service, for multi-service (compose) projects.
-- `openship.build` — which build session produced a build image, so half-finished build artifacts can be reclaimed too.
+- `vibrail.project` — which project owns it.
+- `vibrail.deployment` — which specific deploy created it.
+- `vibrail.service` — which service, for multi-service (compose) projects.
+- `vibrail.build` — which build session produced a build image, so half-finished build artifacts can be reclaimed too.
 
-These labels are how Openship reliably finds and cleans up only its own resources — for example, reclaiming a leftover container from a deploy that failed halfway, without touching anything else on the machine.
+These labels are how Vibrail reliably finds and cleans up only its own resources — for example, reclaiming a leftover container from a deploy that failed halfway, without touching anything else on the machine.
 
 ## One container per deployment
 
@@ -24,16 +24,16 @@ On the **Docker** runtime, each deployment runs inside its own **container** wit
 
 | What | Name pattern |
 |---|---|
-| Single-app deployment | `openship-<project>-<deployment>` |
-| A service in a compose project | `openship-<slug>-<service>` |
-| Project network | `openship-<slug>` |
-| Project-scoped named volume | `openship-<slug>-<name>` |
+| Single-app deployment | `vibrail-<project>-<deployment>` |
+| A service in a compose project | `vibrail-<slug>-<service>` |
+| Project network | `vibrail-<slug>` |
+| Project-scoped named volume | `vibrail-<slug>-<name>` |
 
 A single-app container publishes on a **random host port**, and the shared **Traefik** instance forwards traffic to it from the deployment's labels — so nothing is exposed on a predictable port that another app could clash with.
 
 ## Per-project networks
 
-For a project with multiple services (say a web app plus a database), Openship creates one private **bridge network** — a virtual LAN that only the containers attached to it can use — named `openship-<slug>`. Every service in that project joins it and can reach the others by service name, like `http://database:5432`.
+For a project with multiple services (say a web app plus a database), Vibrail creates one private **bridge network** — a virtual LAN that only the containers attached to it can use — named `vibrail-<slug>`. Every service in that project joins it and can reach the others by service name, like `http://database:5432`.
 
 Because each project gets its **own** network, a service in one project cannot address a service in another by name. And a service only opens a port to the outside world if it explicitly asks to — otherwise it's reachable only by its siblings inside the project network.
 
@@ -45,10 +45,10 @@ Two different projects can both have a service called `api` or `db` without any 
 
 A **named volume** is a managed disk that Docker keeps around between restarts (databases use them so data survives a redeploy). The catch: if two projects both ask for a volume literally named `postgres_data`, plain Docker hands them the *same* disk — silent cross-project data mixing.
 
-Openship prevents this by prefixing every named volume with the project: `openship-<slug>-<name>`. Two projects that both declare `postgres_data` get two separate disks that can never touch. Bind mounts (a specific host path you chose) and anonymous volumes are left exactly as written.
+Vibrail prevents this by prefixing every named volume with the project: `vibrail-<slug>-<name>`. Two projects that both declare `postgres_data` get two separate disks that can never touch. Bind mounts (a specific host path you chose) and anonymous volumes are left exactly as written.
 
 <Callout title="Older services and name clashes" type="warn">
-Services created before volume-scoping keep their original bare volume names. To protect them, Openship refuses to deploy a **new** project whose volume name is already in use by another project's container, and tells you to rename it — so no deploy can quietly adopt another project's data.
+Services created before volume-scoping keep their original bare volume names. To protect them, Vibrail refuses to deploy a **new** project whose volume name is already in use by another project's container, and tells you to rename it — so no deploy can quietly adopt another project's data.
 </Callout>
 
 ## Resource limits
@@ -67,7 +67,7 @@ How strictly the budget is enforced depends on the runtime. On Docker, **memory 
 
 ## How the runtimes compare
 
-Openship runs self-hosted applications in Docker and cloud applications in isolated cloud workspaces.
+Vibrail runs self-hosted applications in Docker and cloud applications in isolated cloud workspaces.
 
 <Tabs items={['Self-hosted Docker', 'Cloud']}>
 
@@ -79,13 +79,13 @@ The strongest isolation. Every deployment is its own container with:
 - a hard **memory** cap and a **CPU** weight, and
 - a random published port fronted by the router — never a fixed port another app could grab.
 
-Multi-service (compose) projects add a **private per-project network** and **project-scoped named volumes** on top of that. Projects without a Dockerfile are containerized too: Openship generates a Dockerfile from the detected framework and commands.
+Multi-service (compose) projects add a **private per-project network** and **project-scoped named volumes** on top of that. Projects without a Dockerfile are containerized too: Vibrail generates a Dockerfile from the detected framework and commands.
 
 </Tab>
 
 <Tab value="Cloud">
 
-On Openship Cloud, each deployment runs in its own isolated cloud **workspace** — a separate instance, not a shared box. You choose a size tier that maps to concrete CPU / memory / disk:
+On Vibrail Cloud, each deployment runs in its own isolated cloud **workspace** — a separate instance, not a shared box. You choose a size tier that maps to concrete CPU / memory / disk:
 
 | Tier | CPU | Memory | Disk |
 |---|---|---|---|
@@ -104,6 +104,6 @@ A **custom** tier lets you set exact values. See [the local ↔ cloud boundary](
 
 <Cards>
   <Card title="Permission model" href="/docs/security/permissions" description="Roles, resource grants, and the single check every request passes through." />
-  <Card title="The local ↔ cloud boundary" href="/docs/security/cloud-boundary" description="How self-hosted instances talk to Openship Cloud without leaking data." />
+  <Card title="The local ↔ cloud boundary" href="/docs/security/cloud-boundary" description="How self-hosted instances talk to Vibrail Cloud without leaking data." />
   <Card title="Authentication" href="/docs/security/auth" description="Sessions, tokens, and how credentials are custodied." />
 </Cards>

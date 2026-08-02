@@ -1,5 +1,5 @@
-const PS_MARKER = "__OPENSHIP_DOCKER_PS__";
-const STATS_MARKER = "__OPENSHIP_DOCKER_STATS__";
+const PS_MARKER = "__VIBRAIL_DOCKER_PS__";
+const STATS_MARKER = "__VIBRAIL_DOCKER_STATS__";
 
 export const DOCKER_OVERVIEW_COMMAND = [
   `printf '${PS_MARKER}\\n'`,
@@ -14,12 +14,12 @@ export interface DockerContainerOverview {
   id: string;
   name: string;
   image: string;
-  /** Openship ownership labels, when this is a managed workload. */
+  /** Vibrail ownership labels, when this is a managed workload. */
   projectId: string | null;
   deploymentId: string | null;
   serviceName: string | null;
   buildId: string | null;
-  /** Native Docker Compose identity, including non-Openship stacks. */
+  /** Native Docker Compose identity, including non-Vibrail stacks. */
   composeProject: string | null;
   composeService: string | null;
   state: string;
@@ -95,11 +95,11 @@ function normalizeName(value?: string): string {
   return (value ?? "").replace(/^\//, "").trim();
 }
 
-const OPENSHIP_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
+const VIBRAIL_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
 
 /**
  * `docker ps --format '{{json .}}'` emits labels as a comma-delimited string.
- * Openship's identity labels never contain commas, so only parse the small,
+ * Vibrail's identity labels never contain commas, so only parse the small,
  * known allowlist we use for workload correlation. Unknown/user labels are not
  * returned by this endpoint.
  */
@@ -151,11 +151,11 @@ export function parseDockerOverview(raw: string): DockerContainerOverview[] {
       const [blockRead, blockWrite] = splitPair(stats?.BlockIO);
       const state = (row.State ?? "unknown").toLowerCase();
       const status = row.Status ?? state;
-      const labelledProjectId = labelValue(row.Labels, "openship.project");
+      const labelledProjectId = labelValue(row.Labels, "vibrail.project");
       // Container labels are attacker-controlled input. Only retain the
       // canonical project-id shape before the API uses it in a DB lookup.
       const projectId =
-        labelledProjectId && OPENSHIP_PROJECT_ID_RE.test(labelledProjectId)
+        labelledProjectId && VIBRAIL_PROJECT_ID_RE.test(labelledProjectId)
           ? labelledProjectId
           : null;
 
@@ -164,9 +164,9 @@ export function parseDockerOverview(raw: string): DockerContainerOverview[] {
         name,
         image: row.Image ?? "-",
         projectId,
-        deploymentId: labelValue(row.Labels, "openship.deployment"),
-        serviceName: labelValue(row.Labels, "openship.service"),
-        buildId: labelValue(row.Labels, "openship.build"),
+        deploymentId: labelValue(row.Labels, "vibrail.deployment"),
+        serviceName: labelValue(row.Labels, "vibrail.service"),
+        buildId: labelValue(row.Labels, "vibrail.build"),
         composeProject: labelValue(row.Labels, "com.docker.compose.project"),
         composeService: labelValue(row.Labels, "com.docker.compose.service"),
         state,

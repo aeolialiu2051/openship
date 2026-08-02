@@ -17,12 +17,12 @@ import { serviceDeployment } from "./service";
  * Two flavors share this table, discriminated by the `kind` column:
  *
  *   - `kind = "rollup"`  — single project-level summary check named
- *     `openship/deploy`. One row per deployment. `serviceDeploymentId`
+ *     `vibrail/deploy`. One row per deployment. `serviceDeploymentId`
  *     is null. Conclusion aggregates per-service results
  *     (any failure → failure; all skipped → neutral; all success → success).
  *
  *   - `kind = "service"` — per-service mirror named
- *     `openship/deploy/<service>`. One row per (deployment, service)
+ *     `vibrail/deploy/<service>`. One row per (deployment, service)
  *     pair that produced a check run. `serviceDeploymentId` references
  *     the matching `service_deployment` row.
  *
@@ -47,7 +47,7 @@ export const deploymentCheckRun = pgTable(
       .references(() => deployment.id, { onDelete: "cascade" }),
     /** GitHub `check_run.id` — bigint because the id space exceeds 32-bit. */
     checkRunId: bigint("check_run_id", { mode: "number" }).notNull(),
-    /** Check-run name as registered with GitHub (e.g. `openship/deploy`, `openship/deploy/web`). */
+    /** Check-run name as registered with GitHub (e.g. `vibrail/deploy`, `vibrail/deploy/web`). */
     name: text("name").notNull(),
     /** Discriminator: `"rollup"` (project-level) | `"service"` (per-service mirror). */
     kind: text("kind").notNull(),

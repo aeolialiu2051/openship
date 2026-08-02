@@ -11,7 +11,7 @@ import { runCommand, stubFetch, type FetchStub } from "../helpers/harness";
 let fetchStub: FetchStub;
 afterEach(() => fetchStub?.restore());
 
-describe("openship token list", () => {
+describe("vibrail token list", () => {
   it("GETs /tokens and tabulates the data envelope", async () => {
     fetchStub = stubFetch(() => ({
       json: { data: [{ id: "t1", name: "ci", readOnly: false }] },
@@ -24,10 +24,10 @@ describe("openship token list", () => {
   });
 });
 
-describe("openship token create", () => {
+describe("vibrail token create", () => {
   it("POSTs the name + flags and prints the one-time secret", async () => {
     fetchStub = stubFetch(() => ({
-      json: { data: { id: "t2", name: "deploy", token: "opsh_secret_xyz" } },
+      json: { data: { id: "t2", name: "deploy", token: "vibrail_secret_xyz" } },
     }));
     const { out, err, code } = await runCommand(tokenCommand, ["create", "deploy", "--read-only"]);
     expect(code).toBe(0);
@@ -36,11 +36,11 @@ describe("openship token create", () => {
     expect(req.url).toBe("http://api.test/api/tokens");
     expect((req.body as Record<string, unknown>).name).toBe("deploy");
     expect((req.body as Record<string, unknown>).readOnly).toBe(true);
-    expect(out + err).toContain("opsh_secret_xyz");
+    expect(out + err).toContain("vibrail_secret_xyz");
   });
 });
 
-describe("openship token revoke", () => {
+describe("vibrail token revoke", () => {
   it("DELETEs the token by id", async () => {
     fetchStub = stubFetch(() => ({ status: 204 }));
     const { err, code } = await runCommand(tokenCommand, ["revoke", "t9"]);

@@ -1,28 +1,28 @@
 ---
 title: Git authentication for private repos
-description: How Openship authenticates the git clone when it builds your app — forwarding your local git identity, the server's own git, per-server tokens and SSH keys, and public repos.
+description: How Vibrail authenticates the git clone when it builds your app — forwarding your local git identity, the server's own git, per-server tokens and SSH keys, and public repos.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-When Openship builds your app it has to **clone your repository first**. For a public repo that's free — no credentials needed. For a **private** repo, something has to prove it's allowed to read the code. This page explains every way that can happen, in the order Openship tries them, and how to turn each one on.
+When Vibrail builds your app it has to **clone your repository first**. For a public repo that's free — no credentials needed. For a **private** repo, something has to prove it's allowed to read the code. This page explains every way that can happen, in the order Vibrail tries them, and how to turn each one on.
 
 <Callout title="You usually don't have to think about this">
-On Openship Cloud, connecting the GitHub App is all you need. On the desktop app, your local `gh` login is used automatically. This page is for the cases where a build says it **can't authenticate the clone** — almost always a private repo deploying to your own server.
+On Vibrail Cloud, connecting the GitHub App is all you need. On the desktop app, your local `gh` login is used automatically. This page is for the cases where a build says it **can't authenticate the clone** — almost always a private repo deploying to your own server.
 </Callout>
 
 ## First, where does the clone run?
 
-The single most important thing to understand: **a credential that works on your laptop doesn't automatically work on a remote build server.** Openship can clone in two places:
+The single most important thing to understand: **a credential that works on your laptop doesn't automatically work on a remote build server.** Vibrail can clone in two places:
 
-- **On this host** (your desktop app, or the Openship control plane) — then it transfers the built output to wherever the app runs.
+- **On this host** (your desktop app, or the Vibrail control plane) — then it transfers the built output to wherever the app runs.
 - **On the build server itself** — the server clones directly, no upload. Best for big repos and useful when the build server already has the required credentials.
 
-A token that lives on your machine has to be *shipped* to the server to clone there — and Openship is deliberately careful about which credentials it will ship. That's why the answer to "how do I auth a private clone" depends on where the clone runs.
+A token that lives on your machine has to be *shipped* to the server to clone there — and Vibrail is deliberately careful about which credentials it will ship. That's why the answer to "how do I auth a private clone" depends on where the clone runs.
 
 ## The credential chain (server builds)
 
-For a build that runs off this host, Openship tries these in order and uses the **first** one that works. Each is independent — a step is skipped when it doesn't apply, so the order only decides who wins when several are available.
+For a build that runs off this host, Vibrail tries these in order and uses the **first** one that works. Each is independent — a step is skipped when it doesn't apply, so the order only decides who wins when several are available.
 
 | # | Credential | What it is | Ships a secret to the server? |
 |---|---|---|---|
@@ -31,7 +31,7 @@ For a build that runs off this host, Openship tries these in order and uses the 
 | 3 | **Per-server token or SSH key** | A GitHub token or deploy key you saved for that server | Yes — only to that one server |
 | 4 | **Clone token / GitHub App** | A per-project or global clone token, or the App installation token | Yes — short-lived, repo-scoped |
 | 5 | **Public repo** | No credential at all | Nothing to ship |
-| 6 | **Clone on Openship + transfer** | Clone here, upload the source | No — the code never transits the server as a token |
+| 6 | **Clone on Vibrail + transfer** | Clone here, upload the source | No — the code never transits the server as a token |
 
 If none of these produce a credential for a private repo, the build stops with an actionable message instead of hanging.
 
@@ -46,7 +46,7 @@ It's ranked by how little secret material moves. Forwarding (1) and the server's
 <Step>
 ### Forward your git identity (recommended on desktop)
 
-Turn on **Settings → Clone credentials → "Forward my git identity to build servers."** When a build runs on a remote server, Openship forwards your local `gh` login over the SSH tunnel just for that clone. Nothing is written to the server, and it's gone the moment the clone finishes.
+Turn on **Settings → Clone credentials → "Forward my git identity to build servers."** When a build runs on a remote server, Vibrail forwards your local `gh` login over the SSH tunnel just for that clone. Nothing is written to the server, and it's gone the moment the clone finishes.
 
 This is a **single per-operator switch**, not a per-deploy checkbox — set it once and every server clone uses it. It applies to the desktop app (which has your local `gh` and an SSH tunnel to the server); it's inert where there's no local git identity to forward.
 </Step>
@@ -54,7 +54,7 @@ This is a **single per-operator switch**, not a per-deploy checkbox — set it o
 <Step>
 ### Use the server's own git
 
-If the build server is already logged in to GitHub, Openship uses that — no configuration in Openship at all. On the server, any one of:
+If the build server is already logged in to GitHub, Vibrail uses that — no configuration in Vibrail at all. On the server, any one of:
 
 ```bash
 gh auth login                       # GitHub CLI on the box
@@ -64,7 +64,7 @@ git config --global credential.helper store
 ls ~/.ssh/id_ed25519
 ```
 
-Openship verifies the server can actually reach *your* repo before relying on this, so a box logged in as the wrong account is skipped rather than failing mid-build.
+Vibrail verifies the server can actually reach *your* repo before relying on this, so a box logged in as the wrong account is skipped rather than failing mid-build.
 </Step>
 
 <Step>
@@ -84,7 +84,7 @@ Give a classic token the `repo` scope, or a fine-grained token read access to th
 <Step>
 ### Public repos need nothing
 
-A public GitHub repo clones anonymously — no token, no forwarding, exactly like a public deploy on any platform. Openship confirms this by attempting the clone from the machine that will build, so a rate-limited API check never mislabels a public repo as private.
+A public GitHub repo clones anonymously — no token, no forwarding, exactly like a public deploy on any platform. Vibrail confirms this by attempting the clone from the machine that will build, so a rate-limited API check never mislabels a public repo as private.
 </Step>
 
 </Steps>
@@ -94,7 +94,7 @@ A public GitHub repo clones anonymously — no token, no forwarding, exactly lik
 - **Local build** (build on this machine, transfer the output): your local `gh` token is used directly and never leaves the machine.
 - **Server build** (build on the target): a broad local token is **never** put into a clone URL and shipped off-host. That's exactly why forwarding (1) exists — it vends the identity over the SSH tunnel on demand instead of writing it to the server — and why a plain `gh` token isn't accepted as a shippable remote credential.
 
-<Callout title="Openship Cloud">
+<Callout title="Vibrail Cloud">
 Cloud builds run inside the Cloud workspace and authenticate with the **GitHub App** installation token. Connect the App from **Settings → GitHub** and you're done — the forwarding/server-token steps above are for self-hosted server deploys.
 </Callout>
 

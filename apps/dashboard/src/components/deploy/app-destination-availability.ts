@@ -3,7 +3,7 @@ export const APP_CLOUD_INSTALL_AVAILABLE = false;
 
 /**
  * The `local` deploy target means the user's desktop/dev machine. A server-hosted
- * Openship instance exposes its own host through the server list instead, so
+ * Vibrail instance exposes its own host through the server list instead, so
  * showing a second "This machine" choice there would duplicate the same host
  * with different deployment semantics.
  */
@@ -18,7 +18,7 @@ export function canUseLocalAppDestination({
 }
 
 /**
- * A local build runs on the machine hosting the Openship API. That is a real,
+ * A local build runs on the machine hosting the Vibrail API. That is a real,
  * operator-controlled build host in desktop and self-hosted modes. In cloud
  * mode it is the managed SaaS API host, so presenting it as "This machine" is
  * both misleading and unsupported.

@@ -1,33 +1,33 @@
 ---
 title: Migrate from Coolify, Dokploy, or Dokku
-description: Move an existing self-hosted server onto Openship without redeploying from scratch — Openship scans your running Docker containers and adopts them in place, with a zero-downtime path and server-to-server moves.
+description: Move an existing self-hosted server onto Vibrail without redeploying from scratch — Vibrail scans your running Docker containers and adopts them in place, with a zero-downtime path and server-to-server moves.
 ---
 
 import { Step, Steps } from 'fumadocs-ui/components/steps';
 
-Already running apps on **Coolify**, **Dokploy**, or **Dokku**? You don't rebuild them on Openship. Openship
+Already running apps on **Coolify**, **Dokploy**, or **Dokku**? You don't rebuild them on Vibrail. Vibrail
 **scans the Docker containers already running on your server and adopts them in place** — reusing the exact
 image that's live right now, with no rebuild and, on the same server, no data move. It's a guided, one-click
 import, and your workloads keep serving while it happens.
 
 <Callout title="The one idea that makes this different">
-Every other platform here only deploys **new** workloads. Openship can point at a server's **existing**
+Every other platform here only deploys **new** workloads. Vibrail can point at a server's **existing**
 running containers, read their domains and volumes, and take them over — including taking over the
 `:80/:443` reverse proxy from Coolify/Dokploy/Dokku, rollback-safe.
 </Callout>
 
 ## How the import works
 
-Openship models the move as a short, reversible pipeline:
+Vibrail models the move as a short, reversible pipeline:
 
-1. **Scan** *(read-only — nothing is changed)* — over SSH, Openship enumerates **all** containers, volumes,
+1. **Scan** *(read-only — nothing is changed)* — over SSH, Vibrail enumerates **all** containers, volumes,
    and networks on the server (not just ones it owns), reads their compose config, and joins your existing
    proxy's vhosts to each container by published port to recover its **current domains + SSL**.
 2. **Adopt** *(records only)* — it creates a `services` project mirroring the running containers. Each
-   adopted service carries the container's **current image and no build context**, so Openship re-runs
+   adopted service carries the container's **current image and no build context**, so Vibrail re-runs
    exactly what's live and **never rebuilds**. Services come in **unexposed**, so routing is untouched at
    import time.
-3. **Take over the edge** *(later, opt-in, rollback-safe)* — when you add a domain, Openship journals your
+3. **Take over the edge** *(later, opt-in, rollback-safe)* — when you add a domain, Vibrail journals your
    old proxy's state, disables it, installs its **Traefik** edge, and re-registers your vhosts + certs. If
    anything fails — or the box reboots mid-way — it rolls back automatically.
 4. **Cut over** *(opt-in, confirmed)* — only when you say so does it stop and remove the *old* containers.
@@ -43,7 +43,7 @@ and planned your own traffic cutover.
 </Callout>
 
 - Migration is **self-hosted only** and needs `server:write` on the source (and target, for server-to-server).
-- **Connect the source server to Openship over SSH first** (Servers → Add server). Your apps and their proxy
+- **Connect the source server to Vibrail over SSH first** (Servers → Add server). Your apps and their proxy
   stay running throughout.
 - Do not remove the source platform until the replacement workloads and routes have been verified.
 
@@ -54,7 +54,7 @@ and planned your own traffic cutover.
 <Step>
 ### Connect the server and scan
 
-Add the server over SSH, then start the import. Openship scans it read-only and lists what it found — each
+Add the server over SSH, then start the import. Vibrail scans it read-only and lists what it found — each
 container with its recovered domain(s), ports, and volumes. (On a large or slow server, use the streaming
 scan so the client doesn't time out.)
 
@@ -65,7 +65,7 @@ scan so the client doesn't time out.)
 ### Pick workloads (3-step wizard)
 
 The wizard walks **select → link source → domains**. Your reverse proxy (Traefik / nginx / Caddy / …) is
-**automatically excluded** from the workload set and left running untouched — Openship never adopts or
+**automatically excluded** from the workload set and left running untouched — Vibrail never adopts or
 blind-stops it during import.
 </Step>
 
@@ -89,7 +89,7 @@ in-place** strategy is genuinely zero-downtime for the workload — the containe
 <Step>
 ### Verify domains and publish routes
 
-Add each custom domain, publish its `_openship-challenge` TXT record, and verify ownership. A subsequent
+Add each custom domain, publish its `_vibrail-challenge` TXT record, and verify ownership. A subsequent
 redeploy publishes the service route through the shared Traefik instance. Coordinate any DNS or load-balancer
 cutover yourself after checking the replacement deployment on the target server.
 
@@ -99,9 +99,9 @@ cutover yourself after checking the replacement deployment on the target server.
 <Step>
 ### Verify, then cut over and remove the old platform
 
-Confirm everything serves through Openship. Then run **cutover** (explicit, token-confirmed): it stops and
+Confirm everything serves through Vibrail. Then run **cutover** (explicit, token-confirmed): it stops and
 removes only the *old* deploy-set containers — **never your source volumes**. Once you're happy, remove
-Coolify/Dokploy/Dokku entirely; Openship now owns the box.
+Coolify/Dokploy/Dokku entirely; Vibrail now owns the box.
 </Step>
 
 </Steps>
@@ -112,7 +112,7 @@ Moving a whole stack from one host to another is the same flow, with the data st
 
 - Named volumes and movable app-data mounts stream **A → B** directly (same daemon: a `tar → tar` copy; across
   daemons: a gzip stream). System paths (`/proc`, `/sys`, `/var/lib/docker`, sockets, …) are never copied.
-- Openship **refuses to overwrite a non-empty same-named volume** on the target, so you can't clobber data.
+- Vibrail **refuses to overwrite a non-empty same-named volume** on the target, so you can't clobber data.
 - Server-to-server always uses the **deploy path** (a downtime window), and it **can't move locally-built
   images** — those have no registry to pull from on B, so take them over **in place on their current server**
   instead.
@@ -121,15 +121,15 @@ Moving a whole stack from one host to another is the same flow, with the data st
 
 ## Why the architecture is different
 
-Two things are worth understanding, because they're where Openship genuinely diverges from the others:
+Two things are worth understanding, because they're where Vibrail genuinely diverges from the others:
 
 - **Shared Traefik routing.** Self-hosted public services publish Docker labels to one shared Traefik instance.
   The dashboard currently manages per-route rate limiting, IP allowlists, and in-flight request limits, which
   are rendered into Traefik middleware on redeploy. Request analytics and logs are read from Traefik access logs.
-- **A real desktop mode.** Openship ships a **native desktop app** that runs the entire control plane — API,
+- **A real desktop mode.** Vibrail ships a **native desktop app** that runs the entire control plane — API,
   dashboard, embedded database, in-process jobs — **bound to loopback on your own machine**, with no-login
   access granted only to same-machine (kernel-verified) callers and **nothing left running after you quit**.
-  It's the isolated, solo way to drive your servers; the always-on `openship up` CLI service is a separate mode.
+  It's the isolated, solo way to drive your servers; the always-on `vibrail up` CLI service is a separate mode.
 
 ## Honest comparison
 
@@ -139,7 +139,7 @@ going to pretend otherwise — **migrate for the differences, not the essentials
 **Shared essentials (all four do these):** git-push / webhook auto-deploy · Dockerfile builds · automatic
 Let's Encrypt TLS with auto-renew · one-click databases · scheduled S3 backups · multi-server over SSH · REST
 API + scoped tokens · a CLI · rollbacks · per-event notifications · **and an official MCP server** (Coolify's
-is read-only, Dokploy's covers the full API, Openship's is write-capable). "Has an MCP server" is **not** a
+is read-only, Dokploy's covers the full API, Vibrail's is write-capable). "Has an MCP server" is **not** a
 reason to switch.
 
 **The full picture** — differentiators in **bold**; `✓` built-in · `~` partial / manual / paid · `✗` not
@@ -148,7 +148,7 @@ buildpack breadth), it's marked honestly.
 
 **Deploys & builds**
 
-| | Coolify | Dokploy | Dokku | Openship |
+| | Coolify | Dokploy | Dokku | Vibrail |
 |---|:---:|:---:|:---:|:---:|
 | Git push / webhook auto-deploy | ✓ | ✓ | ✓ | ✓ |
 | Dockerfile & prebuilt-image deploy | ✓ | ✓ | ✓ | ✓ |
@@ -161,7 +161,7 @@ buildpack breadth), it's marked honestly.
 
 **Servers & migration**
 
-| | Coolify | Dokploy | Dokku | Openship |
+| | Coolify | Dokploy | Dokku | Vibrail |
 |---|:---:|:---:|:---:|:---:|
 | Multi-server over SSH | ✓ | ✓ | ~ K3s | ✓ |
 | Server health / resource monitoring | ~ | ✓ | ~ plugin | ✓ |
@@ -173,7 +173,7 @@ buildpack breadth), it's marked honestly.
 
 **Networking & edge**
 
-| | Coolify | Dokploy | Dokku | Openship |
+| | Coolify | Dokploy | Dokku | Vibrail |
 |---|:---:|:---:|:---:|:---:|
 | Automatic Let's Encrypt TLS | ✓ | ✓ | ✓ | ✓ |
 | Unlimited custom domains + wildcards | ✓ | ✓ | ✓ | ✓ |
@@ -186,12 +186,12 @@ buildpack breadth), it's marked honestly.
 | **Live per-route request-log stream** | ~ proxy logs | ~ proxy logs | ~ files | **✓** |
 | Resource metrics (CPU / memory / bandwidth) | ~ basic | ✓ | ~ plugin | ✓ |
 
-Openship exposes a focused Traefik rule surface: **per-route rate limiting, IP allowlists, and in-flight
+Vibrail exposes a focused Traefik rule surface: **per-route rate limiting, IP allowlists, and in-flight
 request limits**, plus access-log-based traffic analytics and request logs. It is not a CDN or full WAF.
 
 **Data, team & platform**
 
-| | Coolify | Dokploy | Dokku | Openship |
+| | Coolify | Dokploy | Dokku | Vibrail |
 |---|:---:|:---:|:---:|:---:|
 | One-click databases | ✓ 8 | ✓ 6 | ✓ 16 | ✓ catalog |
 | Scheduled S3 backups + restore | ✓ | ✓ | ~ per-DB | ✓ |
@@ -208,9 +208,9 @@ request limits**, plus access-log-based traffic analytics and request logs. It i
 | **Self-hosted + managed-cloud from one instance** | ✗ control-plane only | ✗ | ✗ | **✓ Cloud runs the workload** |
 
 The defensible reasons to move are the bold rows: **adopting what's already running**, **moving stacks between
-servers with their data**, **leaving without lock-in** (a record-only removal drops just Openship's record and
+servers with their data**, **leaving without lock-in** (a record-only removal drops just Vibrail's record and
 leaves your apps + data running on your box, re-importable later) or **relocating the whole instance into
-Openship Cloud and back**, **taking over your existing proxy**, the **programmable edge**, the **built-in mail
+Vibrail Cloud and back**, **taking over your existing proxy**, the **programmable edge**, the **built-in mail
 server**, and the **self-hosted + cloud hybrid** where the cloud target actually runs your workload (unlike a
 managed control plane that still leans on your own servers). None of the other three can adopt a running stack,
 move one with its data, or hand it back to you still running — every "migration" is a manual rsync-and-redeploy
@@ -222,7 +222,7 @@ other three all need a control-plane server running around the clock. And in tha
 uploaded to a control plane**: the desktop reads your folder straight off disk, or the target server clones from
 your git using your forwarded credentials, so the code goes disk-or-git → server directly. Coolify clones on the
 Coolify server, Dokploy takes a zip upload, and Dokku takes a `git push` — in every case your code lands on a
-long-lived control-plane box first. (For a self-hosted Openship instance the trade-off is the same as theirs —
+long-lived control-plane box first. (For a self-hosted Vibrail instance the trade-off is the same as theirs —
 this edge is specific to desktop mode.)
 
 ## Honest caveats
@@ -234,7 +234,7 @@ this edge is specific to desktop mode.)
   allowlists, and in-flight request limits; they are not a CDN or full WAF.
 - **The mail server is a real mail server.** It's a genuine Postfix + Dovecot stack — so DNS/DKIM/SPF setup,
   deliverability, and ongoing mail ops are yours to run. The others sidestep this by not offering mail at all.
-- **Catalog breadth isn't the pitch.** Coolify's 280+ one-click services is the largest catalog here; Openship
+- **Catalog breadth isn't the pitch.** Coolify's 280+ one-click services is the largest catalog here; Vibrail
   leads on the *migration and edge* story, not template count.
 
 ## Next steps

@@ -308,7 +308,7 @@
   },
   "advanced": {
     "resetTitle": "Redefinir o estado no servidor?",
-    "resetDesc": "Apaga o rastreamento desta instalação e remove os registos DNS que o Vibrail criou para ela. O ficheiro de estado no servidor (/root/.openship/mail-state.json) e a linha de registo são limpos. A pilha de e-mail permanece intacta, mas será necessário executar novamente o assistente para a gerir (Remover mantém o estado e o DNS para permitir a readopção).",
+    "resetDesc": "Apaga o rastreamento desta instalação e remove os registos DNS que o Vibrail criou para ela. O ficheiro de estado no servidor (/root/.vibrail/mail-state.json) e a linha de registo são limpos. A pilha de e-mail permanece intacta, mas será necessário executar novamente o assistente para a gerir (Remover mantém o estado e o DNS para permitir a readopção).",
     "resetSubmit": "Redefinir estado",
     "resetSubmitting": "Redefinindo…",
     "resetFailed": "Falha na redefinição",
@@ -340,7 +340,7 @@
     "rerunDesc": "Abre o assistente de instalação apontado para este servidor. Útil após uma mudança de DNS, uma renomeação de domínio ou para tentar novamente uma etapa que falhou. O assistente detecta uma instalação existente e oferece nova tentativa por etapa em vez de apagar o estado.",
     "openWizard": "Abrir assistente",
     "resetCardTitle": "Redefinir estado no servidor",
-    "resetCardDesc": "Remove o rastreamento do Vibrail desta instalação - o arquivo de estado no servidor (/root/.openship/mail-state.json) e a linha de registro. NÃO desinstala a pilha de e-mail nem afeta nenhuma caixa de correio; o servidor continua em execução, mas você executará novamente o assistente de configuração para gerenciá-la de novo. Use após uma limpeza manual ou reimagem quando o rastreamento tiver divergido da realidade.",
+    "resetCardDesc": "Remove o rastreamento do Vibrail desta instalação - o arquivo de estado no servidor (/root/.vibrail/mail-state.json) e a linha de registro. NÃO desinstala a pilha de e-mail nem afeta nenhuma caixa de correio; o servidor continua em execução, mas você executará novamente o assistente de configuração para gerenciá-la de novo. Use após uma limpeza manual ou reimagem quando o rastreamento tiver divergido da realidade.",
     "resetStateBtn": "Redefinir estado",
     "removeTitle": "Remover servidor de e-mail",
     "removeDesc": "Para de gerenciar este servidor - remove-o apenas da lista /emails. A pilha de e-mail continua em execução e o arquivo de estado no servidor permanece intacto, para que você possa readotá-lo depois via Escanear para uma instalação existente. Use para limpar uma entrada obsoleta ou marcada incorretamente.",

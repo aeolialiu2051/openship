@@ -9,7 +9,7 @@
  * SaaS uses Redis (`REDIS_URL` reachable). Self-hosted PGlite installs
  * fall back to in-memory — fine for single-instance setups where the
  * per-process counter IS the global counter. Force a backend with
- * `OPENSHIP_RATE_LIMIT_STORE=memory|redis`.
+ * `VIBRAIL_RATE_LIMIT_STORE=memory|redis`.
  */
 
 import IORedis from "ioredis";
@@ -33,12 +33,12 @@ let store: RateLimitStore | null = null;
 let sharedRedis: IORedis | null = null;
 
 async function pickBackend(): Promise<Backend> {
-  const override = (process.env.OPENSHIP_RATE_LIMIT_STORE ?? "")
+  const override = (process.env.VIBRAIL_RATE_LIMIT_STORE ?? "")
     .toLowerCase()
     .trim();
   if (override === "memory") return "memory";
   if (override === "redis") return "redis";
-  // Redis required (CLOUD_MODE / OPENSHIP_REQUIRE_REDIS): force redis, skip the
+  // Redis required (CLOUD_MODE / VIBRAIL_REQUIRE_REDIS): force redis, skip the
   // probe — per-replica in-memory counters would under-count the aggregate.
   if (REDIS_REQUIRED) return "redis";
   return (await isRedisReachable()) ? "redis" : "memory";

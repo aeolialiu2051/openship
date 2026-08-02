@@ -47,7 +47,7 @@ export interface RouteRegister {
   port?: number;
   isCustomDomain: boolean;
   /**
-   * Force (`true`) or suppress (`false`) the `/_openship/hooks/` webhook-proxy
+   * Force (`true`) or suppress (`false`) the `/_vibrail/hooks/` webhook-proxy
    * location. Omit to auto-detect from the project's `webhookDomain` — callers
    * setting the webhook domain pass it explicitly because the project row isn't
    * updated yet at call time.

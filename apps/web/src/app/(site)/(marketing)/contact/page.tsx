@@ -4,21 +4,21 @@ import { ContactForm } from "@/components/contact-form";
 
 const PAGE_TITLE = "Contact Us";
 const PAGE_DESCRIPTION =
-  "Get in touch with the Openship team. Send us a message and we'll get back to you as soon as possible.";
+  "Get in touch with the Vibrail team. Send us a message and we'll get back to you as soon as possible.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/contact" },
   openGraph: {
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
     url: "/contact",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
   },
 };
@@ -54,7 +54,7 @@ export default function ContactPage() {
                     </a>
                   </li>
                   <li>
-                    <a href="https://github.com/oblien/openship/issues" target="_blank" rel="noreferrer">
+                    <a href="https://github.com/aeolialiu2051/vibrail/issues" target="_blank" rel="noreferrer">
                       <span className="legal-toc-n">02</span>
                       GitHub issues
                     </a>
@@ -66,13 +66,13 @@ export default function ContactPage() {
                     </a>
                   </li>
                   <li>
-                    <a href="mailto:privacy@openship.io">
+                    <a href="mailto:privacy@vibrail.warpgateapi.com">
                       <span className="legal-toc-n">04</span>
                       Privacy
                     </a>
                   </li>
                   <li>
-                    <a href="mailto:legal@openship.io">
+                    <a href="mailto:legal@vibrail.warpgateapi.com">
                       <span className="legal-toc-n">05</span>
                       Legal
                     </a>

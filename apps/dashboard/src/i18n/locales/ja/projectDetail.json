@@ -105,7 +105,7 @@
       "noMatchesTitle": "一致するものがありません",
       "noMatchesBody": "別のカテゴリや検索語をお試しください。またはサイドバーから「カスタムイメージ」を選択してください。",
       "localImages": "ローカルイメージ",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "ローカル Docker",
       "customEntryName": "カスタムイメージ",
       "customEntryDescription": "任意の公開または非公開の Docker イメージをタグで取得します。",

@@ -37,7 +37,7 @@ const envSchema = z.object({
   /* ---------- Listen port ---------- */
   /**
    * Honored when set so a SINGLE docker-compose service definition works
-   * regardless of OPENSHIP_TARGET — the container binds a fixed internal
+   * regardless of VIBRAIL_TARGET — the container binds a fixed internal
    * port and the reverse proxy maps the public domain to it. Unset, empty,
    * or invalid (non-integer / ≤0) falls back to the runtime target's port
    * (local=4000, saas=4100) via `.catch()`.
@@ -50,17 +50,17 @@ const envSchema = z.object({
    * isn't in the static runtime-target table — Electron passes it here at
    * spawn (e.g. "http://localhost:51234,http://127.0.0.1:51234").
    */
-  OPENSHIP_EXTRA_TRUSTED_ORIGINS: z.string().optional(),
+  VIBRAIL_EXTRA_TRUSTED_ORIGINS: z.string().optional(),
 
   /**
    * Dashboard origin for auth redirects (desktop-login/claim, cloud-callback).
    * The desktop dashboard runs on a DYNAMIC port Electron injects here; unset
    * elsewhere → falls back to the static runtime-target dashboard URL.
    */
-  OPENSHIP_LOCAL_DASHBOARD_URL: z.string().optional(),
+  VIBRAIL_LOCAL_DASHBOARD_URL: z.string().optional(),
 
   /**
-   * Set when this instance is served on a PUBLIC URL (e.g. `openship up
+   * Set when this instance is served on a PUBLIC URL (e.g. `vibrail up
    * --public-url https://ops.example.com` on a VPS). Two security effects:
    *   - zero-auth is refused outright (a network-exposed control plane must
    *     require login — the loopback guard is meaningless once a same-box
@@ -68,7 +68,7 @@ const envSchema = z.object({
    *   - the default auth mode for a fresh install becomes "local".
    * Presence, not the value, is the signal.
    */
-  OPENSHIP_PUBLIC_URL: z.string().optional(),
+  VIBRAIL_PUBLIC_URL: z.string().optional(),
 
   /**
    * The origin THIS API is actually reachable at — used ONLY to construct
@@ -77,28 +77,28 @@ const envSchema = z.object({
    * fallback. The desktop app runs the API on a dynamic loopback port and passes
    * `http://127.0.0.1:<apiPort>` here.
    *
-   * SECURITY: this is a URL-CONSTRUCTION signal only. Unlike OPENSHIP_PUBLIC_URL
+   * SECURITY: this is a URL-CONSTRUCTION signal only. Unlike VIBRAIL_PUBLIC_URL
    * it must NEVER feed the zero-auth / auth-mode / cookie / trustedOrigins-security
    * gates — that's the whole point (it lets desktop advertise a reachable origin
    * WITHOUT tripping `zeroAuthAllowed`'s "publicly-served" rejection).
    */
-  OPENSHIP_ADVERTISED_ORIGIN: z.string().optional(),
+  VIBRAIL_ADVERTISED_ORIGIN: z.string().optional(),
 
   /**
    * Force login (no zero-auth) even in desktop DEPLOY_MODE. The CLI sets this
-   * for every `openship up` — a CLI-managed instance always requires a real
+   * for every `vibrail up` — a CLI-managed instance always requires a real
    * admin account (created by the CLI's setup), unlike the Electron desktop app
    * which keeps loopback zero-auth. Presence, not value, is the signal.
    */
-  OPENSHIP_REQUIRE_AUTH: envBool("false"),
+  VIBRAIL_REQUIRE_AUTH: envBool("false"),
 
   /** Loopback dashboard port used by the self-hosted control plane. */
-  OPENSHIP_DASHBOARD_PORT: z.coerce.number().int().positive().catch(3001),
+  VIBRAIL_DASHBOARD_PORT: z.coerce.number().int().positive().catch(3001),
 
   /* ---------- Mode ---------- */
   CLOUD_MODE: envBool("false"),
   /**
-   * MASTER switch for the whole Openship Cloud billing feature (subscriptions,
+   * MASTER switch for the whole Vibrail Cloud billing feature (subscriptions,
    * top-ups, Stripe portal). OFF by default → the billing state reports
    * `billing.status = "coming_soon"` and every Stripe-mutating endpoint fails
    * closed with a `BILLING_NOT_ENABLED` 403. Flip to `true` on the SaaS to make
@@ -116,7 +116,7 @@ const envSchema = z.object({
    */
   BILLING_TOPUPS_ENABLED: envBool("false"),
   /**
-   * Openship Cloud only: hard cap on projects per user (a cloud org maps 1:1
+   * Vibrail Cloud only: hard cap on projects per user (a cloud org maps 1:1
    * to its owning SaaS user, so per-org == per-user here). Enforced at project
    * create + ensure. Self-hosted ignores this and uses the high
    * SYSTEM.PROJECTS.MAX_PER_USER safety cap instead. Default 2 for now.
@@ -145,7 +145,7 @@ const envSchema = z.object({
    * settings write) rather than a single dashboard click. Desktop
    * deployments ignore this flag — zero-auth is the default there.
    */
-  OPENSHIP_ALLOW_ZERO_AUTH: envBool("false"),
+  VIBRAIL_ALLOW_ZERO_AUTH: envBool("false"),
   /**
    * Cloud-session IP/UA pinning policy. Applied by cloudSessionAuth
    * middleware when a local instance presents a cloud_session_token.
@@ -189,7 +189,7 @@ const envSchema = z.object({
 
   /* ---------- GitHub App ---------- */
   GITHUB_APP_ID: z.string().optional(),
-  GITHUB_APP_SLUG: z.string().default("openship-io"),
+  GITHUB_APP_SLUG: z.string().default("vibrail-io"),
   /** PEM private key - raw multi-line string */
   GITHUB_PRIVATE_KEY: z.string().optional(),
   /** PEM private key - base64-encoded (single-line, for env vars) */
@@ -201,7 +201,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().default("Openship <noreply@openship.io>"),
+  SMTP_FROM: z.string().default("Vibrail <noreply@vibrail.warpgateapi.com>"),
 
   /* ---------- Network (self-hosted) ---------- */
   /**
@@ -261,14 +261,14 @@ const envSchema = z.object({
   /**
    * Absolute path that bounds every `kind: 'local'` destination.
    * Endpoints must resolve to a subpath of this root. Default
-   * /var/lib/openship/backups. Symlinks are resolved before the check.
+   * /var/lib/vibrail/backups. Symlinks are resolved before the check.
    */
-  BACKUP_LOCAL_ROOT: z.string().default("/var/lib/openship/backups"),
+  BACKUP_LOCAL_ROOT: z.string().default("/var/lib/vibrail/backups"),
 
   /**
    * Colon-separated extra roots accepted for `server.sshKeyPath`. The
-   * default allowlist already includes /var/lib/openship/ssh-keys and
-   * /etc/openship/ssh-keys — set this for installs that keep their
+   * default allowlist already includes /var/lib/vibrail/ssh-keys and
+   * /etc/vibrail/ssh-keys — set this for installs that keep their
    * SSH keys somewhere else.
    */
   SSH_KEY_PATH_ROOTS: z.string().default(""),
@@ -283,9 +283,9 @@ const envSchema = z.object({
 
   /* ---------- Mail webmail (Zero) ---------- */
   /**
-   * Base URL of the Zero webmail server reachable from openship's API.
+   * Base URL of the Zero webmail server reachable from vibrail's API.
    * The Zero server owns its branding storage and exposes
-   * `/branding.json` (public) + `/admin/branding` (token-auth). Openship
+   * `/branding.json` (public) + `/admin/branding` (token-auth). Vibrail
    * proxies dashboard branding writes here. Can be on the same VPS as
    * iRedMail, on a separate host, or even cross-region - wherever the
    * operator runs Zero.
@@ -294,7 +294,7 @@ const envSchema = z.object({
   /**
    * Shared secret matching the Zero server's `BRANDING_ADMIN_TOKEN`.
    * Sent as `X-Branding-Admin-Token` on writes. Never reaches the
-   * browser; openship API holds it, dashboard talks to openship.
+   * browser; vibrail API holds it, dashboard talks to vibrail.
    */
   MAIL_WEBMAIL_ADMIN_TOKEN: z.string().optional(),
 
@@ -364,9 +364,9 @@ export const env: Env = envSchema.parse(process.env);
 // Print resolution at MODULE LOAD, before any handler runs. If
 // boot crashes (e.g. EADDRINUSE on listen), this still shows. The
 // runtime-target row is resolved in @repo/core/runtime-config from
-// OPENSHIP_TARGET; no NODE_ENV magic, no CLOUD_MODE inference here.
+// VIBRAIL_TARGET; no NODE_ENV magic, no CLOUD_MODE inference here.
 console.log(
-  `[env] OPENSHIP_TARGET=${process.env.OPENSHIP_TARGET ?? "(unset, default local)"}  ` +
+  `[env] VIBRAIL_TARGET=${process.env.VIBRAIL_TARGET ?? "(unset, default local)"}  ` +
     `→ self=${runtimeTargetId} (${runtimeTarget.api})  ` +
     `cloud=${cloudRuntimeTargetId} (${cloudRuntimeTarget.api})`,
 );
@@ -378,9 +378,9 @@ console.log(
  * replicas). Defaults ON whenever CLOUD_MODE is set — a multi-tenant SaaS must
  * share job queue / cache / rate-limit state across every instance. Self-hosted
  * single-box installs keep the auto-probe + in-memory fallback. Explicit
- * override: OPENSHIP_REQUIRE_REDIS=true|false (read raw so "unset" ≠ "false").
+ * override: VIBRAIL_REQUIRE_REDIS=true|false (read raw so "unset" ≠ "false").
  */
-const requireRedisRaw = (process.env.OPENSHIP_REQUIRE_REDIS ?? "").toLowerCase().trim();
+const requireRedisRaw = (process.env.VIBRAIL_REQUIRE_REDIS ?? "").toLowerCase().trim();
 export const REDIS_REQUIRED =
   requireRedisRaw === "true" || requireRedisRaw === "1"
     ? true
@@ -393,7 +393,7 @@ export const REDIS_REQUIRED =
 // The secret is a real secret in every saas-shaped deployment.
 if (runtimeTargetId !== "local" && env.BETTER_AUTH_SECRET === DEFAULT_BETTER_AUTH_SECRET) {
   throw new Error(
-    `BETTER_AUTH_SECRET must be set to a secure value when OPENSHIP_TARGET="${runtimeTargetId}".`,
+    `BETTER_AUTH_SECRET must be set to a secure value when VIBRAIL_TARGET="${runtimeTargetId}".`,
   );
 }
 
@@ -426,16 +426,16 @@ if (env.CLOUD_MODE && (env.GITHUB_AUTH_MODE === "cli" || env.GITHUB_AUTH_MODE ==
   );
 }
 
-// ─── OPENSHIP_ALLOW_ZERO_AUTH wiring (CRITICAL #4) ─────────────────────────
+// ─── VIBRAIL_ALLOW_ZERO_AUTH wiring (CRITICAL #4) ─────────────────────────
 //
 // `getAuthMode()` already gates the SETTINGS write on this flag. The
 // runtime guard in authMiddleware ALSO refuses the zero-auth fallback
 // unless the flag is true (desktop is exempt — zero-auth is default
 // there). Logging here surfaces the misconfiguration in the boot
 // banner so the operator sees it.
-if (env.DEPLOY_MODE !== "desktop" && !env.OPENSHIP_ALLOW_ZERO_AUTH && env.NODE_ENV !== "test") {
+if (env.DEPLOY_MODE !== "desktop" && !env.VIBRAIL_ALLOW_ZERO_AUTH && env.NODE_ENV !== "test") {
   console.log(
-    `[env] OPENSHIP_ALLOW_ZERO_AUTH=false (default) — zero-auth fallback disabled on this non-desktop instance.`,
+    `[env] VIBRAIL_ALLOW_ZERO_AUTH=false (default) — zero-auth fallback disabled on this non-desktop instance.`,
   );
 }
 
@@ -449,45 +449,45 @@ if (env.BETTER_AUTH_COOKIE_DOMAIN) {
   validateCookieDomain(env.BETTER_AUTH_COOKIE_DOMAIN);
 }
 
-// ─── OPENSHIP_PUBLIC_URL validation ───────────────────────────────────────
+// ─── VIBRAIL_PUBLIC_URL validation ───────────────────────────────────────
 //
 // It's used to build absolute callback URLs handed to external services
 // (GitHub webhooks) and injected into trustedOrigins. A malformed value would
 // register a dead webhook and pollute the CORS allowlist with a junk origin, so
 // fail-loud at boot instead of silently later (mirrors the cookie-domain guard).
-if (env.OPENSHIP_PUBLIC_URL) {
-  const raw = env.OPENSHIP_PUBLIC_URL.trim();
+if (env.VIBRAIL_PUBLIC_URL) {
+  const raw = env.VIBRAIL_PUBLIC_URL.trim();
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
     throw new Error(
-      `OPENSHIP_PUBLIC_URL="${raw}" is not a valid absolute URL (expected e.g. https://ops.example.com).`,
+      `VIBRAIL_PUBLIC_URL="${raw}" is not a valid absolute URL (expected e.g. https://ops.example.com).`,
     );
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(
-      `OPENSHIP_PUBLIC_URL must use http or https (got "${parsed.protocol}" in "${raw}").`,
+      `VIBRAIL_PUBLIC_URL must use http or https (got "${parsed.protocol}" in "${raw}").`,
     );
   }
 }
 
-// ─── OPENSHIP_ADVERTISED_ORIGIN validation ────────────────────────────────
+// ─── VIBRAIL_ADVERTISED_ORIGIN validation ────────────────────────────────
 // URL-construction only (see the field doc). Same fail-loud shape as
-// OPENSHIP_PUBLIC_URL so a malformed origin can't produce junk discovery URLs.
-if (env.OPENSHIP_ADVERTISED_ORIGIN) {
-  const raw = env.OPENSHIP_ADVERTISED_ORIGIN.trim();
+// VIBRAIL_PUBLIC_URL so a malformed origin can't produce junk discovery URLs.
+if (env.VIBRAIL_ADVERTISED_ORIGIN) {
+  const raw = env.VIBRAIL_ADVERTISED_ORIGIN.trim();
   let parsed: URL;
   try {
     parsed = new URL(raw);
   } catch {
     throw new Error(
-      `OPENSHIP_ADVERTISED_ORIGIN="${raw}" is not a valid absolute URL (expected e.g. http://127.0.0.1:54777).`,
+      `VIBRAIL_ADVERTISED_ORIGIN="${raw}" is not a valid absolute URL (expected e.g. http://127.0.0.1:54777).`,
     );
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(
-      `OPENSHIP_ADVERTISED_ORIGIN must use http or https (got "${parsed.protocol}" in "${raw}").`,
+      `VIBRAIL_ADVERTISED_ORIGIN must use http or https (got "${parsed.protocol}" in "${raw}").`,
     );
   }
 }
@@ -507,7 +507,7 @@ function validateCookieDomain(raw: string): void {
 
   // Compute the runtime target's eTLD+1 (rightmost 2 labels) and
   // require the cookie domain ends with it. Avoids cross-product
-  // leaks (".openship.io" on an instance whose API runs at
+  // leaks (".vibrail.warpgateapi.com" on an instance whose API runs at
   // "api.example.com").
   let apiHostname: string;
   try {
@@ -533,7 +533,7 @@ function validateCookieDomain(raw: string): void {
 
 // ─── Self-hosted GitHub App creds are deprecated ────────────────────────────
 //
-// The GitHub App private key now lives exclusively in api.openship.io
+// The GitHub App private key now lives exclusively in vibrail.warpgateapi.com
 // (CLOUD_MODE=true). Self-hosted instances proxy all App-scoped operations
 // through cloud-client.ts. Setting these on a self-hosted instance has no
 // effect but suggests the operator hasn't seen the new flow — warn so they
@@ -545,7 +545,7 @@ if (!env.CLOUD_MODE) {
   // listed: it's no longer REQUIRED (webhooks now mint + persist a
   // per-project signing secret), but it stays a valid LEGACY FALLBACK the
   // webhook verifier still accepts — so we don't nag operators to remove it.
-  // The vars below ARE App-private credentials that moved to api.openship.io.
+  // The vars below ARE App-private credentials that moved to vibrail.warpgateapi.com.
   const stale = [
     env.GITHUB_APP_ID && "GITHUB_APP_ID",
     (env.GITHUB_PRIVATE_KEY || env.GITHUB_PRIVATE_KEY_BASE64) && "GITHUB_PRIVATE_KEY",
@@ -554,7 +554,7 @@ if (!env.CLOUD_MODE) {
     console.warn(
       `[env] Self-hosted instances no longer use local GitHub App credentials. ` +
         `These env vars are ignored: ${stale.join(", ")}. ` +
-        `Connect to Openship Cloud in Settings to enable App-scoped GitHub access.`,
+        `Connect to Vibrail Cloud in Settings to enable App-scoped GitHub access.`,
     );
   }
 }
@@ -564,7 +564,7 @@ if (!env.CLOUD_MODE) {
  * hardcoded clean origins from `@repo/core` (no trailing slashes,
  * always http(s)) so we just dedupe them — no normalization needed.
  */
-const extraTrustedOrigins = (env.OPENSHIP_EXTRA_TRUSTED_ORIGINS ?? "")
+const extraTrustedOrigins = (env.VIBRAIL_EXTRA_TRUSTED_ORIGINS ?? "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
@@ -573,10 +573,10 @@ export const trustedOrigins = [
   ...new Set([
     runtimeTarget.dashboard,
     runtimeTarget.api,
-    // Public serving (openship up --public-url): the browser's origin is the
+    // Public serving (vibrail up --public-url): the browser's origin is the
     // operator's public URL, so it must be trusted for CORS, the origin guard,
     // and Better Auth's login CSRF check — otherwise remote login is rejected.
-    ...(env.OPENSHIP_PUBLIC_URL ? [env.OPENSHIP_PUBLIC_URL.replace(/\/+$/, "")] : []),
+    ...(env.VIBRAIL_PUBLIC_URL ? [env.VIBRAIL_PUBLIC_URL.replace(/\/+$/, "")] : []),
     ...extraTrustedOrigins,
     ...(env.NODE_ENV === "production" ? [] : [LOCAL_WEB_URL, ...dashboardRuntimeOrigins]),
   ]),
@@ -584,17 +584,17 @@ export const trustedOrigins = [
 
 /**
  * Dashboard origin for auth redirects (desktop-login/claim, cloud-callback).
- * Desktop injects the dynamic dashboard port via OPENSHIP_LOCAL_DASHBOARD_URL;
+ * Desktop injects the dynamic dashboard port via VIBRAIL_LOCAL_DASHBOARD_URL;
  * otherwise the static runtime-target dashboard URL.
  */
 export const localDashboardUrl =
-  env.OPENSHIP_LOCAL_DASHBOARD_URL?.trim() || runtimeTarget.dashboard;
+  env.VIBRAIL_LOCAL_DASHBOARD_URL?.trim() || runtimeTarget.dashboard;
 
 /** Internal loopback URL for the API (used by nginx webhook proxy, etc.) */
 export const internalApiUrl = `http://127.0.0.1:${env.PORT}`;
 
 /**
- * proxy_pass target for the `/_openship/hooks/` webhook location injected into a
+ * proxy_pass target for the `/_vibrail/hooks/` webhook location injected into a
  * project's nginx vhost. Single source so the deploy-time and edit-time route
  * builders can't drift.
  */

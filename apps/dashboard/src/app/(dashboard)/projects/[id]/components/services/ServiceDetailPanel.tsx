@@ -244,13 +244,13 @@ export function ServiceDetailPanel({
   const [terminalResumeToken, setTerminalResumeToken] = useState<string | null>(null);
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const key = `openship.serviceterm.resume.${service.id}`;
+    const key = `vibrail.serviceterm.resume.${service.id}`;
     setTerminalResumeToken(window.localStorage.getItem(key));
   }, [service.id]);
   const persistResumeToken = (token: string | null) => {
     setTerminalResumeToken(token);
     if (typeof window === "undefined") return;
-    const key = `openship.serviceterm.resume.${service.id}`;
+    const key = `vibrail.serviceterm.resume.${service.id}`;
     if (token) window.localStorage.setItem(key, token);
     else window.localStorage.removeItem(key);
   };

@@ -276,7 +276,7 @@
     "noServersLink": "Server",
     "noServersPost": " hinzu.",
     "fieldRemotePath": "Remote-Pfad",
-    "hintRemotePath": "Absolutes Verzeichnis auf dem Server (z. B. /backups/openship)",
+    "hintRemotePath": "Absolutes Verzeichnis auf dem Server (z. B. /backups/vibrail)",
     "fieldAbsolutePath": "Absoluter Pfad",
     "hintAbsolutePath": "Dateisystempfad auf dem API-Host. Im Cloud-Modus deaktiviert.",
     "saving": "Wird gespeichert…",

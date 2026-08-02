@@ -56,7 +56,7 @@ describe("runPreflightChecks", () => {
         ? {
             available: input.slug !== "taken-endpoint",
             message: input.slug === "taken-endpoint"
-              ? "\"taken-endpoint.openship.test\" is already taken. Choose a different subdomain."
+              ? "\"taken-endpoint.vibrail.test\" is already taken. Choose a different subdomain."
               : undefined,
           }
         : undefined,
@@ -204,7 +204,7 @@ describe("runPreflightChecks", () => {
     );
   });
 
-  it("does not call Openship Cloud for a user-owned VPS under HOST_DOMAIN", async () => {
+  it("does not call Vibrail Cloud for a user-owned VPS under HOST_DOMAIN", async () => {
     managedDomainsUseCloudEdge.mockReturnValue(false);
 
     const result = await runPreflightChecks({

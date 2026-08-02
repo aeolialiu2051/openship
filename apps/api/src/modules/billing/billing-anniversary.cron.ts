@@ -4,7 +4,7 @@
  * Replaces the legacy `billing-reset.cron` which minted local
  * credit_grant rows. The credit ledger is gone (see migration
  * 0011_remove_credit_ledger); Oblien now owns consumption and quota
- * enforcement. This cron is the openship-side bridge that re-arms each
+ * enforcement. This cron is the vibrail-side bridge that re-arms each
  * org's Oblien quota at the boundary of every billing period:
  *
  *   1. Pick orgs where current_period_end < now() AND

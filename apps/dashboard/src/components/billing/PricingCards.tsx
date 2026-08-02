@@ -133,7 +133,7 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
                 </div>
               ) : isEnterprise ? (
                 <a
-                  href={plan.contactSales ?? "mailto:sales@openship.io"}
+                  href={plan.contactSales ?? "mailto:sales@vibrail.warpgateapi.com"}
                   className="flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-border/50 bg-card text-sm font-medium text-foreground transition-colors hover:bg-muted/60"
                 >
                   {t.billing.pricing.contactSales}

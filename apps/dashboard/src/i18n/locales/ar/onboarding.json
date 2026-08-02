@@ -126,7 +126,7 @@
     "couldNotStartAuthMsg": "تعذّر بدء تدفق مصادقة سطح المكتب.",
     "authFailedMsg": "يرجى المحاولة مرة أخرى وإكمال تسجيل الدخول في متصفحك.",
     "completingSignIn": "جارٍ إكمال تسجيل الدخول…",
-    "returningToOpenship": "العودة إلى Vibrail",
+    "returningToVibrail": "العودة إلى Vibrail",
     "redirectingCloud": "جارٍ إعادة التوجيه إلى Vibrail Cloud…",
     "newTabSignIn": "ستُكمل تسجيل الدخول في علامة تبويب جديدة",
     "couldNotSaveTitle": "تعذّر حفظ الإعداد",

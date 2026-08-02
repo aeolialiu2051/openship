@@ -527,7 +527,7 @@ export class CloudComposeSupport {
 
     const workspaceIds = [...new Set(services.map((service) => service.workspaceId))];
     const hostsLines = services.map(
-      (service) => `${service.ip} ${service.serviceName} # openship-compose:${group.id}`,
+      (service) => `${service.ip} ${service.serviceName} # vibrail-compose:${group.id}`,
     );
     const hostsBlock = hostsLines.join("\n");
 
@@ -569,7 +569,7 @@ export class CloudComposeSupport {
         const rt = await ws.runtime();
         const script = `set -e
 tmp=$(mktemp)
-grep -v ' # openship-compose:${group.id}' /etc/hosts > "$tmp" || true
+grep -v ' # vibrail-compose:${group.id}' /etc/hosts > "$tmp" || true
 cat >> "$tmp" <<'EOF'
 ${hostsBlock}
 EOF

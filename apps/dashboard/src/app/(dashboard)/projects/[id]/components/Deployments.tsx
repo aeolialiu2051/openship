@@ -31,9 +31,9 @@ export const Deployments = () => {
 
   const [isRedeploying, setIsRedeploying] = React.useState(false);
   const [isRetryingRoute, setIsRetryingRoute] = React.useState(false);
-  // The Openship control-plane self-app has no deployable source and updates
+  // The Vibrail control-plane self-app has no deployable source and updates
   // itself via the CLI — redeploy/self-update controls would only 403, so hide them.
-  const isSelfApp = projectData?.appTemplateId === "openship";
+  const isSelfApp = projectData?.appTemplateId === "vibrail";
 
   /** Re-run DNS + live proxy routing without rebuilding containers. The API
    *  clears the warning only after the route is confirmed. */

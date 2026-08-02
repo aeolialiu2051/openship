@@ -28,7 +28,7 @@ function runningProjectsFor(
 ): RunningProjectOverview[] {
   const runningByProject = new Map<string, DockerContainerOverview[]>();
   for (const container of containers) {
-    // Build helpers also carry openship.project, but they are transient build
+    // Build helpers also carry vibrail.project, but they are transient build
     // infrastructure rather than a running project workload.
     if (!container.running || !container.projectId || container.buildId) continue;
     const rows = runningByProject.get(container.projectId) ?? [];

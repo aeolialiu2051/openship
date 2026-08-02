@@ -48,7 +48,7 @@ import {
   type DeployRouting,
 } from "./build-execution-plan";
 import { attachLinkedNetworks } from "./attach-linked-networks";
-import { syncProjectToServerManifest } from "../../lib/openship-manifest-sync";
+import { syncProjectToServerManifest } from "../../lib/vibrail-manifest-sync";
 import { syncManagedEdgeRoutes, edgeUnsyncedWarning } from "../../lib/managed-edge-proxy";
 import { decryptEnvMap } from "../../lib/encryption";
 import {
@@ -983,7 +983,7 @@ interface DeployPhaseInputs {
   system: Awaited<ReturnType<typeof platform>>["system"];
   targetExecutor: CommandExecutor | null;
   /** Base platform target ("desktop" | "selfhosted" | "cloud") + the resolved
-   *  per-deployment target/server — used to gate the `.openship` manifest write
+   *  per-deployment target/server — used to gate the `.vibrail` manifest write
    *  to desktop-mode server deploys only. */
   baseTarget: string;
   effectiveTarget: string;
@@ -1826,7 +1826,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   });
 
   // FINAL STEP (desktop-only, best-effort): mirror this project onto the
-  // server's .openship/manifest.json so a fresh orchestrator can re-adopt it.
+  // server's .vibrail/manifest.json so a fresh orchestrator can re-adopt it.
   // Self-gated inside — a no-op for VPS/self-hosted and non-server targets.
   await syncProjectToServerManifest({
     baseTarget: phase.baseTarget,

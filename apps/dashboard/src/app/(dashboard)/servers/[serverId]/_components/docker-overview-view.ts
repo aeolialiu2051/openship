@@ -16,7 +16,7 @@ function sortContainers(containers: DockerContainerOverview[]) {
 
 /**
  * Present every Docker container under the closest project identity we have:
- * an Openship project first, then a native Compose project, with truly
+ * a Vibrail project first, then a native Compose project, with truly
  * unlabelled containers collected into one standalone group.
  */
 export function groupDockerContainers(data: DockerOverviewResponse): DockerContainerGroup[] {

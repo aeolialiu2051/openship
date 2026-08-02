@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to Openship! Please skim CONTRIBUTING.md before opening this PR.
+Thanks for contributing to Vibrail! Please skim CONTRIBUTING.md before opening this PR.
 Fill in the sections below and delete any that genuinely don't apply.
 -->
 

@@ -1,14 +1,14 @@
 ---
 title: Troubleshooting
-description: Where Openship shows you what went wrong — the build screen, the Logs tab, and the CLI — and how to read an error before you try to fix it.
+description: Where Vibrail shows you what went wrong — the build screen, the Logs tab, and the CLI — and how to read an error before you try to fix it.
 ---
 
-When something breaks, Openship has almost always already told you why — the trick is knowing where it
+When something breaks, Vibrail has almost always already told you why — the trick is knowing where it
 wrote it down. This page is the starting point: it shows you the handful of places the real answer lives,
 and one habit that solves most problems on its own.
 
 <Callout title="The one habit that fixes most things" type="info">
-Whatever went wrong, scroll to the **bottom** of the output and read the **last red lines**. Openship (and
+Whatever went wrong, scroll to the **bottom** of the output and read the **last red lines**. Vibrail (and
 the tools it runs — npm, Docker, your framework) print the actual cause right before they give up.
 Everything above the red is usually just normal progress.
 </Callout>
@@ -22,7 +22,7 @@ There are only a few screens you ever need. Match your situation to the right on
 | A deploy is running or just failed | **The live build screen** | You land on it after pressing **Deploy**; it streams every build step as it happens. |
 | Your app is deployed but misbehaving | **Project → Logs tab** | Open the project, choose **Logs**. Two sub-tabs: **Terminal** (your app's own output) and **Server**, whose panel is titled **HTTP Request Logs** (incoming requests). |
 | Nobody's requests are reaching the app | **HTTP Request Logs** | The **Server** sub-tab of **Logs** — each row is a request with its method, path, status code, and response time. |
-| You work from the terminal | **The CLI** | `openship logs <deploymentId> --follow`, plus `openship doctor` and `openship status`. |
+| You work from the terminal | **The CLI** | `vibrail logs <deploymentId> --follow`, plus `vibrail doctor` and `vibrail status`. |
 
 ### The live build screen
 
@@ -58,32 +58,32 @@ Everything above has a terminal equivalent:
 
 ```bash
 # Snapshot of a deployment's logs
-openship logs <deploymentId>
+vibrail logs <deploymentId>
 
 # Stream them live until the deployment finishes
-openship logs <deploymentId> --follow
+vibrail logs <deploymentId> --follow
 
 # Just the last 50 lines
-openship logs <deploymentId> --tail 50
+vibrail logs <deploymentId> --tail 50
 ```
 
 Two commands answer "is my setup even OK?" before you go hunting further:
 
 ```bash
 # Check config, active login, whether the API is reachable, and your runtime
-openship doctor
+vibrail doctor
 
 # Health + mode (self-hosted vs cloud) of the API you're pointed at
-openship status
+vibrail status
 ```
 
-`openship doctor` prints a checklist with a green `✓`, yellow `!`, or red `✗` next to each of **config**,
+`vibrail doctor` prints a checklist with a green `✓`, yellow `!`, or red `✗` next to each of **config**,
 **context**, **api**, **node**, and **bun** — so a red line tells you exactly which part is wrong. Full
 command details live in the [CLI reference](/docs/cli).
 
-## How to read an Openship error
+## How to read a Vibrail error
 
-Openship errors are short and structured on purpose — they're not meant to be scary.
+Vibrail errors are short and structured on purpose — they're not meant to be scary.
 
 **In the dashboard**, failures show up as a toast (a small popup) with a message, and — for anything that
 was streaming — as a red line in the build screen or Logs terminal. Read the message; it's the same text the
@@ -106,7 +106,7 @@ server sent.
 ### Symptom: a deploy failed and you can't tell why
 
 <Callout title="The build stopped with a red error and no obvious explanation" type="error">
-The build screen (or `openship logs <id> --follow`) ends on red lines instead of a live URL.
+The build screen (or `vibrail logs <id> --follow`) ends on red lines instead of a live URL.
 </Callout>
 
 **What it means** — a command in the build gave up. The line that matters is the **last** one before the
@@ -123,8 +123,8 @@ stream stopped, not the wall of output above it.
 
 ### Symptom: the CLI can't reach your instance
 
-<Callout title='"Cannot reach the API at …" or a red ✗ next to "api" in openship doctor' type="error">
-Commands hang or fail before doing anything, and `openship doctor` reports the **api** check as `unreachable`
+<Callout title='"Cannot reach the API at …" or a red ✗ next to "api" in vibrail doctor' type="error">
+Commands hang or fail before doing anything, and `vibrail doctor` reports the **api** check as `unreachable`
 or an unexpected `HTTP` status.
 </Callout>
 
@@ -133,10 +133,10 @@ isn't running, or a login that has expired.
 
 **How to fix**
 
-1. Run `openship doctor`. It checks, in order: your **config** file, your active **context** and token, and
+1. Run `vibrail doctor`. It checks, in order: your **config** file, your active **context** and token, and
    whether the **api** answers.
-2. If **context** is yellow with *"has no token; run `openship login`"*, log in again.
-3. If **api** is red, confirm the instance is actually up (`openship status` shows its health and mode) and
+2. If **context** is yellow with *"has no token; run `vibrail login`"*, log in again.
+3. If **api** is red, confirm the instance is actually up (`vibrail status` shows its health and mode) and
    that the address is the one you expect.
 
 ## Jump to the right page

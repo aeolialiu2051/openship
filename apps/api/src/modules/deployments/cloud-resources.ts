@@ -1,5 +1,5 @@
 /**
- * Openship Cloud (Oblien) resource tiers.
+ * Vibrail Cloud (Oblien) resource tiers.
  *
  * The dashboard's `CLOUD_RESOURCE_TIERS` picker (DeployTargetStep.tsx) shows
  * matching labels; the numbers below are the concrete cpu/memory/disk they map

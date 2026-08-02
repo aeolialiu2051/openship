@@ -55,11 +55,11 @@ export async function downloadTarballOnRemote(
   opts: DownloadTarballOptions,
 ): Promise<void> {
   const dest = sq(opts.destDir);
-  const tmp = sq(`${opts.destDir}.opsh-src.tar.gz`);
+  const tmp = sq(`${opts.destDir}.vibrail-src.tar.gz`);
   // Token via env keeps it out of curl's argv. The command still travels to the
   // server, but that's the same exposure as today's tokenized clone URL.
-  const authExport = opts.token ? `export OPSH_GH_TOK=${sq(opts.token)}; ` : "";
-  const authHeader = opts.token ? `-H "Authorization: Bearer $OPSH_GH_TOK" ` : "";
+  const authExport = opts.token ? `export VIBRAIL_GH_TOK=${sq(opts.token)}; ` : "";
+  const authHeader = opts.token ? `-H "Authorization: Bearer $VIBRAIL_GH_TOK" ` : "";
   const cmd =
     `rm -rf ${dest} ${tmp} && mkdir -p ${dest} && ${authExport}` +
     `curl -fSL --retry 3 --retry-delay 2 ${authHeader}-o ${tmp} ${sq(opts.url)} && ` +

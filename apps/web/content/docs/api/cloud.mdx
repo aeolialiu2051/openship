@@ -1,11 +1,11 @@
 ---
 title: Cloud API
-description: Connect a self-hosted instance to Openship Cloud, and the cloud control-plane endpoints (handoff, edge proxy, pages, subgraph transfer, GitHub App proxy) that back it.
+description: Connect a self-hosted instance to Vibrail Cloud, and the cloud control-plane endpoints (handoff, edge proxy, pages, subgraph transfer, GitHub App proxy) that back it.
 ---
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The Cloud API links a self-hosted Openship instance to **Openship Cloud** (the managed control plane) so it can deploy to cloud runtimes, use managed domains and pages, and borrow the central GitHub App. It has **two disjoint halves** and which one is mounted depends on the process mode:
+The Cloud API links a self-hosted Vibrail instance to **Vibrail Cloud** (the managed control plane) so it can deploy to cloud runtimes, use managed domains and pages, and borrow the central GitHub App. It has **two disjoint halves** and which one is mounted depends on the process mode:
 
 - **Self-hosted set** (`cloud-local`) — connect/disconnect, status, and the workspaces/drift listing. Mounted only when the instance is *not* in cloud mode. This is what you call on your own box.
 - **Cloud control-plane set** (`cloud-saas`) — handoff/OAuth, namespace token minting, edge-proxy/pages/analytics proxies, subgraph transfer, and the GitHub App proxy. Mounted only in cloud mode (`CLOUD_MODE`). Your self-hosted instance calls these machine-to-machine over its stored cloud session; you rarely call them by hand.
@@ -15,7 +15,7 @@ Both halves share the base path `/api/cloud`, but only one is present in any giv
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/cloud/status`.
 The self-hosted endpoints take a personal access token as a bearer header (`Authorization: Bearer <token>`,
-from [`openship token create`](/docs/cli/access)); the dashboard uses your session cookie. The cloud
+from [`vibrail token create`](/docs/cli/access)); the dashboard uses your session cookie. The cloud
 control-plane endpoints authenticate with the **cloud session bearer** minted during connect (or a signed
 one-time token in the URL for the public handoff routes) — not a self-hosted PAT. See the
 [API overview](/docs/api) and [auth model](/docs/security/auth).
@@ -29,8 +29,8 @@ require the `owner` role, not merely a `cloud:admin` grant.
 
 | Method & path | Permission | What it does |
 |---|---|---|
-| `GET /api/cloud/status` | `cloud:read` | Openship Cloud connection status for this instance. |
-| `GET /api/cloud/workspaces` | `cloud:read` | List the org's Openship Cloud (Oblien) workspaces, with drift (orphaned cloud/local). |
+| `GET /api/cloud/status` | `cloud:read` | Vibrail Cloud connection status for this instance. |
+| `GET /api/cloud/workspaces` | `cloud:read` | List the org's Vibrail Cloud (Oblien) workspaces, with drift (orphaned cloud/local). |
 | `POST /api/cloud/connect-finalize` | `cloud:admin` + owner | Complete the connect popup: exchange the PKCE code and store the cloud bearer. |
 | `POST /api/cloud/disconnect` | `cloud:admin` + owner | Clear the org's stored cloud session and prune member GitHub grants. |
 
@@ -42,17 +42,17 @@ GET /api/cloud/status
 
 ```bash
 curl https://your-host/api/cloud/status \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ```bash
 # The CLI surfaces the same connection state in its status readout:
-openship status
+vibrail status
 ```
 
 Connecting itself is a browser flow started from the dashboard (**Settings → Cloud**): a popup runs the
-PKCE handshake against Openship Cloud, then posts the result to `connect-finalize` below. There is no
-dedicated `openship cloud connect` CLI verb.
+PKCE handshake against Vibrail Cloud, then posts the result to `connect-finalize` below. There is no
+dedicated `vibrail cloud connect` CLI verb.
 
 ### Finalize a connection
 
@@ -77,7 +77,7 @@ on top of the `cloud:admin` tag. A non-owner with a `cloud:admin` grant still ge
 
 ## Cloud control-plane endpoints
 
-Present only in cloud mode (`CLOUD_MODE`) — i.e. these run on Openship Cloud, not on your self-hosted box.
+Present only in cloud mode (`CLOUD_MODE`) — i.e. these run on Vibrail Cloud, not on your self-hosted box.
 All tenant-scoped operations forward to Oblien through the **caller's namespace token**; Oblien enforces the
 namespace boundary natively, so there is no SaaS-side ownership ledger. The `public` routes carry no session
 — they are reached by browser redirects and authenticated by a signed, single-use token in the URL.
@@ -113,7 +113,7 @@ namespace boundary natively, so there is no SaaS-side ownership ledger. The `pub
 
 <Callout title="These are mostly internal">
 Your self-hosted instance calls the control-plane endpoints for you via its cloud client — you don't wire
-them up by hand, and there is no `openship` CLI verb that maps to them one-to-one. The request shapes below
+them up by hand, and there is no `vibrail` CLI verb that maps to them one-to-one. The request shapes below
 are documented so integrators can reason about the traffic.
 </Callout>
 
@@ -297,7 +297,7 @@ rejected.
 </Callout>
 
 <Callout title="409 — slug already taken (edge proxy / pages)" type="warn">
-The requested slug is owned by another tenant on the shared cloud zone. Oblien returns `409` and Openship
+The requested slug is owned by another tenant on the shared cloud zone. Oblien returns `409` and Vibrail
 forwards it. Choose a different slug.
 </Callout>
 

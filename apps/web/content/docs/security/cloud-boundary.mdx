@@ -1,19 +1,19 @@
 ---
 title: Cloud boundary
-description: How a self-hosted instance talks to Openship Cloud without leaking local identity — proxied requests carry the owner's cloud session and nothing else.
+description: How a self-hosted instance talks to Vibrail Cloud without leaking local identity — proxied requests carry the owner's cloud session and nothing else.
 ---
 
-When you connect the copy of Openship you run yourself to Openship Cloud, the two
+When you connect the copy of Vibrail you run yourself to Vibrail Cloud, the two
 stay cleanly separated. Think of it like a border crossing between two countries:
 your instance is one side, the Cloud is the other, and every request that crosses
 shows a single passport — the organization owner's cloud session — and carries
 nothing from home. No local ID cards, no house keys, no return address.
 
 <Callout title="The two sides">
-- **Self-hosted instance** — the Openship you run on your own machine or server.
+- **Self-hosted instance** — the Vibrail you run on your own machine or server.
   It is the single **control plane** and **permission plane**: the layer that
   decides who may do what. Every request is checked here first.
-- **Openship Cloud** — the hosted service at `https://api.openship.io`. It is the
+- **Vibrail Cloud** — the hosted service at `https://vibrail.warpgateapi.com`. It is the
   **upstream authority** (the final say) for any project that lives on the Cloud.
 - **Proxy** — when a request is for a Cloud-owned project, your instance *forwards*
   it upstream instead of answering itself. That forwarding step is the boundary,
@@ -58,7 +58,7 @@ of these:
 | Local session cookies | Browser sign-in is local-only; the Cloud never sees it. |
 | `X-Organization-Id` | The Cloud resolves the org from the owner's token, not a header. A local org id is meaningless upstream (local org id ≠ Cloud org id) and would be a footgun. |
 | `X-Project-Source` and other client hints | Routing hints stay local. |
-| `Host` / the original origin | The request is re-addressed to `api.openship.io`. |
+| `Host` / the original origin | The request is re-addressed to `vibrail.warpgateapi.com`. |
 
 <Callout title="The invariant" type="info">
 A proxied request forwards **only method, path, body, and Content-Type**, plus the

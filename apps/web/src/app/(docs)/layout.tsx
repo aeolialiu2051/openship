@@ -14,7 +14,7 @@ import "../../styles/fonts.css";
 // Docs-only tweaks layered after fumadocs' stylesheet (e.g. sidebar cursor).
 import "../../styles/docs-overrides.css";
 
-const SITE_URL = "https://openship.io";
+const SITE_URL = "https://vibrail.warpgateapi.com";
 
 // Same stack as the marketing site (globals.css `--font-sans`). Fumadocs renders
 // off the Tailwind `--font-sans` token, so overriding it here re-fonts all docs.
@@ -23,7 +23,7 @@ const FONT_SANS = "'Gellix', 'SF Arabic', system-ui, -apple-system, sans-serif";
 export const metadata: Metadata = {
   // Docs pages set only relative OG/canonical URLs; this resolves them.
   metadataBase: new URL(SITE_URL),
-  title: { default: "Openship Docs", template: "%s – Openship" },
+  title: { default: "Vibrail Docs", template: "%s – Vibrail" },
   robots: { index: true, follow: true },
 };
 

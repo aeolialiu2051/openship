@@ -17,7 +17,7 @@ vi.mock("../../src/config/env", () => ({
     VIBRAIL_CLOUDFLARE_API_TOKEN: "backend-only-token",
     VIBRAIL_CLOUDFLARE_ZONE_ID: "zone-1",
     VIBRAIL_CLOUDFLARE_PROXY: true,
-    HOST_DOMAIN: "openship.example.com",
+    HOST_DOMAIN: "vibrail.example.com",
   },
 }));
 
@@ -128,7 +128,7 @@ describe("Vibrail Cloudflare DNS", () => {
       type: "A",
       content: "203.0.113.10",
       proxied: true,
-      comment: "openship.example.com",
+      comment: "vibrail.example.com",
     });
   });
 
@@ -148,7 +148,7 @@ describe("Vibrail Cloudflare DNS", () => {
     expect(fetchMock.mock.calls[1]![0]).toContain("/dns_records/dns-1");
     expect(fetchMock.mock.calls[1]![1]).toMatchObject({ method: "PUT" });
     expect(JSON.parse(fetchMock.mock.calls[1]![1].body)).toMatchObject({
-      comment: "openship.example.com",
+      comment: "vibrail.example.com",
     });
   });
 
@@ -312,7 +312,7 @@ describe("Vibrail Cloudflare DNS", () => {
     await expect(
       publishManagedDnsRecords({
         organizationId: "org-1",
-        ownerTag: "openship:mail:server-1",
+        ownerTag: "vibrail:mail:server-1",
         records: [{ type: "A", name: "mail.example.com", content: "203.0.113.20" }],
       }),
     ).resolves.toBe("published");
@@ -322,7 +322,7 @@ describe("Vibrail Cloudflare DNS", () => {
       name: "mail.example.com",
       content: "203.0.113.20",
       proxied: false,
-      comment: "openship:mail:server-1",
+      comment: "vibrail:mail:server-1",
     });
   });
 
@@ -349,7 +349,7 @@ describe("Vibrail Cloudflare DNS", () => {
     await expect(
       publishManagedDnsRecords({
         organizationId: "org-1",
-        ownerTag: "openship:mail:server-1",
+        ownerTag: "vibrail:mail:server-1",
         records: [{ type: "A", name: "mail.example.com", content: "203.0.113.20" }],
       }),
     ).rejects.toThrow("conflicting A record");
@@ -368,7 +368,7 @@ describe("Vibrail Cloudflare DNS", () => {
       .fn()
       .mockResolvedValueOnce(
         response([
-          { id: "owned", comment: "openship:mail:server-1" },
+          { id: "owned", comment: "vibrail:mail:server-1" },
           { id: "other", comment: "manual" },
         ]),
       )
@@ -378,7 +378,7 @@ describe("Vibrail Cloudflare DNS", () => {
     await deleteManagedDnsRecords({
       domain: "example.com",
       organizationId: "org-1",
-      ownerTag: "openship:mail:server-1",
+      ownerTag: "vibrail:mail:server-1",
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);

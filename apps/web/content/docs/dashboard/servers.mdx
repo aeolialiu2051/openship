@@ -1,9 +1,9 @@
 ---
 title: Servers
-description: Add your own servers over SSH, let Openship install what a deployment needs, and manage each server's health, exposed ports, port forwarding, and a live terminal.
+description: Add your own servers over SSH, let Vibrail install what a deployment needs, and manage each server's health, exposed ports, port forwarding, and a live terminal.
 ---
 
-The **Servers** section is where you connect the machines Openship deploys to. You give Openship SSH access to a
+The **Servers** section is where you connect the machines Vibrail deploys to. You give Vibrail SSH access to a
 box you already own — a VPS, a bare-metal server, a VM — and it installs and checks everything a deployment
 needs (Docker, Traefik, Git). Once a server is connected, you can pick it as a deploy target from the
 [deploy flow](/docs/guides/deploy-from-github) and manage it from its own detail screen.
@@ -61,7 +61,7 @@ The **Authentication** control is a three-way toggle:
 - **Password** — enter the server password.
 - **SSH Key** — give a **Key Path** (e.g. `~/.ssh/id_rsa`) and an optional **Passphrase**.
 - **Agent** — connects using the host machine's `ssh-agent` (like VS Code); no password or key is entered
-  here. The machine running Openship must already have access to the server.
+  here. The machine running Vibrail must already have access to the server.
 
 Under **Advanced** you can add a **Jump Host** (e.g. `user@bastion.example.com`) and **Extra SSH Arguments**
 (e.g. `-o StrictHostKeyChecking=no`).
@@ -77,14 +77,14 @@ Two buttons finish the form:
 
 ### The setup flow
 
-After you save a new server, Openship walks you through installing its prerequisites. You first choose how to
+After you save a new server, Vibrail walks you through installing its prerequisites. You first choose how to
 run it:
 
-- **Automatic Setup** — "Check requirements and install everything automatically. One click — Openship handles
+- **Automatic Setup** — "Check requirements and install everything automatically. One click — Vibrail handles
   Docker, Traefik, and Git."
 - **Step-by-Step Setup** — review each component and its detailed status before installing.
 
-The flow then moves through **Connect → Check → Install**: Openship opens the SSH connection, runs health
+The flow then moves through **Connect → Check → Install**: Vibrail opens the SSH connection, runs health
 checks, and installs whatever's missing. Progress streams live, per component (Waiting → Installing → Installed,
 or Failed), with an expandable **Install Logs** panel. When it finishes you can jump to the server's detail
 screen; if anything failed, **Retry Failed** re-runs just those components.
@@ -102,11 +102,11 @@ Opening a server (**`/servers/<serverId>`**) shows its name with a **Healthy** o
 `user@host:port` beneath it. Top-right are three controls:
 
 - **Migrate Docker** — opens the migration wizard to bring a running Docker or Compose deployment on that
-  server into Openship.
+  server into Vibrail.
 - **Edit** — reopens the SSH Connection form (at `?edit=true`) so you can change connection details.
 - The **⋯** menu — holds **Remove Server**, which clears the stored SSH credentials and connection settings.
 
-If Openship can't reach the server, a banner appears above the tabs explaining whether the box is unreachable,
+If Vibrail can't reach the server, a banner appears above the tabs explaining whether the box is unreachable,
 the credentials were rejected, or the config is incomplete — with a **Retry** and an **Edit** shortcut. A
 **Connection** panel on the right always shows the current **Host**, **User**, and **Auth** method.
 
@@ -127,7 +127,7 @@ header summary reads "All systems operational" or "\{n} of \{m} unhealthy". See
 
 ### Components tab
 
-Manage the software Openship relies on. The **System Health** card lists every required component and, under a
+Manage the software Vibrail relies on. The **System Health** card lists every required component and, under a
 **Detected Infrastructure** divider, any optional ones it found. Each row shows health, version, and a status
 message, with per-component actions:
 
@@ -169,7 +169,7 @@ per-forward controls: **Start** / **Stop**, **Remove**, and an **Open on startup
 **Remote port** (1–65535) and an optional **Local (auto)** port (`0` for auto, or 1–65535), then press **Add**.
 
 <Callout title="Desktop only" type="info">
-This tab is hidden on hosted instances — port forwarding only makes sense when the Openship orchestrator is
+This tab is hidden on hosted instances — port forwarding only makes sense when the Vibrail orchestrator is
 your own machine.
 </Callout>
 

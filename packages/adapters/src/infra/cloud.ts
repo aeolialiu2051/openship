@@ -47,6 +47,6 @@ export class CloudInfraProvider implements RoutingProvider, SslProvider {
 
   async installCert(_domain: string, _cert: ManualCert): Promise<SslResult> {
     // Oblien manages TLS at its own edge — no operator-supplied certs.
-    throw new Error("Manual certificates are not supported on Openship Cloud");
+    throw new Error("Manual certificates are not supported on Vibrail Cloud");
   }
 }

@@ -1,24 +1,24 @@
 ---
 title: Projects API
-description: Create and configure projects, link a git repo, manage env vars and resources, read logs, deploy an uploaded folder, and transfer projects to and from Openship Cloud.
+description: Create and configure projects, link a git repo, manage env vars and resources, read logs, deploy an uploaded folder, and transfer projects to and from Vibrail Cloud.
 ---
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-A **project** is the unit Openship builds and runs: a source (a git repo, a local path, or an uploaded
+A **project** is the unit Vibrail builds and runs: a source (a git repo, a local path, or an uploaded
 folder), its build configuration, environment variables, resource limits, domains, and deployment history.
 In the dashboard this is everything under a project's pages; from the terminal it's the
-[`openship projects`](/docs/cli/projects) command.
+[`vibrail projects`](/docs/cli/projects) command.
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/projects`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and [auth model](/docs/security/auth) for details.
 </Callout>
 
 <Callout title="Both modes, with a few self-hosted-only routes" type="info">
-The Projects API is served on both self-hosted instances and Openship Cloud. On a self-hosted instance,
+The Projects API is served on both self-hosted instances and Vibrail Cloud. On a self-hosted instance,
 per-project routes transparently proxy to the SaaS for any project that lives in the cloud. Rows marked
 **†** below are **self-hosted only** (local filesystem, edge route rules, folder-upload relay, and
 cloud transfer) and return `404` on the SaaS.
@@ -76,7 +76,7 @@ cloud transfer) and return `404` on the SaaS.
 | `POST /api/projects/folder/session` | `project:write` | Open a folder-upload session (step 1). |
 | `POST /api/projects/folder/scan/:sessionId` | `project:write` | Detect the uploaded source's build config (step 2). |
 | `POST /api/projects/folder/upload/:sessionId` † | `project:write` | Upload the gzipped tarball (self-hosted relay, 300 MB limit). |
-| `POST /api/projects/:id/transfer/to-cloud` † | `project:admin` | Promote a local project to Openship Cloud. |
+| `POST /api/projects/:id/transfer/to-cloud` † | `project:admin` | Promote a local project to Vibrail Cloud. |
 | `POST /api/projects/:id/transfer/to-self-hosted` † | `project:admin` | Bring a cloud project back to this instance. |
 
 ## Create a project
@@ -126,19 +126,19 @@ everything else is auto-detected or defaulted.
 
 ```bash
 curl -X POST https://your-host/api/projects \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"marketing-site","gitOwner":"acme","gitRepo":"site","gitBranch":"main","framework":"nextjs"}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship projects create
+vibrail projects create
 ```
 
 <Callout title="Creating a project does not deploy it" type="info">
 `POST /api/projects` only records the project and its config. Trigger the first build with the
-[Deployments API](/docs/api/deployments) (`POST /api/deployments`) or `openship deploy`.
+[Deployments API](/docs/api/deployments) (`POST /api/deployments`) or `vibrail deploy`.
 </Callout>
 
 ## Update a project
@@ -152,13 +152,13 @@ to change. Every field above is accepted and optional here.
 
 ```bash
 curl -X PATCH https://your-host/api/projects/proj_123 \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"buildCommand":"pnpm build","gitBranch":"release"}'
 ```
 
 ```bash
-openship projects update proj_123 --build-command "pnpm build"
+vibrail projects update proj_123 --build-command "pnpm build"
 ```
 
 ## Link a git repo
@@ -181,7 +181,7 @@ default branch is used.
 
 ```bash
 curl -X POST https://your-host/api/projects/proj_123/git/link \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"owner":"acme","repo":"site","branch":"main"}'
 ```
@@ -210,7 +210,7 @@ lifecycle (DNS preview, verification, SSL), use the [Domains API](/docs/api/doma
 
 ```bash
 curl -X POST https://your-host/api/projects/proj_123/connect \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"domain":"app.example.com"}'
 ```
@@ -236,7 +236,7 @@ variable (including untouched masked secrets) is left intact.
 
 ```bash
 curl -X PATCH https://your-host/api/projects/proj_123/env \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "environment": "production",
@@ -246,7 +246,7 @@ curl -X PATCH https://your-host/api/projects/proj_123/env \
 ```
 
 ```bash
-openship env set DATABASE_URL="postgres://…" --project proj_123 --secret
+vibrail env set DATABASE_URL="postgres://…" --project proj_123 --secret
 ```
 
 <Callout title="There is no full-replace endpoint" type="warn">
@@ -276,7 +276,7 @@ port. `POST` is an alias of `PATCH`. All fields are optional; send only what you
 
 ```bash
 curl -X PATCH https://your-host/api/projects/proj_123/resources \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"production":{"cpuCores":1,"memoryMb":1024},"sleepMode":"always_on"}'
 ```
@@ -342,12 +342,12 @@ POST /api/projects/:id/transfer/to-cloud         † self-hosted only
 POST /api/projects/:id/transfer/to-self-hosted   † self-hosted only
 ```
 
-Promote a local project to Openship Cloud, or pull a cloud project back to this instance. These are
+Promote a local project to Vibrail Cloud, or pull a cloud project back to this instance. These are
 meaningless on the SaaS (it *is* the cloud) and return `404` there. Both require `project:admin`.
 
 ```bash
 curl -X POST https://your-host/api/projects/proj_123/transfer/to-cloud \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN"
+  -H "Authorization: Bearer $VIBRAIL_TOKEN"
 ```
 
 ## Errors you might see
@@ -364,6 +364,6 @@ See the [permission model](/docs/security/auth).
 
 <Callout title="404 on a per-project route" type="error">
 The `:id` doesn't belong to your organization (or was deleted). A self-hosted-only route (marked **†**)
-also returns `404` when called on Openship Cloud. List your projects with `GET /api/projects` to get valid
+also returns `404` when called on Vibrail Cloud. List your projects with `GET /api/projects` to get valid
 IDs.
 </Callout>

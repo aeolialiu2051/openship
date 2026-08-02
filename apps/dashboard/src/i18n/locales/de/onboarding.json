@@ -126,7 +126,7 @@
     "couldNotStartAuthMsg": "Der Desktop-Authentifizierungsablauf konnte nicht gestartet werden.",
     "authFailedMsg": "Bitte versuchen Sie es erneut und schließen Sie die Anmeldung in Ihrem Browser ab.",
     "completingSignIn": "Anmeldung wird abgeschlossen…",
-    "returningToOpenship": "Zurück zu Vibrail",
+    "returningToVibrail": "Zurück zu Vibrail",
     "redirectingCloud": "Weiterleitung zu Vibrail Cloud…",
     "newTabSignIn": "Sie schließen die Anmeldung in einem neuen Tab ab",
     "couldNotSaveTitle": "Konfiguration konnte nicht gespeichert werden",

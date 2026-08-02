@@ -129,10 +129,10 @@ function OnboardingInner() {
               </>
             )}
           </div>
-          <a className="ob-top-bar-link" href="https://openship.io" target="_blank" rel="noopener noreferrer" title={t.onboarding.topBar.website}>
+          <a className="ob-top-bar-link" href="https://vibrail.warpgateapi.com" target="_blank" rel="noopener noreferrer" title={t.onboarding.topBar.website}>
             <GlobeIcon />
           </a>
-          <a className="ob-top-bar-link" href="https://github.com/oblien/openship" target="_blank" rel="noopener noreferrer" title={t.onboarding.topBar.github}>
+          <a className="ob-top-bar-link" href="https://github.com/aeolialiu2051/vibrail" target="_blank" rel="noopener noreferrer" title={t.onboarding.topBar.github}>
             <GitHubIcon />
           </a>
         </div>

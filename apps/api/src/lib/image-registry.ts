@@ -96,7 +96,7 @@ async function fetchToken(challenge: string): Promise<string | null> {
     // challenge). safeFetch pins the resolved IP; CLOUD_MODE rejects internal
     // targets while self-hosted may use a LAN registry.
     const res = await safeFetch(url.toString(), {
-      headers: { "User-Agent": "openship" },
+      headers: { "User-Agent": "vibrail" },
       timeoutMs: 10_000,
       allowPrivate: !env.CLOUD_MODE,
       maxRedirects: 3,
@@ -123,7 +123,7 @@ async function headManifest(
       method: "HEAD",
       headers: {
         Accept: MANIFEST_ACCEPT,
-        "User-Agent": "openship",
+        "User-Agent": "vibrail",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
       timeoutMs: 10_000,

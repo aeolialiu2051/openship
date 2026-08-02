@@ -3,7 +3,7 @@
  *
  * Credentials and resource control live entirely on the SaaS side:
  *   - The master client is constructed from CLOUD_MODE config and the
- *     stored session token (see lib/openship-cloud.ts).
+ *     stored session token (see lib/vibrail-cloud.ts).
  *   - Tunnels are scoped to an Oblien namespace per-organization,
  *     resolved via ensureNamespace.
  *
@@ -12,7 +12,7 @@
  */
 
 import { env } from "../../../config/env";
-import { getOblienClient, ensureNamespace } from "../../../lib/openship-cloud";
+import { getOblienClient, ensureNamespace } from "../../../lib/vibrail-cloud";
 import type {
   TunnelAgent,
   TunnelProvider,
@@ -40,7 +40,7 @@ export const oblienProvider: TunnelProvider = {
       return {
         ok: false,
         reason:
-          "Oblien tunnels require CLOUD_MODE — this instance must be connected to Openship Cloud first.",
+          "Oblien tunnels require CLOUD_MODE — this instance must be connected to Vibrail Cloud first.",
       };
     }
     return { ok: true };
@@ -104,7 +104,7 @@ export const oblienProvider: TunnelProvider = {
     // already-provisioned tunnel this is a re-attach (no new record).
     const tc = await getOblienClient().edgeTunnel.connect(
       {
-        name: `openship-tunnel-${record.externalId}`,
+        name: `vibrail-tunnel-${record.externalId}`,
         slug: record.slug || undefined,
         port,
       },

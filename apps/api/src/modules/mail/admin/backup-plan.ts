@@ -64,7 +64,7 @@ export function buildMailBackupPayload(
           'mkdir -p "$tmp/keys"',
           '[ -d /var/lib/dkim ] && cp -a /var/lib/dkim "$tmp/keys/dkim" || true',
           '[ -f /etc/amavis/conf.d/50-user ] && cp -a /etc/amavis/conf.d/50-user "$tmp/keys/amavis-50-user" || true',
-          '[ -f /root/.openship/mail-state.json ] && cp -a /root/.openship/mail-state.json "$tmp/keys/mail-state.json" || true',
+          '[ -f /root/.vibrail/mail-state.json ] && cp -a /root/.vibrail/mail-state.json "$tmp/keys/mail-state.json" || true',
         ].join("\n")
       : "",
     // Stream one tar to stdout: the staged dir + (optionally) the maildirs

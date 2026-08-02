@@ -73,8 +73,8 @@ describe("reapplyProjectLiveRoutes loopback guard", () => {
   // the app runs on the host, so the runtime resolves the upstream to
   // 127.0.0.1:<dashboard port> rather than a container IP.
   const project = {
-    id: "proj-openship",
-    slug: "openship",
+    id: "proj-vibrail",
+    slug: "vibrail",
     port: 3001,
     cloudWorkspaceId: null,
     activeDeploymentId: "dep-1",

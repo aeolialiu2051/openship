@@ -14,7 +14,7 @@ export default defineConfig({
   clean: true,
   define: { __CLI_VERSION__: JSON.stringify(version) },
   // Bundle the workspace packages (@repo/core, @repo/onboarding) INTO the
-  // output. They're never published to npm, so an npx-installed `openship`
+  // output. They're never published to npm, so an npx-installed `vibrail`
   // must carry them inline — otherwise it fails with ERR_MODULE_NOT_FOUND.
   // Runtime deps (commander, chalk, ora, open) stay external and come from
   // the published package's own dependencies.

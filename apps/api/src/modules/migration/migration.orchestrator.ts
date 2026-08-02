@@ -1,7 +1,7 @@
 /**
  * MigrationOrchestrator — drives a full Docker migration:
  *
- *   adopt  → create the Openship `services` project from the selected stack
+ *   adopt  → create the Vibrail `services` project from the selected stack
  *   moving_data → quiesce (stop) the originals on the source; for a
  *                 cross-server move, stream each named volume AND app-data bind
  *                 mount A→B directly
@@ -16,12 +16,12 @@
  *                 live standby. Same-server keep leaves them stopped (the target
  *                 now holds their ports/volumes).
  *   cutover → stop + remove the originals on the source (by scanned container
- *             id — they carry no openship.* labels). Never removes A volumes.
+ *             id — they carry no vibrail.* labels). Never removes A volumes.
  *   rolled_back → any pre-cutover failure: tear down the target deployment and
  *                 restart the originals on the source. Never destroys A.
  *
  * A dedicated FSM (not the backup/restore orchestrators) because the source has
- * no Openship deployment to resolve an executor from, the target is
+ * no Vibrail deployment to resolve an executor from, the target is
  * container-less pre-deploy, and we require no configured backup destination.
  */
 
@@ -62,7 +62,7 @@ import { migrationRunBus } from "./migration.sse";
 
 /** Per-service volume ownership for a same-server migration.
  *  "reuse" (default) = seize the original volume in place (zero copy).
- *  "copy" = duplicate data into a new openship-<slug>-<name> volume, leaving the
+ *  "copy" = duplicate data into a new vibrail-<slug>-<name> volume, leaving the
  *  original untouched. Cross-server ignores this (it always copies A→B, keeps A). */
 export type VolumeStrategy = "reuse" | "copy";
 
@@ -119,7 +119,7 @@ export interface StartMigrationInput {
    *  service that serves a PATH of a shared domain (path fan-out). */
   routesByServiceName?: Record<string, MigrationRouteSpec>;
   /** Adopt in flat-docker mode — MUST match the scan the user selected from, or
-   *  openship-labeled containers get treated as managed and "none are found". */
+   *  vibrail-labeled containers get treated as managed and "none are found". */
   flatDocker?: boolean;
 }
 
@@ -760,7 +760,7 @@ class MigrationOrchestratorImpl {
   /** Stop originals on the source; then move volume data:
    *   - cross-server: stream every named/app-data source A→B (bare ids match).
    *   - same-server "copy" services: stream each NAMED volume from its original
-   *     bare name into the scoped openship-<slug>-<name> volume on the SAME
+   *     bare name into the scoped vibrail-<slug>-<name> volume on the SAME
    *     daemon, so the deploy mounts the copy and the original is left intact.
    *   - same-server "reuse" services: nothing — the deploy reuses the volume in place.
    *  Returns total bytes written. */
@@ -920,7 +920,7 @@ class MigrationOrchestratorImpl {
             namespaceVolumes: svc.namespaceVolumes,
           };
           // Scoped dst handle for a "clone"-resolved volume (target volume →
-          // openship-<slug>-<name>); mirrors the same-server copy branch. Lazy —
+          // vibrail-<slug>-<name>); mirrors the same-server copy branch. Lazy —
           // only computed when this service actually has a clone volume.
           const scopedHandle: ServiceHandle = { ...handle, namespaceVolumes: true };
           let scopedSrcs: Awaited<ReturnType<typeof execB.listSources>> | null = null;
@@ -1319,7 +1319,7 @@ class MigrationOrchestratorImpl {
    * identity key, its live state, and any duplicate that also claims it.
    *
    * This is the migration's own read-back. A same-server "reuse" run adopts
-   * containers whose `openship.*` labels still name the PREVIOUS project (labels
+   * containers whose `vibrail.*` labels still name the PREVIOUS project (labels
    * are immutable in place), so "did every service actually land?" can't be
    * answered from the DB — only by matching the host. Best-effort, log-only.
    */
@@ -1564,7 +1564,7 @@ class MigrationOrchestratorImpl {
   }
 
   /** Destroy the originals on the source (by scanned container id — they carry
-   *  no openship.* labels). Never removes the source's volumes. */
+   *  no vibrail.* labels). Never removes the source's volumes. */
   private async cutover(
     sourceServerId: string,
     organizationId: string,
@@ -1623,7 +1623,7 @@ class MigrationOrchestratorImpl {
     organizationId: string,
     runTag?: string,
   ): Promise<void> {
-    const pattern = runTag ? `openship-migration-${runTag}` : "openship-migration-";
+    const pattern = runTag ? `vibrail-migration-${runTag}` : "vibrail-migration-";
     const serverIds = [...new Set([sourceServerId, targetServerId].filter(Boolean))] as string[];
     await Promise.all(
       serverIds.map(async (sid) => {

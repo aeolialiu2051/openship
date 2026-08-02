@@ -8,7 +8,7 @@ moving toward.
 
 ## TL;DR
 
-- **Three actors:** openship (admin UI + provisioning), iRedMail engine
+- **Three actors:** vibrail (admin UI + provisioning), iRedMail engine
   (Postfix + Dovecot + Amavis + iRedAPD + fail2ban - the actual mail server),
   and Zero (the user-facing webmail).
 - **One Postgres host, four databases on it.** Of those four, **we own only one**
@@ -23,8 +23,8 @@ moving toward.
   `vmail` DB we provisioned via `db-email` instead of creating one itself.
 - **Zero is the only UI.** iRedAdmin / SOGo / Roundcube / iRedMail's nginx
   are deleted.
-- **openship Postgres stays separate** - never linked via FK to the mail DBs.
-  openship calls the email server's admin API over HTTP for any mail operation.
+- **vibrail Postgres stays separate** - never linked via FK to the mail DBs.
+  vibrail calls the email server's admin API over HTTP for any mail operation.
 
 ---
 
@@ -34,11 +34,11 @@ There are three identity layers and they never collapse into one row.
 
 | Layer | Lives in | Who | Used for |
 |---|---|---|---|
-| **openship admin** | openship DB `public.user` | Human who logs into the openship dashboard. **Super-admin only.** | Manages mail accounts via UI / API. |
-| **mail account** | mail-server DB `vmail.mailbox` | Email user (`alice@acme.com`). Created BY an openship admin; never signs up themselves. | Authenticates to Postfix/Dovecot. Logs into Zero. |
+| **vibrail admin** | vibrail DB `public.user` | Human who logs into the vibrail dashboard. **Super-admin only.** | Manages mail accounts via UI / API. |
+| **mail account** | mail-server DB `vmail.mailbox` | Email user (`alice@acme.com`). Created BY a Vibrail admin; never signs up themselves. | Authenticates to Postfix/Dovecot. Logs into Zero. |
 | **mail-UI state** | mail-server DB `mail_app.user_settings` (and similar) | Same person as `vmail.mailbox`. | Hotkeys, signatures, AI summaries, etc. - Zero-only concerns. |
 
-The openship admin does **not** appear in `vmail.mailbox`. Admins manage; they
+The vibrail admin does **not** appear in `vmail.mailbox`. Admins manage; they
 don't receive mail through this system unless an admin creates a mailbox for
 themselves separately.
 
@@ -47,7 +47,7 @@ themselves separately.
 ## Database topology - one host, four DBs
 
 ```
-openship Postgres ($DATABASE_URL)                 ← unrelated to mail
+vibrail Postgres ($DATABASE_URL)                 ← unrelated to mail
 └── schema "public"
     • user (admins)
     • project, deployment, service, …
@@ -72,9 +72,9 @@ Mail-server Postgres (the email VPS, one instance)
 **Why split this way?**
 
 The `vmail` schema is OUR product surface - it carries the mailbox accounts
-that openship admins create and that Zero authenticates against. Owning it in
+that vibrail admins create and that Zero authenticates against. Owning it in
 Drizzle gives us type safety, migrations on our terms, and the freedom to add
-columns (e.g., `created_by_openship_user_id` for auditing) without fighting
+columns (e.g., `created_by_vibrail_user_id` for auditing) without fighting
 upstream.
 
 The other three DBs belong to their upstream projects. Their schemas evolve
@@ -84,8 +84,8 @@ tracking those changes forever, for zero benefit - we don't need to read
 amavisd's `msgs` table from application code; amavisd does. Let the daemons
 own their data.
 
-If we ever need to surface, e.g., spam quarantine in the openship dashboard,
-we open a separate read-only connection from openship's mail controller to
+If we ever need to surface, e.g., spam quarantine in the vibrail dashboard,
+we open a separate read-only connection from vibrail's mail controller to
 `$AMAVIS_DATABASE_URL` and query directly. Schema ownership stays clean.
 
 ---
@@ -93,9 +93,9 @@ we open a separate read-only connection from openship's mail controller to
 ## How the actors connect
 
 ```
-┌─ openship dashboard (admin UI page)
+┌─ vibrail dashboard (admin UI page)
 │   "create mailbox alice@acme.com"
-└─ openship API handles it locally - writes vmail.mailbox via @repo/db-email.
+└─ vibrail API handles it locally - writes vmail.mailbox via @repo/db-email.
    NO outbound HTTPS call to the mail VPS. No public admin endpoint.
                                 │
                                 ▼
@@ -112,7 +112,7 @@ we open a separate read-only connection from openship's mail controller to
 │  │           │                                                    │
 │  │           ▼                                                    │
 │  ├─ Postgres host (4 DBs)                                         │
-│  │     vmail    ◀── openship API (admin writes),                  │
+│  │     vmail    ◀── vibrail API (admin writes),                  │
 │  │                  Zero server (user reads),                     │
 │  │                  Postfix + Dovecot (daemon reads)              │
 │  │     amavisd  ◀── amavisd (engine)                              │
@@ -128,17 +128,17 @@ we open a separate read-only connection from openship's mail controller to
 └───────────────────────────────────────────────────────────────────┘
                                 ▲
                                 │
-                  openship routing layer (front)
+                  vibrail routing layer (front)
                   • mail.example.com         → Zero client
                   • api.mail.example.com     → Zero server (user API only)
-                  • autodiscover.example.com → openship controller
+                  • autodiscover.example.com → vibrail controller
                   • smtp/imap/pop3 raw TCP   → directly to VPS, no proxy
-                  (no email-admin subdomain - admin is openship-internal)
+                  (no email-admin subdomain - admin is vibrail-internal)
 ```
 
-The two halves of the system (openship side, email side) **never link via FK.**
+The two halves of the system (vibrail side, email side) **never link via FK.**
 
-**Admin operations are openship-internal.** openship's API has its own Drizzle
+**Admin operations are vibrail-internal.** vibrail's API has its own Drizzle
 connection to the mail-server Postgres (via `@repo/db-email`) and writes
 `vmail.*` rows directly when an admin creates a mailbox / domain / alias.
 There is no public admin endpoint on the mail VPS - no `email-admin.<domain>`
@@ -210,10 +210,10 @@ That's it. No new TS generator. iRedMail keeps doing what it does well.
 
 | Removed | Why |
 |---|---|
-| `conf/iredadmin/`, `functions/iredadmin.sh`, samples for iRedAdmin | Openship dashboard replaces this. |
+| `conf/iredadmin/`, `functions/iredadmin.sh`, samples for iRedAdmin | Vibrail dashboard replaces this. |
 | `conf/sogo/`, `functions/sogo.sh`, `samples/sogo/` | Zero is the UI; we don't need groupware. |
 | `conf/roundcube/`, `functions/roundcubemail.sh`, `samples/roundcubemail/` | Zero is the UI. |
-| `conf/nginx/`, `functions/nginx.sh`, `samples/nginx/` | openship's routing layer handles web. |
+| `conf/nginx/`, `functions/nginx.sh`, `samples/nginx/` | vibrail's routing layer handles web. |
 | `conf/php/`, `functions/php.sh` | PHP runtime was only for the dropped web stack. |
 | `conf/openldap/`, `functions/openldap.sh`, `functions/ldap_server.sh`, `samples/openldap/` | Postgres-only. |
 | `conf/mysql/`, `functions/mysql.sh`, `samples/mysql/` | Postgres-only. |
@@ -247,9 +247,9 @@ That's it. No new TS generator. iRedMail keeps doing what it does well.
 ### Creating a mailbox
 
 ```
-1. openship admin opens "Email > Users" page in dashboard.
-2. Clicks "New mailbox" → form posts to openship API.
-3. openship API uses @repo/db-email's Drizzle client to:
+1. vibrail admin opens "Email > Users" page in dashboard.
+2. Clicks "New mailbox" → form posts to vibrail API.
+3. vibrail API uses @repo/db-email's Drizzle client to:
      INSERT INTO vmail.mailbox (...)
    plus triggers Maildir creation on the mail VPS via SSH.
 4. Next time Postfix receives mail for that address, it queries
@@ -257,8 +257,8 @@ That's it. No new TS generator. iRedMail keeps doing what it does well.
    finds the row, delivers.
 ```
 
-No daemon restart. No iRedAdmin. No HTTPS hop from openship to the mail VPS.
-openship and the mail VPS share a Postgres - openship writes, daemons read.
+No daemon restart. No iRedAdmin. No HTTPS hop from vibrail to the mail VPS.
+vibrail and the mail VPS share a Postgres - vibrail writes, daemons read.
 
 ### User opens their inbox
 
@@ -279,8 +279,8 @@ No Gmail. No OAuth. No `mail0_account` row. The IMAP+password IS the auth.
 ### Deleting a mailbox
 
 ```
-1. openship admin → "Delete" on the user.
-2. openship API runs (via @repo/db-email):
+1. vibrail admin → "Delete" on the user.
+2. vibrail API runs (via @repo/db-email):
    a. UPDATE vmail.mailbox SET active=0 (Postfix stops delivering).
    b. INSERT INTO vmail.deleted_mailboxes (admin, username, ...)
       with delete_date in the future.
@@ -295,18 +295,18 @@ This is iRedMail's existing two-phase delete pattern. We don't reinvent it.
 
 ## Routing
 
-iRedMail's nginx is replaced by openship's existing routing layer:
+iRedMail's nginx is replaced by vibrail's existing routing layer:
 
 | Public hostname | Routes to | What it serves |
 |---|---|---|
 | `mail.<domain>` | Zero client (Cloudflare Workers or Node) | Web inbox UI |
 | `api.mail.<domain>` | Zero server | tRPC for Zero client (user-facing only) |
-| `autodiscover.<domain>` | openship controller | Outlook autodiscover XML |
+| `autodiscover.<domain>` | vibrail controller | Outlook autodiscover XML |
 | `mailservice.<domain>` MX record | The mail VPS's public IP | SMTP, port 25 |
 | Direct ports `25 / 465 / 587 / 110 / 143 / 993 / 995 / 4190` | The mail VPS directly (no proxy) | Postfix + Dovecot |
 
 There is intentionally **no public admin subdomain**. Admin operations run
-inside openship's own API; openship's process holds the Drizzle credential
+inside vibrail's own API; vibrail's process holds the Drizzle credential
 for the mail-server Postgres and writes there directly. No HTTP admin
 surface to firewall, no token to rotate, no public attack surface for
 mailbox provisioning.
@@ -337,7 +337,7 @@ apps/email/
 └── client/                           ← Zero web UI
 
 packages/
-├── db/                               ← openship's existing schema (untouched)
+├── db/                               ← vibrail's existing schema (untouched)
 └── db-email/                         ← DONE
     ├── src/
     │   ├── schema/
@@ -363,8 +363,8 @@ packages/
 | **2. Engine slim-down** | Delete iRedAdmin / SOGo / Roundcube / nginx / MySQL / OpenLDAP from `engine/`. Set `conf/global` flags so the installer skips them. | `iRedMail.sh` runs without installing the dropped components. |
 | **3. Engine - vmail-DB reuse** | Patch `engine/functions/postgresql.sh` so it detects an existing `vmail` DB and skips its CREATE + schema-load. | Running the installer against a DB pre-populated by `db-email` migrations doesn't error or overwrite. |
 | **4. Zero server: cut Gmail/Outlook + add IMAP driver** | Delete the OAuth tables / drivers. Add `src/lib/driver/imap.ts`. Point Zero at `packages/db-email`. | Zero client logs in against a manually-seeded `vmail.mailbox`. |
-| **5. Openship admin module** | New `apps/api/src/modules/mail-server/admin/` - controllers + services that write to `vmail.*` via `@repo/db-email`. No HTTP roundtrip to the mail VPS. | curl from a test creates a mailbox; it appears in `vmail.mailbox` and Postfix delivers to it. |
-| **6. Openship dashboard page** | New "Email > Users" page in openship dashboard that calls the openship admin module. | Visual flow: admin clicks "create user" → row exists in mail-server DB. |
+| **5. Vibrail admin module** | New `apps/api/src/modules/mail-server/admin/` - controllers + services that write to `vmail.*` via `@repo/db-email`. No HTTP roundtrip to the mail VPS. | curl from a test creates a mailbox; it appears in `vmail.mailbox` and Postfix delivers to it. |
+| **6. Vibrail dashboard page** | New "Email > Users" page in vibrail dashboard that calls the vibrail admin module. | Visual flow: admin clicks "create user" → row exists in mail-server DB. |
 | **7. Routing** | DONE - `packages/core/src/mail-server/routing` + `apps/api/src/modules/mail-server/routing`. | A user can log into Zero from a fresh browser, Outlook autodiscover works. |
 
 This document covers Phase 0. Phase 1 has shipped (db-email).
@@ -377,9 +377,9 @@ This document covers Phase 0. Phase 1 has shipped (db-email).
   shell-based installer is the orchestrator and it works.
 - A Drizzle schema for amavisd / iredapd / fail2ban. Their upstreams own
   those.
-- An iRedAdmin replacement that's separate from openship's dashboard. The
-  openship "Email" page IS the admin UI.
+- An iRedAdmin replacement that's separate from vibrail's dashboard. The
+  vibrail "Email" page IS the admin UI.
 - A user-signup flow for mail accounts. Accounts are admin-provisioned only.
-- A shared user table between openship and email. They're separate
-  identities; openship admins create mailboxes for OTHER people (or
+- A shared user table between vibrail and email. They're separate
+  identities; vibrail admins create mailboxes for OTHER people (or
   themselves separately).

@@ -1,4 +1,4 @@
-<h1 align="center">Openship</h1>
+<h1 align="center">Vibrail</h1>
 
 <p align="center">
   Open-source, self-hostable deployment platform with built-in CI/CD.<br>
@@ -12,9 +12,9 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/openship"><img src="https://img.shields.io/npm/v/openship?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://openship.io"><img src="https://img.shields.io/badge/website-openship.io-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -38,23 +38,23 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/screen.png" alt="Openship dashboard" width="800" />
+  <img src="docs/screenshots/screen.png" alt="Vibrail dashboard" width="800" />
 </p>
 
 ---
 
 ## Quick Start
 
-There's one decision to make first: **how you run Openship itself** (the control plane). Everything else is the same afterwards.
+There's one decision to make first: **how you run Vibrail itself** (the control plane). Everything else is the same afterwards.
 
-| If you're… | Run Openship as | Where your apps run |
+| If you're… | Run Vibrail as | Where your apps run |
 |---|---|---|
-| **Solo, one machine, no ops** | **Desktop app** | A server you connect over SSH, or Openship Cloud |
-| **A team — or you want push-to-deploy / to host apps on your own box** | **Self-hosted server** (`openship up`) | In Docker on that box or another connected server, or in Cloud |
-| **Not interested in running anything** | **Openship Cloud** | Managed sandboxes, zero setup |
+| **Solo, one machine, no ops** | **Desktop app** | A server you connect over SSH, or Vibrail Cloud |
+| **A team — or you want push-to-deploy / to host apps on your own box** | **Self-hosted server** (`vibrail up`) | In Docker on that box or another connected server, or in Cloud |
+| **Not interested in running anything** | **Vibrail Cloud** | Managed sandboxes, zero setup |
 
 > [!TIP]
-> **Solo? Use the desktop app.** It runs Openship's control plane on your own machine *only while the app is open* — nothing is left running on an always-on server, nothing is exposed publicly. You only need an always-on server install once you want **push-to-deploy (CI/CD)**, **team access**, or to **host apps on that box** — the things that need a public, always-on endpoint.
+> **Solo? Use the desktop app.** It runs Vibrail's control plane on your own machine *only while the app is open* — nothing is left running on an always-on server, nothing is exposed publicly. You only need an always-on server install once you want **push-to-deploy (CI/CD)**, **team access**, or to **host apps on that box** — the things that need a public, always-on endpoint.
 
 ### Solo — desktop app
 
@@ -62,54 +62,54 @@ The control plane runs locally and drives your servers over SSH. No login, no te
 
 | Platform | Download |
 |---|---|
-| **macOS** (Apple Silicon) | [Openship-arm64.dmg](https://github.com/oblien/openship/releases/latest/download/Openship-arm64.dmg) |
-| **macOS** (Intel) | [Openship-x64.dmg](https://github.com/oblien/openship/releases/latest/download/Openship-x64.dmg) |
-| **Windows** | [Openship-win32-x64.zip](https://github.com/oblien/openship/releases/latest/download/Openship-win32-x64.zip) |
-| **Linux** | [Openship.AppImage](https://github.com/oblien/openship/releases/latest/download/Openship.AppImage) |
+| **macOS** (Apple Silicon) | [Vibrail-arm64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-arm64.dmg) |
+| **macOS** (Intel) | [Vibrail-x64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-x64.dmg) |
+| **Windows** | [Vibrail-win32-x64.zip](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-win32-x64.zip) |
+| **Linux** | [Vibrail.AppImage](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail.AppImage) |
 
-Linux: `chmod +x Openship.AppImage && ./Openship.AppImage`. Already have the CLI? `openship install` fetches and launches it. Links always point at the newest release.
+Linux: `chmod +x Vibrail.AppImage && ./Vibrail.AppImage`. Already have the CLI? `vibrail install` fetches and launches it. Links always point at the newest release.
 
-From the desktop app you connect a server (SSH) or Openship Cloud and deploy to it — the app itself doesn't host public apps on your laptop.
+From the desktop app you connect a server (SSH) or Vibrail Cloud and deploy to it — the app itself doesn't host public apps on your laptop.
 
 ### Team / always-on — self-hosted server
 
-Install the CLI (it bundles the API + dashboard), then run **`openship`** — an interactive wizard creates the first admin, wires your domain, and installs Openship as a boot service. Run it again anytime to manage the instance.
+Install the CLI (it bundles the API + dashboard), then run **`vibrail`** — an interactive wizard creates the first admin, wires your domain, and installs Vibrail as a boot service. Run it again anytime to manage the instance.
 
 ```bash
-curl -fsSL https://get.openship.io | sh          # install  (or: npm i -g openship)
-openship                                          # guided setup, then control panel
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh          # install  (or: npm i -g vibrail)
+vibrail                                          # guided setup, then control panel
 ```
 
-For CI / headless boxes, skip the wizard and drive `openship up` directly:
+For CI / headless boxes, skip the wizard and drive `vibrail up` directly:
 
 ```bash
-openship up                                       # install + start as a background service (boots + auto-restarts)
-openship up --public-url https://openship.example.com   # + serve the dashboard on your domain (edge + TLS handled)
+vibrail up                                       # install + start as a background service (boots + auto-restarts)
+vibrail up --public-url https://vibrail.example.com   # + serve the dashboard on your domain (edge + TLS handled)
 ```
 
-**`openship up` picks how it runs for you:**
+**`vibrail up` picks how it runs for you:**
 
 - **On Linux with Docker → Compose mode** (the default). Brings up the full stack — Postgres, Redis, API, dashboard, and a containerized **Traefik edge on :80/:443** — from published images. This is the flavor that **hosts your deployed apps on the same box**, with automatic domains + Let's Encrypt TLS. Force it with `--compose`.
 - **Everywhere else → bare mode** (macOS, Windows, or Linux without Docker). A single lightweight process with an embedded database — an always-on control plane that **deploys apps out to a server (SSH) or Cloud**, like the desktop app but always on and login-required. Force it with `--bare`.
 
-A self-hosted instance **always requires login** (the admin you create in setup). `openship open` opens the dashboard · `openship stop` stops it · `openship update` upgrades · `openship up --foreground` runs attached.
+A self-hosted instance **always requires login** (the admin you create in setup). `vibrail open` opens the dashboard · `vibrail stop` stops it · `vibrail update` upgrades · `vibrail up --foreground` runs attached.
 
 > **Preview an unreleased build (dev).** To run the CLI built straight from source — a branch, tag, or `main` ahead of the next release — install the from-source build:
 >
 > ```bash
-> curl -fsSL https://get.openship.io/dev | sh     # or: OPENSHIP_REF=my-branch curl ... | sh
-> openship-dev                                     # same CLI, built from source
-> openship-dev update                              # pull latest source + rebuild (no release needed)
+> curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh | sh     # or: VIBRAIL_REF=my-branch curl ... | sh
+> vibrail-dev                                     # same CLI, built from source
+> vibrail-dev update                              # pull latest source + rebuild (no release needed)
 > ```
 >
-> It installs as a **separate `openship-dev`** command with its own isolated home (`~/.openship-dev`) and boot service, so your production `openship` and its data are never touched. Needs Bun + git; it's an unverified dev build (the dashboard compile wants real RAM/CPU) — not a production path.
+> It installs as a **separate `vibrail-dev`** command with its own isolated home (`~/.vibrail-dev`) and boot service, so your production `vibrail` and its data are never touched. Needs Bun + git; it's an unverified dev build (the dashboard compile wants real RAM/CPU) — not a production path.
 
 **Deploy a project:**
 
 ```bash
 cd your-project
-openship init            # link this directory to a project
-openship deploy
+vibrail init            # link this directory to a project
+vibrail deploy
 ```
 
 Full server guide + complete CLI reference: **[docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)**.
@@ -117,19 +117,19 @@ Full server guide + complete CLI reference: **[docs.vibrail.warpgateapi.com](htt
 <details>
 <summary>Self-host with raw Docker Compose (no CLI)</summary>
 
-The self-hosted stack lives in **`docker/docker-compose.yml`** and **pulls** published images from GitHub Container Registry (`ghcr.io/oblien/*`) — no build tooling, no monorepo compile. Run it from the repo root:
+The self-hosted stack lives in **`docker/docker-compose.yml`** and **pulls** published images from GitHub Container Registry (`ghcr.io/aeolialiu2051/*`) — no build tooling, no monorepo compile. Run it from the repo root:
 
 ```bash
-git clone https://github.com/oblien/openship.git && cd openship
+git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
 cp .env.example .env          # then edit
 docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
-The control-plane stack is **postgres + redis + api + dashboard**. The API mounts the host Docker socket so it can build and run application workloads. When the first public Docker route is deployed, Openship reuses a compatible Traefik instance or creates the shared `vibrail-edge` instance; application containers publish their routes through Docker labels. Run the socket-enabled stack only on a trusted host.
+The control-plane stack is **postgres + redis + api + dashboard**. The API mounts the host Docker socket so it can build and run application workloads. When the first public Docker route is deployed, Vibrail reuses a compatible Traefik instance or creates the shared `vibrail-edge` instance; application containers publish their routes through Docker labels. Run the socket-enabled stack only on a trusted host.
 
-**Upgrade:** pin `OPENSHIP_VERSION` in `.env` for reproducible pulls, then `docker compose --env-file .env -f docker/docker-compose.yml pull && … up -d` (or just `openship update`). **Build from source instead:** add `-f docker/docker-compose.build.yml … up -d --build`.
+**Upgrade:** pin `VIBRAIL_VERSION` in `.env` for reproducible pulls, then `docker compose --env-file .env -f docker/docker-compose.yml pull && … up -d` (or just `vibrail update`). **Build from source instead:** add `-f docker/docker-compose.build.yml … up -d --build`.
 
-> The **root** `docker-compose.yml` is a different file: it's the SaaS / from-source **control plane** (builds from source, ships the marketing site, no edge/socket). It does **not** self-host your apps — use `docker/docker-compose.yml` above or `openship up`.
+> The **root** `docker-compose.yml` is a different file: it's the SaaS / from-source **control plane** (builds from source, ships the marketing site, no edge/socket). It does **not** self-host your apps — use `docker/docker-compose.yml` above or `vibrail up`.
 
 </details>
 
@@ -137,9 +137,9 @@ The control-plane stack is **postgres + redis + api + dashboard**. The API mount
 
 ## How It Works
 
-Point Openship at a source — a **GitHub repo**, a **local folder**, or a **prebuilt artifact** — and it runs one pipeline end to end:
+Point Vibrail at a source — a **GitHub repo**, a **local folder**, or a **prebuilt artifact** — and it runs one pipeline end to end:
 
-1. **Detect.** It reads your `package.json`, framework config, lockfiles, and any `docker-compose.yml` / `openship.json` to work out the stack, package manager, build/start commands, and port. Zero config files required; an `openship.json` overrides the guesses if you want control.
+1. **Detect.** It reads your `package.json`, framework config, lockfiles, and any `docker-compose.yml` / `vibrail.json` to work out the stack, package manager, build/start commands, and port. Zero config files required; a `vibrail.json` overrides the guesses if you want control.
 2. **Build.** On the target server or locally on the orchestrator, into a Docker image (using your Dockerfile/Compose file or an automatically generated Dockerfile). The resolved config is frozen into a snapshot, so redeploys and rollbacks re-run *exactly* what shipped.
 3. **Run.** As a container published on loopback only — never a public port. Cloud deployments run in managed workspaces.
 4. **Route + secure.** The Traefik edge writes a reverse-proxy vhost to your domain and issues a Let's Encrypt certificate (HTTP-01). Because routing and TLS happen *after* the app is up, a DNS or cert hiccup surfaces as "action required" — it never fails the deploy or takes your app down.
@@ -184,7 +184,7 @@ An **MCP** endpoint (for AI agents) and a **REST API** round it out for automati
 
 ## Deploy Anywhere
 
-- **Openship Cloud** — managed, auto-scaling, zero setup
+- **Vibrail Cloud** — managed, auto-scaling, zero setup
 - **Any VPS** — Hetzner, DigitalOcean, Linode, OVH, and the rest
 - **Dedicated servers** — bare metal, colo, homelab
 - **Multi-server** — spread workloads across machines
@@ -220,10 +220,10 @@ bun scripts/release.ts 0.2.0        # explicit version
 Pushing the tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
 - builds the **macOS / Windows / Linux installers** and the server tarballs (with SHA-256 sidecars),
-- **publishes the `openship` CLI to npm** — via npm [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token), and
+- **publishes the `vibrail` CLI to npm** — via npm [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token), and
 - creates the **GitHub Release** with the built assets (notes come from the tag).
 
-Official Docker images (`ghcr.io/oblien/openship-{api,dashboard,edge}`) publish from
+Official Docker images (`ghcr.io/aeolialiu2051/vibrail-{api,dashboard,edge}`) publish from
 [`.github/workflows/docker-images.yml`](.github/workflows/docker-images.yml) — on a version tag, or on demand with `bun scripts/release.ts docker`.
 
 To flag a release as **critical** (or add recommended/info advisories) in the
@@ -238,7 +238,7 @@ live in [`CHANGELOG.md`](CHANGELOG.md).
 Found a vulnerability? We welcome your report — please disclose it **privately**,
 never in a public issue, PR, or discussion.
 
-- **Report it here (preferred):** [Report a vulnerability](https://github.com/oblien/openship/security/advisories/new) — a private GitHub advisory, visible only to you and the maintainers.
+- **Report it here (preferred):** [Report a vulnerability](https://github.com/aeolialiu2051/vibrail/security/advisories/new) — a private GitHub advisory, visible only to you and the maintainers.
 - Scope, what to include, and our response/disclosure process: [SECURITY.md](SECURITY.md).
 
 Good-faith security research is **authorized** under our
@@ -249,19 +249,19 @@ first reports.
 ## ⭐ Star History
 
 <p align="center">
-  <a href="https://star-history.com/#oblien/openship&Date">
+  <a href="https://star-history.com/#aeolialiu2051/vibrail&Date">
     <picture>
       <source
         media="(prefers-color-scheme: dark)"
-        srcset="https://api.star-history.com/svg?repos=oblien/openship&type=Date&theme=dark"
+        srcset="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date&theme=dark"
       />
       <source
         media="(prefers-color-scheme: light)"
-        srcset="https://api.star-history.com/svg?repos=oblien/openship&type=Date"
+        srcset="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date"
       />
       <img
         alt="Star History Chart"
-        src="https://api.star-history.com/svg?repos=oblien/openship&type=Date"
+        src="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date"
       />
     </picture>
   </a>
@@ -270,7 +270,7 @@ first reports.
 ---
 ## License
 
-Openship is **open-source** software, licensed under the [Apache License 2.0](LICENSE).
+Vibrail is **open-source** software, licensed under the [Apache License 2.0](LICENSE).
 
 You may use, run, modify, self-host, and distribute it — including in commercial
 and closed-source products — under the terms of the Apache 2.0 license. See

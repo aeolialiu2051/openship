@@ -5,16 +5,16 @@ description: Mint, list, and revoke personal access tokens, and manage the MCP c
 
 import { TypeTable } from 'fumadocs-ui/components/type-table';
 
-The Tokens API manages the credentials that authenticate you to Openship: **personal access tokens** (PATs)
+The Tokens API manages the credentials that authenticate you to Vibrail: **personal access tokens** (PATs)
 for the CLI and direct API calls, and the **MCP client** bindings created when an AI assistant connects over
 OAuth. In the dashboard this is the **Settings → Access** area; from the terminal it's the
-[`openship token`](/docs/cli/access) command. Every route is self-scoped — you only ever see and manage your
+[`vibrail token`](/docs/cli/access) command. Every route is self-scoped — you only ever see and manage your
 own tokens and clients.
 
 <Callout title="Base path & auth">
 All paths are relative to your instance, under **`/api`** — e.g. `https://your-host/api/tokens`.
 Send a personal access token as a bearer header (`Authorization: Bearer <token>`), created with
-[`openship token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
+[`vibrail token create`](/docs/cli/access). The dashboard uses your session cookie instead. See the
 [API overview](/docs/api) and the [auth model](/docs/security/auth) for details.
 </Callout>
 
@@ -62,18 +62,18 @@ Each entry in `grants` is a **TokenGrant**:
 
 ```bash
 curl -X POST https://your-host/api/tokens \
-  -H "Authorization: Bearer $OPENSHIP_TOKEN" \
+  -H "Authorization: Bearer $VIBRAIL_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"name":"deploy-bot","readOnly":false,"grants":[{"resourceType":"project","resourceId":"proj_123","permissions":["read","write"]}]}'
 ```
 
 ```bash
 # Same thing from the CLI:
-openship token create "deploy-bot" --grant project:proj_123:read,write
+vibrail token create "deploy-bot" --grant project:proj_123:read,write
 ```
 
 <Callout title="Copy the secret immediately" type="warn">
-The response's `data.token` (an `opsh_pat_…` string) is shown once and never again. `GET /api/tokens` only
+The response's `data.token` (an `vibrail_pat_…` string) is shown once and never again. `GET /api/tokens` only
 returns the prefix. If you lose it, revoke the token and mint a new one.
 </Callout>
 
@@ -107,7 +107,7 @@ GET /api/tokens
 ```
 
 ```bash
-openship token list
+vibrail token list
 ```
 
 ## Revoke a token
@@ -117,7 +117,7 @@ DELETE /api/tokens/:id
 ```
 
 ```bash
-openship token revoke tok_abc123
+vibrail token revoke tok_abc123
 ```
 
 <Callout title="404 — token not found" type="error">
@@ -127,8 +127,8 @@ to get valid IDs.
 
 ## MCP clients
 
-When an AI assistant connects to Openship over OAuth, the consent page records what that client is allowed to
-do, then Openship issues it scoped access tokens that run through the **same** scoped-principal path as a PAT.
+When an AI assistant connects to Vibrail over OAuth, the consent page records what that client is allowed to
+do, then Vibrail issues it scoped access tokens that run through the **same** scoped-principal path as a PAT.
 These routes back that flow and the **Settings → Access → Connected clients** list.
 
 ### Authorize a client
@@ -166,7 +166,7 @@ Returns one entry per OAuth binding with `clientId`, `name`, `organizationId`, `
 `readOnly`, `scoped`, `grantCount`, `authorizedAt`, and `lastUsedAt`.
 
 ```bash
-openship api /tokens/mcp-clients
+vibrail api /tokens/mcp-clients
 ```
 
 ### Disconnect a client
@@ -180,5 +180,5 @@ DELETE /api/tokens/mcp-clients/:clientId
 ```
 
 ```bash
-openship api /tokens/mcp-clients/<clientId> -X DELETE
+vibrail api /tokens/mcp-clients/<clientId> -X DELETE
 ```

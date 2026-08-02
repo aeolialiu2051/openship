@@ -35,7 +35,7 @@ import {
   TunnelProvisionFailedError,
   TunnelMustBeCloudConnectedError,
 } from "./migrate-to-tunnel.service";
-import { OpenshipReleaseDistMissingError } from "./openship-dist";
+import { VibrailReleaseDistMissingError } from "./vibrail-dist";
 import {
   MigrationAlreadyInProgressError,
   MigrationLockAcquireError,
@@ -93,7 +93,7 @@ export async function preflight(c: Context) {
  *
  * Body: { serverId, domain }
  *
- * Runs preflight, ensures the openship project row, dumps + restores
+ * Runs preflight, ensures the vibrail project row, dumps + restores
  * the DB to the remote, flips teamMode. Synchronous (not SSE) for v1;
  * the heavy lifting (deploy pipeline) is driven by the dashboard as a
  * follow-up step using the standard /api/deployments/:id/build SSE.
@@ -138,7 +138,7 @@ export async function start(c: Context) {
     if (err instanceof MigrationPreflightFailedError) {
       return c.json({ error: err.message, checks: err.checks }, 412);
     }
-    if (err instanceof OpenshipReleaseDistMissingError) {
+    if (err instanceof VibrailReleaseDistMissingError) {
       return c.json({ error: err.message, code: err.code }, 412);
     }
     if (err instanceof MigrationAlreadyInProgressError) {
@@ -156,12 +156,12 @@ export async function start(c: Context) {
 /**
  * POST /api/system/migration/start-cloud
  *
- * Path B — migrate to Openship Cloud. Body: { allowNonEmptyTarget? }.
+ * Path B — migrate to Vibrail Cloud. Body: { allowNonEmptyTarget? }.
  *
- * Dumps the local DB, uploads it to api.openship.io/api/cloud/ingest-subgraph
+ * Dumps the local DB, uploads it to vibrail.warpgateapi.com/api/cloud/ingest-subgraph
  * (authenticated as the org owner via the stored cloud session token),
  * flips local teamMode to "cloud_hosted". Dashboard launcher then
- * points at app.openship.io.
+ * points at vibrail.warpgateapi.com.
  */
 export async function startCloud(c: Context) {
   const ctx = getRequestContext(c);

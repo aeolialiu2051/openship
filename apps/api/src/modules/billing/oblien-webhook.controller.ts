@@ -154,7 +154,7 @@ async function notifyCreditsLow(orgId: string, usedPercent: number | null): Prom
         <p>Hi ${owner.user.name ?? "there"},</p>
         <p>Your workspace has used <strong>${pct}%</strong> of this period's credit allowance.</p>
         <p>To avoid interruption when the cap is reached, you can top up or upgrade your plan at any time from the billing page.</p>
-        <p>— Openship</p>
+        <p>— Vibrail</p>
       `,
       text: `Your workspace has used ${pct}% of this period's credit allowance. Top up or upgrade from the billing page to avoid interruption.`,
       organizationId: orgId,
@@ -188,7 +188,7 @@ async function notifyQuotaThreshold(
           <p>Your workspace has crossed the <strong>${pctLabel}</strong> usage threshold for this period.</p>
           ${detail}
           <p>Top up or upgrade from the billing page to avoid interruption when the cap is reached.</p>
-          <p>— Openship</p>
+          <p>— Vibrail</p>
         `,
         text: `Your workspace crossed the ${pctLabel} usage threshold this period. Top up or upgrade from the billing page to avoid interruption.`,
         organizationId: orgId,
@@ -218,7 +218,7 @@ async function notifyQuotaThreshold(
 
 /**
  * Refresh the org's usage snapshot. Credit fields are converted Oblien-credit
- * → milli (the openship internal unit) via the quota wrapper's single boundary
+ * → milli (the vibrail internal unit) via the quota wrapper's single boundary
  * so the dashboard's balance surface stays in one unit. Per-resource fields
  * are raw physical units.
  */

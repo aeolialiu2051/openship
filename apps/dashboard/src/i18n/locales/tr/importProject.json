@@ -254,7 +254,7 @@
     "deploymentModeDesc": "{mode} · Uygulama başına çalışma zamanları ile tek uygulama yönetimi arasında geçiş yapın."
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Vibrail Cloud",
+    "targetVibrailCloud": "Vibrail Cloud",
     "targetServerNamed": "Sunucu · {name}",
     "targetServer": "Sunucu",
     "targetLocal": "Yerel bilgisayar",
@@ -266,7 +266,7 @@
       "port": "Port",
       "process": "Süreç",
       "unitDescription": "Birim Açıklaması",
-      "openshipDeployment": "Vibrail Dağıtımı",
+      "vibrailDeployment": "Vibrail Dağıtımı",
       "sites": {
         "lead": "{count} site şu anda mevcut proxy tarafından sunuluyor. Vibrail, 80/443 portlarını devralmadan önce bu siteleri içe aktarır:",
         "tlsBadge": "TLS",

@@ -1,5 +1,5 @@
 {
-  "name": "openship/hello-laravel",
+  "name": "vibrail/hello-laravel",
   "type": "project",
   "require": {
     "php": "^8.2",

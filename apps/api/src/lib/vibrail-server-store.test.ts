@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CommandExecutor } from "@repo/adapters";
-import { readOpenshipFile, resolveRootExecutor, writeOpenshipFile } from "./openship-server-store";
+import { readVibrailFile, resolveRootExecutor, writeVibrailFile } from "./vibrail-server-store";
 
 function nonRootExecutor(options: { canSudo: boolean; readValue?: string }) {
   const commands: string[] = [];
@@ -20,16 +20,16 @@ function nonRootExecutor(options: { canSudo: boolean; readValue?: string }) {
   return { exec, commands, writes };
 }
 
-describe("openship server store privilege handling", () => {
+describe("vibrail server store privilege handling", () => {
   it("elevates root-owned state operations for a passwordless-sudo SSH user", async () => {
     const stub = nonRootExecutor({ canSudo: true, readValue: "saved-state" });
 
-    await expect(readOpenshipFile(stub.exec, "mail-state.json")).resolves.toBe("saved-state");
-    await writeOpenshipFile(stub.exec, "mail-state.json", "next-state");
+    await expect(readVibrailFile(stub.exec, "mail-state.json")).resolves.toBe("saved-state");
+    await writeVibrailFile(stub.exec, "mail-state.json", "next-state");
 
     expect(stub.commands.some((command) => command.startsWith("sudo -n sh -c "))).toBe(true);
     expect(stub.writes).toHaveLength(1);
-    expect(stub.writes[0]?.path).toMatch(/^\/tmp\/\.openship-elev-/);
+    expect(stub.writes[0]?.path).toMatch(/^\/tmp\/\.vibrail-elev-/);
     expect(stub.writes[0]?.content).toBe("next-state");
   });
 
@@ -54,12 +54,12 @@ describe("openship server store privilege handling", () => {
   it("writes generated app config into a root-owned host path", async () => {
     const stub = nonRootExecutor({ canSudo: true });
     const rootExec = await resolveRootExecutor(stub.exec);
-    const target = "/var/lib/openship/app-config/proj_123/cli-proxy-api/CLIProxyAPI/config.yaml";
+    const target = "/var/lib/vibrail/app-config/proj_123/cli-proxy-api/CLIProxyAPI/config.yaml";
 
     await rootExec.writeFile(target, "host: 0.0.0.0\n");
 
     expect(stub.writes).toHaveLength(1);
-    expect(stub.writes[0]?.path).toMatch(/^\/tmp\/\.openship-elev-/);
+    expect(stub.writes[0]?.path).toMatch(/^\/tmp\/\.vibrail-elev-/);
     expect(stub.writes[0]?.content).toBe("host: 0.0.0.0\n");
     expect(
       stub.commands.some(
@@ -71,7 +71,7 @@ describe("openship server store privilege handling", () => {
   it("fails writes with an actionable error when the SSH user cannot elevate", async () => {
     const stub = nonRootExecutor({ canSudo: false });
 
-    await expect(writeOpenshipFile(stub.exec, "mail-state.json", "state")).rejects.toThrow(
+    await expect(writeVibrailFile(stub.exec, "mail-state.json", "state")).rejects.toThrow(
       "requires root or passwordless sudo",
     );
   });

@@ -16,11 +16,11 @@ let cached: string | null = null;
  * Returns the current auth mode for this instance.
  *
  *   "none"  → zero-auth (auto-provisioned local user, no login required)
- *   "cloud" → cloud-authenticated desktop (Openship Cloud session)
+ *   "cloud" → cloud-authenticated desktop (Vibrail Cloud session)
  *   "local" → standard Better Auth (login required)
  *
  * "none" is valid for any DEPLOY_MODE — the operator opts in via the
- * settings endpoint, which is itself gated by OPENSHIP_ALLOW_ZERO_AUTH=true.
+ * settings endpoint, which is itself gated by VIBRAIL_ALLOW_ZERO_AUTH=true.
  * The safety guardrail that restricts zero-auth to loopback connections is
  * enforced downstream in authMiddleware, not here.
  *
@@ -32,10 +32,10 @@ export async function getAuthMode(): Promise<"none" | "cloud" | "local"> {
   if (cached !== null) return cached as "none" | "cloud" | "local";
 
   // Zero-auth ("none") is a desktop-only convenience. A CLI-managed instance
-  // (OPENSHIP_REQUIRE_AUTH) or a publicly-served one (OPENSHIP_PUBLIC_URL)
+  // (VIBRAIL_REQUIRE_AUTH) or a publicly-served one (VIBRAIL_PUBLIC_URL)
   // always defaults to requiring login — the loopback zero-auth shortcut is
   // unsafe once the box is CLI-deployed / network-reachable via the proxy.
-  const requireAuth = !!env.OPENSHIP_REQUIRE_AUTH || !!env.OPENSHIP_PUBLIC_URL;
+  const requireAuth = !!env.VIBRAIL_REQUIRE_AUTH || !!env.VIBRAIL_PUBLIC_URL;
   const fallback: "none" | "local" =
     env.DEPLOY_MODE === "desktop" && !requireAuth ? "none" : "local";
 

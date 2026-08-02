@@ -1,16 +1,16 @@
 /**
- * Interactive setup — what runs when you type `openship` with no subcommand.
+ * Interactive setup — what runs when you type `vibrail` with no subcommand.
  *
  * The one-command self-deploy: ask a few questions, then reuse the exact
- * `openship up` pipeline (prebuilt API + dashboard, no build) to install
- * Openship as a boot service, create the first admin, and — reusing Openship's
+ * `vibrail up` pipeline (prebuilt API + dashboard, no build) to install
+ * Vibrail as a boot service, create the first admin, and — reusing Vibrail's
  * OWN app + domain pipeline — register the control plane as an **app** (it shows
  * up under Apps) with a domain:
- *   - Free   name.vibrail.warpgateapi.com  → Openship Cloud edge (Oblien); connects Cloud in-flow
+ *   - Free   name.vibrail.warpgateapi.com  → Vibrail Cloud edge (Oblien); connects Cloud in-flow
  *   - Custom your-domain   → Traefik + a free Let's Encrypt cert on this box
  *   - BYO    your-domain   → you run your own reverse proxy in front
  *
- * No new deploy machinery — Openship deploys itself with its own tools.
+ * No new deploy machinery — Vibrail deploys itself with its own tools.
  * UI is @clack/prompts (modern, keyboard-driven).
  */
 
@@ -72,27 +72,27 @@ const SETUP_LOCK = join(OS_DIR, "setup-in-progress");
 
 /* Loopback API helpers (internalGet/internalPost/bootstrapAdmin/waitHealthy/
  * waitDashboard/detectPublicIp) now live in lib/loopback-api and are imported
- * above — one copy shared with the headless installer + `openship up`. */
+ * above — one copy shared with the headless installer + `vibrail up`. */
 
 const b64url = (buf: Buffer) =>
   buf.toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
 /**
- * Connect the org owner to Openship Cloud via the browser PKCE handshake, then
+ * Connect the org owner to Vibrail Cloud via the browser PKCE handshake, then
  * finalize on the loopback API (internal-token gated). Returns the linked cloud
  * account (its email) on success, or null when not linked.
  */
-async function connectOpenshipCloud(port: string, token?: string): Promise<{ email: string | null } | null> {
+async function connectVibrailCloud(port: string, token?: string): Promise<{ email: string | null } | null> {
   const already = await internalGet(port, "/api/system/cloud-status");
   if (already?.connected) {
-    log.success(`Already connected to Openship Cloud${already.user?.email ? ` as ${already.user.email}` : ""}.`);
+    log.success(`Already connected to Vibrail Cloud${already.user?.email ? ` as ${already.user.email}` : ""}.`);
     return { email: already.user?.email ?? null };
   }
 
   const capsEnv = await internalGet(port, "/api/health/env");
   const cloudApiUrl: string | undefined = capsEnv?.cloudApiUrl;
   if (!cloudApiUrl) {
-    log.error("Couldn't discover the Openship Cloud URL — free domain unavailable. Use a bring-your-own domain instead.");
+    log.error("Couldn't discover the Vibrail Cloud URL — free domain unavailable. Use a bring-your-own domain instead.");
     return null;
   }
 
@@ -149,19 +149,19 @@ async function connectOpenshipCloud(port: string, token?: string): Promise<{ ema
   }
 
   if (!code) {
-    s.stop("Openship Cloud wasn't authorized in time — re-run the connect step to try again.", 1);
+    s.stop("Vibrail Cloud wasn't authorized in time — re-run the connect step to try again.", 1);
     return null;
   }
   s.stop("Authorized.");
 
   const linking = spinner();
-  linking.start("Linking this instance to Openship Cloud");
+  linking.start("Linking this instance to Vibrail Cloud");
   const res = await internalPost(port, "/api/system/cloud-connect", { code, codeVerifier: verifier }, token);
   if (!res.ok) {
-    linking.stop(`Couldn't link Openship Cloud: ${res.data?.error || "failed"}`, 1);
+    linking.stop(`Couldn't link Vibrail Cloud: ${res.data?.error || "failed"}`, 1);
     return null;
   }
-  linking.stop(`Connected to Openship Cloud${res.data?.email ? ` as ${res.data.email}` : ""}.`);
+  linking.stop(`Connected to Vibrail Cloud${res.data?.email ? ` as ${res.data.email}` : ""}.`);
   return { email: res.data?.email ?? null };
 }
 
@@ -216,7 +216,7 @@ function wizardInputs(
   }
 }
 
-/** Shared "Openship is live" summary + clear the in-progress marker + outro. */
+/** Shared "Vibrail is live" summary + clear the in-progress marker + outro. */
 function finishSetup(opts: {
   liveUrl: string;
   dashPort: string;
@@ -229,7 +229,7 @@ function finishSetup(opts: {
   saveInstanceUrl(opts.liveUrl);
   markSetupDone();
   const pad = (label: string) => chalk.dim(label.padEnd(11));
-  log.success(chalk.bold("Openship is live"));
+  log.success(chalk.bold("Vibrail is live"));
   log.message(
     `${pad("URL")}${chalk.bold(opts.liveUrl)}\n` +
       `${pad("Dashboard")}http://localhost:${opts.dashPort}\n` +
@@ -241,34 +241,34 @@ function finishSetup(opts: {
       `${pad("Status")}${chalk.green("running")} ${chalk.dim(opts.method === "compose" ? "· Docker Compose stack (restarts on boot)" : "· service (restarts on boot)")}`,
   );
   log.message(
-    chalk.dim("Sign in with the email + password you just set. Openship appears under your Apps.\n") +
-      chalk.dim("Change the domain, Openship Cloud, team, and everything else anytime in Settings.\n") +
-      chalk.dim(`Locked out? Run ${chalk.reset("openship reset-admin-password")}${chalk.dim(" on this machine — resets your login without signing in.")}`),
+    chalk.dim("Sign in with the email + password you just set. Vibrail appears under your Apps.\n") +
+      chalk.dim("Change the domain, Vibrail Cloud, team, and everything else anytime in Settings.\n") +
+      chalk.dim(`Locked out? Run ${chalk.reset("vibrail reset-admin-password")}${chalk.dim(" on this machine — resets your login without signing in.")}`),
   );
   outro(opts.byo ? chalk.dim("Point your reverse proxy at the dashboard port above.") : chalk.green("Happy shipping."));
 }
 
 export async function runWizard(): Promise<void> {
   const resuming = isSetupInProgress();
-  intro(`${chalk.bgCyan(chalk.black(" Openship "))}${chalk.dim(" setup")}`);
+  intro(`${chalk.bgCyan(chalk.black(" Vibrail "))}${chalk.dim(" setup")}`);
   if (resuming) {
     log.warn(
-      "Your last setup didn't finish — picking it back up. Re-enter your details to complete it (or run `openship up` to just keep the server running).",
+      "Your last setup didn't finish — picking it back up. Re-enter your details to complete it (or run `vibrail up` to just keep the server running).",
     );
   }
   log.message(
     chalk.dim(
-      "Deploy Openship on this machine — a few questions, then it installs itself\nas a service, registers as an app, and prints the URL to log in.",
+      "Deploy Vibrail on this machine — a few questions, then it installs itself\nas a service, registers as an app, and prints the URL to log in.",
     ),
   );
 
   // 1. First-time admin — ALWAYS a local email + password, and the FIRST thing we
-  //    ask. This is your instance login; the domain, Openship Cloud link, and every
-  //    setting configured afterwards hang off this account. (Connecting Openship
+  //    ask. This is your instance login; the domain, Vibrail Cloud link, and every
+  //    setting configured afterwards hang off this account. (Connecting Vibrail
   //    Cloud later only attaches the free domain + mail — it never becomes sign-in.)
-  log.message(chalk.dim("First, your instance login (email + password) — this is how you sign in. Domain and Openship Cloud come next and never replace it."));
+  log.message(chalk.dim("First, your instance login (email + password) — this is how you sign in. Domain and Vibrail Cloud come next and never replace it."));
   const admin = await promptLocalAdmin();
-  // Openship Cloud account attached for the free domain — display only, never the login.
+  // Vibrail Cloud account attached for the free domain — display only, never the login.
   let cloudEmail: string | null = null;
 
   let publicUrl: string | undefined;
@@ -347,7 +347,7 @@ export async function runWizard(): Promise<void> {
           message: "How do you want a domain + HTTPS?",
           initialValue: "free",
           options: [
-            { value: "free", label: "Free domain", hint: "name.vibrail.warpgateapi.com via Openship Cloud — HTTPS handled for you" },
+            { value: "free", label: "Free domain", hint: "name.vibrail.warpgateapi.com via Vibrail Cloud — HTTPS handled for you" },
             { value: "byo", label: "Bring your own", hint: "your domain, behind your own reverse proxy" },
             { value: BACK, label: "← Back" },
           ],
@@ -365,7 +365,7 @@ export async function runWizard(): Promise<void> {
       slug = ensure(
         await text({
           message: "Choose your subdomain",
-          placeholder: "my-openship",
+          placeholder: "my-vibrail",
           initialValue: slug || undefined,
           validate: (v) => (v && SLUG_RE.test(v.trim().toLowerCase()) ? undefined : "Lowercase letters, digits, hyphens"),
         }),
@@ -375,8 +375,8 @@ export async function runWizard(): Promise<void> {
       const host = await resolvePublicHost();
       note(
         `${chalk.cyan(`https://${slug}.vibrail.warpgateapi.com`)}\n\n` +
-          `  ${chalk.dim("served via")}  Openship Cloud edge  ${chalk.dim("→")}  ${chalk.cyan(host)}\n\n` +
-          chalk.dim("Openship Cloud terminates HTTPS and forwards to this server."),
+          `  ${chalk.dim("served via")}  Vibrail Cloud edge  ${chalk.dim("→")}  ${chalk.cyan(host)}\n\n` +
+          chalk.dim("Vibrail Cloud terminates HTTPS and forwards to this server."),
         "Confirm free domain",
       );
       const go = ensure(
@@ -436,9 +436,9 @@ export async function runWizard(): Promise<void> {
     break planning;
   }
 
-  // 3. Choose how to run Openship. On a Linux server use the Docker Compose stack
+  // 3. Choose how to run Vibrail. On a Linux server use the Docker Compose stack
   //    (containerized edge on 80/443 that hosts apps on THIS box, with real
-  //    image-pull progress) — the same install `openship up` picks — auto-installing
+  //    image-pull progress) — the same install `vibrail up` picks — auto-installing
   //    Docker via the same toolchain the deploy pipeline uses. macOS/Windows (no
   //    host-net Docker) and a failed Docker ensure fall back to the bare service.
   let method: "compose" | "bare" = "bare";
@@ -459,18 +459,18 @@ export async function runWizard(): Promise<void> {
   // the image, so only the bare path pulls the dist (Compose shows pull progress).
   if (method === "bare") {
     const dl = spinner();
-    dl.start("Pulling the Openship dist from GitHub");
+    dl.start("Pulling the Vibrail dist from GitHub");
     try {
       await ensureDashboard({
         tag: uiTag,
         onProgress: (received, total) => {
-          if (total) dl.message(`Pulling the Openship dist from GitHub — ${Math.round((received / total) * 100)}%`);
+          if (total) dl.message(`Pulling the Vibrail dist from GitHub — ${Math.round((received / total) * 100)}%`);
         },
       });
-      dl.stop("Openship dist ready.");
+      dl.stop("Vibrail dist ready.");
     } catch (e) {
-      dl.stop(`Couldn't pull the Openship dist: ${(e as Error).message}`, 1);
-      log.info("Check your network / that this release published its dashboard asset, then re-run `openship`.");
+      dl.stop(`Couldn't pull the Vibrail dist: ${(e as Error).message}`, 1);
+      log.info("Check your network / that this release published its dashboard asset, then re-run `vibrail`.");
       process.exit(1);
     }
   }
@@ -486,19 +486,19 @@ export async function runWizard(): Promise<void> {
   if (method === "compose") {
     log.step(
       sourceBuildDir()
-        ? "Building the Openship images from your source checkout (first run takes a few minutes)…"
+        ? "Building the Vibrail images from your source checkout (first run takes a few minutes)…"
         : "Pulling images and starting the Docker Compose stack…",
     );
     const up = composeUp({ publicUrl, trustProxy: behindProxy, version: __CLI_VERSION__ });
     if (!up.ok) {
-      log.error("The Docker Compose stack didn't come up. Run `openship up --compose` to see the error.");
+      log.error("The Docker Compose stack didn't come up. Run `vibrail up --compose` to see the error.");
       process.exit(1);
     }
     started = { port: up.apiPort, dashPort: up.dashPort, publicUrl };
     provisionToken = composeInternalToken() ?? undefined;
-    s.start("Waiting for the Openship API");
+    s.start("Waiting for the Vibrail API");
   } else {
-    s.start("Installing Openship as a service");
+    s.start("Installing Vibrail as a service");
     try {
       started = await startService(
         { publicUrl, trustProxy: behindProxy, uiVersion: uiTag },
@@ -507,43 +507,43 @@ export async function runWizard(): Promise<void> {
     } catch (e) {
       s.stop("Couldn't install the service.", 1);
       log.error((e as Error).message);
-      log.info("Run `openship up --foreground` to run it attached and see the error.");
+      log.info("Run `vibrail up --foreground` to run it attached and see the error.");
       process.exit(1);
     }
-    s.message("Waiting for the Openship API");
+    s.message("Waiting for the Vibrail API");
   }
 
   if (!(await waitHealthy(started.port))) {
-    s.stop("Openship didn't become healthy in time.", 1);
+    s.stop("Vibrail didn't become healthy in time.", 1);
     const reason = lastServiceError();
     if (reason) log.error(reason);
     if (reason && /lock/i.test(reason)) {
-      log.info("The database is locked by another instance — run `openship stop`, then re-run `openship`.");
+      log.info("The database is locked by another instance — run `vibrail stop`, then re-run `vibrail`.");
     } else {
       log.info(
         method === "compose"
-          ? "Run `openship up --compose` to see the error."
-          : "Run `openship up --foreground` to run it attached and see the error.",
+          ? "Run `vibrail up --compose` to see the error."
+          : "Run `vibrail up --foreground` to run it attached and see the error.",
       );
     }
     process.exit(1);
   }
 
   if (method === "compose") {
-    // Reuse the SAME provision pipe as `openship up` (admin + domain via
-    // self-register against the running stack). Keep the interactive Openship
+    // Reuse the SAME provision pipe as `vibrail up` (admin + domain via
+    // self-register against the running stack). Keep the interactive Vibrail
     // Cloud connect for a free domain; the container edge owns HTTPS.
-    s.message("Starting the Openship dashboard");
+    s.message("Starting the Vibrail dashboard");
     await waitDashboard(started.dashPort);
     s.stop("Deployed.");
 
     let liveUrl = publicUrl ?? `http://localhost:${started.dashPort}`;
     if (domainPlan.type === "free") {
-      const cloud = await connectOpenshipCloud(started.port, provisionToken);
+      const cloud = await connectVibrailCloud(started.port, provisionToken);
       if (cloud) cloudEmail = cloud.email;
       else
         log.warn(
-          "Openship Cloud wasn't connected — skipping the free domain. Your local admin login still works; add it later in Settings → Cloud.",
+          "Vibrail Cloud wasn't connected — skipping the free domain. Your local admin login still works; add it later in Settings → Cloud.",
         );
     }
     const result = await headlessProvision({
@@ -569,7 +569,7 @@ export async function runWizard(): Promise<void> {
   }
 
   // Always create the local admin now — before any cloud connect — so the instance
-  // login is the email + password you set, never derived from Openship Cloud.
+  // login is the email + password you set, never derived from Vibrail Cloud.
   s.message("Creating your admin account");
   const adminRes = await bootstrapAdmin(started.port, admin);
   if (!adminRes.ok) {
@@ -581,7 +581,7 @@ export async function runWizard(): Promise<void> {
     // bootstrap-admin is one-shot and won't touch it, so force the box to LOCAL
     // login with the credentials just entered — reset sets the password, revokes
     // stale sessions, and flips authMode back to local. Without this, a box that
-    // was previously cloud-linked keeps showing "Sign in with Openship" instead of
+    // was previously cloud-linked keeps showing "Sign in with Vibrail" instead of
     // the email + password form.
     s.message("Applying your admin login");
     const rr = await internalPost(started.port, "/api/system/reset-admin-password", {
@@ -598,24 +598,24 @@ export async function runWizard(): Promise<void> {
 
   // The dist is already cached, so the dashboard only has to boot. Wait for it so
   // "live" is truthful (best-effort — the API already serves regardless).
-  s.message("Starting the Openship dashboard");
+  s.message("Starting the Vibrail dashboard");
   await waitDashboard(started.dashPort);
   s.stop("Deployed.");
 
-  // 4. Register the control plane as an app + attach its domain (reuse Openship's
+  // 4. Register the control plane as an app + attach its domain (reuse Vibrail's
   //    own app + domain pipeline). Runs for every mode so it shows under Apps.
   let liveUrl = publicUrl ?? `http://localhost:${started.dashPort}`;
   const port = started.port;
 
   if (domainPlan.type === "free") {
-    // Connect Openship Cloud — a SEPARATE step from login. Authorize in the browser
+    // Connect Vibrail Cloud — a SEPARATE step from login. Authorize in the browser
     // (link printed on the terminal); it only attaches the free .vibrail.warpgateapi.com domain +
     // mail. The backend links it to the local admin already created above WITHOUT
     // changing the login method. If declined, the box still works on your local
     // login — we just skip the free domain.
-    const cloud = await connectOpenshipCloud(port);
+    const cloud = await connectVibrailCloud(port);
     if (!cloud) {
-      log.warn("Openship Cloud wasn't connected — skipping the free domain. Your local admin login still works; add the domain later in Settings → Cloud.");
+      log.warn("Vibrail Cloud wasn't connected — skipping the free domain. Your local admin login still works; add the domain later in Settings → Cloud.");
       await internalPost(port, "/api/system/self-register", { domainType: "byo" });
     } else {
       cloudEmail = cloud.email;
@@ -626,7 +626,7 @@ export async function runWizard(): Promise<void> {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const s2 = spinner();
-        s2.start(`Registering ${chalk.bold(`${regSlug}.vibrail.warpgateapi.com`)} with Openship Cloud`);
+        s2.start(`Registering ${chalk.bold(`${regSlug}.vibrail.warpgateapi.com`)} with Vibrail Cloud`);
         const res = await internalPost(port, "/api/system/self-register", {
           domainType: "free",
           slug: regSlug,
@@ -652,7 +652,7 @@ export async function runWizard(): Promise<void> {
         regSlug = ensure(
           await text({
             message: "Choose your subdomain",
-            placeholder: "my-openship",
+            placeholder: "my-vibrail",
             initialValue: regSlug,
             validate: (v) => (v && SLUG_RE.test(v.trim().toLowerCase()) ? undefined : "Lowercase letters, digits, hyphens"),
           }),
@@ -694,7 +694,7 @@ function storedPorts(): { api?: number; dashboard?: number } {
 }
 
 /**
- * Control panel for an ALREADY-SET-UP box — what bare `openship` shows instead of
+ * Control panel for an ALREADY-SET-UP box — what bare `vibrail` shows instead of
  * re-running setup once a service is installed. Manage the running instance
  * (open / status / start-stop-restart / reset login / reconfigure) rather than
  * starting over.
@@ -708,14 +708,14 @@ export async function runControl(): Promise<void> {
   // The real front door: the public domain if one was set, else the local dashboard.
   const primaryUrl = publicUrl && !/^https?:\/\/localhost/i.test(publicUrl) ? publicUrl : dashUrl;
 
-  intro(`${chalk.bgCyan(chalk.black(" Openship "))}${chalk.dim(" control")}`);
+  intro(`${chalk.bgCyan(chalk.black(" Vibrail "))}${chalk.dim(" control")}`);
   note(
     `${chalk.dim("URL".padEnd(11))}${chalk.bold(primaryUrl)}\n` +
       `${chalk.dim("Service".padEnd(11))}${svc.running ? chalk.green("running") : chalk.yellow("stopped")}\n` +
       `${chalk.dim("Dashboard".padEnd(11))}${dashUrl}\n` +
       (ports.api ? `${chalk.dim("API".padEnd(11))}http://localhost:${ports.api}\n` : "") +
       `${chalk.dim("Manager".padEnd(11))}${svc.kind === "unsupported" ? "none" : svc.kind}`,
-    "Openship is already set up",
+    "Vibrail is already set up",
   );
 
   // Crash-looping on a corrupt DB is the one case where "Start" won't help —

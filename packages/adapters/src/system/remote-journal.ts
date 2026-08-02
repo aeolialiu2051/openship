@@ -1,7 +1,7 @@
 /**
  * Remote command journaling — the exactly-once mechanism.
  *
- * A tiny POSIX wrapper (`opsh-run`) is deployed once per server under
+ * A tiny POSIX wrapper (`vibrail-run`) is deployed once per server under
  * `<baseDir>/bin/`. It runs a command DETACHED (survives an SSH drop / channel
  * SIGHUP) and journals its stdout/stderr/exit-code to `<baseDir>/ops/<opId>/`,
  * keyed by a caller-chosen operation id. The launch is guarded by an atomic
@@ -16,11 +16,11 @@
  *
  * Wrapper stdout is always a single base64 frame (survives exec()'s trim +
  * stdout-only capture):
- *   OPSH1 <code> <b64stdout> <b64stderr>  — completed; harvested
- *   OPSH-RUNNING <pid>                     — still running after --wait; re-invoke
- *   OPSH-DEAD                              — launched, pid gone, no exit → lost
- *   OPSH-COLLISION                         — opId reused with a different command
- *   OPSH-EIO <msg>                         — cannot journal (disk/input) → refuse
+ *   VIBRAIL1 <code> <b64stdout> <b64stderr>  — completed; harvested
+ *   VIBRAIL-RUNNING <pid>                     — still running after --wait; re-invoke
+ *   VIBRAIL-DEAD                              — launched, pid gone, no exit → lost
+ *   VIBRAIL-COLLISION                         — opId reused with a different command
+ *   VIBRAIL-EIO <msg>                         — cannot journal (disk/input) → refuse
  */
 
 import type { CommandExecutor } from "../types";
@@ -29,12 +29,12 @@ import { LocalExecutor } from "./local-executor";
 import { isRetryableRemoteConnectionError } from "./errors";
 
 /** Bump when the wrapper script changes — forces a redeploy on the next ensure. */
-export const OPSH_RUN_VERSION = 1;
+export const VIBRAIL_RUN_VERSION = 1;
 
-/** Default remote base dir owning bin/ + ops/. Mirrors apps/api's OPENSHIP_DIR
- *  (openship-server-store.ts) so adapter-layer callers don't cross the layer
+/** Default remote base dir owning bin/ + ops/. Mirrors apps/api's VIBRAIL_DIR
+ *  (vibrail-server-store.ts) so adapter-layer callers don't cross the layer
  *  boundary to journal. Keep the two in sync. */
-export const DEFAULT_JOURNAL_BASE = "/root/.openship";
+export const DEFAULT_JOURNAL_BASE = "/root/.vibrail";
 
 /**
  * Same non-interactive env both executors prepend to plain `exec()`, applied to
@@ -48,12 +48,12 @@ export const REMOTE_ENV_PREFIX =
  * sha256sum/find). Kept free of `${...}` param-expansion so it embeds cleanly
  * in this template literal — only `$VAR`, `$(...)`, `$((...))` are used.
  */
-const OPSH_RUN_SCRIPT = `#!/bin/sh
-# opsh-run — openship reliable command journal. Managed file; do not edit.
-VERSION=${OPSH_RUN_VERSION}
+const VIBRAIL_RUN_SCRIPT = `#!/bin/sh
+# vibrail-run — vibrail reliable command journal. Managed file; do not edit.
+VERSION=${VIBRAIL_RUN_VERSION}
 
-BASE="$OPSH_BASE"
-[ -z "$BASE" ] && BASE=/root/.openship
+BASE="$VIBRAIL_BASE"
+[ -z "$BASE" ] && BASE=/root/.vibrail
 OPS="$BASE/ops"
 
 if [ "$1" = "--version" ]; then echo "$VERSION"; exit 0; fi
@@ -91,13 +91,13 @@ done
 
 DIR="$OPS/$OPID"
 CMD="$(printf %s "$CMDB64" | openssl base64 -d -A 2>/dev/null)"
-[ -z "$CMD" ] && { echo "OPSH-EIO badcmd"; exit 0; }
+[ -z "$CMD" ] && { echo "VIBRAIL-EIO badcmd"; exit 0; }
 HASH="$(printf %s "$CMD" | openssl dgst -sha256 2>/dev/null | awk '{print $NF}')"
 
 if mkdir -p "$OPS" 2>/dev/null && mkdir "$DIR" 2>/dev/null; then
   # Launcher: exactly one invocation per opId reaches here (mkdir is atomic).
   if ! printf %s "$HASH" > "$DIR/cmdhash" 2>/dev/null; then
-    rm -rf "$DIR" 2>/dev/null; echo "OPSH-EIO nowrite"; exit 0
+    rm -rf "$DIR" 2>/dev/null; echo "VIBRAIL-EIO nowrite"; exit 0
   fi
   printf %s "$CMD" > "$DIR/cmd" 2>/dev/null
   # Subshell (not brace group) so a command that calls \`exit\` terminates only
@@ -109,9 +109,9 @@ if mkdir -p "$OPS" 2>/dev/null && mkdir "$DIR" 2>/dev/null; then
   echo $! > "$DIR/pid" 2>/dev/null
 else
   # Attach/harvest. Guard against a reused opId carrying a different command.
-  [ -d "$DIR" ] || { echo "OPSH-EIO nodir"; exit 0; }
+  [ -d "$DIR" ] || { echo "VIBRAIL-EIO nodir"; exit 0; }
   prev="$(cat "$DIR/cmdhash" 2>/dev/null)"
-  [ -n "$prev" ] && [ "$prev" != "$HASH" ] && { echo "OPSH-COLLISION"; exit 0; }
+  [ -n "$prev" ] && [ "$prev" != "$HASH" ] && { echo "VIBRAIL-COLLISION"; exit 0; }
 fi
 
 # Wait up to WAIT seconds for the exit file (published atomically AFTER the
@@ -122,10 +122,10 @@ while [ ! -f "$DIR/exit" ]; do
   p="$(cat "$DIR/pid" 2>/dev/null)"
   if [ -n "$p" ] && ! kill -0 "$p" 2>/dev/null; then
     [ -f "$DIR/exit" ] && break
-    echo "OPSH-DEAD"; exit 0
+    echo "VIBRAIL-DEAD"; exit 0
   fi
   i=$((i + 1))
-  if [ "$i" -ge "$max" ]; then echo "OPSH-RUNNING $p"; exit 0; fi
+  if [ "$i" -ge "$max" ]; then echo "VIBRAIL-RUNNING $p"; exit 0; fi
   sleep 0.2
 done
 
@@ -133,7 +133,7 @@ CODE="$(cat "$DIR/exit" 2>/dev/null)"
 [ -z "$CODE" ] && CODE=1
 OUT="$(openssl base64 -A < "$DIR/stdout" 2>/dev/null)"
 ERR="$(openssl base64 -A < "$DIR/stderr" 2>/dev/null)"
-echo "OPSH1 $CODE $OUT $ERR"
+echo "VIBRAIL1 $CODE $OUT $ERR"
 exit 0
 `;
 
@@ -148,7 +148,7 @@ export interface JournalRunResult {
 }
 
 export interface RunJournaledOptions {
-  /** Remote base dir owning bin/ + ops/ (e.g. "/root/.openship"). */
+  /** Remote base dir owning bin/ + ops/ (e.g. "/root/.vibrail"). */
   baseDir: string;
   /** Seconds the wrapper blocks waiting for completion before returning
    *  "running" (the client then re-invokes). Default 25. */
@@ -165,12 +165,12 @@ export async function ensureRemoteJournal(
   exec: CommandExecutor,
   baseDir: string,
 ): Promise<void> {
-  const runner = `${baseDir}/bin/opsh-run`;
+  const runner = `${baseDir}/bin/vibrail-run`;
 
   let current = -1;
   try {
     const out = await exec.exec(
-      `OPSH_BASE=${sq(baseDir)} sh ${sq(runner)} --version 2>/dev/null`,
+      `VIBRAIL_BASE=${sq(baseDir)} sh ${sq(runner)} --version 2>/dev/null`,
       { timeout: 10_000 },
     );
     current = Number.parseInt(out.trim(), 10);
@@ -178,10 +178,10 @@ export async function ensureRemoteJournal(
     current = -1; // missing / unreadable
   }
 
-  if (current !== OPSH_RUN_VERSION) {
-    // Atomic deploy: write temp → chmod → mv (mirrors writeOpenshipFile).
+  if (current !== VIBRAIL_RUN_VERSION) {
+    // Atomic deploy: write temp → chmod → mv (mirrors writeVibrailFile).
     const tmp = `${runner}.tmp`;
-    await exec.writeFile(tmp, OPSH_RUN_SCRIPT);
+    await exec.writeFile(tmp, VIBRAIL_RUN_SCRIPT);
     await exec.exec(
       `mkdir -p ${sq(`${baseDir}/ops`)} && chmod 0700 ${sq(tmp)} && mv -f ${sq(tmp)} ${sq(runner)}`,
     );
@@ -189,7 +189,7 @@ export async function ensureRemoteJournal(
 
   // Best-effort GC — never fail ensure because pruning hiccupped.
   try {
-    await exec.exec(`OPSH_BASE=${sq(baseDir)} sh ${sq(runner)} --gc 2>/dev/null`, {
+    await exec.exec(`VIBRAIL_BASE=${sq(baseDir)} sh ${sq(runner)} --gc 2>/dev/null`, {
       timeout: 15_000,
     });
   } catch {
@@ -210,13 +210,13 @@ export async function runJournaled(
   opts: RunJournaledOptions,
 ): Promise<JournalRunResult> {
   const waitSecs = Math.max(1, Math.min(300, opts.waitSecs ?? 25));
-  const runner = `${opts.baseDir}/bin/opsh-run`;
+  const runner = `${opts.baseDir}/bin/vibrail-run`;
   const cmdB64 = Buffer.from(command, "utf8").toString("base64");
   const envPrefix = opts.envPrefix ?? REMOTE_ENV_PREFIX;
   const envB64 = Buffer.from(envPrefix, "utf8").toString("base64");
 
   let invocation =
-    `OPSH_BASE=${sq(opts.baseDir)} sh ${sq(runner)} ${sq(opId)} ${cmdB64} --wait ${waitSecs}`;
+    `VIBRAIL_BASE=${sq(opts.baseDir)} sh ${sq(runner)} ${sq(opId)} ${cmdB64} --wait ${waitSecs}`;
   // Omit --env-prefix entirely when empty (a dangling flag with no value would
   // break the wrapper's arg parsing).
   if (envB64) invocation += ` --env-prefix ${envB64}`;
@@ -235,7 +235,7 @@ export function parseFrame(raw: string): JournalRunResult {
     .filter(Boolean)
     .pop() ?? "";
 
-  if (line.startsWith("OPSH1 ")) {
+  if (line.startsWith("VIBRAIL1 ")) {
     const parts = line.split(" ");
     const code = Number.parseInt(parts[1] ?? "", 10);
     const decode = (b64?: string) =>
@@ -247,11 +247,11 @@ export function parseFrame(raw: string): JournalRunResult {
       stderr: decode(parts[3]),
     };
   }
-  if (line.startsWith("OPSH-RUNNING")) return { status: "running" };
-  if (line === "OPSH-DEAD") return { status: "dead" };
-  if (line === "OPSH-COLLISION") return { status: "collision" };
-  if (line.startsWith("OPSH-EIO")) {
-    return { status: "eio", message: line.slice("OPSH-EIO ".length).trim() || "journal I/O error" };
+  if (line.startsWith("VIBRAIL-RUNNING")) return { status: "running" };
+  if (line === "VIBRAIL-DEAD") return { status: "dead" };
+  if (line === "VIBRAIL-COLLISION") return { status: "collision" };
+  if (line.startsWith("VIBRAIL-EIO")) {
+    return { status: "eio", message: line.slice("VIBRAIL-EIO ".length).trim() || "journal I/O error" };
   }
   return { status: "eio", message: `unrecognized journal frame: ${line.slice(0, 160)}` };
 }
@@ -400,7 +400,7 @@ export async function runReliable(
  * semantics on a raw executor, throwing on a non-zero exit (drop-in for
  * `executor.exec`) and returning trimmed stdout. For a LocalExecutor it just
  * runs directly — local execution has no transport to drop, and the journal
- * base (/root/.openship) may not be writable on the API host.
+ * base (/root/.vibrail) may not be writable on the API host.
  */
 export async function execReliable(
   executor: CommandExecutor,

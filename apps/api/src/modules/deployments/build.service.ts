@@ -207,7 +207,7 @@ export interface DeploymentConfigSnapshot {
    * a second process binding the port. Threaded onto DeployConfig.adopt.
    */
   adopt?: boolean;
-  /** Internal-only marker for the Openship control plane self-app. */
+  /** Internal-only marker for the Vibrail control plane self-app. */
   controlPlaneAdopt?: boolean;
   /** Project services fan-out mode captured for this deployment. */
   serviceDeploymentMode?: "services" | "single";
@@ -361,7 +361,7 @@ export async function applyReleaseSourceToSnapshot(
   opts?: { version?: string },
 ): Promise<string> {
   // Backstop: release/dist resolution downloads + extracts a prebuilt dir onto
-  // THIS box (~/.openship) — a self-hosted runtime op that must never run on the
+  // THIS box (~/.vibrail) — a self-hosted runtime op that must never run on the
   // multi-tenant SaaS control plane. Creation is already blocked in cloud mode
   // (resolveProjectSource); this also covers redeploy/webhook paths for any
   // project that predates the gate.
@@ -452,10 +452,10 @@ async function resolveProjectBranch(ctx: RequestContext, project: Project, branc
  *
  * `changedPaths` (webhook only) is an optimization: when we have a definite,
  * non-empty changed-file list that does NOT include a compose input (compose
- * YAML, its interpolation `.env`, or `openship.json`), skip the repo scan.
+ * YAML, its interpolation `.env`, or `vibrail.json`), skip the repo scan.
  * When it's absent (manual redeploy) or empty, reconcile runs to be safe.
  */
-const COMPOSE_INPUT_PATH_RE = /(^|\/)(?:(?:docker-compose|compose)\.ya?ml|\.env|openship\.json)$/i;
+const COMPOSE_INPUT_PATH_RE = /(^|\/)(?:(?:docker-compose|compose)\.ya?ml|\.env|vibrail\.json)$/i;
 
 /**
  * Rows imported before compose drift tracking was added have no 3-way merge
@@ -1146,7 +1146,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     snapshot.cloneStrategy = cloneStrategy;
   }
 
-  // Openship Cloud resource tier — only a SERVER-BACKED cloud (Oblien)
+  // Vibrail Cloud resource tier — only a SERVER-BACKED cloud (Oblien)
   // deploy provisions a workspace sized by these resources. Static (Pages)
   // deploys have no workspace to size, and non-cloud targets keep the
   // project's own resource config, so the picker is ignored for them.
@@ -1247,7 +1247,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
  * Cancel an in-flight deployment.
  *
  * `keepProvisioned` aborts the build and marks the row cancelled but SKIPS the
- * runtime teardown — the record-only ("remove from Openship only") delete needs
+ * runtime teardown — the record-only ("remove from Vibrail only") delete needs
  * to quiesce an in-flight deploy while honoring its "nothing on the server is
  * touched" guarantee, so it must never destroy the containers/images the deploy
  * had already provisioned.
@@ -1327,15 +1327,15 @@ export async function redeployBuildSession(
   opts?: { useExistingCommit?: boolean; trigger?: string; preDeployBackup?: boolean },
 ) {
   const { dep: oldDep, project } = await loadDeployment(deploymentId);
-  // The Openship control plane updates itself via the CLI — never a redeploy.
+  // The Vibrail control plane updates itself via the CLI — never a redeploy.
   // The apply-update endpoint (updates.service) reaches redeploy directly, and
   // the self-app is a repo-less release project so the GitHub gate below
   // short-circuits without catching it — guard explicitly here too, matching
   // triggerDeployment. Otherwise "Apply update" no-ops on the adopt deployment
   // and fakes success while the running control plane is untouched.
-  if (project.appTemplateId === "openship") {
+  if (project.appTemplateId === "vibrail") {
     throw new ForbiddenError(
-      "The Openship control plane updates itself — run the CLI upgrade, not a redeploy.",
+      "The Vibrail control plane updates itself — run the CLI upgrade, not a redeploy.",
     );
   }
   // GitHub access gate (default-deny): a member can redeploy a
@@ -1586,12 +1586,12 @@ export async function triggerDeployment(
     throw new NotFoundError("Project", data.projectId);
   }
   assertProjectMayDeploy(project);
-  // The Openship control plane IS the running host service, not a redeployable
+  // The Vibrail control plane IS the running host service, not a redeployable
   // workload — it updates itself via the CLI. It's a release-provider project, so
   // the git/localPath 403 below would NOT catch it; guard it explicitly.
-  if (project.appTemplateId === "openship") {
+  if (project.appTemplateId === "vibrail") {
     throw new ForbiddenError(
-      "The Openship control plane updates itself — run the CLI upgrade, not a redeploy.",
+      "The Vibrail control plane updates itself — run the CLI upgrade, not a redeploy.",
     );
   }
   // Org-membership verified at the route boundary. No userId equality

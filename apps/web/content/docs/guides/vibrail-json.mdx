@@ -1,25 +1,25 @@
 ---
-title: Deploy with openship.json
-description: Add a declarative openship.json to your repo so Openship builds and deploys it the same way every time — in the wizard and headlessly on push.
+title: Deploy with vibrail.json
+description: Add a declarative vibrail.json to your repo so Vibrail builds and deploys it the same way every time — in the wizard and headlessly on push.
 ---
 
-Committing an `openship.json` to your repo root makes your deploy **reproducible**: the framework,
+Committing a `vibrail.json` to your repo root makes your deploy **reproducible**: the framework,
 build commands, env, domains, and scaling are declared in the repo instead of clicked through the
 wizard each time. It's the same idea as `vercel.json` or `railway.toml`.
 
-Openship still auto-detects everything — `openship.json` just **overrides** what you declare. So
+Vibrail still auto-detects everything — `vibrail.json` just **overrides** what you declare. So
 you only add the fields you want to pin. The full field list lives in the
-[reference](/docs/reference/openship-json).
+[reference](/docs/reference/vibrail-json).
 
 ## 1. Scaffold it
 
 From your repo root:
 
 ```bash
-openship config init
+vibrail config init
 ```
 
-This writes a minimal `openship.json` with the `$schema` line (for editor autocomplete) plus any
+This writes a minimal `vibrail.json` with the `$schema` line (for editor autocomplete) plus any
 package manager / build command it can detect locally. Open it and add what you need.
 
 ## 2. Declare your deploy
@@ -28,7 +28,7 @@ A typical server app:
 
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "framework": "nextjs",
   "buildCommand": "pnpm build",
   "port": 3000,
@@ -50,7 +50,7 @@ A static site is just:
 
 ```json
 {
-  "$schema": "https://openship.io/openship.schema.json",
+  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
   "framework": "vite",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
@@ -61,7 +61,7 @@ A static site is just:
 ## 3. Validate
 
 ```bash
-openship config validate
+vibrail config validate
 ```
 
 Fix any reported error (bad enum, out-of-range port, malformed service). Warnings (e.g. unknown
@@ -71,20 +71,20 @@ keys) are non-fatal. Use `--json` for machine-readable output in CI.
 
 Deploy as usual — [from GitHub](/docs/guides/deploy-from-github), a
 [local folder](/docs/guides/deploy-local-folder), or the CLI. The wizard opens **pre-filled** from
-your `openship.json`; you can still tweak anything before deploying.
+your `vibrail.json`; you can still tweak anything before deploying.
 
 Because [auto-deploy on push](/docs/guides/auto-deploy) and headless deploys run the same
-resolution, a push to your deploy branch honors `openship.json` with no wizard at all — which is
+resolution, a push to your deploy branch honors `vibrail.json` with no wizard at all — which is
 the point: the repo describes its own deploy.
 
 <Callout title="Precedence">
-Detection runs first, then `openship.json` overrides field-by-field. If a deploy isn't picking up
-a value, confirm the field name against the [reference](/docs/reference/openship-json) and re-run
-`openship config validate`.
+Detection runs first, then `vibrail.json` overrides field-by-field. If a deploy isn't picking up
+a value, confirm the field name against the [reference](/docs/reference/vibrail-json) and re-run
+`vibrail config validate`.
 </Callout>
 
 ## Multi-service and monorepos
 
 Declare `services` for a compose project, or `monorepo` to override detected sub-apps — see the
-[reference](/docs/reference/openship-json#services-compose) for both. Note that `services` and
+[reference](/docs/reference/vibrail-json#services-compose) for both. Note that `services` and
 `monorepo` are alternatives to a single-app config, not additions to it.

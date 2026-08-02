@@ -8,7 +8,7 @@
  * unit is written, so the chosen ports are baked into the launchd/systemd args,
  * threaded to the edge-proxy target, and shown in the summary.
  *
- * Chosen ports are persisted to ~/.openship/ports.json so a restart REUSES the
+ * Chosen ports are persisted to ~/.vibrail/ports.json so a restart REUSES the
  * same origin when it's still free — session cookies are bound to
  * `localhost:<port>`, so a stable port is what keeps you logged in across
  * restarts. We only move off a remembered port when it's actually occupied.

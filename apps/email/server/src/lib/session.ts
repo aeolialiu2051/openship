@@ -87,7 +87,7 @@ export async function deleteSession(sessionId: string): Promise<void> {
  * overrides are set, use them - otherwise guess `mail.<domain>`.
  *
  * This is the convention iRedMail installs out of the box, and is the
- * shape openship's mail panel provisions; for other setups, the
+ * shape vibrail's mail panel provisions; for other setups, the
  * sign-in endpoint accepts host/port overrides.
  */
 export function defaultMailHosts(email: string): {

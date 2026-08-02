@@ -1,12 +1,12 @@
 /**
  * GET /api/system/health — internal-token-gated deep health rollup for the CLI
- * `openship doctor`. Distinct from the public `/api/health` liveness stub: this
+ * `vibrail doctor`. Distinct from the public `/api/health` liveness stub: this
  * actually probes the database (the CLI can't reach the embedded PGlite itself,
  * it lives inside this API process) and reports instance-wide project/service
  * counts.
  *
  * Live per-container status is gathered CLI-side (it runs on the same machine as
- * the Docker daemon, so a single `docker ps` on the openship labels is cleaner
+ * the Docker daemon, so a single `docker ps` on the vibrail labels is cleaner
  * and needs no server-side runtime instantiation). This endpoint is the source
  * of truth for DB health + migration state, and the bare-mode fallback for
  * "how many services are configured".

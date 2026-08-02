@@ -8,7 +8,7 @@ import { fetchCaps } from "../lib/caps";
 
 export const loginCommand = new Command("login")
   .description("Authenticate with a Personal Access Token (create one in dashboard Settings)")
-  .option("--token <token>", "Personal Access Token (opsh_pat_...) for non-interactive login")
+  .option("--token <token>", "Personal Access Token (vibrail_pat_...) for non-interactive login")
   .option("--api-url <url>", "API base URL", LOCAL_API_URL)
   .option("--dashboard-url <url>", "Dashboard base URL", LOCAL_DASHBOARD_URL)
   .option("--context <name>", "Name of the context to store this login under", DEFAULT_CONTEXT)
@@ -23,7 +23,7 @@ export const loginCommand = new Command("login")
     if (!token) {
       const settingsUrl = `${dashboardUrl}/settings`;
       console.log(
-        chalk.bold("\n  Openship login\n") +
+        chalk.bold("\n  Vibrail login\n") +
           chalk.dim("  Create a Personal Access Token in Settings → Personal Access Tokens,\n") +
           chalk.dim("  then paste it here.\n"),
       );
@@ -47,9 +47,9 @@ export const loginCommand = new Command("login")
       console.error(chalk.red("\n  No token provided.\n"));
       process.exit(1);
     }
-    if (!token.startsWith("opsh_pat_")) {
+    if (!token.startsWith("vibrail_pat_") && !token.startsWith("opsh_pat_")) {
       console.error(
-        chalk.red("\n  That doesn't look like an Openship token (expected opsh_pat_…).\n"),
+        chalk.red("\n  That doesn't look like a Vibrail token (expected vibrail_pat_…).\n"),
       );
       process.exit(1);
     }
@@ -91,7 +91,7 @@ export const loginCommand = new Command("login")
 
     console.log(
       chalk.green(`\n  Logged in`) +
-        chalk.dim(` (context "${contextName}"). Token saved to ~/.openship/config.json\n`),
+        chalk.dim(` (context "${contextName}"). Token saved to ~/.vibrail/config.json\n`),
     );
     if (scoped) {
       console.log(

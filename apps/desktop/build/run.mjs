@@ -1,5 +1,5 @@
 /**
- * Launch the packaged desktop app built by `make` (out/Openship-<platform>-<arch>/)
+ * Launch the packaged desktop app built by `make` (out/Vibrail-<platform>-<arch>/)
  * ATTACHED to this terminal, so its logs stream here and Ctrl-C quits it.
  * Run `bun run build:desktop` first if there's no build.
  */
@@ -18,20 +18,20 @@ function fail(msg) {
 
 if (!existsSync(OUT)) fail("No desktop build found.");
 
-// Packaged output dir is named "Openship-<platform>-<arch>".
+// Packaged output dir is named "Vibrail-<platform>-<arch>".
 const dir = readdirSync(OUT).find(
-  (d) => d.startsWith("Openship-") && d.includes(process.platform),
+  (d) => d.startsWith("Vibrail-") && d.includes(process.platform),
 );
 if (!dir) fail(`No packaged app for ${process.platform} in out/.`);
 const base = join(OUT, dir);
 
 let bin;
 if (process.platform === "darwin") {
-  bin = join(base, "Openship.app", "Contents", "MacOS", "openship");
+  bin = join(base, "Vibrail.app", "Contents", "MacOS", "vibrail");
 } else if (process.platform === "win32") {
-  bin = join(base, "openship.exe");
+  bin = join(base, "vibrail.exe");
 } else {
-  bin = join(base, "openship");
+  bin = join(base, "vibrail");
 }
 if (!existsSync(bin)) fail(`Missing ${bin}.`);
 

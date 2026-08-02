@@ -21,13 +21,13 @@ export function createExecutor(ssh?: SshConfig): CommandExecutor {
 }
 
 /**
- * Executor for HOST-OS operations ("this machine") that works whether openship
+ * Executor for HOST-OS operations ("this machine") that works whether vibrail
  * runs bare OR in a container.
  *
  * Bare: `LocalExecutor` — commands run on the host directly.
  *
  * Containerized: a container can't apt/systemctl/edit files on its HOST, so when
- * `OPENSHIP_HOST_SSH_HOST` is set (the `openship up` CLI provisions this + a key
+ * `VIBRAIL_HOST_SSH_HOST` is set (the `vibrail up` CLI provisions this + a key
  * + the compose `extra_hosts: host.docker.internal:host-gateway`) we reach the
  * host over SSH via `host.docker.internal` — the docker-bridge gateway, an
  * INTERNAL address, never the public IP. Reuses the standard remote-server
@@ -35,10 +35,10 @@ export function createExecutor(ssh?: SshConfig): CommandExecutor {
  * on the host. Not more privilege than the mounted docker socket already grants.
  */
 export function createHostExecutor(): CommandExecutor {
-  const host = process.env.OPENSHIP_HOST_SSH_HOST?.trim();
+  const host = process.env.VIBRAIL_HOST_SSH_HOST?.trim();
   if (!host) return new LocalExecutor();
-  const keyPath = process.env.OPENSHIP_HOST_SSH_KEY?.trim();
-  const portRaw = Number(process.env.OPENSHIP_HOST_SSH_PORT || "22");
+  const keyPath = process.env.VIBRAIL_HOST_SSH_KEY?.trim();
+  const portRaw = Number(process.env.VIBRAIL_HOST_SSH_PORT || "22");
   const port = Number.isInteger(portRaw) && portRaw > 0 && portRaw < 65536 ? portRaw : 22;
   let privateKey: string | undefined;
   if (keyPath) {
@@ -46,14 +46,14 @@ export function createHostExecutor(): CommandExecutor {
       privateKey = readFileSync(keyPath, "utf8");
     } catch (err) {
       throw new Error(
-        `Cannot read host SSH key at OPENSHIP_HOST_SSH_KEY=${keyPath}: ${err instanceof Error ? err.message : String(err)}`,
+        `Cannot read host SSH key at VIBRAIL_HOST_SSH_KEY=${keyPath}: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }
   return new SshExecutor({
     host,
     port,
-    username: process.env.OPENSHIP_HOST_SSH_USER?.trim() || "root",
+    username: process.env.VIBRAIL_HOST_SSH_USER?.trim() || "root",
     privateKey,
   });
 }

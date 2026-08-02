@@ -1,6 +1,6 @@
 # Platform Architecture
 
-> `@repo/adapters` - the abstraction layer between Openship's API and the underlying infrastructure.
+> `@repo/adapters` - the abstraction layer between Vibrail's API and the underlying infrastructure.
 
 ## Three Deployment Targets
 

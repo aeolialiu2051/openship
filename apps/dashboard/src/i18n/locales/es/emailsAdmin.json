@@ -308,7 +308,7 @@
   },
   "advanced": {
     "resetTitle": "¿Restablecer el estado del servidor?",
-    "resetDesc": "Borra el seguimiento de esta instalación y elimina los registros DNS que Vibrail creó para ella. Se limpian el archivo de estado del servidor (/root/.openship/mail-state.json) y la fila del registro. La pila de correo sigue intacta, pero tendrás que volver a ejecutar el asistente para gestionarla (Eliminar conserva el estado y el DNS para poder readoptarla).",
+    "resetDesc": "Borra el seguimiento de esta instalación y elimina los registros DNS que Vibrail creó para ella. Se limpian el archivo de estado del servidor (/root/.vibrail/mail-state.json) y la fila del registro. La pila de correo sigue intacta, pero tendrás que volver a ejecutar el asistente para gestionarla (Eliminar conserva el estado y el DNS para poder readoptarla).",
     "resetSubmit": "Restablecer estado",
     "resetSubmitting": "Restableciendo…",
     "resetFailed": "El restablecimiento falló",
@@ -340,7 +340,7 @@
     "rerunDesc": "Abre el asistente de instalación apuntado a este servidor. Útil tras un cambio de DNS, el cambio de nombre de un dominio o para reintentar un paso fallido. El asistente detecta una instalación existente y ofrece reintentar por pasos en lugar de borrar el estado.",
     "openWizard": "Abrir asistente",
     "resetCardTitle": "Restablecer el estado del servidor",
-    "resetCardDesc": "Elimina el seguimiento que Vibrail hace de esta instalación: el archivo de estado en el servidor (/root/.openship/mail-state.json) y la fila del registro. NO desinstala la pila de correo ni toca ningún buzón; el servidor sigue funcionando, pero tendrás que volver a ejecutar el asistente de configuración para gestionarlo de nuevo. Úsalo tras una purga manual o una reinstalación de imagen cuando el seguimiento se haya desviado de la realidad.",
+    "resetCardDesc": "Elimina el seguimiento que Vibrail hace de esta instalación: el archivo de estado en el servidor (/root/.vibrail/mail-state.json) y la fila del registro. NO desinstala la pila de correo ni toca ningún buzón; el servidor sigue funcionando, pero tendrás que volver a ejecutar el asistente de configuración para gestionarlo de nuevo. Úsalo tras una purga manual o una reinstalación de imagen cuando el seguimiento se haya desviado de la realidad.",
     "resetStateBtn": "Restablecer estado",
     "removeTitle": "Eliminar servidor de correo",
     "removeDesc": "Deja de gestionar este servidor; lo quita solo de la lista de /emails. La pila de correo sigue funcionando y el archivo de estado en el servidor se deja intacto, de modo que puedes readoptarlo más tarde mediante Escanear en busca de una instalación existente. Úsalo para limpiar una entrada obsoleta o mal marcada.",

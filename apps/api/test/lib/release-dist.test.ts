@@ -38,8 +38,8 @@ afterEach(() => {
 
 const github: ReleaseSource = {
   mode: "github",
-  repo: "oblien/openship",
-  assetTemplate: "openship-{tag}-{os}-{arch}.tar.gz",
+  repo: "aeolialiu2051/vibrail",
+  assetTemplate: "vibrail-{tag}-{os}-{arch}.tar.gz",
 };
 
 describe("resolveReleaseDist — slot order", () => {
@@ -96,11 +96,11 @@ describe("resolveReleaseDist — slot order", () => {
 
   it("slot 3: cache hit at <dataDir>/<name>-dist/v<version>", async () => {
     const dataDir = join(root, "data");
-    const cached = join(dataDir, "openship-dist", "v2.3.4");
+    const cached = join(dataDir, "vibrail-dist", "v2.3.4");
     mkdirSync(cached, { recursive: true });
 
     const res = await resolveReleaseDist({
-      name: "openship",
+      name: "vibrail",
       version: "2.3.4",
       source: github,
       dataDir,
@@ -113,11 +113,11 @@ describe("resolveReleaseDist — slot order", () => {
 
   it("slot 3: download on miss (github) renders the asset name from the version", async () => {
     const dataDir = join(root, "data");
-    const downloaded = join(dataDir, "openship-dist", "v5.0.0");
+    const downloaded = join(dataDir, "vibrail-dist", "v5.0.0");
     fetchMock.mockResolvedValue({ path: downloaded });
 
     const res = await resolveReleaseDist({
-      name: "openship",
+      name: "vibrail",
       version: "5.0.0",
       source: github,
       dataDir,
@@ -125,11 +125,11 @@ describe("resolveReleaseDist — slot order", () => {
 
     expect(res.origin).toBe("downloaded");
     expect(res.dir).toBe(downloaded);
-    expect(res.asset).toBe("openship-v5.0.0-linux-amd64.tar.gz");
+    expect(res.asset).toBe("vibrail-v5.0.0-linux-amd64.tar.gz");
     expect(fetchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        repo: "oblien/openship",
-        asset: "openship-v5.0.0-linux-amd64.tar.gz",
+        repo: "aeolialiu2051/vibrail",
+        asset: "vibrail-v5.0.0-linux-amd64.tar.gz",
         tag: "v5.0.0",
       }),
     );
@@ -159,7 +159,7 @@ describe("resolveReleaseDist — slot order", () => {
     fetchMock.mockRejectedValue(new Error("boom"));
     await expect(
       resolveReleaseDist({
-        name: "openship",
+        name: "vibrail",
         version: "9.9.9",
         source: github,
         dataDir: join(root, "data"),
@@ -172,13 +172,13 @@ describe("resolveReleaseDistOrNull — no download", () => {
   it("returns the cached dir when present, null otherwise (never downloads)", () => {
     const dataDir = join(root, "data");
     expect(
-      resolveReleaseDistOrNull({ name: "openship", version: "1.0.0", source: github, dataDir }),
+      resolveReleaseDistOrNull({ name: "vibrail", version: "1.0.0", source: github, dataDir }),
     ).toBeNull();
 
-    const cached = join(dataDir, "openship-dist", "v1.0.0");
+    const cached = join(dataDir, "vibrail-dist", "v1.0.0");
     mkdirSync(cached, { recursive: true });
     expect(
-      resolveReleaseDistOrNull({ name: "openship", version: "1.0.0", source: github, dataDir }),
+      resolveReleaseDistOrNull({ name: "vibrail", version: "1.0.0", source: github, dataDir }),
     ).toBe(cached);
     expect(fetchMock).not.toHaveBeenCalled();
   });

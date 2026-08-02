@@ -61,7 +61,7 @@ export function createOrganizationRepo(db: Database) {
     },
 
     /**
-     * Update the openship-internal subscription status. Used by the
+     * Update the vibrail-internal subscription status. Used by the
      * hard-cap handler to flip between `active` and `credit_exhausted`
      * when usage outruns balance, and by the Stripe webhook handler for
      * Stripe-driven transitions (`past_due`, `canceled`, `trialing`).

@@ -24,7 +24,7 @@ export function materializeStarterTemplate(stackId: string): Promise<string> {
       .update(JSON.stringify(starter.files))
       .digest("hex")
       .slice(0, 16);
-    const base = join(tmpdir(), "openship-template-sources");
+    const base = join(tmpdir(), "vibrail-template-sources");
     const root = join(base, `${stackId}-${digest}`);
     const marker = join(base, `.${stackId}-${digest}.ready`);
     if ((await stat(marker).catch(() => null))?.isFile()) return root;

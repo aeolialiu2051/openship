@@ -2,7 +2,7 @@
  * Branding - filesystem-backed white-label config.
  *
  * The source of truth is `${BRANDING_PATH}/config.json` (plain JSON,
- * read by Zero, written by the openship dashboard over SSH). Assets
+ * read by Zero, written by the vibrail dashboard over SSH). Assets
  * (logo, favicon) live under `${BRANDING_PATH}/assets/` and are
  * served at `/branding/assets/*` by [main.ts](../main.ts).
  *
@@ -10,7 +10,7 @@
  *   - One trust boundary: the operator who can SSH the VPS owns the
  *     file. No public mutation endpoint => no credential to leak.
  *   - The Zero server doesn't need a write API for branding at all -
- *     the openship dashboard SSHes into the box and writes the file
+ *     the vibrail dashboard SSHes into the box and writes the file
  *     directly (same pattern as `mail-credentials.service.ts` etc).
  *   - Static path means assets can be deployed alongside (rsync,
  *     ansible, terraform's local-exec, …) without touching the DB.
@@ -34,9 +34,9 @@ export type Branding = {
 };
 
 export const defaultBranding: Branding = {
-  siteTitle: 'OpenShip Mail',
+  siteTitle: 'Vibrail Mail',
   siteDescription: 'Your self-hosted mailbox.',
-  loginHeading: 'OpenShip Mail',
+  loginHeading: 'Vibrail Mail',
   loginSubtext: 'Sign in with your mailbox credentials',
   loginFooter: 'Self-hosted on your own mail server. No third parties.',
   homeHtml: null,

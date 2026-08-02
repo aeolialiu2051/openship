@@ -2,7 +2,7 @@
 
 // TODO: removed — temporary SaaS "Cloud is almost here" waitlist gate.
 // Delete this file, the /api/cloud-waitlist route, and the gate in Sidebar's
-// handleDeploy when Openship Cloud opens for real deploys.
+// handleDeploy when Vibrail Cloud opens for real deploys.
 
 import { useState } from "react";
 import { Cloud, Check, Loader2 } from "lucide-react";
@@ -10,7 +10,7 @@ import { useI18n } from "@/components/i18n-provider";
 import { cloudBrandCopy } from "@/lib/cloud-brand";
 
 /**
- * SaaS-only "Openship Cloud is almost here" gate. Shown instead of running a
+ * SaaS-only "Vibrail Cloud is almost here" gate. Shown instead of running a
  * deploy while the managed cloud isn't open yet — captures an email for the
  * notify-me waitlist. "Notify me" POSTs to `/api/cloud-waitlist`, a thin Next
  * route handler that forwards to `process.env.MARKETING_API_URL` (no DB / Hono

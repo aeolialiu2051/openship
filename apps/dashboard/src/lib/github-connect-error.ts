@@ -7,7 +7,7 @@
  * post-close handler reads + clears it and shows a toast — otherwise the flow
  * would just silently report "not connected".
  */
-export const GITHUB_CONNECT_ERROR_KEY = "openship.github.connectError";
+export const GITHUB_CONNECT_ERROR_KEY = "vibrail.github.connectError";
 
 const MESSAGES: Record<string, string> = {
   account_already_linked_to_different_user:

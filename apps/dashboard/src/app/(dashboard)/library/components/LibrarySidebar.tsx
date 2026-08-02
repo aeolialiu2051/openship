@@ -24,7 +24,7 @@ interface LibrarySidebarProps {
   selfHosted: boolean;
   /** Canonical GitHub connection state — the only thing this card needs. */
   state: GitHubConnectionState;
-  /** Whether the local instance is connected to Openship Cloud. Drives
+  /** Whether the local instance is connected to Vibrail Cloud. Drives
    *  the "safer remote cloning" CTA card. */
   cloudConnected: boolean;
   /** Authoritative owner-wide counts from the server (GitHub's real totals).
@@ -56,7 +56,7 @@ export function LibrarySidebar({
     <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
       {/* ── Connection status ─────────────────────────────────────
           SaaS mode (!selfHosted) → single card: Vibrail GitHub App.
-          Self-hosted/desktop → gh CLI primary + Openship Cloud optional. */}
+          Self-hosted/desktop → gh CLI primary + Vibrail Cloud optional. */}
       {selfHosted ? (
         <SelfHostedConnectionCard
           state={state}
@@ -135,7 +135,7 @@ function SaasConnectionCard({
   selectedOwner: string;
 }) {
   const { t } = useI18n();
-  const connected = state.sources.openshipApp.connected;
+  const connected = state.sources.vibrailApp.connected;
   return (
     <div className="bg-card rounded-2xl border border-border/50 p-5">
       <div className="flex items-center gap-2 mb-4">
@@ -147,7 +147,7 @@ function SaasConnectionCard({
         label={t.library.sidebar.vibrailGithubApp}
         sublabel={
           connected
-            ? state.sources.openshipApp.login ?? selectedOwner ?? t.library.sidebar.connected
+            ? state.sources.vibrailApp.login ?? selectedOwner ?? t.library.sidebar.connected
             : t.library.sidebar.notConnected
         }
         connected={connected}
@@ -190,7 +190,7 @@ function SelfHostedConnectionCard({
       .getStatusDeduped<any>()
       .then((res) => {
         if (cancelled) return;
-        const app = res?.state?.sources?.openshipApp;
+        const app = res?.state?.sources?.vibrailApp;
         setAppStatus({ connected: Boolean(app?.connected), login: app?.login ?? null });
       })
       .catch(() => {

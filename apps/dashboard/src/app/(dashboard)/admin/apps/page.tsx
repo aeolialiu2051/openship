@@ -408,8 +408,8 @@ export default function AdminApplicationsPage() {
                       <td className="px-4 py-4 text-right">
                         <button
                           type="button"
-                          disabled={row.appTemplateId === "openship"}
-                          title={row.appTemplateId === "openship" ? (zh ? "不能下架控制面" : "The control plane cannot be taken offline") : undefined}
+                          disabled={row.appTemplateId === "vibrail"}
+                          title={row.appTemplateId === "vibrail" ? (zh ? "不能下架控制面" : "The control plane cannot be taken offline") : undefined}
                           onClick={() => setSelected(row)}
                           className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${suspended ? "border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400" : "border-destructive/30 text-destructive hover:bg-destructive/10"}`}
                         >

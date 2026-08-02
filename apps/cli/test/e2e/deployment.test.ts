@@ -11,7 +11,7 @@ import { runCommand, stubFetch, type FetchStub } from "../helpers/harness";
 let fetchStub: FetchStub;
 afterEach(() => fetchStub?.restore());
 
-describe("openship deployment get", () => {
+describe("vibrail deployment get", () => {
   it("GETs /deployments/:id and renders it", async () => {
     fetchStub = stubFetch(() => ({
       json: { data: { id: "dep1", status: "success", env: "production" } },
@@ -24,7 +24,7 @@ describe("openship deployment get", () => {
   });
 });
 
-describe("openship deployment redeploy", () => {
+describe("vibrail deployment redeploy", () => {
   it("POSTs to /deployments/:id/redeploy", async () => {
     fetchStub = stubFetch(() => ({ json: { deploymentId: "dep2" } }));
     const { code } = await runCommand(deploymentCommand, ["redeploy", "dep1"]);
@@ -34,7 +34,7 @@ describe("openship deployment redeploy", () => {
   });
 });
 
-describe("openship deployment rollback", () => {
+describe("vibrail deployment rollback", () => {
   it("POSTs to /deployments/:id/rollback", async () => {
     fetchStub = stubFetch(() => ({ json: { ok: true } }));
     const { code } = await runCommand(deploymentCommand, ["rollback", "dep1"]);

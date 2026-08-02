@@ -4,27 +4,27 @@ import { parseDockerOverview } from "./docker-overview";
 describe("parseDockerOverview", () => {
   it("merges docker ps state with docker stats metrics", () => {
     const raw = [
-      "__OPENSHIP_DOCKER_PS__",
+      "__VIBRAIL_DOCKER_PS__",
       JSON.stringify({
         ID: "abcdef1234567890",
-        Image: "ghcr.io/openship/api:latest",
-        Names: "openship-api-1",
+        Image: "ghcr.io/vibrail/api:latest",
+        Names: "vibrail-api-1",
         Labels:
-          "openship.project=proj_abc123,openship.deployment=dep_123,openship.service=api,com.docker.compose.project=openship",
+          "vibrail.project=proj_abc123,vibrail.deployment=dep_123,vibrail.service=api,com.docker.compose.project=vibrail",
         State: "running",
         Status: "Up 16 hours (healthy)",
       }),
       JSON.stringify({
         ID: "deadbeef12345678",
         Image: "redis:7",
-        Names: "openship-redis-1",
+        Names: "vibrail-redis-1",
         State: "exited",
         Status: "Exited (0) 2 hours ago",
       }),
-      "__OPENSHIP_DOCKER_STATS__",
+      "__VIBRAIL_DOCKER_STATS__",
       JSON.stringify({
         Container: "abcdef123456",
-        Name: "openship-api-1",
+        Name: "vibrail-api-1",
         CPUPerc: "2.75%",
         MemUsage: "242MiB / 1GiB",
         MemPerc: "23.63%",
@@ -36,13 +36,13 @@ describe("parseDockerOverview", () => {
 
     expect(parseDockerOverview(raw)).toEqual([
       expect.objectContaining({
-        name: "openship-api-1",
+        name: "vibrail-api-1",
         running: true,
         health: "healthy",
         projectId: "proj_abc123",
         deploymentId: "dep_123",
         serviceName: "api",
-        composeProject: "openship",
+        composeProject: "vibrail",
         cpuPercent: 2.75,
         memoryUsage: "242MiB",
         memoryLimit: "1GiB",
@@ -54,26 +54,26 @@ describe("parseDockerOverview", () => {
         pids: 18,
       }),
       expect.objectContaining({
-        name: "openship-redis-1",
+        name: "vibrail-redis-1",
         running: false,
         cpuPercent: null,
       }),
     ]);
   });
 
-  it("drops malformed Openship project labels while retaining compose identity", () => {
+  it("drops malformed Vibrail project labels while retaining compose identity", () => {
     const raw = [
-      "__OPENSHIP_DOCKER_PS__",
+      "__VIBRAIL_DOCKER_PS__",
       JSON.stringify({
         ID: "abcdef1234567890",
         Image: "nginx:latest",
         Names: "foreign-web",
         Labels:
-          "openship.project=../../other,com.docker.compose.project=foreign,com.docker.compose.service=web",
+          "vibrail.project=../../other,com.docker.compose.project=foreign,com.docker.compose.service=web",
         State: "running",
         Status: "Up 2 minutes",
       }),
-      "__OPENSHIP_DOCKER_STATS__",
+      "__VIBRAIL_DOCKER_STATS__",
     ].join("\n");
 
     expect(parseDockerOverview(raw)[0]).toEqual(

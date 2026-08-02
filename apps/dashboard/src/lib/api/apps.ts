@@ -30,7 +30,7 @@ export interface AppCatalogEntry {
   custom?: boolean;
   /** Not installable this version — render dimmed + block install. */
   comingSoon?: boolean;
-  /** Needs a newer Openship than this instance — render "Requires Openship ≥ X"
+  /** Needs a newer Vibrail than this instance — render "Requires Vibrail ≥ X"
    *  + block install (a guided update prompt, distinct from coming-soon). */
   requiresUpdate?: { minVersion?: string };
   /** A newer (engine-gated) version exists; the bundled copy is being served. */

@@ -9,7 +9,7 @@
  *
  * The schemas live in different Postgres schemas so they can be managed,
  * granted, and revoked independently. Their connection string is
- * `EMAIL_DATABASE_URL` - distinct from openship's `DATABASE_URL`.
+ * `EMAIL_DATABASE_URL` - distinct from vibrail's `DATABASE_URL`.
  */
 
 export * from "./schema";

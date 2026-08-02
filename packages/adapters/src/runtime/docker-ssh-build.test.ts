@@ -8,7 +8,10 @@ import { DockerRuntime } from "./docker";
 describe("DockerRuntime SSH builds", () => {
   it("prints a runtime banner when deploy overrides the image start command", async () => {
     const start = vi.fn(async () => {});
-    const createContainer = vi.fn(async () => ({ id: "container-runtime-banner", start }));
+    const createContainer = vi.fn(async (_options: Record<string, unknown>) => ({
+      id: "container-runtime-banner",
+      start,
+    }));
     const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
     Object.defineProperty(runtime, "_docker", { value: { createContainer } });
 
@@ -16,7 +19,7 @@ describe("DockerRuntime SSH builds", () => {
       deploymentId: "deployment-runtime-banner",
       projectId: "project-runtime-banner",
       environment: "production",
-      imageRef: "openship/app:test",
+      imageRef: "vibrail/app:test",
       port: 8000,
       startCommand: "uvicorn app:api --host 0.0.0.0 --port $PORT",
       envVars: {},
@@ -28,7 +31,7 @@ describe("DockerRuntime SSH builds", () => {
       Cmd: [
         "sh",
         "-c",
-        expect.stringContaining("[openship] Application starting on port 8000"),
+        expect.stringContaining("[vibrail] Application starting on port 8000"),
       ],
     });
     expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
@@ -90,7 +93,7 @@ describe("DockerRuntime SSH builds", () => {
       }
     ).buildImageOnRemote(
       config,
-      "/tmp/openship-build-build-1",
+      "/tmp/vibrail-build-build-1",
       "Dockerfile",
       "vibrail/app:build-1",
       new BuildLogger(),
@@ -142,7 +145,7 @@ describe("DockerRuntime SSH builds", () => {
           {
             Id: "container-123",
             State: { Status: "running", Running: true, StartedAt: new Date().toISOString() },
-            Config: { Image: "openship/app:test", Labels: {}, ExposedPorts: {} },
+            Config: { Image: "vibrail/app:test", Labels: {}, ExposedPorts: {} },
             NetworkSettings: {
               Networks: { app: { IPAddress: "172.20.0.3", NetworkID: "network-1" } },
               Ports: {},
@@ -168,7 +171,7 @@ describe("DockerRuntime SSH builds", () => {
       projectId: "project-4",
       slug: "app",
       serviceName: "web",
-      image: "openship/app:test",
+      image: "vibrail/app:test",
       ports: ["8080:3000"],
       environment: { NODE_ENV: "production" },
       volumes: ["data:/data"],
@@ -188,13 +191,13 @@ describe("DockerRuntime SSH builds", () => {
     const runCommand = remoteDockerExec.mock.calls.find(([args]) => args.startsWith("run "))?.[0];
     expect(runCommand).toContain("--network 'network-1'");
     expect(runCommand).toContain("--publish '8080:3000'");
-    expect(runCommand).toContain("--env-file '/tmp/openship-env-deployment-4-web'");
-    expect(runCommand).toContain("'openship/app:test' 'sh' '-c' 'node server.js'");
+    expect(runCommand).toContain("--env-file '/tmp/vibrail-env-deployment-4-web'");
+    expect(runCommand).toContain("'vibrail/app:test' 'sh' '-c' 'node server.js'");
     expect(writeFile).toHaveBeenCalledWith(
-      "/tmp/openship-env-deployment-4-web",
+      "/tmp/vibrail-env-deployment-4-web",
       "NODE_ENV=production\n",
     );
-    expect(rm).toHaveBeenCalledWith("/tmp/openship-env-deployment-4-web");
+    expect(rm).toHaveBeenCalledWith("/tmp/vibrail-env-deployment-4-web");
   });
 
   it("omits a stored postgres command that restates the remote image default CMD", async () => {

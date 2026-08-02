@@ -13,7 +13,7 @@ describe("resolveProjectInfo", () => {
   });
 
   it("prefers a nested compose project over a root Dockerfile", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);
 
     await writeFile(join(tempDir, "Dockerfile"), "FROM nginx:alpine\n");
@@ -40,7 +40,7 @@ describe("resolveProjectInfo", () => {
   });
 
   it("prefers a root compose file over a detected Go framework", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);
 
     await writeFile(
@@ -57,7 +57,7 @@ describe("resolveProjectInfo", () => {
   });
 
   it("falls back to Dockerfile detection when no compose file exists", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);
     await writeFile(join(tempDir, "Dockerfile"), "FROM nginx:alpine\nEXPOSE 8080\n");
 
@@ -69,7 +69,7 @@ describe("resolveProjectInfo", () => {
   });
 
   it("rejects a root compose file with no services", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);
     await writeFile(join(tempDir, "docker-compose.yml"), "volumes:\n  data:\n");
 
@@ -79,7 +79,7 @@ describe("resolveProjectInfo", () => {
   });
 
   it("returns required compose variables to the wizard instead of rejecting the repository", async () => {
-    const tempDir = await mkdtemp(join(tmpdir(), "openship-prepare-"));
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);
     await writeFile(
       join(tempDir, "docker-compose.yml"),

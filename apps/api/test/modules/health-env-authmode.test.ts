@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // render ("none" → zero-auth, "local" → Better Auth login). The non-desktop
 // branch used to hardcode "local" while still querying instanceSettings for its
 // siblings, so an operator who completed the deliberate zero-auth opt-in
-// (OPENSHIP_ALLOW_ZERO_AUTH + `confirm: "I-understand-no-auth"`, see
+// (VIBRAIL_ALLOW_ZERO_AUTH + `confirm: "I-understand-no-auth"`, see
 // modules/system/setup.controller.ts) still got a login screen — even though
 // authMiddleware, via lib/auth-mode.ts, had already resolved "none".
 //

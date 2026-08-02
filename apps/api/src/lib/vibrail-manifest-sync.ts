@@ -1,12 +1,12 @@
 /**
  * Manifest SYNC orchestration — the single place that decides WHEN and WHAT to
- * mirror into a server's `.openship/manifest.json`, gathering the structural
+ * mirror into a server's `.vibrail/manifest.json`, gathering the structural
  * project data from the DB.
  *
  * Layering (no logic duplicated across modules):
- *   openship-server-store  → the `.openship/` folder + atomic file I/O
- *   openship-manifest      → the manifest schema + read/write/upsert/remove
- *   openship-manifest-sync → THIS: gate + gather-from-DB + call the above
+ *   vibrail-server-store  → the `.vibrail/` folder + atomic file I/O
+ *   vibrail-manifest      → the manifest schema + read/write/upsert/remove
+ *   vibrail-manifest-sync → THIS: gate + gather-from-DB + call the above
  *
  * Plan B for a lost orchestrator. DESKTOP-ONLY by design: in VPS/self-hosted
  * mode the orchestrator DB lives on a durable, backup-able box, so a server-side
@@ -25,14 +25,14 @@ import {
   writeProjectSnapshot,
   removeProjectSnapshot,
   type ManifestProjectEntry,
-} from "./openship-manifest";
+} from "./vibrail-manifest";
 
 /**
  * FINAL STEP of a successful server deploy: mirror this project to the target
  * server so a fresh orchestrator can recover it after a lost/reset DB. Writes
  * TWO artifacts (NO secrets):
- *   - `.openship/manifest.json`   — lightweight structural INDEX (read on scan)
- *   - `.openship/snapshot-<id>.json` — the full project subgraph dump, for a
+ *   - `.vibrail/manifest.json`   — lightweight structural INDEX (read on scan)
+ *   - `.vibrail/snapshot-<id>.json` — the full project subgraph dump, for a
  *      FAITHFUL `restoreSubgraph` on re-import.
  *
  * Runs for ANY server deploy (not just desktop) so CLI / self-hosted deploys are
@@ -86,9 +86,9 @@ export async function syncProjectToServerManifest(input: {
       updatedAt: new Date().toISOString(),
     };
     await upsertProjectIntoManifest(executor, entry);
-    log?.("Synced project to server .openship/manifest.json (recovery index)");
+    log?.("Synced project to server .vibrail/manifest.json (recovery index)");
   } catch (err) {
-    log?.(`Warning: .openship manifest sync failed (non-fatal): ${safeErrorMessage(err)}`);
+    log?.(`Warning: .vibrail manifest sync failed (non-fatal): ${safeErrorMessage(err)}`);
   }
 
   // Full secret-free subgraph dump — the faithful-restore payload. Independent
@@ -96,9 +96,9 @@ export async function syncProjectToServerManifest(input: {
   try {
     const dump = await dumpSubgraph({ kind: "project", projectId: project.id }, { stripEncrypted: true });
     await writeProjectSnapshot(executor, project.id, dump);
-    log?.("Wrote server .openship project snapshot (faithful recovery restore)");
+    log?.("Wrote server .vibrail project snapshot (faithful recovery restore)");
   } catch (err) {
-    log?.(`Warning: .openship project snapshot write failed (non-fatal): ${safeErrorMessage(err)}`);
+    log?.(`Warning: .vibrail project snapshot write failed (non-fatal): ${safeErrorMessage(err)}`);
   }
 }
 

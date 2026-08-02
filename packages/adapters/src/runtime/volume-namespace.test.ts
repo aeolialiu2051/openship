@@ -6,9 +6,9 @@ import {
 } from "./volume-namespace";
 
 describe("scopedVolumeName", () => {
-  it("prefixes with openship-<slug>-", () => {
+  it("prefixes with vibrail-<slug>-", () => {
     expect(scopedVolumeName("clincai", "postgres_data")).toBe(
-      "openship-clincai-postgres_data",
+      "vibrail-clincai-postgres_data",
     );
   });
 });
@@ -31,13 +31,13 @@ describe("scopeVolumeBinds", () => {
 
   it("scopes a named volume", () => {
     expect(scopeVolumeBinds(slug, ["postgres_data:/var/lib/postgresql/data"], true)).toEqual([
-      "openship-clincai-postgres_data:/var/lib/postgresql/data",
+      "vibrail-clincai-postgres_data:/var/lib/postgresql/data",
     ]);
   });
 
   it("preserves a trailing mode suffix", () => {
     expect(scopeVolumeBinds(slug, ["pgdata:/data:ro"], true)).toEqual([
-      "openship-clincai-pgdata:/data:ro",
+      "vibrail-clincai-pgdata:/data:ro",
     ]);
   });
 
@@ -70,9 +70,9 @@ describe("scopeVolumeBinds", () => {
         true,
       ),
     ).toEqual([
-      "openship-clincai-pgdata:/var/lib/postgresql/data",
+      "vibrail-clincai-pgdata:/var/lib/postgresql/data",
       "/etc/config:/config:ro",
-      "openship-clincai-redis_data:/data",
+      "vibrail-clincai-redis_data:/data",
     ]);
   });
 });

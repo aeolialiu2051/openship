@@ -239,7 +239,7 @@ export async function teardownBillingForOrg(
     try {
       // Lazy import so non-CLOUD_MODE call sites don't try to construct
       // the cloud client at module load (mirrors billing-oblien-quota).
-      const { getOblienClient } = await import("../../lib/openship-cloud");
+      const { getOblienClient } = await import("../../lib/vibrail-cloud");
       const client = getOblienClient();
 
       // Best-effort suspend first. We swallow + log the error rather

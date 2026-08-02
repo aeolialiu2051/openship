@@ -1,8 +1,8 @@
 /**
- * Lazy-download of the Openship dashboard (Next standalone) so `openship up`
+ * Lazy-download of the Vibrail dashboard (Next standalone) so `vibrail up`
  * can serve a local browser UI without bloating the npm package. Mirrors the
- * desktop-app download in `openship install`: fetch the release asset, verify
- * its sha256 sidecar, extract, and cache under ~/.openship/cache/dashboard/<tag>/.
+ * desktop-app download in `vibrail install`: fetch the release asset, verify
+ * its sha256 sidecar, extract, and cache under ~/.vibrail/cache/dashboard/<tag>/.
  *
  * The bundle has NO native deps (dashboard `output: "standalone"`, no
  * sharp/etc.), so a single Linux-built tarball runs cross-platform under Node.
@@ -17,7 +17,7 @@ import { assetUrl, expectedSha256, resolveLatestTag } from "./github-releases";
 const DASHBOARD_CACHE = join(CACHE_DIR, "dashboard");
 
 function assetName(tag: string): string {
-  return `openship-dashboard-${tag}.tar.gz`;
+  return `vibrail-dashboard-${tag}.tar.gz`;
 }
 
 export interface DashboardBundle {
@@ -40,7 +40,7 @@ export async function ensureDashboard(
   // point at a locally-built Next standalone dir instead of downloading from
   // GitHub. Expects the monorepo-rooted layout <dir>/apps/dashboard/server.js
   // (i.e. apps/dashboard/.next/standalone). No checksum — it's your own build.
-  const override = process.env.OPENSHIP_DASHBOARD_DIR?.trim();
+  const override = process.env.VIBRAIL_DASHBOARD_DIR?.trim();
   if (override) {
     const cwd = join(override, "apps", "dashboard");
     const proxyEntry = join(cwd, "standalone-server.mjs");
@@ -48,7 +48,7 @@ export async function ensureDashboard(
     const entry = existsSync(proxyEntry) ? proxyEntry : legacyEntry;
     if (!existsSync(entry)) {
       throw new Error(
-        `OPENSHIP_DASHBOARD_DIR=${override} but ${entry} is missing — build the dashboard standalone first (see docs).`,
+        `VIBRAIL_DASHBOARD_DIR=${override} but ${entry} is missing — build the dashboard standalone first (see docs).`,
       );
     }
     return { tag: "local", entry, cwd };

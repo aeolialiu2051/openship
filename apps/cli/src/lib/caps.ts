@@ -54,12 +54,12 @@ export async function fetchCaps(opts?: { force?: boolean; context?: string }): P
 
 /**
  * Gate a [self-host] command. Throws (with status 400) when the active target
- * is Openship Cloud, so cloud users get a clean message instead of a 404/403.
+ * is Vibrail Cloud, so cloud users get a clean message instead of a 404/403.
  */
 export function requireSelfHost(caps: ContextCaps): void {
   if (!caps.selfHosted) {
     throw new ApiError(
-      "This command is only available on a self-hosted Openship instance, not on Openship Cloud.",
+      "This command is only available on a self-hosted Vibrail instance, not on Vibrail Cloud.",
       400,
       null,
     );

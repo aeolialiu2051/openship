@@ -81,7 +81,7 @@ export class TunnelMustBeCloudConnectedError extends Error {
   readonly code = "TUNNEL_MUST_BE_CLOUD_CONNECTED" as const;
   constructor() {
     super(
-      "This instance must be connected to Openship Cloud to provision an edge tunnel. Connect your cloud account in Settings first.",
+      "This instance must be connected to Vibrail Cloud to provision an edge tunnel. Connect your cloud account in Settings first.",
     );
     this.name = "TunnelMustBeCloudConnectedError";
   }
@@ -115,7 +115,7 @@ export async function migrateInstanceToTunnel(
       try {
         tunnel = await provisionTunnel({
           provider: "oblien",
-          name: `openship-${ctx.input.organizationId}`,
+          name: `vibrail-${ctx.input.organizationId}`,
           port: DEFAULT_PORT.dashboard,
           slug,
           context: { organizationId: ctx.input.organizationId },

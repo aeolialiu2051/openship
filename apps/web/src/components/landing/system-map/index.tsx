@@ -285,7 +285,7 @@ export function SystemMap() {
             </h2>
             <p className="smap-sub">
               From a git push to a served request — this is the actual path your code
-              takes, and every box on it is something Openship runs for you.
+              takes, and every box on it is something Vibrail runs for you.
             </p>
           </header>
 

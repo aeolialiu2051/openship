@@ -4,7 +4,7 @@ import { resolveStaticOutputPath } from "./stack-output";
 // The result is served / exported as a document root, so it MUST stay inside
 // `base`. Covers both callers: bare (base = workDir) and cloud Pages (base = /app).
 describe("resolveStaticOutputPath", () => {
-  const WORK = "/opt/openship/releases/dep_123";
+  const WORK = "/opt/vibrail/releases/dep_123";
 
   test("empty / '.' → base itself", () => {
     expect(resolveStaticOutputPath(WORK, "")).toBe(WORK);

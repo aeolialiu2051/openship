@@ -1,14 +1,14 @@
 /**
- * `openship install` — lazy-download and install the Openship desktop app for
+ * `vibrail install` — lazy-download and install the Vibrail desktop app for
  * the current OS/arch.
  *
- * This talks to GitHub, NOT the Openship API: assets are published to
- * github.com/oblien/openship/releases (asset names match the desktop updater,
- * apps/desktop/src/main/updater.ts — Openship-arm64.dmg / Openship-x64.dmg /
- * Openship.AppImage, plus Openship-win32-x64.zip for the CLI install path).
+ * This talks to GitHub, NOT the Vibrail API: assets are published to
+ * github.com/aeolialiu2051/vibrail/releases (asset names match the desktop updater,
+ * apps/desktop/src/main/updater.ts — Vibrail-arm64.dmg / Vibrail-x64.dmg /
+ * Vibrail.AppImage, plus Vibrail-win32-x64.zip for the CLI install path).
  *
  * Flow: resolve tag (--version, else releases/latest) → download the asset and
- * its <asset>.sha256 sidecar into ~/.openship/cache/releases/<tag>/ →
+ * its <asset>.sha256 sidecar into ~/.vibrail/cache/releases/<tag>/ →
  * stream-verify with node:crypto (fail-closed if the sidecar is missing, unless
  * --no-verify) → install per-OS and launch.
  */
@@ -33,11 +33,11 @@ type AssetKind = "dmg" | "appimage" | "zip";
 function assetForPlatform(): { name: string; kind: AssetKind } {
   const { platform, arch } = process;
   if (platform === "darwin") {
-    return { name: arch === "arm64" ? "Openship-arm64.dmg" : "Openship-x64.dmg", kind: "dmg" };
+    return { name: arch === "arm64" ? "Vibrail-arm64.dmg" : "Vibrail-x64.dmg", kind: "dmg" };
   }
-  if (platform === "win32") return { name: "Openship-win32-x64.zip", kind: "zip" };
+  if (platform === "win32") return { name: "Vibrail-win32-x64.zip", kind: "zip" };
   if (platform === "linux") {
-    return { name: arch === "arm64" ? "Openship-arm64.AppImage" : "Openship.AppImage", kind: "appimage" };
+    return { name: arch === "arm64" ? "Vibrail-arm64.AppImage" : "Vibrail.AppImage", kind: "appimage" };
   }
   throw new Error(`Unsupported platform: ${platform} (${arch})`);
 }
@@ -60,15 +60,15 @@ function installDmg(dmg: string): string {
   const mount = (attach.stdout.match(/\/Volumes\/[^\n]*/g) ?? []).pop()?.trim();
   if (!mount) throw new Error("Could not determine the mounted volume");
 
-  let target = join(dest, "Openship.app");
+  let target = join(dest, "Vibrail.app");
   try {
-    const appInDmg = join(mount, "Openship.app");
-    if (!existsSync(appInDmg)) throw new Error("Openship.app not found in the disk image");
+    const appInDmg = join(mount, "Vibrail.app");
+    if (!existsSync(appInDmg)) throw new Error("Vibrail.app not found in the disk image");
     spawnSync("rm", ["-rf", target]);
     let copy = spawnSync("ditto", [appInDmg, target], { encoding: "utf8" });
     if (copy.status !== 0 && dest === homeApps) {
       // ~/Applications write failed (rare perms case) → fall back to /Applications.
-      target = join("/Applications", "Openship.app");
+      target = join("/Applications", "Vibrail.app");
       spawnSync("rm", ["-rf", target]);
       copy = spawnSync("ditto", [appInDmg, target], { encoding: "utf8" });
     }
@@ -86,7 +86,7 @@ function installAppImage(appImage: string): string {
 
 function installZip(zip: string): string {
   const localAppData = process.env.LOCALAPPDATA || join(homedir(), "AppData", "Local");
-  const target = join(localAppData, "Programs", "Openship");
+  const target = join(localAppData, "Programs", "Vibrail");
   mkdirSync(target, { recursive: true });
   const expand = spawnSync(
     "powershell",
@@ -117,13 +117,13 @@ function launch(kind: AssetKind, target: string): void {
     return;
   }
   // zip: find and start the exe under the install dir.
-  const exe = join(target, "Openship.exe");
+  const exe = join(target, "Vibrail.exe");
   const path = existsSync(exe) ? exe : target;
   spawnSync("cmd", ["/c", "start", "", path]);
 }
 
 export const installCommand = new Command("install")
-  .description("Download and install the Openship desktop app for this OS")
+  .description("Download and install the Vibrail desktop app for this OS")
   .option("--version <tag>", "Release tag to install (e.g. v1.2.3)")
   .option("--latest", "Install the latest release (default)")
   .option("--force", "Re-download even if a verified copy is cached")
@@ -253,6 +253,6 @@ export const installCommand = new Command("install")
     if (isJsonMode()) {
       printJson({ tag, asset: asset.name, path: target, cached: !downloaded, launched: willLaunch });
     } else {
-      ok(`\n  Openship ${tag} is installed.${willLaunch ? " Launching…" : ""}\n`);
+      ok(`\n  Vibrail ${tag} is installed.${willLaunch ? " Launching…" : ""}\n`);
     }
   });

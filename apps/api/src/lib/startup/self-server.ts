@@ -1,7 +1,7 @@
 /**
  * Self-server reconcile — Self-hosted (server-host / "VPS") only.
  *
- * When OpenShip runs ON a server (docker/bare self-host — the `modes` gate below
+ * When Vibrail runs ON a server (docker/bare self-host — the `modes` gate below
  * excludes desktop), the host is itself a deployable target. This registers it
  * ONCE as an `isLocal` "This Server" row so it shows up in /servers and becomes
  * a first-class deploy target. Deploys to it resolve to the LOCAL host executor

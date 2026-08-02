@@ -15,7 +15,7 @@ export type { BillingState };
 /*  every tier (free included). Ceilings come from the tier's static   */
 /*  oblienLimits so the panel is meaningful immediately; live          */
 /*  consumption (and cloud-only ceilings like free routes / bandwidth) */
-/*  fills in from `state.capacity` once Openship Cloud reports it. Any  */
+/*  fills in from `state.capacity` once Vibrail Cloud reports it. Any  */
 /*  meter still awaiting cloud data shows a "syncing" hint rather than  */
 /*  a fake zero.                                                        */
 /* ------------------------------------------------------------------ */

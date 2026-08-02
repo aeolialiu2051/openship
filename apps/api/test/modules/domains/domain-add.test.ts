@@ -108,8 +108,8 @@ describe("addDomain retries", () => {
         },
         {
           type: "TXT",
-          host: "_openship-challenge",
-          name: "_openship-challenge.example.com",
+          host: "_vibrail-challenge",
+          name: "_vibrail-challenge.example.com",
           value: "verify-existing",
         },
       ],

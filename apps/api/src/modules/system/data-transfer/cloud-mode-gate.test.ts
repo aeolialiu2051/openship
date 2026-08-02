@@ -20,7 +20,7 @@ describe("data-transfer CLOUD_MODE gate (GATE 1)", () => {
 
   it("importInstance refuses when CLOUD_MODE — before touching the file or DB", async () => {
     // A dummy file is fine: the gate fires before envelope validation / any write.
-    const file = { kind: "openship-instance-export" } as unknown as DataTransferFile;
+    const file = { kind: "vibrail-instance-export" } as unknown as DataTransferFile;
     await expect(importInstance({ file, mode: "wipe" })).rejects.toBeInstanceOf(
       CloudInstanceNotTransferableError,
     );

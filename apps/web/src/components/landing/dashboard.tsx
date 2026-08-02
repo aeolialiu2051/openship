@@ -27,7 +27,7 @@ export function Dashboard() {
           <div className="dashboard-stack__center">
             <img
               src="/screen.png"
-              alt="Openship dashboard"
+              alt="Vibrail dashboard"
               loading="lazy"
               decoding="async"
               width="2880"

@@ -1,12 +1,12 @@
 /**
- * Bundle the Openship API into the CLI package so `openship up` can run the
+ * Bundle the Vibrail API into the CLI package so `vibrail up` can run the
  * control plane on the user's Node — no monorepo, no bun, no external Postgres.
  *
  * Produces apps/cli/dist/server/:
  *   index.js       the API as one node-runnable bundle (@repo/* + deps inlined,
  *                  EXCEPT the SSH/Docker native stack — see `external` below)
- *   pglite/        pglite.wasm + pglite.data → OPENSHIP_PGLITE_ASSETS_DIR
- *   migrations/    drizzle .sql → OPENSHIP_MIGRATIONS_DIR
+ *   pglite/        pglite.wasm + pglite.data → VIBRAIL_PGLITE_ASSETS_DIR
+ *   migrations/    drizzle .sql → VIBRAIL_MIGRATIONS_DIR
  *
  * Runs (under bun) after tsup, since tsup's `clean` wipes dist first. This only
  * runs at build/publish time in the monorepo; the published package ships the

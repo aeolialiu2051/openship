@@ -1,7 +1,7 @@
-# `openship.json` — full field reference
+# `vibrail.json` — full field reference
 
 Every field is optional. Present fields override auto-detection; absent fields keep the detected
-value. Validated by `openship config validate` (same parser the deploy uses).
+value. Validated by `vibrail config validate` (same parser the deploy uses).
 
 ## Build
 

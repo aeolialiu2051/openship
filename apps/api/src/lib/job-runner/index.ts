@@ -4,7 +4,7 @@
  * Auto-selects the backend by probing REDIS_URL. Redis reachable in
  * ~2s → BullMQJobRunner; otherwise InProcessJobRunner. Decision is
  * made ONCE at first access; subsequent calls return the same
- * instance. Override via `OPENSHIP_JOB_RUNNER` env var when needed
+ * instance. Override via `VIBRAIL_JOB_RUNNER` env var when needed
  * (e.g. force in-process in tests even if Redis is available).
  *
  * Callers should never construct a runner directly — always go through
@@ -28,14 +28,14 @@ let resolvingPromise: Promise<JobRunner> | null = null;
  * into the chosen runner.
  */
 async function pickRunner(): Promise<JobRunner> {
-  const override = (process.env.OPENSHIP_JOB_RUNNER ?? "").toLowerCase().trim();
+  const override = (process.env.VIBRAIL_JOB_RUNNER ?? "").toLowerCase().trim();
   if (override === "in-process") {
     return new InProcessJobRunner();
   }
   if (override === "bullmq") {
     return new BullMQJobRunner();
   }
-  // Redis required (CLOUD_MODE / OPENSHIP_REQUIRE_REDIS): force BullMQ, skip the
+  // Redis required (CLOUD_MODE / VIBRAIL_REQUIRE_REDIS): force BullMQ, skip the
   // probe. No silent in-process fallback — a SaaS replica MUST share the queue.
   if (REDIS_REQUIRED) {
     return new BullMQJobRunner();

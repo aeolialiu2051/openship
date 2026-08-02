@@ -136,7 +136,7 @@
     "couldNotStartAuthMsg": "Le flux d'authentification du bureau n'a pas pu être démarré.",
     "authFailedMsg": "Veuillez réessayer et terminer la connexion dans votre navigateur.",
     "completingSignIn": "Finalisation de la connexion…",
-    "returningToOpenship": "Retour à Vibrail",
+    "returningToVibrail": "Retour à Vibrail",
     "redirectingCloud": "Redirection vers Vibrail Cloud…",
     "newTabSignIn": "Vous terminerez la connexion dans un nouvel onglet",
     "couldNotSaveTitle": "Impossible d'enregistrer la configuration",

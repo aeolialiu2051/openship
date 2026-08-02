@@ -1,5 +1,5 @@
 /**
- * `openship deployment …` — manage existing deployments.
+ * `vibrail deployment …` — manage existing deployments.
  *
  * Every subcommand maps to a real /api/deployments route
  * (deployment.routes.ts / deployment.controller.ts):

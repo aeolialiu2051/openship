@@ -1,5 +1,5 @@
 /**
- * Translate an `openship_server` backup_destination row into a row
+ * Translate a `vibrail_server` backup_destination row into a row
  * the SFTP adapter can consume.
  *
  * Cleanly separates concerns: the adapter doesn't know about the
@@ -30,13 +30,13 @@ import { safeErrorMessage } from "@repo/core";
 /**
  * Take a raw backup_destination DB row and produce a BackupDestinationRow
  * suitable for `resolveDestination`. For most kinds this is a 1:1 mapping;
- * `openship_server` is the special case that needs server-table lookup.
+ * `vibrail_server` is the special case that needs server-table lookup.
  */
 export async function toAdapterRow(row: BackupDestination): Promise<BackupDestinationRow> {
-  if (row.kind === "openship_server") {
+  if (row.kind === "vibrail_server") {
     if (!row.serverId) {
       throw new Error(
-        `Destination "${row.name}" is kind=openship_server but has no serverId — corrupted state`,
+        `Destination "${row.name}" is kind=vibrail_server but has no serverId — corrupted state`,
       );
     }
     return hydrateServerAdapterRow({
@@ -99,7 +99,7 @@ export async function hydrateServerAdapterRow(params: {
   } else if (server.sshAuthMethod === "key" && server.sshKeyPath) {
     // Centralised allowlist + traversal check — see lib/ssh-key-path.ts.
     // homedir() is added as an extra root so an operator's
-    // ~/.ssh/openship key works without explicit env configuration.
+    // ~/.ssh/vibrail key works without explicit env configuration.
     let keyPath: string;
     try {
       keyPath = resolveSafeSshKeyPath(server.sshKeyPath, {
@@ -136,7 +136,7 @@ export async function hydrateServerAdapterRow(params: {
     id,
     organizationId,
     name,
-    kind: "openship_server",
+    kind: "vibrail_server",
     endpoint: null,
     region: null,
     bucket: null,

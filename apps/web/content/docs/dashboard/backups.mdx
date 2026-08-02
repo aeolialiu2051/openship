@@ -4,7 +4,7 @@ description: The Backups page is where you register storage targets — S3 bucke
 ---
 
 The **Backups** page (in the sidebar, or at `/backups`) is where you set up the *storage targets* your
-backups get written to. Openship calls these **destinations**. Think of a destination as an answer to one
+backups get written to. Vibrail calls these **destinations**. Think of a destination as an answer to one
 question: "when a backup runs, where do the files go?"
 
 This page manages destinations only. *When* and *what* to back up — the schedule and retention for a given
@@ -91,7 +91,7 @@ icon in the header reminds you that **credentials are encrypted at rest and neve
 | **Host** | SSH host, e.g. `backups.example.com`. |
 | **Port** | Defaults to `22`. |
 | **User** | SSH user, e.g. `backup`. |
-| **Path prefix** | Remote directory, e.g. `/backups/openship`. |
+| **Path prefix** | Remote directory, e.g. `/backups/vibrail`. |
 | **Password** | Leave empty if using a private key. |
 | **Private key (PEM)** | Used when the password is empty. |
 
@@ -101,7 +101,7 @@ icon in the header reminds you that **credentials are encrypted at rest and neve
 | Field | Notes |
 |---|---|
 | **Server** | Pick a server you've already added on the **Servers** page (`/servers`) — it reuses that server's SSH credentials. |
-| **Remote path** | Absolute directory on the server, e.g. `/backups/openship`. |
+| **Remote path** | Absolute directory on the server, e.g. `/backups/vibrail`. |
 
 If no servers are configured yet, the form links you to **Servers** to add one first.
 
@@ -110,7 +110,7 @@ If no servers are configured yet, the form links you to **Servers** to add one f
 
 | Field | Notes |
 |---|---|
-| **Absolute path** | A filesystem path on the API host, e.g. `/var/backups/openship`. Disabled in cloud mode. |
+| **Absolute path** | A filesystem path on the API host, e.g. `/var/backups/vibrail`. Disabled in cloud mode. |
 
 </Tab>
 </Tabs>

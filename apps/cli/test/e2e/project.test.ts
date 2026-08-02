@@ -15,7 +15,7 @@ import { runCommand, stubFetch, type FetchStub } from "../helpers/harness";
 let fetchStub: FetchStub;
 afterEach(() => fetchStub?.restore());
 
-describe("openship project list", () => {
+describe("vibrail project list", () => {
   it("paginates /projects and tabulates the rows", async () => {
     fetchStub = stubFetch((req) => {
       expect(req.url).toContain("/api/projects");
@@ -28,7 +28,7 @@ describe("openship project list", () => {
   });
 });
 
-describe("openship project get", () => {
+describe("vibrail project get", () => {
   it("GETs /projects/:id", async () => {
     fetchStub = stubFetch(() => ({ json: { data: { id: "p1", name: "shop" } } }));
     const { out, code } = await runCommand(projectCommand, ["get", "p1"]);

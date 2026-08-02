@@ -3,7 +3,7 @@ import { env } from "../config/env";
 import { getInstanceReachability } from "./public-url";
 
 /**
- * The host Openship Cloud's shared edge (Oblien) dials for a free `<slug>.vibrail.warpgateapi.com`
+ * The host Vibrail Cloud's shared edge (Oblien) dials for a free `<slug>.vibrail.warpgateapi.com`
  * route — it must be a PUBLIC address reachable from the internet on :80, never a
  * loopback/private one.
  *
@@ -25,7 +25,7 @@ export interface EdgeTargetResult {
 }
 
 const NO_PUBLIC_HOST =
-  "this server has no public address Openship Cloud can reach — set OPENSHIP_PUBLIC_URL or SERVER_IP";
+  "this server has no public address Vibrail Cloud can reach — set VIBRAIL_PUBLIC_URL or SERVER_IP";
 
 /** Loopback / RFC-1918 / link-local / unspecified — unreachable from the internet. */
 export function isNonPublicHost(host: string): boolean {
@@ -74,7 +74,7 @@ function firstPublic(...candidates: (string | null | undefined)[]): string | nul
  *
  * - Remote server (row is NOT `isLocal`): its `sshHost` is the reachable address.
  * - `isLocal "This Server"` / no server: this box runs the workload, so use the
- *   INSTANCE's public address — OPENSHIP_PUBLIC_URL host, SERVER_IP, the verified
+ *   INSTANCE's public address — VIBRAIL_PUBLIC_URL host, SERVER_IP, the verified
  *   self-app domain, or HOST_DOMAIN — never the display `sshHost`.
  */
 export async function resolveEdgeTargetHost(
@@ -94,7 +94,7 @@ export async function resolveEdgeTargetHost(
     // isLocal row → fall through to the instance's own public address.
   }
 
-  const envHost = firstPublic(env.OPENSHIP_PUBLIC_URL, env.SERVER_IP);
+  const envHost = firstPublic(env.VIBRAIL_PUBLIC_URL, env.SERVER_IP);
   if (envHost) return { host: envHost };
 
   // No env seed — fall back to the verified self-app domain (the box's real

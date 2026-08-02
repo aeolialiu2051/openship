@@ -17,7 +17,7 @@
  *     OR an env-configured override)
  *   - deny common system paths even when nested under an env-configured or
  *     caller-supplied root (the built-in DEFAULT_ROOTS are exempt — one of
- *     them, /etc/openship/ssh-keys, deliberately sits under /etc)
+ *     them, /etc/vibrail/ssh-keys, deliberately sits under /etc)
  *
  * Tests live in test/lib/ssh-key-path.test.ts.
  */
@@ -40,7 +40,7 @@ const SYSTEM_DENY = [
 /** Default roots — operator's home / standard SSH key dirs. The user
  *  field is intentionally empty: callers pass the operator's HOME via
  *  resolveSafeSshKeyPath's `extraRoots` argument. */
-const DEFAULT_ROOTS = ["/var/lib/openship/ssh-keys", "/etc/openship/ssh-keys"];
+const DEFAULT_ROOTS = ["/var/lib/vibrail/ssh-keys", "/etc/vibrail/ssh-keys"];
 
 export interface SshKeyPathOptions {
   /** Extra allowed roots — typically the operator's $HOME so they can
@@ -75,7 +75,7 @@ export function resolveSafeSshKeyPath(
   const resolved = resolve(trimmed);
 
   // SYSTEM_DENY is deliberately broad (`/etc`), and one of the built-in
-  // DEFAULT_ROOTS sits inside it (`/etc/openship/ssh-keys`). Those roots are
+  // DEFAULT_ROOTS sits inside it (`/etc/vibrail/ssh-keys`). Those roots are
   // hardcoded here — not operator- or caller-supplied — so a path under one is
   // an explicit carve-out and skips the denylist. Env-configured and caller
   // supplied roots deliberately do NOT get this exemption, so an `extraRoots`

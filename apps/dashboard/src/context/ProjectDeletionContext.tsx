@@ -15,7 +15,7 @@ import { operationsApi, projectsApi } from "@/lib/api";
 import type { ResourceOperationView } from "@/lib/api/operations";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 
-const STORAGE_KEY = "openship:project-deletions";
+const STORAGE_KEY = "vibrail:project-deletions";
 const POLL_INTERVAL_MS = 2_000;
 
 interface TrackedProjectDeletion {

@@ -1,23 +1,24 @@
 /**
- * The single owner of the `/root/.openship/` folder on a target server.
+ * The single owner of the `/root/.vibrail/` folder on a target server.
  *
- * Everything Openship persists ON a server (mail state, the project manifest)
+ * Everything Vibrail persists ON a server (mail state, the project manifest)
  * lives in this one root-only directory so it's the server's self-describing
  * source of truth — survive-the-orchestrator state for disaster recovery.
  *
  * This module owns ONLY the storage mechanics: ensuring the folder exists and
  * atomic file read/write/remove over an SSH `CommandExecutor`. Domain modules
- * (`mail-state.ts`, `openship-manifest.ts`) layer their schemas on top and must
+ * (`mail-state.ts`, `vibrail-manifest.ts`) layer their schemas on top and must
  * NOT re-implement the folder/mkdir/atomic-write logic — call these helpers.
  */
 
 import { detectPrivilege, elevatedExecutor, type CommandExecutor } from "@repo/adapters";
 
 /** The one folder. Nothing else hard-codes this path. */
-export const OPENSHIP_DIR = "/root/.openship";
+export const VIBRAIL_DIR = "/root/.vibrail";
+const LEGACY_OPENSHIP_DIR = "/root/.openship";
 
 /**
- * Resolve an executor that can access Openship's root-owned server store.
+ * Resolve an executor that can access Vibrail's root-owned server store.
  *
  * Most cloud images disable root SSH and expose an `ubuntu`/`debian` user with
  * passwordless sudo. The store used to run against that login executor
@@ -35,7 +36,7 @@ export function resolveRootExecutor(exec: CommandExecutor): Promise<CommandExecu
     if (privilege.isRoot) return exec;
     if (privilege.canSudo) return elevatedExecutor(exec);
     throw new Error(
-      "Openship server state requires root or passwordless sudo (sudo -n). Update the SSH user permissions and reconnect the server.",
+      "Vibrail server state requires root or passwordless sudo (sudo -n). Update the SSH user permissions and reconnect the server.",
     );
   });
   rootExecutors.set(exec, resolved);
@@ -54,58 +55,69 @@ function sq(v: string): string {
 }
 
 /**
- * Ensure the `.openship` dir exists, root-only (0700). Idempotent. THE single
+ * Ensure the `.vibrail` dir exists, root-only (0700). Idempotent. THE single
  * place the folder is created — callers never `mkdir` it themselves.
  */
-export async function ensureOpenshipDir(exec: CommandExecutor): Promise<void> {
+export async function ensureVibrailDir(exec: CommandExecutor): Promise<void> {
   const rootExec = await resolveRootExecutor(exec);
-  await rootExec.exec(`mkdir -p ${sq(OPENSHIP_DIR)} && chmod 0700 ${sq(OPENSHIP_DIR)}`);
+  await rootExec.exec(`mkdir -p ${sq(VIBRAIL_DIR)} && chmod 0700 ${sq(VIBRAIL_DIR)}`);
 }
 
 /**
- * Read a file from `.openship` by bare name (e.g. "mail-state.json"). Returns
+ * Read a file from `.vibrail` by bare name (e.g. "mail-state.json"). Returns
  * "" when absent — never throws on a missing file.
  */
-export async function readOpenshipFile(exec: CommandExecutor, name: string): Promise<string> {
-  const path = `${OPENSHIP_DIR}/${name}`;
+export async function readVibrailFile(exec: CommandExecutor, name: string): Promise<string> {
+  const path = `${VIBRAIL_DIR}/${name}`;
+  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   try {
     const rootExec = await resolveRootExecutor(exec);
-    return (await rootExec.exec(`cat ${sq(path)} 2>/dev/null || echo ""`)).trim();
+    return (
+      await rootExec.exec(
+        `if [ -f ${sq(path)} ]; then cat ${sq(path)}; else cat ${sq(legacyPath)} 2>/dev/null || echo ""; fi`,
+      )
+    ).trim();
   } catch {
     return "";
   }
 }
 
 /**
- * Atomically write a file into `.openship` (temp file → `mv -f`), root-only
+ * Atomically write a file into `.vibrail` (temp file → `mv -f`), root-only
  * (0600). Ensures the dir first. A kill mid-write never leaves a partial file.
  */
-export async function writeOpenshipFile(
+export async function writeVibrailFile(
   exec: CommandExecutor,
   name: string,
   content: string,
 ): Promise<void> {
-  const path = `${OPENSHIP_DIR}/${name}`;
+  const path = `${VIBRAIL_DIR}/${name}`;
   const tmp = `${path}.tmp`;
   const rootExec = await resolveRootExecutor(exec);
-  await rootExec.exec(`mkdir -p ${sq(OPENSHIP_DIR)} && chmod 0700 ${sq(OPENSHIP_DIR)}`);
+  await rootExec.exec(`mkdir -p ${sq(VIBRAIL_DIR)} && chmod 0700 ${sq(VIBRAIL_DIR)}`);
   await rootExec.writeFile(tmp, content);
   await rootExec.exec(`mv -f ${sq(tmp)} ${sq(path)} && chmod 0600 ${sq(path)}`);
 }
 
-/** Remove a file (and any stale temp) from `.openship`. Idempotent. */
-export async function removeOpenshipFile(exec: CommandExecutor, name: string): Promise<void> {
-  const path = `${OPENSHIP_DIR}/${name}`;
+/** Remove a file (and any stale temp) from `.vibrail`. Idempotent. */
+export async function removeVibrailFile(exec: CommandExecutor, name: string): Promise<void> {
+  const path = `${VIBRAIL_DIR}/${name}`;
+  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   const rootExec = await resolveRootExecutor(exec);
-  await rootExec.exec(`rm -f ${sq(path)} ${sq(`${path}.tmp`)}`);
+  await rootExec.exec(
+    `rm -f ${sq(path)} ${sq(`${path}.tmp`)} ${sq(legacyPath)} ${sq(`${legacyPath}.tmp`)}`,
+  );
 }
 
-/** Cheap existence check (no read) — `true` iff `.openship/<name>` is a file. */
-export async function openshipFileExists(exec: CommandExecutor, name: string): Promise<boolean> {
-  const path = `${OPENSHIP_DIR}/${name}`;
+/** Cheap existence check (no read) — `true` iff `.vibrail/<name>` is a file. */
+export async function vibrailFileExists(exec: CommandExecutor, name: string): Promise<boolean> {
+  const path = `${VIBRAIL_DIR}/${name}`;
+  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   try {
     const rootExec = await resolveRootExecutor(exec);
-    return (await rootExec.exec(`test -f ${sq(path)} && echo yes || echo no`)).trim() === "yes";
+    return (
+      await rootExec.exec(`test -f ${sq(path)} -o -f ${sq(legacyPath)} && echo yes || echo no`)
+    ).trim() === "yes";
   } catch {
     return false;
   }

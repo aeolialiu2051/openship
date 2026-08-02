@@ -6,7 +6,7 @@
  *   prepare(): queued → preparing → prepared
  *     Downloads every artifact from the destination, verifies sha256,
  *     stages bytes in a per-runtime holding area (Docker named volume
- *     openship-restore-<id> / Cloud workspace /var/openship/staging/<id>).
+ *     vibrail-restore-<id> / Cloud workspace /var/vibrail/staging/<id>).
  *     Service stays untouched. User can cancel here without consequence.
  *
  *   apply(): prepared → applying → succeeded
@@ -230,7 +230,7 @@ export class RestoreOrchestrator {
       // a verified plan", not "bytes already staged".
       //
       // True bytes-pre-staging is a follow-up: would need a Docker
-      // named volume openship-restore-<id> + Cloud workspace path.
+      // named volume vibrail-restore-<id> + Cloud workspace path.
       // For now: a successful Prepare means "I've verified everything
       // is downloadable and integrity-checked; clicking Apply will
       // succeed bar a network blip".

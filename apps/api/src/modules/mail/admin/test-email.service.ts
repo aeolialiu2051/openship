@@ -4,10 +4,10 @@
  *
  * Path: nodemailer over SMTP submission against the mail VPS's public
  * endpoint (`mail.<installDomain>:465`, implicit TLS). The orchestrator
- * authenticates as `openship@<senderDomain>` — either the primary-domain test
+ * authenticates as `vibrail@<senderDomain>` — either the primary-domain test
  * mailbox (legacy name: platform mailbox) when no override is supplied
  * or a per-domain test mailbox (when fromDomain names an additional
- * domain), provisioned on demand by `ensureOpenshipTestMailbox`. SMTP
+ * domain), provisioned on demand by `ensureVibrailTestMailbox`. SMTP
  * AUTH user is always the same address as the From header, so Postfix's
  * `reject_sender_login_mismatch` check is satisfied and amavis DKIM-signs
  * with the From-domain's key.
@@ -43,7 +43,7 @@
  * 465) so DKIM signs and SPF aligns from the first message.
  */
 
-// DEPENDENCY: `ensureOpenshipTestMailbox` is provided by
+// DEPENDENCY: `ensureVibrailTestMailbox` is provided by
 // ./test-mailbox.service, which is being introduced in a parallel agent
 // run. Until that file lands, this import will fail typecheck — that's
 // expected. After both agents land the project as a whole typechecks.
@@ -53,10 +53,10 @@ import { sshManager } from "../../../lib/ssh-manager";
 import { readState } from "../mail-state";
 import { safeErrorMessage } from "@repo/core";
 import {
-  ensureOpenshipPlatformMailbox,
+  ensureVibrailPlatformMailbox,
   type PlatformMailboxCreds,
 } from "./platform-mailbox.service";
-import { ensureOpenshipTestMailbox } from "./test-mailbox.service";
+import { ensureVibrailTestMailbox } from "./test-mailbox.service";
 
 const EMAIL_RE = /^[a-z0-9._+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i;
 
@@ -76,15 +76,15 @@ export interface SendTestEmailInput {
   to: string;
   /**
    * When provided AND not equal to the install domain, the test message is
-   * sent through a per-domain `openship@<fromDomain>` mailbox (provisioned
-   * on demand by `ensureOpenshipTestMailbox`). That mailbox is used as
+   * sent through a per-domain `vibrail@<fromDomain>` mailbox (provisioned
+   * on demand by `ensureVibrailTestMailbox`). That mailbox is used as
    * BOTH the SMTP AUTH user AND the From-header address — so MAIL FROM
    * matches the authenticated identity and Postfix's
    * `reject_sender_login_mismatch` check is satisfied (no more 554s).
    *
    * When absent (or equal to the install domain), falls back to the
-   * primary-domain test mailbox `openship@<installDomain>` via
-   * `ensureOpenshipPlatformMailbox`.
+   * primary-domain test mailbox `vibrail@<installDomain>` via
+   * `ensureVibrailPlatformMailbox`.
    *
    * The DKIM signature comes from amavis keyed by the From-domain — so a
    * per-domain test still exercises that domain's full DNS+DKIM path
@@ -106,16 +106,16 @@ export interface SendTestEmailResult {
  *
  * Identity selection:
  *   - `fromDomain` absent or equal to the install domain → AUTH+From as
- *     the primary-domain test mailbox `openship@<installDomain>` (sourced
+ *     the primary-domain test mailbox `vibrail@<installDomain>` (sourced
  *     from `state.platformMailbox`, backfilled via
- *     `ensureOpenshipPlatformMailbox` on first run).
+ *     `ensureVibrailPlatformMailbox` on first run).
  *   - `fromDomain` set to an additional domain → AUTH+From as
- *     `openship@<fromDomain>`, provisioned (or reused) by
- *     `ensureOpenshipTestMailbox`.
+ *     `vibrail@<fromDomain>`, provisioned (or reused) by
+ *     `ensureVibrailTestMailbox`.
  *
  * Either way, SMTP AUTH user equals the From-header address — that's what
  * Postfix's `reject_sender_login_mismatch` requires (we used to spoof
- * `postmaster@<fromDomain>` while auth'd as `openship@<installDomain>`
+ * `postmaster@<fromDomain>` while auth'd as `vibrail@<installDomain>`
  * and got 554s).
  *
  * Submission target is always `mail.<state.domain>:465` (implicit TLS) —
@@ -137,10 +137,10 @@ export async function sendTestEmail(
   }
 
   // fromDomain (optional) — when provided and not the install domain, we
-  // provision (or reuse) `openship@<fromDomain>` and authenticate as that
+  // provision (or reuse) `vibrail@<fromDomain>` and authenticate as that
   // mailbox AND send From that mailbox. SMTP AUTH user == MAIL FROM, so
   // Postfix's `reject_sender_login_mismatch` is satisfied (the old design
-  // auth'd as `openship@<installDomain>` while sending FROM
+  // auth'd as `vibrail@<installDomain>` while sending FROM
   // `postmaster@<fromDomain>` and got 554'd). amavis still DKIM-signs
   // with <fromDomain>'s key because the From-domain matches.
   if (input.fromDomain && !/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(input.fromDomain)) {
@@ -151,7 +151,7 @@ export async function sendTestEmail(
 
   // 1. Read the install domain from state so we can decide whether
   //    `fromDomain` refers to an *additional* domain (needs its own
-  //    `openship@<fromDomain>` mailbox) or just restates the install
+  //    `vibrail@<fromDomain>` mailbox) or just restates the install
   //    domain (use the shared platform mailbox).
   const installDomain = await sshManager.withExecutor(serverId, async (exec) => {
     const state = await readState(exec);
@@ -164,10 +164,10 @@ export async function sendTestEmail(
   });
 
   // 2. Resolve creds. Both branches return the SAME shape — the SMTP AUTH
-  //    user and the From-header address are ALWAYS the same `openship@<d>`
+  //    user and the From-header address are ALWAYS the same `vibrail@<d>`
   //    address. Postfix's `reject_sender_login_mismatch` rejects MAIL FROM
   //    values that don't match the SASL-authenticated user; the old design
-  //    auth'd as `openship@<installDomain>` while spoofing
+  //    auth'd as `vibrail@<installDomain>` while spoofing
   //    `postmaster@<fromDomain>` and tripped exactly that check (554).
   let creds: {
     email: string;
@@ -177,12 +177,12 @@ export async function sendTestEmail(
     secure: boolean;
   };
   if (input.fromDomain && input.fromDomain !== installDomain) {
-    // Per-domain path: provision (or reuse) `openship@<fromDomain>`. If
+    // Per-domain path: provision (or reuse) `vibrail@<fromDomain>`. If
     // <fromDomain> is not in vmail.domain the ensure call throws — wrap
     // into TestEmailError so the dashboard surfaces a clean 4xx instead
     // of a 500.
     try {
-      const minted = await ensureOpenshipTestMailbox(serverId, input.fromDomain);
+      const minted = await ensureVibrailTestMailbox(serverId, input.fromDomain);
       creds = {
         email: minted.email,
         password: minted.password,
@@ -192,13 +192,13 @@ export async function sendTestEmail(
       };
     } catch (err) {
       throw new TestEmailError(
-        `Could not provision openship@${input.fromDomain}: ${safeErrorMessage(err)}`,
+        `Could not provision vibrail@${input.fromDomain}: ${safeErrorMessage(err)}`,
       );
     }
   } else {
     // Install-domain path: the shared platform mailbox.
     // Fast path is a pure state-file read; first-run / drift backfills
-    // via ensureOpenshipPlatformMailbox.
+    // via ensureVibrailPlatformMailbox.
     const cached = await sshManager.withExecutor(serverId, async (exec) => {
       const state = await readState(exec);
       return state?.platformMailbox;
@@ -224,7 +224,7 @@ export async function sendTestEmail(
       };
     } else {
       const minted: PlatformMailboxCreds =
-        await ensureOpenshipPlatformMailbox(serverId);
+        await ensureVibrailPlatformMailbox(serverId);
       creds = {
         email: minted.email,
         password: minted.password,
@@ -269,7 +269,7 @@ export async function sendTestEmail(
     // credential, a 535 here should be REALLY rare — it implies the
     // doveadm hash in `vmail.mailbox` and the plaintext in
     // `state.platformMailbox` got out of sync via some path that bypassed
-    // ensureOpenshipPlatformMailbox (manual psql update, restored state
+    // ensureVibrailPlatformMailbox (manual psql update, restored state
     // file from a different generation, etc.). Tell operators how to
     // realign both ends in a single call.
     const message = safeErrorMessage(err);
@@ -279,7 +279,7 @@ export async function sendTestEmail(
       /authentication\s+failed/i.test(message) ||
       /invalid\s+credentials/i.test(message);
     const suffix = looksLikeAuthFailure
-      ? ` - the platform mailbox credential and the Dovecot hash appear to have drifted. Click "Rotate platform mailbox password" in the Mail admin panel (calls ensureOpenshipPlatformMailbox with { rotate: true }) to refresh both ends atomically, then retry.`
+      ? ` - the platform mailbox credential and the Dovecot hash appear to have drifted. Click "Rotate platform mailbox password" in the Mail admin panel (calls ensureVibrailPlatformMailbox with { rotate: true }) to refresh both ends atomically, then retry.`
       : ``;
     throw wrapSmtpError(
       err,

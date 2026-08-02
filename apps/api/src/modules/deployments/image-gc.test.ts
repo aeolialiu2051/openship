@@ -76,7 +76,7 @@ describe("selectImageRemovalRefs (never ruin an operator's image)", () => {
     expect(selectImageRemovalRefs({ id: "sha1", repoTags: ["vibrail/app-web:keep"] }, keep)).toEqual([]);
   });
 
-  it("removes ONLY our openship tags (never by id) for a prunable built image", () => {
+  it("removes ONLY our vibrail tags (never by id) for a prunable built image", () => {
     expect(
       selectImageRemovalRefs({ id: "sha2", repoTags: ["vibrail/app-web:bld_old-svc_x"] }, keep),
     ).toEqual(["vibrail/app-web:bld_old-svc_x"]);

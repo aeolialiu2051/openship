@@ -53,12 +53,12 @@ import {
 describe("rateLimit() facade", () => {
   beforeEach(() => {
     // Pin the env override so each test is deterministic.
-    process.env.OPENSHIP_RATE_LIMIT_STORE = "memory";
+    process.env.VIBRAIL_RATE_LIMIT_STORE = "memory";
   });
 
   afterEach(async () => {
     await shutdownRateLimit();
-    delete process.env.OPENSHIP_RATE_LIMIT_STORE;
+    delete process.env.VIBRAIL_RATE_LIMIT_STORE;
     vi.resetModules();
   });
 
@@ -98,11 +98,11 @@ describe("rateLimit() facade", () => {
 describe("rateLimit() fail-open on store error", () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env.OPENSHIP_RATE_LIMIT_STORE = "memory";
+    process.env.VIBRAIL_RATE_LIMIT_STORE = "memory";
   });
 
   afterEach(async () => {
-    delete process.env.OPENSHIP_RATE_LIMIT_STORE;
+    delete process.env.VIBRAIL_RATE_LIMIT_STORE;
     vi.resetModules();
     vi.doUnmock("../../../src/lib/rate-limit/memory-store");
   });

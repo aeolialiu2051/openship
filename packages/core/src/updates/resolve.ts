@@ -1,6 +1,6 @@
 /**
  * Pure update-resolution logic shared by the desktop in-app updater
- * (apps/desktop/src/main/updater.ts) and the CLI `openship update` command.
+ * (apps/desktop/src/main/updater.ts) and the CLI `vibrail update` command.
  *
  * Kept here (no I/O, no Electron/Node-fs) so the exact asset-selection + version
  * gate is unit-testable with synthetic GitHub `releases/latest` payloads — the
@@ -30,14 +30,14 @@ export type DesktopUpdateCheck =
  * Installer asset name the release pipeline publishes for a platform/arch.
  * Must match `.github/workflows/release.yml` exactly: macOS ships per-arch dmgs,
  * Windows a single x64 zip (NOT a Squirrel Setup.exe — forge uses maker-zip),
- * Linux a per-arch AppImage — x64 keeps the legacy `Openship.AppImage` name
+ * Linux a per-arch AppImage — x64 keeps the legacy `Vibrail.AppImage` name
  * (so already-installed x64 clients keep auto-updating), arm64 is a distinct
  * asset. Returns null for an unknown platform.
  */
 export function desktopAssetName(platform: string, arch: string): string | null {
-  if (platform === "darwin") return arch === "arm64" ? "Openship-arm64.dmg" : "Openship-x64.dmg";
-  if (platform === "win32") return "Openship-win32-x64.zip";
-  if (platform === "linux") return arch === "arm64" ? "Openship-arm64.AppImage" : "Openship.AppImage";
+  if (platform === "darwin") return arch === "arm64" ? "Vibrail-arm64.dmg" : "Vibrail-x64.dmg";
+  if (platform === "win32") return "Vibrail-win32-x64.zip";
+  if (platform === "linux") return arch === "arm64" ? "Vibrail-arm64.AppImage" : "Vibrail.AppImage";
   return null;
 }
 
@@ -70,7 +70,7 @@ export function resolveDesktopUpdate(input: {
   };
 }
 
-// ─── CLI (`openship update`) ─────────────────────────────────────────────────
+// ─── CLI (`vibrail update`) ─────────────────────────────────────────────────
 
 export type CliPackageManager = "bun" | "npm";
 
@@ -87,6 +87,6 @@ export function resolveCliUpdatePlan(current: string, latest: string): CliUpdate
 
 /** The global re-install command for the detected package manager. */
 export function cliInstallCommand(pm: CliPackageManager, version: string): string {
-  const ref = `openship@${version || "latest"}`;
+  const ref = `vibrail@${version || "latest"}`;
   return pm === "bun" ? `bun add -g ${ref}` : `npm install -g ${ref}`;
 }

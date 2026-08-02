@@ -211,7 +211,7 @@ function buildPreparedOptions(response: PrepareProjectResponse): DeploymentConfi
 }
 
 /**
- * Map a declared `resources` block (openship.json) to the deploy config's cloud
+ * Map a declared `resources` block (vibrail.json) to the deploy config's cloud
  * tier fields. A named tier maps straight through; explicit cpu/mem/disk becomes
  * the "custom" tier (missing values fall back to low-tier defaults). Returns an
  * empty object when nothing is declared, so the config keeps its default tier.
@@ -437,7 +437,7 @@ function resolvePreparedRoutingState(
     };
   }
 
-  // Declared domains (openship.json) seed the single-app endpoints, unless the
+  // Declared domains (vibrail.json) seed the single-app endpoints, unless the
   // project was already saved with its own (a config edit shouldn't be clobbered).
   if (response.publicEndpoints?.length && !mapStoredPublicEndpoints(project)?.length) {
     return {
@@ -744,7 +744,7 @@ export function useDeploymentConfig() {
         productionPortTouched: routingState.hasStoredPort,
         lastAutoDetectedEnvPort: null,
         options: runtimeConfig.options,
-        // Declared cloud sizing (openship.json). Absent → keep the default tier.
+        // Declared cloud sizing (vibrail.json). Absent → keep the default tier.
         ...resolveCloudResources(response.resources),
       }, resolvePreparedSingleModeDefaults(
         preparedContext,

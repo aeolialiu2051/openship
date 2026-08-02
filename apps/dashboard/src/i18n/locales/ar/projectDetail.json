@@ -105,7 +105,7 @@
       "noMatchesTitle": "لا توجد نتائج",
       "noMatchesBody": "جرّب فئة أو مصطلح بحث مختلف - أو اختر صورة مخصّصة من الشريط الجانبي.",
       "localImages": "الصور المحلية",
-      "openshipCloud": "Vibrail Cloud",
+      "vibrailCloud": "Vibrail Cloud",
       "localDocker": "Docker المحلي",
       "customEntryName": "صورة مخصّصة",
       "customEntryDescription": "اسحب أي صورة Docker عامة أو خاصة عبر الوسم.",

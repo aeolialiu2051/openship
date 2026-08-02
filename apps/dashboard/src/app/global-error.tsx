@@ -33,7 +33,7 @@ export default function GlobalError({
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.6, opacity: 0.7, margin: "0 0 20px" }}>
             The app hit an unexpected error. Try again, and if it keeps happening,
-            restart Openship.
+            restart Vibrail.
           </p>
           {error?.digest && (
             <p style={{ fontSize: 12, opacity: 0.4, fontFamily: "monospace", margin: "0 0 20px" }}>

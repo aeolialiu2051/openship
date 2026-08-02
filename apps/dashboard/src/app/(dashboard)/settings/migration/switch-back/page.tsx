@@ -6,7 +6,7 @@
  *
  *   Path A (self_hosted_remote): SSH-pull the latest dump from the
  *                                operator's VPS, restore locally.
- *   Path B (cloud_hosted):       Pull the dump from api.openship.io.
+ *   Path B (cloud_hosted):       Pull the dump from vibrail.warpgateapi.com.
  *   Path C (tunneled):           Tear down the Oblien tunnel (no data
  *                                move).
  *

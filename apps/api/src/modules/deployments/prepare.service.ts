@@ -23,16 +23,16 @@ import {
 } from "../../lib/project-root-detector";
 import {
   parseDeploymentMetadata,
-  parseOpenshipConfigJson,
+  parseVibrailConfigJson,
   METADATA_FILES,
   type ProjectType,
   type RoutingConfig,
-  type OpenshipConfig,
-  type OpenshipDomain,
-  type OpenshipEnv,
-  type OpenshipService,
-  type OpenshipResources,
-  type OpenshipMonorepoApp,
+  type VibrailConfig,
+  type VibrailDomain,
+  type VibrailEnv,
+  type VibrailService,
+  type VibrailResources,
+  type VibrailMonorepoApp,
   type ComposeAdvanced,
 } from "@repo/core";
 import { env } from "../../config";
@@ -92,22 +92,22 @@ export interface ProjectInfo {
   monorepoApps?: MonorepoApp[];
   monorepoWorkspace?: MonorepoWorkspace;
   rootEnv?: Record<string, string>;
-  /** Routing config parsed from the repo-root `vercel.json`/`openship.json`
+  /** Routing config parsed from the repo-root `vercel.json`/`vibrail.json`
    *  (rewrites/redirects/headers/cleanUrls/trailingSlash). Persisted on the
    *  project + compiled to Traefik at deploy. */
   routing?: RoutingConfig;
-  // ── Declared overlay (repo-root `openship.json`) ─────────────────────────
+  // ── Declared overlay (repo-root `vibrail.json`) ─────────────────────────
   // Fields the heuristic detector doesn't produce, declared by the user and
   // authoritative when present. Build-shaping fields (framework/commands/
   // output/routing) fold in through the metadata parser and appear above.
   /** How the app is served: "host"/"static"/"standalone" (seeds hasServer). */
   productionMode?: "host" | "static" | "standalone";
-  /** Optional explicit Docker marker from openship.json. */
+  /** Optional explicit Docker marker from vibrail.json. */
   runtimeMode?: "docker";
   /** Declared public endpoints (from `domains`), normalized to the create shape. */
   publicEndpoints?: DeclaredPublicEndpoint[];
   /** Declared resource sizing (cloud tier or explicit cpu/mem/disk). */
-  resources?: OpenshipResources;
+  resources?: VibrailResources;
 }
 
 /** A `domains[]` entry normalized to the `CreateProjectBody.publicEndpoints` shape. */
@@ -134,15 +134,18 @@ function extractRootRouting(fileContents: Record<string, string>): RoutingConfig
 }
 
 /**
- * Parse the repo-ROOT `openship.json` (case-insensitive) into a validated config.
+ * Parse the repo-ROOT `vibrail.json` (case-insensitive) into a validated config.
  * The prepare pipeline overlays it leniently: validation `errors` are ignored
- * here (surfaced by `openship config validate`); only well-formed fields overlay.
+ * here (surfaced by `vibrail config validate`); only well-formed fields overlay.
  * Its build-shaping subset flows separately through the metadata parser fold.
  */
-function extractOpenshipConfig(fileContents: Record<string, string>): OpenshipConfig | undefined {
-  const entry = Object.entries(fileContents).find(([name]) => name.toLowerCase() === "openship.json");
+function extractVibrailConfig(fileContents: Record<string, string>): VibrailConfig | undefined {
+  const entries = Object.entries(fileContents);
+  const entry =
+    entries.find(([name]) => name.toLowerCase() === "vibrail.json") ??
+    entries.find(([name]) => name.toLowerCase() === "openship.json");
   if (!entry?.[1]) return undefined;
-  return parseOpenshipConfigJson(entry[1]).config ?? undefined;
+  return parseVibrailConfigJson(entry[1]).config ?? undefined;
 }
 
 /**
@@ -150,7 +153,7 @@ function extractOpenshipConfig(fileContents: Record<string, string>): OpenshipCo
  * shape. A hostname with a dot is a custom domain (goes in `customDomain`); a
  * bare label is a free subdomain (goes in `domain`). Honors an explicit `type`.
  */
-function domainsToPublicEndpoints(domains: OpenshipDomain[]): DeclaredPublicEndpoint[] {
+function domainsToPublicEndpoints(domains: VibrailDomain[]): DeclaredPublicEndpoint[] {
   return domains.map((d) => {
     const isCustom = d.type ? d.type === "custom" : d.domain.includes(".");
     return {
@@ -169,7 +172,7 @@ function domainsToPublicEndpoints(domains: OpenshipDomain[]): DeclaredPublicEndp
  * the env-merge endpoint is the encrypt-at-rest path); a declared value is never
  * an opaque masked secret at this stage.
  */
-function envMapToRecord(envMap: OpenshipEnv): Record<string, string> {
+function envMapToRecord(envMap: VibrailEnv): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(envMap)) out[k] = typeof v === "string" ? v : v.value;
   return out;
@@ -188,7 +191,7 @@ function splitDomain(host: string): { domain?: string; customDomain?: string; do
  * detection (the project becomes a `services` project). Healthcheck maps into
  * the `advanced` JSONB blob, mirroring the compose parser.
  */
-function openshipServicesToCompose(services: OpenshipService[]): ComposeService[] {
+function vibrailServicesToCompose(services: VibrailService[]): ComposeService[] {
   return services.map((s) => {
     const domain = s.domain ? splitDomain(s.domain) : undefined;
     const advanced: ComposeAdvanced | undefined =
@@ -223,7 +226,7 @@ function openshipServicesToCompose(services: OpenshipService[]): ComposeService[
  * detected value; unmatched declarations are ignored (declaring apps the
  * detector didn't find is out of scope — use per-sub-app config instead).
  */
-function mergeMonorepoApps(detected: MonorepoApp[], declared: OpenshipMonorepoApp[]): MonorepoApp[] {
+function mergeMonorepoApps(detected: MonorepoApp[], declared: VibrailMonorepoApp[]): MonorepoApp[] {
   const byRoot = new Map(
     declared.map((d) => [normalizeProjectRootDirectory(d.rootDirectory), d]),
   );
@@ -245,12 +248,12 @@ function mergeMonorepoApps(detected: MonorepoApp[], declared: OpenshipMonorepoAp
 }
 
 /**
- * Overlay a repo-root `openship.json` onto detected ProjectInfo. Only the fields
+ * Overlay a repo-root `vibrail.json` onto detected ProjectInfo. Only the fields
  * the metadata parser can't carry (runtime/port/productionMode/sleepMode/domains/
  * env) are applied here; each present field wins over detection, absent fields
  * keep the detected value. Mutates + returns `info` for call-site brevity.
  */
-function applyOpenshipOverlay(info: ProjectInfo, config: OpenshipConfig | undefined): ProjectInfo {
+function applyVibrailOverlay(info: ProjectInfo, config: VibrailConfig | undefined): ProjectInfo {
   if (!config) return info;
   if (config.packageManager) info.packageManager = config.packageManager;
   if (config.rootDirectory) info.rootDirectory = config.rootDirectory;
@@ -271,7 +274,7 @@ function applyOpenshipOverlay(info: ProjectInfo, config: OpenshipConfig | undefi
   // project. runtimeMode="docker" then falls out of buildProductionProjectInput's
   // projectType pin, so no explicit runtime is needed here.
   if (config.services?.length) {
-    info.services = openshipServicesToCompose(config.services);
+    info.services = vibrailServicesToCompose(config.services);
     info.projectType = "services";
   }
 
@@ -315,7 +318,7 @@ export function projectInfoToScanResponse(result: ProjectInfo) {
     productionPaths: result.productionPaths,
     port: result.port,
     services: result.services,
-    // Declared-overlay fields (openship.json) — omitted from the response when
+    // Declared-overlay fields (vibrail.json) — omitted from the response when
     // absent so a repo without the file yields the exact same payload as before.
     ...(result.productionMode && { productionMode: result.productionMode }),
     ...(result.runtimeMode && { runtimeMode: result.runtimeMode }),
@@ -491,10 +494,10 @@ export async function resolveFromReader(
     readProjectText(reader, selected.rootDirectory, ".env"),
   ]);
   const routing = extractRootRouting(rootSnapshot.fileContents ?? {});
-  const openshipConfig = extractOpenshipConfig(rootSnapshot.fileContents ?? {});
+  const vibrailConfig = extractVibrailConfig(rootSnapshot.fileContents ?? {});
 
   const info = toProjectInfo(repoMeta, selected, composeContent, selectedBranch, composeEnvContent, monorepo, routing);
-  return applyOpenshipOverlay(info, openshipConfig);
+  return applyVibrailOverlay(info, vibrailConfig);
 }
 
 async function resolveFromGitHub(

@@ -103,7 +103,7 @@ export class LocalGitHubSource implements GitHubSource {
       ]);
       const state: GitHubConnectionState = {
         sources: {
-          openshipApp: { connected: false },
+          vibrailApp: { connected: false },
           ghCli: status.available
             ? { available: true, login: status.login, avatarUrl: status.avatar_url }
             : { available: true },
@@ -132,13 +132,13 @@ export class LocalGitHubSource implements GitHubSource {
       app ? app.getConnectionState() : Promise.resolve(null),
       this.gh ? this.gh.status() : Promise.resolve({ available: false } as const),
     ]);
-    const openshipApp = appState?.sources.openshipApp ?? { connected: false };
+    const vibrailApp = appState?.sources.vibrailApp ?? { connected: false };
     const ghCli = ghStatus.available
       ? { available: true, login: ghStatus.login, avatarUrl: ghStatus.avatar_url }
       : { available: false };
     return {
-      sources: { openshipApp, ghCli },
-      primary: openshipApp.connected ? "openship-app" : ghCli.available ? "gh-cli" : null,
+      sources: { vibrailApp, ghCli },
+      primary: vibrailApp.connected ? "vibrail-app" : ghCli.available ? "gh-cli" : null,
     };
   }
 

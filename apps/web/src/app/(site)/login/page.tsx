@@ -4,7 +4,7 @@ import { useEffect } from "react";
 
 export default function LoginRedirect() {
   useEffect(() => {
-    window.location.href = "https://app.openship.io/login";
+    window.location.href = "https://vibrail.warpgateapi.com/login";
   }, []);
   return null;
 }

@@ -12,7 +12,7 @@ import { endpoints } from "./endpoints";
 export interface BackupDestinationSummary {
   id: string;
   name: string;
-  kind: "s3_compatible" | "sftp" | "openship_server" | "local" | "http_upload";
+  kind: "s3_compatible" | "sftp" | "vibrail_server" | "local" | "http_upload";
   endpoint: string | null;
   region: string | null;
   bucket: string | null;

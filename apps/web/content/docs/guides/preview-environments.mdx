@@ -10,11 +10,11 @@ without breaking the version real people are using. An **environment** lets you 
 like a rehearsal stage set up right next to the main one: same script, same props, but the audience only ever
 watches the main stage. You practice on the side, and only move things across when you're happy.
 
-In Openship, each environment is its own copy of the project. It follows its own git branch and gets its own
+In Vibrail, each environment is its own copy of the project. It follows its own git branch and gets its own
 web address, so your `production` site and a `preview` copy never step on each other.
 
 <Callout title="What you need first">
-- A project that's already set up in Openship (see [Deploy from GitHub](/docs/guides/deploy-from-github) if you don't have one yet).
+- A project that's already set up in Vibrail (see [Deploy from GitHub](/docs/guides/deploy-from-github) if you don't have one yet).
 - The project connected to **GitHub**, with more than one branch — an environment is built from a branch.
 - A branch to point it at (for example a `staging` or `preview` branch).
 </Callout>
@@ -29,14 +29,14 @@ Two words show up a lot here. In plain terms:
   have its own environment variables (its own secrets and settings). Break it all you like — production doesn't
   notice.
 
-Openship decides which type a new environment is by looking at its branch:
+Vibrail decides which type a new environment is by looking at its branch:
 
 - A branch named `main` or `master` becomes a **production** environment.
 - Any other branch becomes a **preview** environment.
 - If you create one by hand without a branch, it's a **development** environment.
 
 Each environment is a full, independent copy: its own address, its own variables, its own deploy history. What
-they share is the build recipe — when you create one, Openship copies the original project's framework, build
+they share is the build recipe — when you create one, Vibrail copies the original project's framework, build
 commands, and settings so you don't set them up again.
 
 ## Create an environment from a branch
@@ -62,10 +62,10 @@ button for adding a branch.
 
 ### Press + and pick a branch
 
-Click the **+**. Openship reads your repository and lists its branches, with a **Search branches** box at the
+Click the **+**. Vibrail reads your repository and lists its branches, with a **Search branches** box at the
 top to filter a long list. Click the branch you want to base the new environment on.
 
-Openship creates a fresh copy of the project tied to that branch and drops you onto its page. That's it — you're
+Vibrail creates a fresh copy of the project tied to that branch and drops you onto its page. That's it — you're
 now looking at the new environment.
 
 <Callout title="Screenshot">The Add-branch panel: a **Search branches** box and a list of repository branches, each with a **+** to add it as an environment. *(screenshot pending)*</Callout>
@@ -105,15 +105,15 @@ and press **Create**. This makes a *development* environment.
 
 ## Prefer the terminal?
 
-If you deploy from the CLI, the `deploy` command has an `--env` flag that tells Openship which environment a
+If you deploy from the CLI, the `deploy` command has an `--env` flag that tells Vibrail which environment a
 deploy is for. It applies that environment's variables and records the deploy under it.
 
 ```bash
 # Deploy the project your folder is linked to, as production (this is the default)
-openship deploy
+vibrail deploy
 
 # Deploy as a preview instead — uses your preview environment's variables
-openship deploy --env preview
+vibrail deploy --env preview
 ```
 
 <Callout title="Only two values" type="info">
@@ -125,7 +125,7 @@ Each environment you created in the switcher is its own project with its own ID.
 specifically, point the CLI at it with `--project`:
 
 ```bash
-openship deploy --project <environment-project-id> --env preview --watch
+vibrail deploy --project <environment-project-id> --env preview --watch
 ```
 
 `--watch` streams the build logs until it finishes, so you can see it go live right there in your terminal.
@@ -139,7 +139,7 @@ branches to show. If the list is empty, check that the project is linked to a re
 </Callout>
 
 <Callout title="“Branch … was not found”" type="error">
-Openship couldn't find that branch in the repository. Make sure the branch actually exists on GitHub (and that
+Vibrail couldn't find that branch in the repository. Make sure the branch actually exists on GitHub (and that
 it's pushed, not just local), then try again.
 </Callout>
 

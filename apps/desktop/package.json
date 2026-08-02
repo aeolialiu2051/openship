@@ -1,9 +1,9 @@
 {
   "name": "@repo/desktop",
-  "productName": "Openship",
+  "productName": "Vibrail",
   "version": "0.4.0",
   "private": true,
-  "description": "Openship Desktop - Electron wrapper for the deployment dashboard",
+  "description": "Vibrail Desktop - Electron wrapper for the deployment dashboard",
   "author": "Oblien",
   "main": "dist/main/index.js",
   "scripts": {

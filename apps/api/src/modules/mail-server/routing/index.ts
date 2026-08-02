@@ -5,7 +5,7 @@
  *   - Pure types + `buildMailServerRoutes` re-exported from `@repo/core`
  *     for convenience (so callers in apps/api can import them from one place).
  *   - Side-effecting `registerMailServerRoutes` / `removeMailServerRoutes` /
- *     `rotateMailServerRoutes` that call openship's routing provider.
+ *     `rotateMailServerRoutes` that call vibrail's routing provider.
  *
  * Consumed by:
  *   - The mail-server provisioning flow (registers routes on install)

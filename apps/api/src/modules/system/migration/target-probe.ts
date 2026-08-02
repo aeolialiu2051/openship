@@ -2,7 +2,7 @@
  * GATE 3 (source-side) for migrate-control-plane → server.
  *
  * Before exporting/transferring anything, confirm the TARGET is a self-hosted
- * single-tenant box — NEVER a multi-tenant Openship Cloud instance. An
+ * single-tenant box — NEVER a multi-tenant Vibrail Cloud instance. An
  * instance-scope `import --wipe` against the SaaS would TRUNCATE every tenant,
  * so this fails CLOSED: unreachable or unconfirmed → refuse.
  *
@@ -25,7 +25,7 @@ export class TargetIsCloudError extends Error {
   readonly code = "TARGET_IS_CLOUD" as const;
   constructor(url: string) {
     super(
-      `Refusing to migrate: ${url} is a multi-tenant Openship Cloud instance, not a self-hosted box. ` +
+      `Refusing to migrate: ${url} is a multi-tenant Vibrail Cloud instance, not a self-hosted box. ` +
         `A whole-instance import would wipe every tenant.`,
     );
     this.name = "TargetIsCloudError";

@@ -11,7 +11,7 @@ import { user } from "./auth";
 // ─── Instance Settings ───────────────────────────────────────────────────────
 
 /**
- * Machine-level configuration for this Openship installation.
+ * Machine-level configuration for this Vibrail installation.
  *
  * Single row - not per-user. Set by the desktop app (or installer) during
  * onboarding via the internal API.
@@ -27,7 +27,7 @@ export const instanceSettings = pgTable("instance_settings", {
 
   /**
    * Tunnel provider:
-   *   "edge"       → Openship Edge (zero-config, managed)
+   *   "edge"       → Vibrail Edge (zero-config, managed)
    *   "cloudflare" → Cloudflare Tunnel (user's account)
    *   "ngrok"      → ngrok tunnel
    *   null         → public IP, no tunnel needed
@@ -40,7 +40,7 @@ export const instanceSettings = pgTable("instance_settings", {
   /**
    * Auth strategy for this instance:
    *   "none"  → zero-auth, auto-provisioned local user (desktop default)
-   *   "cloud" → external auth on Openship Cloud (desktop + cloud)
+   *   "cloud" → external auth on Vibrail Cloud (desktop + cloud)
    *   "local" → local Better Auth (self-hosted / SaaS)
    */
   authMode: text("auth_mode").notNull().default("none"),
@@ -56,7 +56,7 @@ export const instanceSettings = pgTable("instance_settings", {
    * Source that drives `sendInvitationEmail` in `lib/auth.ts`:
    *   "platform" → legacy persisted value meaning the self-hosted instance's
    *                own system SMTP (Settings → Email / environment SMTP)
-   *   "cloud"    → relay through Openship Cloud's operator-owned SMTP
+   *   "cloud"    → relay through Vibrail Cloud's operator-owned SMTP
    *
    * Cloud SaaS ignores this instance-global row and always uses its platform
    * SMTP. The value never selects a user-owned hosted mail server.
@@ -68,13 +68,13 @@ export const instanceSettings = pgTable("instance_settings", {
   // ── Team-mode migration ────────────────────────────────────────────────────
   //
   // Tracks whether this instance has been migrated to a multi-user
-  // deployment (operator's VPS or Openship Cloud). When non-default,
+  // deployment (operator's VPS or Vibrail Cloud). When non-default,
   // the dashboard becomes a launcher pointing at `migrationTargetUrl`
   // and the API only serves a minimal surface (auth + switch-back).
   //
   //   "single_user"          → default, normal operation
   //   "self_hosted_remote"   → migrated to operator's own VPS (URL set)
-  //   "cloud_hosted"         → migrated to Openship Cloud (URL set)
+  //   "cloud_hosted"         → migrated to Vibrail Cloud (URL set)
   //   "tunneled"             → exposed via an Oblien edge tunnel routed at
   //                            this machine's dashboard port (no data move)
   //
@@ -135,7 +135,7 @@ export const instanceSettings = pgTable("instance_settings", {
   smtpPort: integer("smtp_port"),
   smtpUser: text("smtp_user"),
   smtpPasswordEncrypted: text("smtp_password_encrypted"),
-  /** From header, e.g. "Openship <no-reply@example.com>". Falls back to smtpUser. */
+  /** From header, e.g. "Vibrail <no-reply@example.com>". Falls back to smtpUser. */
   smtpFrom: text("smtp_from"),
 
   // ── Timestamps ─────────────────────────────────────────────────────────────
@@ -147,7 +147,7 @@ export const instanceSettings = pgTable("instance_settings", {
 // ─── User Platform Settings ──────────────────────────────────────────────────
 
 /**
- * Per-user platform preferences - syncs across devices & to Openship Cloud.
+ * Per-user platform preferences - syncs across devices & to Vibrail Cloud.
  *
  * Each user gets one row (1:1 with `user`).
  * Build mode defaults to the instance default if not set.
@@ -175,8 +175,8 @@ export const userSettings = pgTable("user_settings", {
   routeStrategy: text("route_strategy").notNull().default("auto"),
 
   /**
-   * Encrypted session token for the user's Openship Cloud account.
-   * Used by local instances to fetch namespace tokens from api.openship.io.
+   * Encrypted session token for the user's Vibrail Cloud account.
+   * Used by local instances to fetch namespace tokens from vibrail.warpgateapi.com.
    * Null if the user hasn't linked their cloud account.
    */
   cloudSessionToken: text("cloud_session_token"),
@@ -185,7 +185,7 @@ export const userSettings = pgTable("user_settings", {
    * Default deploy target seeded into new deployments:
    *   "local"  → this machine
    *   "server" → a configured server (pair with `defaultServerId`)
-   *   "cloud"  → Openship Cloud
+   *   "cloud"  → Vibrail Cloud
    *   null     → no preference, the deploy picker chooses (auto-selected
    *              when only one target is available)
    * The user can always override per-deployment from the picker on /deploy.

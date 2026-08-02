@@ -1,7 +1,7 @@
 /**
  * ONE resolver for a prebuilt release/dist directory, generalizing the two
- * near-identical copies that used to live in migration/openship-dist.ts and
- * webmail-project.service.ts. A release-source project (or the openship-instance
+ * near-identical copies that used to live in migration/vibrail-dist.ts and
+ * webmail-project.service.ts. A release-source project (or the vibrail-instance
  * / webmail apps) deploys the directory this returns as `localPath` with no
  * build.
  *
@@ -37,7 +37,7 @@ const API_ROOT = resolve(__dirname, "../..");
 /**
  * Resolve a path relative to apps/api/. Consumers use this for their
  * slot-2 repo-local dev dist anchor instead of re-deriving __dirname:
- *   openship → apiRootPath("release-dist")
+ *   vibrail → apiRootPath("release-dist")
  *   webmail  → apiRootPath("..", "email", "dist")
  */
 export function apiRootPath(...segments: string[]): string {
@@ -45,7 +45,7 @@ export function apiRootPath(...segments: string[]): string {
 }
 
 let cachedVersion: string | undefined;
-/** The API's own version (mono-version default for openship/webmail dists). */
+/** The API's own version (mono-version default for vibrail/webmail dists). */
 export function readApiVersion(): string {
   if (cachedVersion) return cachedVersion;
   const pkgPath = join(API_ROOT, "package.json");
@@ -59,7 +59,7 @@ export function readApiVersion(): string {
 }
 
 function computeDataDir(): string {
-  return process.env.OPENSHIP_DATA_DIR ?? join(homedir(), ".openship");
+  return process.env.VIBRAIL_DATA_DIR ?? join(homedir(), ".vibrail");
 }
 
 export class ReleaseDistMissingError extends Error {
@@ -75,18 +75,18 @@ export class ReleaseDistMissingError extends Error {
 }
 
 export interface ReleaseDistSpec {
-  /** Cache subdir + error text, e.g. "openship" | "email" | project slug. */
+  /** Cache subdir + error text, e.g. "vibrail" | "email" | project slug. */
   name: string;
   /** Semver (leading "v" tolerated). */
   version: string;
   source: ReleaseSource;
-  /** Slot-1 env var name (e.g. "OPENSHIP_RELEASE_DIST_PATH"). */
+  /** Slot-1 env var name (e.g. "VIBRAIL_RELEASE_DIST_PATH"). */
   envOverride?: string;
   /** Subdir joined under the env-override dir (webmail joins "dist"). */
   envOverrideSubdir?: string;
   /** Slot-2 absolute repo-local dev dist path. */
   repoLocalPath?: string;
-  /** Slot-3 cache root (default OPENSHIP_DATA_DIR ?? ~/.openship). */
+  /** Slot-3 cache root (default VIBRAIL_DATA_DIR ?? ~/.vibrail). */
   dataDir?: string;
 }
 
@@ -177,7 +177,7 @@ export async function fetchLatestRelease(repo: string): Promise<GithubReleasePay
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 10_000);
     const res = await fetch(`https://api.github.com/repos/${repo}/releases/latest`, {
-      headers: { Accept: "application/vnd.github+json", "User-Agent": "openship" },
+      headers: { Accept: "application/vnd.github+json", "User-Agent": "vibrail" },
       signal: ctl.signal,
     }).finally(() => clearTimeout(timer));
     if (!res.ok) return null;
@@ -215,7 +215,7 @@ async function fetchVersionFromUrl(url: string): Promise<string | null> {
     const ctl = new AbortController();
     const timer = setTimeout(() => ctl.abort(), 10_000);
     const res = await fetch(url, {
-      headers: { "User-Agent": "openship" },
+      headers: { "User-Agent": "vibrail" },
       redirect: "follow",
       signal: ctl.signal,
     }).finally(() => clearTimeout(timer));

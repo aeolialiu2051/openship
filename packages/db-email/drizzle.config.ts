@@ -2,7 +2,7 @@ import { defineConfig } from "drizzle-kit";
 
 /**
  * The email server runs against its own Postgres instance, separate from
- * openship's main database. `EMAIL_DATABASE_URL` is the only config required
+ * vibrail's main database. `EMAIL_DATABASE_URL` is the only config required
  * to point at it.
  *
  * Schemas managed here:

@@ -17,14 +17,14 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
   const { slug } = await params;
   const f = getFeature(slug);
-  if (!f) return { title: "Feature — Openship" };
+  if (!f) return { title: "Feature — Vibrail" };
   const title = `${f.title} — Features`;
   return {
     title,
     description: f.summary,
     alternates: { canonical: `/features/${f.slug}` },
-    openGraph: { title: `${f.title} — Openship`, description: f.summary, url: `/features/${f.slug}`, type: "article" },
-    twitter: { card: "summary_large_image", title: `${f.title} — Openship`, description: f.summary },
+    openGraph: { title: `${f.title} — Vibrail`, description: f.summary, url: `/features/${f.slug}`, type: "article" },
+    twitter: { card: "summary_large_image", title: `${f.title} — Vibrail`, description: f.summary },
   };
 }
 
@@ -67,7 +67,7 @@ export default async function FeatureDetailPage({ params }: { params: Params }) 
               </p>
             </div>
 
-            <FeatureShot src={feature.screenshot} alt={`${feature.title} in Openship`} Icon={Icon} priority />
+            <FeatureShot src={feature.screenshot} alt={`${feature.title} in Vibrail`} Icon={Icon} priority />
           </div>
         </section>
 
@@ -128,7 +128,7 @@ export default async function FeatureDetailPage({ params }: { params: Params }) 
             Ship it your way.
           </h2>
           <p className="mx-auto mt-5 max-w-md text-[16px] leading-[1.6]" style={{ color: "var(--th-text-body)" }}>
-            Self-hosted and free, or managed on Openship Cloud — the same workflow either way.
+            Self-hosted and free, or managed on Vibrail Cloud — the same workflow either way.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
             <Link href="/download" className="th-btn group rounded-full px-7 py-3 text-[15px] font-medium">

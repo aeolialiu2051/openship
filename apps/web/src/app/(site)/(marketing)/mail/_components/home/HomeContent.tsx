@@ -111,7 +111,7 @@ export default function HomeContent() {
           className="border-input/50 mb-6 inline-flex items-center gap-2 rounded-full border border-[#2A2A2A] bg-[#1E1E1E] px-4 py-1"
         >
           <Link
-            href="https://github.com/oblien/openship"
+            href="https://github.com/aeolialiu2051/vibrail"
             target="_blank"
             className="flex items-center gap-2 text-sm"
           >
@@ -128,7 +128,7 @@ export default function HomeContent() {
           className="mb-6 lg:hidden"
         >
           <Link href="https://docs.vibrail.warpgateapi.com/#/docs/quickstart">
-            <Button>Install Openship</Button>
+            <Button>Install Vibrail</Button>
           </Link>
         </motion.div>
       </section>
@@ -1076,7 +1076,7 @@ export default function HomeContent() {
                         <div className="flex flex-1 items-center justify-start gap-3">
                           <div className="flex items-center justify-start gap-1">
                             <div className="text-base-gray-950 justify-start text-sm leading-none">
-                              Alex from Openship
+                              Alex from Vibrail
                             </div>
                             <div className="justify-start text-center text-sm leading-none text-[#8C8C8C]">
                               [9]
@@ -1311,7 +1311,7 @@ export default function HomeContent() {
               <div className="flex flex-col items-start justify-start gap-2 self-stretch px-2 pb-2">
                 {[
                   { from: 'oblien.com',        to: 'team@stripe.com',     subj: 'Receipt #4827',         when: 'now' },
-                  { from: 'mail.openship.com', to: 'jordan@blackbird.io', subj: 'Welcome to Openship',   when: '12s' },
+                  { from: 'mail.vibrail.com', to: 'jordan@blackbird.io', subj: 'Welcome to Vibrail',   when: '12s' },
                   { from: 'acme.io',           to: 'alex@dev.acme.io',    subj: 'New device sign-in',    when: '34s' },
                   { from: 'shop.acme.io',      to: 'nick@figma.com',      subj: 'Order #1248 shipped',   when: '52s' },
                 ].map((row) => (
@@ -1417,7 +1417,7 @@ export default function HomeContent() {
             <div className="flex flex-col items-start justify-start gap-1 self-stretch px-1.5 pb-2">
               {[
                 { name: 'oblien.com',         mailboxes: 247, when: '2 min ago',  live: true,  pct: 38 },
-                { name: 'mail.openship.com',  mailboxes: 412, when: 'live',       live: true,  pct: 62 },
+                { name: 'mail.vibrail.com',  mailboxes: 412, when: 'live',       live: true,  pct: 62 },
                 { name: 'acme.io',            mailboxes: 83,  when: '1 hr ago',   live: true,  pct: 18 },
                 { name: 'team.acme.io',       mailboxes: 45,  when: '8 min ago',  live: true,  pct: 12 },
               ].map((d, i) => (
@@ -1553,7 +1553,7 @@ export default function HomeContent() {
                 },
                 {
                   icon: <Inbox className="h-5 w-5 fill-white" />,
-                  name: 'Openship Webmail',
+                  name: 'Vibrail Webmail',
                   desc: 'The bundled web client - fast, keyboard-driven, no install.',
                   tag: 'Built-in',
                 },
@@ -1603,7 +1603,7 @@ export default function HomeContent() {
                   <div className="text-[11px] font-medium text-[#8C8C8C]">Send from your code</div>
                 </div>
                 <pre className="overflow-x-auto whitespace-pre font-mono text-[11px] leading-[1.55] text-[#B7B7B7]">
-                  <span className="text-[#8C8C8C]">$ </span>curl https://api.openship.email/v1/send \{'\n'}
+                  <span className="text-[#8C8C8C]">$ </span>curl https://api.vibrail.email/v1/send \{'\n'}
                   {'    '}-H <span className="text-[#A3E1B3]">"Authorization: Bearer ..."</span> \{'\n'}
                   {'    '}-d <span className="text-[#A3E1B3]">'{`{"from":"alex@yours.com","to":...}`}'</span>{'\n'}
                   <span className="text-[#A3E1B3]">{'  '}→ 202 Accepted · queued</span>

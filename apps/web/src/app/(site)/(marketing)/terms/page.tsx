@@ -3,21 +3,21 @@ import { Navbar, Footer } from "@/components/landing";
 
 const PAGE_TITLE = "Terms of Service";
 const PAGE_DESCRIPTION =
-  "Terms governing Openship Cloud and Openship Business. The self-hosted platform itself is governed by the Apache 2.0 license. Plain language, no surprises.";
+  "Terms governing Vibrail Cloud and Vibrail Business. The self-hosted platform itself is governed by the Apache 2.0 license. Plain language, no surprises.";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/terms" },
   openGraph: {
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
     url: "/terms",
     type: "article",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PAGE_TITLE} - Openship`,
+    title: `${PAGE_TITLE} - Vibrail`,
     description: PAGE_DESCRIPTION,
   },
 };
@@ -27,8 +27,8 @@ const SECTIONS = [
     id: "agreement",
     title: "Agreement",
     body: [
-      "These terms govern your use of Openship Cloud (the hosted service) and Openship Business (cloud + your servers + SLA). The self-hosted platform itself is governed by the Apache 2.0 license that ships with the source.",
-      "By creating an account you agree to these terms. If you're using Openship on behalf of an organisation, you confirm you have authority to bind that organisation.",
+      "These terms govern your use of Vibrail Cloud (the hosted service) and Vibrail Business (cloud + your servers + SLA). The self-hosted platform itself is governed by the Apache 2.0 license that ships with the source.",
+      "By creating an account you agree to these terms. If you're using Vibrail on behalf of an organisation, you confirm you have authority to bind that organisation.",
     ],
   },
   {
@@ -36,7 +36,7 @@ const SECTIONS = [
     title: "The service",
     body: [
       "We provide infrastructure to build, ship, and run your applications - managed databases, mail, storage, routing, and the platform tooling around it.",
-      "Openship Cloud is not yet generally available. When it launches, any subscription or usage-based pricing will be published in advance. Self-hosted use is free under the Apache 2.0 license.",
+      "Vibrail Cloud is not yet generally available. When it launches, any subscription or usage-based pricing will be published in advance. Self-hosted use is free under the Apache 2.0 license.",
       "We may improve the service, fix bugs, or evolve features at any time. Material breaking changes get at least 30 days' notice.",
     ],
   },
@@ -69,7 +69,7 @@ const SECTIONS = [
     id: "billing",
     title: "Billing",
     body: [
-      "Openship Cloud pricing has not been finalized and will be published before the service becomes paid. Self-hosted use is free.",
+      "Vibrail Cloud pricing has not been finalized and will be published before the service becomes paid. Self-hosted use is free.",
       "Once paid plans launch, we'll accept major cards via Stripe, and the billing, dunning, and refund terms in effect at that time will be presented before you're charged.",
     ],
   },
@@ -77,7 +77,7 @@ const SECTIONS = [
     id: "uptime-sla",
     title: "Uptime and SLA",
     body: [
-      "Once Openship Cloud launches it will target 99.9% monthly uptime on a best-effort basis, with contractual SLAs and service credits available on eligible paid plans.",
+      "Once Vibrail Cloud launches it will target 99.9% monthly uptime on a best-effort basis, with contractual SLAs and service credits available on eligible paid plans.",
       "Scheduled maintenance is announced at least 7 days in advance and excluded from uptime calculations.",
     ],
   },
@@ -85,7 +85,7 @@ const SECTIONS = [
     id: "data-portability",
     title: "Data portability",
     body: [
-      "Every deployment on Openship is a plain container image and standard manifests. You can leave any day and re-run on your own infrastructure without rewriting code.",
+      "Every deployment on Vibrail is a plain container image and standard manifests. You can leave any day and re-run on your own infrastructure without rewriting code.",
       "On request we provide a full export of your databases, secrets, and configuration in standard formats. We do not charge for exports.",
     ],
   },
@@ -145,7 +145,7 @@ export default function TermsPage() {
             <p className="legal-meta">
               Last updated <time dateTime="2026-05-18">May&nbsp;18, 2026</time>
               <span className="legal-meta-sep">·</span>
-              <a href="https://github.com/oblien/openship/commits/main/TERMS.md" className="legal-meta-link" target="_blank" rel="noreferrer">
+              <a href="https://github.com/aeolialiu2051/vibrail/commits/main/TERMS.md" className="legal-meta-link" target="_blank" rel="noreferrer">
                 Version history on GitHub
               </a>
             </p>
@@ -185,7 +185,7 @@ export default function TermsPage() {
                 <footer className="legal-foot">
                   <p>
                     Questions? Email{" "}
-                    <a href="mailto:legal@openship.io">legal@openship.io</a>.
+                    <a href="mailto:legal@vibrail.warpgateapi.com">legal@vibrail.warpgateapi.com</a>.
                   </p>
                 </footer>
               </article>

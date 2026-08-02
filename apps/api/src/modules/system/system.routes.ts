@@ -43,16 +43,16 @@ r.public("post", "/onboarding/test-connection", { reason: "First-run SSH reachab
 /* ── Internal routes (Electron → API with shared token) ─────────── */
 r.public("post", "/setup", { reason: "Electron desktop client setup - protected by internalAuth shared token" }, internalAuth, setup.setup);
 r.public("get", "/setup", { reason: "Electron desktop client setup read - protected by internalAuth shared token" }, internalAuth, setup.getSetup);
-r.public("get", "/health", { reason: "CLI `openship doctor` — internal-token gated deep health rollup (DB liveness/migrations + project/service counts); the public /api/health is only a liveness stub" }, internalAuth, systemHealth.systemHealth);
-r.public("post", "/bootstrap-admin", { reason: "CLI first-admin creation — internal-token gated, one-shot before any admin exists (openship setup)" }, internalAuth, setup.bootstrapAdmin);
-r.public("post", "/reset-admin-password", { reason: "CLI password recovery — internal-token gated; resets the local admin login for a locked-out operator (openship reset-admin-password)" }, internalAuth, setup.resetAdminPassword);
+r.public("get", "/health", { reason: "CLI `vibrail doctor` — internal-token gated deep health rollup (DB liveness/migrations + project/service counts); the public /api/health is only a liveness stub" }, internalAuth, systemHealth.systemHealth);
+r.public("post", "/bootstrap-admin", { reason: "CLI first-admin creation — internal-token gated, one-shot before any admin exists (vibrail setup)" }, internalAuth, setup.bootstrapAdmin);
+r.public("post", "/reset-admin-password", { reason: "CLI password recovery — internal-token gated; resets the local admin login for a locked-out operator (vibrail reset-admin-password)" }, internalAuth, setup.resetAdminPassword);
 r.public("post", "/invite-signup", { reason: "Self-host invited signup — authorized by the unguessable invitation id (token) in the emailed link, NOT a session; creates the account for the invitation's own email. Public + rate-limited because the invitee isn't logged in yet." }, rateLimiterFor("auth-tight"), setup.inviteSignup);
 
 /* ── Control-plane self-registration (CLI setup wizard) ─────────────
- * After bootstrap-admin, the wizard registers Openship itself as an app
+ * After bootstrap-admin, the wizard registers Vibrail itself as an app
  * (shows under Apps) + attaches its domain. All internal-token gated. */
-r.public("get", "/cloud-status", { reason: "CLI setup — read Openship Cloud connection state; internal-token gated" }, internalAuth, selfApp.cloudStatus);
-r.public("post", "/cloud-connect", { reason: "CLI setup — finalize Openship Cloud PKCE handshake for a free domain; internal-token gated" }, internalAuth, selfApp.cloudConnect);
+r.public("get", "/cloud-status", { reason: "CLI setup — read Vibrail Cloud connection state; internal-token gated" }, internalAuth, selfApp.cloudStatus);
+r.public("post", "/cloud-connect", { reason: "CLI setup — finalize Vibrail Cloud PKCE handshake for a free domain; internal-token gated" }, internalAuth, selfApp.cloudConnect);
 r.public("post", "/self-register", { reason: "CLI setup — register the control plane as an app + attach its domain; internal-token gated" }, internalAuth, selfApp.selfRegister);
 
 /* ── Authenticated routes (dashboard settings page) ─────────────── */
@@ -113,7 +113,7 @@ r.get(
     readOnly: true,
     rateLimit: "server-probe",
     mcp: {
-      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Openship projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
+      description: "Inspect a server and its live Docker workloads. Returns the server summary, running Vibrail projects correlated from trusted project records, all Docker containers with state/health/resource metrics, and aggregate counts.",
     },
   },
   dockerOverview.getDockerOverview,

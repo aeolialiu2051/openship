@@ -1,17 +1,17 @@
 ---
 title: Architecture overview
-description: A high-level map of how Openship fits together — the interfaces you drive, the API that runs everything, the platform adapters, and the shared packages.
+description: A high-level map of how Vibrail fits together — the interfaces you drive, the API that runs everything, the platform adapters, and the shared packages.
 ---
 
-Openship is one codebase that plays several parts. Think of it like a restaurant: there's the counter where you place an order (the things you click and type), the kitchen that actually cooks (the API), and the appliances the kitchen uses to do the work (the platform layer). This page is the map. The other architecture pages zoom into one area each.
+Vibrail is one codebase that plays several parts. Think of it like a restaurant: there's the counter where you place an order (the things you click and type), the kitchen that actually cooks (the API), and the appliances the kitchen uses to do the work (the platform layer). This page is the map. The other architecture pages zoom into one area each.
 
 Here's the whole thing on one screen:
 
 ```
-   You drive Openship three ways
+   You drive Vibrail three ways
    ┌───────────┐   ┌───────────┐   ┌───────────┐
    │ Dashboard │   │    CLI    │   │  Desktop  │
-   │ (Next.js) │   │ (openship)│   │ (Electron)│
+   │ (Next.js) │   │ (vibrail)│   │ (Electron)│
    └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
          └───────────────┼───────────────┘
                          │  HTTP, under /api/*
@@ -44,8 +44,8 @@ The API accepts a browser session cookie (from the dashboard) or a bearer token 
 All three interfaces are thin — they render screens and send requests. The real work happens behind the API.
 
 - **Dashboard** — a [Next.js](https://nextjs.org) web app. This is the full graphical UI, built for teams, and what you see in most screenshots in these docs.
-- **CLI** — the `openship` command you install from npm. It wears two hats: `openship up` can stand up a whole self-hosted instance on your machine — it bundles the API and fetches the dashboard for you — while everyday commands like `openship deploy` are a thin HTTP client that calls the same API endpoints the dashboard does. Great for self-hosting, scripting, and CI.
-- **Desktop app** — an [Electron](https://www.electronjs.org) wrapper that shows the same dashboard and runs its own local copy of the API on your machine (only while it's open). You manage everything from a laptop with no always-on server; deploys go out to a server you connect over SSH, or to Openship Cloud.
+- **CLI** — the `vibrail` command you install from npm. It wears two hats: `vibrail up` can stand up a whole self-hosted instance on your machine — it bundles the API and fetches the dashboard for you — while everyday commands like `vibrail deploy` are a thin HTTP client that calls the same API endpoints the dashboard does. Great for self-hosting, scripting, and CI.
+- **Desktop app** — an [Electron](https://www.electronjs.org) wrapper that shows the same dashboard and runs its own local copy of the API on your machine (only while it's open). You manage everything from a laptop with no always-on server; deploys go out to a server you connect over SSH, or to Vibrail Cloud.
 
 Because they share the API, you can start a deploy in the dashboard and check on it from the CLI — it's one system, not three.
 
@@ -53,8 +53,8 @@ Because they share the API, you can start a deploy in the dashboard and check on
 
 When the API needs to *do* something to the outside world — build an image, start a container, wire up a domain, get an SSL certificate — it doesn't do it directly. It asks the **platform layer** (the `@repo/adapters` package). This is the "appliances" in the kitchen analogy, and it has three parts behind a single entry point:
 
-- **Runtime** — builds and runs your app. There are three runtimes: **Docker** (your app runs in a container), **Bare** (your app runs as a plain process, lighter for small machines and the desktop), and **Cloud** (the work is handed off to Openship Cloud).
-- **Infra** — public routing and certificates. Self-hosted Docker services publish Traefik labels to the shared Traefik instance, whose certificate resolver handles HTTPS. Bare runtimes require operator-managed ingress. On cloud, Openship Cloud's edge handles routing and TLS.
+- **Runtime** — builds and runs your app. There are three runtimes: **Docker** (your app runs in a container), **Bare** (your app runs as a plain process, lighter for small machines and the desktop), and **Cloud** (the work is handed off to Vibrail Cloud).
+- **Infra** — public routing and certificates. Self-hosted Docker services publish Traefik labels to the shared Traefik instance, whose certificate resolver handles HTTPS. Bare runtimes require operator-managed ingress. On cloud, Vibrail Cloud's edge handles routing and TLS.
 - **System** — prerequisite checks and setup (is Docker installed? is git present?). Self-hosted only.
 
 At startup the API picks the right combination of these once, and the rest of the code just calls `getPlatform()`. For the full story of how a deploy resolves to a concrete runtime, see [Runtime model](/docs/architecture/runtime-model).
@@ -65,13 +65,13 @@ A project deploys to one of three targets, and the platform layer above is what 
 
 - **local** — the instance's own machine.
 - **server** — a server you've connected over SSH.
-- **cloud** — Openship Cloud compute.
+- **cloud** — Vibrail Cloud compute.
 
 The target is chosen once per deploy and snapshotted, so the build, the routing, and any later rollback can never disagree about where the app lives.
 
 ## Shared packages
 
-Openship is a monorepo. Common logic lives in `@repo/*` packages that every app reuses, so there's one implementation of each thing rather than four copies that drift apart.
+Vibrail is a monorepo. Common logic lives in `@repo/*` packages that every app reuses, so there's one implementation of each thing rather than four copies that drift apart.
 
 | Package | What it holds |
 |---|---|
@@ -83,9 +83,9 @@ Openship is a monorepo. Common logic lives in `@repo/*` packages that every app 
 
 ## One codebase, three roles
 
-The same code runs as **Openship Cloud** (the managed SaaS), as a **self-hosted** instance on your own server, or as the **desktop** app. Configuration at startup decides which role an instance plays. User workloads on self-hosted machines run in Docker; the Openship control plane itself may still be supervised as a host process by `openship up`. Nothing is forked — the cloud and the version you self-host are literally the same source.
+The same code runs as **Vibrail Cloud** (the managed SaaS), as a **self-hosted** instance on your own server, or as the **desktop** app. Configuration at startup decides which role an instance plays. User workloads on self-hosted machines run in Docker; the Vibrail control plane itself may still be supervised as a host process by `vibrail up`. Nothing is forked — the cloud and the version you self-host are literally the same source.
 
-The one thing that changes with the role is *where data is canonical*. Local and server projects live entirely in your own instance's database; cloud projects are owned by Openship Cloud and your instance acts as a gateway in front of them. That split is the subject of the next two pages.
+The one thing that changes with the role is *where data is canonical*. Local and server projects live entirely in your own instance's database; cloud projects are owned by Vibrail Cloud and your instance acts as a gateway in front of them. That split is the subject of the next two pages.
 
 ## What next?
 

@@ -1,5 +1,5 @@
 import { env } from "../config/env";
-import { getOblienClient } from "./openship-cloud";
+import { getOblienClient } from "./vibrail-cloud";
 import type { Oblien } from "@repo/adapters";
 
 /**

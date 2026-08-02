@@ -98,23 +98,23 @@ export class SwitchBackRemoteUnreachableError extends Error {
 
 /**
  * Path A: SSH into the operator's VPS, run db:dump on the deployed
- * openship instance, read the file back, return as a parsed dump.
+ * vibrail instance, read the file back, return as a parsed dump.
  *
  * `migrationServerId` was stamped on instance_settings during the
  * forward migration — that's our pointer to the right VPS.
  */
 async function pullDumpFromVps(serverId: string): Promise<DatabaseDump> {
   const stamp = Date.now();
-  const remoteDumpPath = `/tmp/openship-switchback-${stamp}.json`;
+  const remoteDumpPath = `/tmp/vibrail-switchback-${stamp}.json`;
   let payload: string | null = null;
 
   try {
-    // The deployed openship instance lives under
-    // /var/lib/openship/projects/openship-instance-<orgId>/current —
+    // The deployed vibrail instance lives under
+    // /var/lib/vibrail/projects/vibrail-instance-<orgId>/current —
     // same convention startWebmailDeploy uses. The org id is part
-    // of the slug; we wildcard it because there's one openship-instance
+    // of the slug; we wildcard it because there's one vibrail-instance
     // dir per VPS (single org per local install).
-    const remoteProjectDir = `/var/lib/openship/projects/openship-instance-*/current`;
+    const remoteProjectDir = `/var/lib/vibrail/projects/vibrail-instance-*/current`;
     // stripEncrypted defaults to false; switch-back wants the data
     // to come back clean (cloud session token decrypts on the local
     // host's secret), so we DO request stripped here — the operator

@@ -143,7 +143,7 @@ env vars, SMTP passwords).
   vs encrypted is explicit (no silent decrypt-fallback).
 - `BETTER_AUTH_SECRET` defaults to a placeholder only on `target=local`; a deployable target
   **refuses to boot** on the placeholder (`apps/api/src/config/env.ts`). The CLI auto-generates
-  a per-install secret (`~/.openship/auth-secret`, `0600`).
+  a per-install secret (`~/.vibrail/auth-secret`, `0600`).
 
 **Rule:** serialized/API-returned objects expose only `hasX` flags, never ciphertext or
 plaintext. Losing the secret makes every stored credential undecryptable — treat it as such.

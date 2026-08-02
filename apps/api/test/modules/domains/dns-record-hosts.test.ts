@@ -16,13 +16,13 @@ describe("relativeSubdomain", () => {
 });
 
 describe("dnsRecordHosts — host is per-hostname, name is the FQDN verify resolves", () => {
-  it("apex: route host @, TXT host _openship-challenge", () => {
+  it("apex: route host @, TXT host _vibrail-challenge", () => {
     const r = dnsRecordHosts("example.com");
     expect(r).toEqual({
       routeHost: "@",
       routeName: "example.com",
-      txtHost: "_openship-challenge",
-      txtName: "_openship-challenge.example.com",
+      txtHost: "_vibrail-challenge",
+      txtName: "_vibrail-challenge.example.com",
     });
   });
 
@@ -30,17 +30,17 @@ describe("dnsRecordHosts — host is per-hostname, name is the FQDN verify resol
     const r = dnsRecordHosts("app.example.com");
     expect(r.routeHost).toBe("app");
     expect(r.routeName).toBe("app.example.com");
-    expect(r.txtHost).toBe("_openship-challenge.app");
-    expect(r.txtName).toBe("_openship-challenge.app.example.com");
+    expect(r.txtHost).toBe("_vibrail-challenge.app");
+    expect(r.txtName).toBe("_vibrail-challenge.app.example.com");
   });
 
-  it("record `name` equals exactly what verify* resolves (A/CNAME → hostname, TXT → _openship-challenge.<hostname>)", () => {
+  it("record `name` equals exactly what verify* resolves (A/CNAME → hostname, TXT → _vibrail-challenge.<hostname>)", () => {
     for (const host of ["example.com", "app.example.com", "a.b.c.example.com"]) {
       const r = dnsRecordHosts(host);
       // verifyARecord/verifyCname resolve `hostname`
       expect(r.routeName).toBe(host);
-      // verifyTxt resolves `_openship-challenge.${hostname}`
-      expect(r.txtName).toBe(`_openship-challenge.${host}`);
+      // verifyTxt resolves `_vibrail-challenge.${hostname}`
+      expect(r.txtName).toBe(`_vibrail-challenge.${host}`);
     }
   });
 });

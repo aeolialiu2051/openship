@@ -1,16 +1,16 @@
 {
-  "name": "openship",
+  "name": "vibrail",
   "version": "0.4.0",
-  "description": "Openship CLI - deploy, manage, and open your Openship platform from the terminal",
+  "description": "Vibrail CLI - deploy, manage, and open your Vibrail platform from the terminal",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/oblien/openship.git",
+    "url": "https://github.com/aeolialiu2051/vibrail.git",
     "directory": "apps/cli"
   },
-  "homepage": "https://github.com/oblien/openship",
+  "homepage": "https://github.com/aeolialiu2051/vibrail",
   "keywords": [
-    "openship",
+    "vibrail",
     "deploy",
     "deployment",
     "cli",
@@ -18,7 +18,7 @@
   ],
   "type": "module",
   "bin": {
-    "openship": "./dist/index.js"
+    "vibrail": "./dist/index.js"
   },
   "files": [
     "dist",
@@ -27,7 +27,7 @@
   "scripts": {
     "build": "tsup && bun run build/stage-server.ts",
     "cli": "bun dist/index.js",
-    "dev": "bun run build && bun run build/stage-dashboard.ts && OPENSHIP_DASHBOARD_DIR=\"$(cd ../dashboard/.next/standalone && pwd)\" bun dist/index.js",
+    "dev": "bun run build && bun run build/stage-dashboard.ts && VIBRAIL_DASHBOARD_DIR=\"$(cd ../dashboard/.next/standalone && pwd)\" bun dist/index.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

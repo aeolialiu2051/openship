@@ -34,7 +34,7 @@ import {
   collectProjectManifest,
   executeCleanup,
 } from "./project-cleanup.service";
-import { removeProjectFromServerManifests } from "../../lib/openship-manifest-sync";
+import { removeProjectFromServerManifests } from "../../lib/vibrail-manifest-sync";
 import { cancelBuildSession } from "../deployments/build.service";
 import { deleteWebhook as deleteGitHubWebhook } from "../github/github.service";
 import type { RequestContext } from "../../lib/request-context";
@@ -129,7 +129,7 @@ export interface TeardownOptions {
    */
   preserveWebhook?: boolean;
   /**
-   * Record-only ("soft") delete: drop just the Openship DB record and LEAVE the
+   * Record-only ("soft") delete: drop just the Vibrail DB record and LEAVE the
    * server workload + data + on-server manifest intact, so the project can be
    * re-imported later. Self-hosted only — IGNORED for a cloud project (its
    * resources live on Oblien and must be reclaimed). Enforced in teardownProject.
@@ -209,15 +209,15 @@ export async function teardownProject(
     return s;
   };
 
-  // The Openship control plane is the host service, not a torn-down workload —
+  // The Vibrail control plane is the host service, not a torn-down workload —
   // refuse BEFORE claiming the lock so we never mangle its row. (The controller
   // guards this too; this is defense-in-depth for any other caller.)
   const preload = await repos.project.findById(projectId).catch(() => undefined);
-  if (preload?.appTemplateId === "openship") {
+  if (preload?.appTemplateId === "vibrail") {
     push({
       step: "guard_control_plane",
       status: "failed",
-      error: "The Openship control plane can't be torn down via the API — manage it with the CLI.",
+      error: "The Vibrail control plane can't be torn down via the API — manage it with the CLI.",
     });
     return finalize(steps, false, "control_plane");
   }
@@ -307,7 +307,7 @@ export async function teardownProject(
     }
 
     // Record-only ("soft") delete: keep the server workload + data, drop just
-    // the Openship record. NEVER honored for a cloud project — its resources
+    // the Vibrail record. NEVER honored for a cloud project — its resources
     // live on Oblien and must be reclaimed; this is the security boundary, not
     // the UI toggle. (CLOUD_MODE = the SaaS itself, where nothing is "kept".)
     const recordOnly = !!opts.recordOnly && !project.cloudWorkspaceId && !env.CLOUD_MODE;
@@ -334,7 +334,7 @@ export async function teardownProject(
     }
 
     // ── Steps 3+4: server-resource teardown — SKIPPED for record-only. ──
-    // Record-only keeps the workload, data, AND the on-server .openship manifest
+    // Record-only keeps the workload, data, AND the on-server .vibrail manifest
     // (so a later Docker re-scan can re-import the project); it drops only the DB
     // row below. Otherwise: tear down runtime + edge + pages + routes + volumes
     // (cloud workspaces destroy through the same path — the cloud adapter
@@ -355,7 +355,7 @@ export async function teardownProject(
 
       await stepWebmailTeardown(project, push);
 
-      // Best-effort: drop this project from each server's .openship manifest so a
+      // Best-effort: drop this project from each server's .vibrail manifest so a
       // later recover-from-server scan doesn't re-list it. Desktop-only inside;
       // never gates the delete (reconcile's running-container check is the guard).
       await removeProjectFromServerManifests(project).catch(() => {});

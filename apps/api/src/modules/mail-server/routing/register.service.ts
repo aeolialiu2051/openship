@@ -1,6 +1,6 @@
 /**
  * Mail-server route registration - wires the route plan (built in @repo/core)
- * into Openship's existing routing provider (Traefik or
+ * into Vibrail's existing routing provider (Traefik or
  * Cloud, whichever is active on the deploy target).
  *
  * This is the I/O half of the routing module - the pure half lives in
@@ -46,7 +46,7 @@ export interface MailServerRouteRegistration {
 }
 
 /**
- * Build the plan from `input` and register each HTTP route with openship's
+ * Build the plan from `input` and register each HTTP route with vibrail's
  * active routing provider. Returns the plan (for the caller to surface DNS
  * records to the UI) + a per-route registration result.
  */

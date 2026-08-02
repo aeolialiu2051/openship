@@ -15,7 +15,7 @@
  *
  * Usage:
  *   const lastPick = createPersistedValue<LastPick>(
- *     "openship.deploy-last-pick",
+ *     "vibrail.deploy-last-pick",
  *     (v): v is LastPick =>
  *       typeof v === "object" && v !== null &&
  *       ["local", "server", "cloud"].includes((v as LastPick).target),

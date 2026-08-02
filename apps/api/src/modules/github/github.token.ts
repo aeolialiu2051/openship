@@ -349,7 +349,7 @@ export async function requireTokenFor(
   const hint =
     purpose === "remote"
       ? "Install the Vibrail GitHub App on this owner, or set a per-project clone token in Settings."
-      : "Run `gh auth login`, connect Openship Cloud, or set a per-project clone token in Settings.";
+      : "Run `gh auth login`, connect Vibrail Cloud, or set a per-project clone token in Settings.";
 
   throw new AppError(
     `No GitHub token available for ${tokenCtx.owner ?? "this request"} (purpose: ${purpose}). ${hint}`,

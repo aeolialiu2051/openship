@@ -12,7 +12,7 @@ interface PlatformContextValue {
   selfHosted: boolean;
   userServers: boolean;
   deployMode: string;
-  /** OpenShip runs ON a server (self-hosted, non-desktop): the host is itself a
+  /** Vibrail runs ON a server (self-hosted, non-desktop): the host is itself a
    *  deployable target, auto-registered as the isLocal "This Server". */
   isServerHost: boolean;
   authMode: "cloud" | "local" | "none";

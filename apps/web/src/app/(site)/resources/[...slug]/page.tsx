@@ -5,7 +5,7 @@ import type { Metadata } from "next";
 import ResourceShareSidebar from "@/components/resources/share-sidebar";
 import ResourceWriterSidebar from "@/components/resources/writer-sidebar";
 
-const SITE_URL = "https://openship.io";
+const SITE_URL = "https://vibrail.warpgateapi.com";
 
 type Params = Promise<{ slug: string[] }>;
 type RPage = { url: string; data: ResourceFrontmatter };
@@ -48,9 +48,9 @@ export async function generateMetadata({
   if (!rawPage) return {};
   const page = rawPage as unknown as RPage;
 
-  const title = `${page.data.title} – Openship Resources`;
+  const title = `${page.data.title} – Vibrail Resources`;
   const description =
-    page.data.description ?? "A resource article from the Openship team.";
+    page.data.description ?? "A resource article from the Vibrail team.";
 
   return {
     title,
@@ -59,10 +59,10 @@ export async function generateMetadata({
       title,
       description,
       url: `${SITE_URL}${page.url}`,
-      siteName: "Openship",
+      siteName: "Vibrail",
       type: "article",
       publishedTime: page.data.date,
-      authors: [page.data.author || "Openship Team"],
+      authors: [page.data.author || "Vibrail Team"],
     },
     twitter: {
       card: "summary_large_image",
@@ -104,11 +104,11 @@ export default async function ResourcePostPage({ params }: { params: Params }) {
     datePublished: page.data.date,
     author: {
       "@type": "Person",
-      name: page.data.author || "Openship Team",
+      name: page.data.author || "Vibrail Team",
     },
     publisher: {
       "@type": "Organization",
-      name: "Openship",
+      name: "Vibrail",
     },
     mainEntityOfPage: {
       "@type": "WebPage",
@@ -182,7 +182,7 @@ export default async function ResourcePostPage({ params }: { params: Params }) {
                 </div>
                 <div className="rp-meta-text">
                   <span className="rp-author-name">
-                    {page.data.author || "Openship Team"}
+                    {page.data.author || "Vibrail Team"}
                   </span>
                   <span className="rp-meta-row">
                     {page.data.date && (
@@ -224,7 +224,7 @@ export default async function ResourcePostPage({ params }: { params: Params }) {
                     <div className="rp-related-foot-avatar" aria-hidden="true">
                       {(post.data.author || "O")[0].toUpperCase()}
                     </div>
-                    <span>{post.data.author || "Openship Team"}</span>
+                    <span>{post.data.author || "Vibrail Team"}</span>
                     {post.data.date && (
                       <>
                         <span className="rp-related-dot" aria-hidden="true" />
