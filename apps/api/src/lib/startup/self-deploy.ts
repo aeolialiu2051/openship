@@ -5,7 +5,8 @@
  * host process supervised by `openship up` (launchd/systemd). To make it a
  * genuine deployment — real row + `activeDeploymentId` + routes/SSL owned by the
  * normal pipeline — without a SECOND process binding the port, we create an
- * ADOPT deployment: `meta:{deployTarget:"local", runtimeMode:"bare", adopt:true}`.
+ * ADOPT deployment: `meta:{deployTarget:"local", runtimeMode:"bare",
+ * adopt:true, controlPlaneAdopt:true}`.
  *
  *   - `ensureAdoptDeployment` — idempotent: create (or resume/activate) the
  *     adopt deployment and drive it through the pipeline's terminal path
@@ -65,7 +66,19 @@ function adoptSnapshot(project: Project, dashPort: number): DeploymentConfigSnap
     deployTarget: "local",
     runtimeMode: "bare",
     adopt: true,
+    controlPlaneAdopt: true,
   };
+}
+
+/** Backfill the explicit control-plane discriminator on self-app adopt rows
+ * created before it existed. The project identity is checked by the caller, so
+ * this can never bless a generic user deployment as a bare exception. */
+async function markControlPlaneAdopt(dep: Deployment): Promise<Deployment> {
+  const meta = (dep.meta ?? {}) as DeploymentConfigSnapshot;
+  if (meta.controlPlaneAdopt === true) return dep;
+  const nextMeta: DeploymentConfigSnapshot = { ...meta, controlPlaneAdopt: true };
+  await repos.deployment.updateStatus(dep.id, dep.status, { meta: nextMeta });
+  return { ...dep, meta: nextMeta };
 }
 
 /**
@@ -77,12 +90,12 @@ export async function ensureAdoptDeployment(
   dashPort: number,
 ): Promise<Deployment | null> {
   const project = await repos.project.findById(projectId);
-  if (!project) return null;
+  if (!project || project.appTemplateId !== APP_TEMPLATE_ID) return null;
 
   // Already adopted + active → done.
   if (project.activeDeploymentId) {
     const active = await repos.deployment.findById(project.activeDeploymentId);
-    if (isAdoptDeployment(active)) return active!;
+    if (isAdoptDeployment(active)) return markControlPlaneAdopt(active!);
   }
 
   // Reuse a prior adopt row rather than create a duplicate: a ready-but-inactive
@@ -94,9 +107,9 @@ export async function ensureAdoptDeployment(
   if (isAdoptDeployment(latest)) {
     if (latest!.status === "ready") {
       await repos.project.setActiveDeployment(projectId, latest!.id);
-      return latest!;
+      return markControlPlaneAdopt(latest!);
     }
-    dep = latest!;
+    dep = await markControlPlaneAdopt(latest!);
   }
 
   if (!dep) {

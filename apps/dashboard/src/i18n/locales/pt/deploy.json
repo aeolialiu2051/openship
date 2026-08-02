@@ -199,9 +199,7 @@
     "buildLocal": "Esta máquina",
     "buildRemote": "Remoto",
     "runtimeStatic": "Estático · servido na edge",
-    "runtimeContainerIsolated": "Isolado em contêiner",
-    "runtimeDirectWarning": "Direto no host",
-    "runtimeDirectHint": "Executa diretamente como processo do host."
+    "runtimeContainerIsolated": "Isolado em contêiner"
   },
   "power": {
     "heading": "Potência",

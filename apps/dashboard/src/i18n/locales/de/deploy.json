@@ -199,9 +199,7 @@
     "buildLocal": "Dieser Rechner",
     "buildRemote": "Remote",
     "runtimeStatic": "Statisch · über Edge bereitgestellt",
-    "runtimeContainerIsolated": "Container-isoliert",
-    "runtimeDirectWarning": "Direkt auf dem Host",
-    "runtimeDirectHint": "Läuft direkt als Host-Prozess."
+    "runtimeContainerIsolated": "Container-isoliert"
   },
   "power": {
     "heading": "Leistung",

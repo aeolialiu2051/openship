@@ -52,6 +52,20 @@ function buildRunCommand(command: string, envPrefix: string): string {
   return `${envPrefix}${command}`;
 }
 
+/**
+ * Prefix generated/runtime-overridden commands with one deterministic container
+ * log line. Quiet processes (notably nginx static sites) otherwise produce an
+ * empty Logs tab until the first request, which looks like a broken log stream.
+ * The outer shell is replaced after printing, so the banner wrapper does not
+ * remain as an extra process around the existing command semantics.
+ */
+export function withOpenshipRuntimeBanner(
+  command: string,
+  message: string,
+): string {
+  return `printf '%s\\n' ${sq(`[openship] ${message}`)}; exec sh -c ${sq(command)}`;
+}
+
 function runtimeCopyDirectives(config: BuildConfig, sourceDir: string): string[] {
   if (config.productionPaths && config.productionPaths.length > 0) {
     return config.productionPaths.map((path) => {
@@ -233,7 +247,12 @@ function generateStaticDockerfile(config: BuildConfig): string {
     `COPY --from=builder ${outputPath} /usr/share/nginx/html`,
     `RUN printf '%s\\n' ${nginxTemplate} > /etc/nginx/conf.d/app.conf`,
     `EXPOSE ${config.port}`,
-    `CMD ["nginx", "-g", "daemon off;"]`,
+    `CMD ["sh", "-c", ${JSON.stringify(
+      withOpenshipRuntimeBanner(
+        "nginx -g 'daemon off;'",
+        `Static server listening on port ${config.port}`,
+      ),
+    )}]`,
   );
 
   return lines.join("\n");
@@ -290,7 +309,14 @@ export function generateDockerfile(config: BuildConfig): string {
   }
   lines.push(`EXPOSE ${config.port}`);
   if (config.startCommand) {
-    lines.push(`CMD ["sh", "-c", ${JSON.stringify(config.startCommand)}]`);
+    lines.push(
+      `CMD ["sh", "-c", ${JSON.stringify(
+        withOpenshipRuntimeBanner(
+          config.startCommand,
+          `Application starting on port ${config.port}`,
+        ),
+      )}]`,
+    );
   }
 
   return lines.join("\n");

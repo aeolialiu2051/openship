@@ -62,7 +62,7 @@ r.post(
     collection: true,
     mcp: {
       description:
-        "Deploy — the wizard 'Deploy' action. Starts the build + deployment. For a folder-upload deploy pass projectId (from projects/ensure) and uploadSessionId (from folder/session). Wizard settings (envVars, publicEndpoints, buildStrategy, runtimeMode, cloudResourceTier) are optional. Returns { success, deployment_id, project_id }. Do NOT set deployTarget:'cloud' on a self-hosted instance — it triggers promote-to-cloud; leave it unset and the upload session mode decides.",
+        "Deploy — the wizard 'Deploy' action. Starts the build + deployment. For a folder-upload deploy pass projectId (from projects/ensure) and uploadSessionId (from folder/session). Wizard settings (envVars, publicEndpoints, buildStrategy, cloudResourceTier) are optional. Server workloads always use Docker; runtimeMode may be omitted or set to 'docker'. Returns { success, deployment_id, project_id }. Do NOT set deployTarget:'cloud' on a self-hosted instance — it triggers promote-to-cloud; leave it unset and the upload session mode decides.",
       body: BuildAccessBody,
     },
   },

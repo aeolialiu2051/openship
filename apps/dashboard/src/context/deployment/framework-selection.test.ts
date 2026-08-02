@@ -21,7 +21,7 @@ function makeConfig(overrides: Partial<DeploymentConfig> = {}): DeploymentConfig
     owner: "owner",
     buildStrategy: "server",
     deployTarget: "cloud",
-    runtimeMode: "bare",
+    runtimeMode: "docker",
     projectType: "services",
     framework: "docker-compose",
     detectedFramework: "docker-compose",

@@ -24,7 +24,7 @@ export interface ProjectOptionsBody {
   productionMode?: string;
   hasServer?: boolean;
   hasBuild?: boolean;
-  runtimeMode?: "bare" | "docker";
+  runtimeMode?: "docker";
 }
 
 export interface ScanProjectResponse {

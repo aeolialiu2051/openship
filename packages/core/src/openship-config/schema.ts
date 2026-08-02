@@ -15,13 +15,14 @@
 import type { StackId } from "../stacks";
 import type { RoutingConfig } from "../metadata/types";
 
-export type OpenshipRuntime = "bare" | "docker";
+/** User workloads deployed to a server always run in Docker. */
+export type OpenshipRuntime = "docker";
 export type OpenshipProductionMode = "host" | "static" | "standalone";
 export type OpenshipDomainType = "free" | "custom";
 export type OpenshipRestart = "no" | "always" | "on-failure" | "unless-stopped";
 export type OpenshipResourceTier = "micro" | "low" | "medium" | "high";
 
-export const OPENSHIP_RUNTIMES: readonly OpenshipRuntime[] = ["bare", "docker"];
+export const OPENSHIP_RUNTIMES: readonly OpenshipRuntime[] = ["docker"];
 export const OPENSHIP_PRODUCTION_MODES: readonly OpenshipProductionMode[] = [
   "host",
   "static",

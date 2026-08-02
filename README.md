@@ -50,7 +50,7 @@ There's one decision to make first: **how you run Openship itself** (the control
 | If you're… | Run Openship as | Where your apps run |
 |---|---|---|
 | **Solo, one machine, no ops** | **Desktop app** | A server you connect over SSH, or Openship Cloud |
-| **A team — or you want push-to-deploy / to host apps on your own box** | **Self-hosted server** (`openship up`) | On that box (Compose mode) — or out to another server / Cloud (bare mode) |
+| **A team — or you want push-to-deploy / to host apps on your own box** | **Self-hosted server** (`openship up`) | In Docker on that box or another connected server, or in Cloud |
 | **Not interested in running anything** | **Openship Cloud** | Managed sandboxes, zero setup |
 
 > [!TIP]
@@ -140,8 +140,8 @@ The control-plane stack is **postgres + redis + api + dashboard**. The API mount
 Point Openship at a source — a **GitHub repo**, a **local folder**, or a **prebuilt artifact** — and it runs one pipeline end to end:
 
 1. **Detect.** It reads your `package.json`, framework config, lockfiles, and any `docker-compose.yml` / `openship.json` to work out the stack, package manager, build/start commands, and port. Zero config files required; an `openship.json` overrides the guesses if you want control.
-2. **Build.** On the target server or locally on the orchestrator, into a Docker image or a bare release. The resolved config is frozen into a snapshot, so redeploys and rollbacks re-run *exactly* what shipped.
-3. **Run.** As a container (published on loopback only — never a public port) or a supervised host process.
+2. **Build.** On the target server or locally on the orchestrator, into a Docker image (using your Dockerfile/Compose file or an automatically generated Dockerfile). The resolved config is frozen into a snapshot, so redeploys and rollbacks re-run *exactly* what shipped.
+3. **Run.** As a container published on loopback only — never a public port. Cloud deployments run in managed workspaces.
 4. **Route + secure.** The Traefik edge writes a reverse-proxy vhost to your domain and issues a Let's Encrypt certificate (HTTP-01). Because routing and TLS happen *after* the app is up, a DNS or cert hiccup surfaces as "action required" — it never fails the deploy or takes your app down.
 5. **Push-to-deploy.** A GitHub webhook re-runs the pipeline on every push to the tracked branch — rebuilding only the services a monorepo push actually touched.
 

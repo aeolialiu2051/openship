@@ -183,12 +183,7 @@ export const BuildSettings = () => {
   }
 
   // ── Single-app: read-only configuration summary. ──────────────────────
-  const runtimeModeLabel =
-    projectData?.runtimeMode === "docker"
-      ? t.projectSettings.build.runtime.modeDocker
-      : projectData?.runtimeMode === "bare"
-        ? t.projectSettings.build.runtime.modeDirect
-        : t.projectSettings.build.runtime.modeDefault;
+  const runtimeModeLabel = t.projectSettings.build.runtime.modeDocker;
 
   const cpuCores = projectData?.resources?.production?.cpuCores;
   const memoryMb = projectData?.resources?.production?.memoryMb;

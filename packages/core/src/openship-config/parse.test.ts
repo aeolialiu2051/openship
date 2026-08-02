@@ -46,6 +46,11 @@ describe("parseOpenshipConfig", () => {
     expect(errors.some((e) => e.includes("resources.cpuCores"))).toBe(true);
   });
 
+  it("rejects the removed bare user-workload runtime", () => {
+    const { errors } = parseOpenshipConfig({ runtime: "bare" });
+    expect(errors.some((e) => e.startsWith("runtime:"))).toBe(true);
+  });
+
   it("coerces a string port and validates env value shape", () => {
     const ok = parseOpenshipConfig({ port: "8080", env: { A: "1" } });
     expect(ok.errors).toEqual([]);

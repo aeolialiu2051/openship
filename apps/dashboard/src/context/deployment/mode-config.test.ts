@@ -52,7 +52,7 @@ describe("getModeSwitchUpdates", () => {
       framework: "python",
       detectedFramework: "python",
       packageManager: "pip",
-      runtimeMode: "bare",
+      runtimeMode: "docker",
       options: {
         startCommand: "uvicorn app.main:app --host 0.0.0.0 --port 8000",
         productionPort: "8000",

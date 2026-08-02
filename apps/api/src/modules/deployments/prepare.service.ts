@@ -102,8 +102,8 @@ export interface ProjectInfo {
   // output/routing) fold in through the metadata parser and appear above.
   /** How the app is served: "host"/"static"/"standalone" (seeds hasServer). */
   productionMode?: "host" | "static" | "standalone";
-  /** Bare-metal vs Docker runtime, declared intent (git apps pick at deploy). */
-  runtimeMode?: "bare" | "docker";
+  /** Optional explicit Docker marker from openship.json. */
+  runtimeMode?: "docker";
   /** Declared public endpoints (from `domains`), normalized to the create shape. */
   publicEndpoints?: DeclaredPublicEndpoint[];
   /** Declared resource sizing (cloud tier or explicit cpu/mem/disk). */

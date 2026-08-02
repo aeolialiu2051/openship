@@ -199,9 +199,7 @@
     "buildLocal": "このマシン",
     "buildRemote": "リモート",
     "runtimeStatic": "静的 · エッジ配信",
-    "runtimeContainerIsolated": "コンテナ分離",
-    "runtimeDirectWarning": "ホストで直接実行",
-    "runtimeDirectHint": "ホストプロセスとして直接実行します。"
+    "runtimeContainerIsolated": "コンテナ分離"
   },
   "power": {
     "heading": "パワー",

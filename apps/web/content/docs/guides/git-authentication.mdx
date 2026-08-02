@@ -16,7 +16,7 @@ On Openship Cloud, connecting the GitHub App is all you need. On the desktop app
 The single most important thing to understand: **a credential that works on your laptop doesn't automatically work on a remote build server.** Openship can clone in two places:
 
 - **On this host** (your desktop app, or the Openship control plane) — then it transfers the built output to wherever the app runs.
-- **On the build server itself** — the server clones directly, no upload. Best for big repos, and required for bare/Direct deploys.
+- **On the build server itself** — the server clones directly, no upload. Best for big repos and useful when the build server already has the required credentials.
 
 A token that lives on your machine has to be *shipped* to the server to clone there — and Openship is deliberately careful about which credentials it will ship. That's why the answer to "how do I auth a private clone" depends on where the clone runs.
 

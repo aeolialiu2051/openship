@@ -23,24 +23,20 @@ The target is a per-deploy choice. Deploy to your laptop today to try something,
 project to a real server or the cloud later — nothing about the app has to change.
 </Callout>
 
-## Two ways to run it: Docker or direct
+## Self-hosted workloads always run in Docker
 
-For the two self-hosted targets (local and server), Openship also picks *how* the app runs on that machine.
-This is the **isolation mode**, and there are two:
+For the two self-hosted targets (local and server), the application always runs in a Docker container. This
+is independent of the files in the repository:
 
-- **Docker container** — your app runs inside a **container** with its own files and
-  dependencies, kept apart from everything else on the machine. This is the default.
-- **Direct (bare)** — your app runs as a plain process on the machine, with no box around it. Lighter, but
-  it shares the machine's environment.
+- A repository with a **Dockerfile** uses that Dockerfile.
+- A repository with **Docker Compose** deploys its declared services as containers.
+- A repository without either gets a generated Dockerfile based on the detected framework, install/build
+  commands, output directory, and start command.
+- A static site is built in a container and served from an nginx container.
 
-Docker is the default everywhere because the container isolation is worth it and the overhead is tiny. The one time
-Direct earns its keep is on a very small machine — under about **2 GB of RAM** — where the container engine
-would compete with your app for memory. Openship surfaces that as a note when you pick Direct, rather than
-silently switching for you.
-
-<Callout title="How a Direct app stays running" type="info">
-A Direct (bare) app is kept alive by the machine's own process supervisor — **systemd** on Linux,
-**nohup** on macOS — so it restarts if it crashes or the box reboots. A containerized app is kept alive by Docker.
+<Callout title="Dockerfile detection does not choose the runtime" type="info">
+The presence of a Dockerfile only decides whether Openship uses your build recipe or generates one. It does
+not decide whether the finished application is containerized.
 </Callout>
 
 ## Build first, then hand off
@@ -95,8 +91,7 @@ workspace by default, though a self-hosted box can build locally and upload just
 **Local** runs your app on the very machine Openship is installed on — great for trying things out on the
 desktop app or a single box.
 
-- **Docker** talks to the machine's Docker socket directly.
-- **Direct** runs the process on the machine and supervises it with systemd or nohup.
+Openship talks to the machine's Docker socket directly and starts the application as a container.
 
 Web addresses and HTTPS are handled by Openship's built-in router on that same machine (see
 [Routing and certificates](#routing-and-certificates)).
@@ -110,8 +105,9 @@ from a terminal. You add the server once — on the **Servers** page, or right i
 your own server** — and Openship keeps a pooled connection to it, so repeat deploys reuse the same link
 instead of dialing in fresh each time.
 
-- **Docker** drives the remote machine's Docker engine over an SSH tunnel.
-- **Direct** runs shell commands on the server over that same SSH connection.
+Openship drives the remote machine's Docker engine over the SSH connection. If the repository has no
+Dockerfile, Openship sends a generated build recipe rather than installing the application's language
+runtime directly on the host.
 
 The router and certificate tooling are set up on *your* server, so traffic never detours through Openship.
 
@@ -141,8 +137,7 @@ app and upload the finished output to a cloud workspace to run.
 Once your app is running, something has to send visitors to it and serve HTTPS.
 
 - **Self-hosted Docker deployments** publish routing labels to the shared **Traefik** instance. Traefik's
-  configured certificate resolver obtains and renews HTTPS certificates. Bare deployments require
-  operator-managed public ingress.
+  configured certificate resolver obtains and renews HTTPS certificates.
 - **Cloud** delegates routing, HTTPS, and static-file hosting to Openship Cloud's edge — there's nothing to
   install or renew.
 
@@ -151,14 +146,9 @@ For attaching your own domain, verifying DNS, and managing certificates, see the
 
 ## Zero-downtime and auto-revert
 
-The deploy stage adapts to whether the new version can run **alongside** the old one:
-
-- **Docker and Cloud apps can overlap.** Each version gets its own container or workspace, so Openship
-  starts the new one, checks it, repoints traffic, and only *then* stops the old one. If anything fails before
-  the switch, the old version was never touched — it keeps serving, and the failed deploy simply doesn't take.
-- **Direct apps can't overlap**, because the new process needs the same fixed port the old one is holding. So
-  Openship stops the old process, starts the new one, and — if the new one fails — restarts the old one to
-  bring you back. This path has a brief unavoidable gap while the port changes hands.
+Docker and Cloud releases can overlap. Each version gets its own container or workspace, so Openship starts
+the new one, checks it, repoints traffic, and only *then* stops the old one. If anything fails before the
+switch, the old version was never touched — it keeps serving, and the failed deploy simply doesn't take.
 
 <Callout title="One deploy at a time per machine" type="info">
 Deploys to the same machine are serialized with a lock, so two projects deploying at once can't clobber each

@@ -195,8 +195,6 @@
     "static": "Static",
     "runtimeStatic": "Static · edge-served",
     "runtimeContainerIsolated": "Container isolated",
-    "runtimeDirectWarning": "Direct on host",
-    "runtimeDirectHint": "Runs directly as a host process.",
     "targetLocal": "This Machine",
     "targetServer": "My Server",
     "targetCloud": "Vibrail Cloud",

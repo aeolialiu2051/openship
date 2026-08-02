@@ -198,7 +198,8 @@ export interface DeploymentConfigSnapshot {
   deployTarget?: DeployTarget;
   /** Target server ID when deployTarget is "server" */
   serverId?: string;
-  /** Runtime mode: "bare" (direct process) or "docker" (container-based) */
+  /** Workload runtime stamped into the frozen snapshot. Bare is reserved for
+   *  the control plane's internal adopt deployment; user requests only accept Docker. */
   runtimeMode?: "bare" | "docker";
   /**
    * Adopt an already-running process instead of building + starting one. Set
@@ -206,6 +207,8 @@ export interface DeploymentConfigSnapshot {
    * a second process binding the port. Threaded onto DeployConfig.adopt.
    */
   adopt?: boolean;
+  /** Internal-only marker for the Openship control plane self-app. */
+  controlPlaneAdopt?: boolean;
   /** Project services fan-out mode captured for this deployment. */
   serviceDeploymentMode?: "services" | "single";
   /**
@@ -289,13 +292,6 @@ export interface DeploymentConfigSnapshot {
  */
 export type BuildAccessInput = TBuildAccessBody;
 
-/** Narrow the free-form `project.runtime_mode` text column (string | null) to
- *  the runtime-isolation union — a validated check instead of an unchecked
- *  `as` cast, so a stray/legacy DB value can't be mistyped as a valid mode. */
-function toRuntimeMode(value: string | null | undefined): "bare" | "docker" | undefined {
-  return value === "bare" || value === "docker" ? value : undefined;
-}
-
 /** Build a config snapshot from the project - pure pass-through, no fallbacks.
  *  All values must be set by prepare / ensureProject before this is called. */
 export function buildConfigSnapshot(
@@ -338,10 +334,9 @@ export function buildConfigSnapshot(
     // UI to pass it on every redeploy. The desktop picker still wins
     // when it does pass an explicit deployTarget (see line ~773).
     deployTarget: project.cloudWorkspaceId ? "cloud" : undefined,
-    // Runtime isolation mode persisted on the project (editable in the Runtime
-    // tab). So a redeploy/webhook deploy respects the saved choice instead of
-    // re-defaulting. The wizard's per-deploy override still wins when passed.
-    runtimeMode: toRuntimeMode(project.runtimeMode),
+    // Server workloads are always containerized, independent of which surface
+    // (dashboard, CLI, MCP, webhook) created the deployment.
+    runtimeMode: "docker",
   };
 }
 
@@ -610,12 +605,12 @@ export async function resolveRollbackContext(
  *   - serverId: ONLY kept when the resolved target is "server". For cloud/local
  *       it is dropped, so a non-server deploy can't carry a stale serverId and
  *       mis-route (the bug the unconditional inheritance had).
- *   - runtimeMode: override > project.runtimeMode column > active-meta.
+ *   - runtimeMode: always Docker for user workloads.
  */
 export async function resolveSnapshotTarget(
   project: Project,
-  override?: { deployTarget?: DeployTarget; serverId?: string; runtimeMode?: "bare" | "docker" },
-): Promise<{ deployTarget?: DeployTarget; serverId?: string; runtimeMode?: "bare" | "docker" }> {
+  override?: { deployTarget?: DeployTarget; serverId?: string; runtimeMode?: "docker" },
+): Promise<{ deployTarget?: DeployTarget; serverId?: string; runtimeMode: "docker" }> {
   const activeMeta = project.activeDeploymentId
     ? ((await repos.deployment.findById(project.activeDeploymentId).catch(() => null))
         ?.meta as DeploymentConfigSnapshot | null)
@@ -642,8 +637,7 @@ export async function resolveSnapshotTarget(
       ? (override?.serverId ?? activeMeta?.serverId ?? undefined)
       : undefined;
 
-  const runtimeMode =
-    override?.runtimeMode ?? toRuntimeMode(project.runtimeMode) ?? activeMeta?.runtimeMode;
+  const runtimeMode = "docker" as const;
 
   return { deployTarget, serverId, runtimeMode };
 }
@@ -1119,20 +1113,11 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     }
   }
 
-  // Persist an EXPLICIT runtime choice (Docker container vs direct host process)
-  // onto the project so it STICKS. Without this the choice lives only
-  // in this one deployment's snapshot: the modal re-asks every deploy, a later
-  // config-save reads project.runtimeMode (still null) and writes the host
-  // default, and a redeploy then resolves to that default (bare) — silently
-  // flipping a Docker project to direct-on-host. Best-effort: a failed
-  // persist must not block the deploy. Only write when it actually changed.
-  const runtimeModeToPersist = composeFirst ? "docker" : runtimeMode;
-  if (
-    (runtimeModeToPersist === "bare" || runtimeModeToPersist === "docker") &&
-    runtimeModeToPersist !== project.runtimeMode
-  ) {
+  // Persist the server-workload invariant so every later redeploy/webhook and
+  // every read surface sees the same containerized runtime.
+  if (project.runtimeMode !== "docker") {
     await repos.project
-      .update(project.id, { runtimeMode: runtimeModeToPersist })
+      .update(project.id, { runtimeMode: "docker" })
       .catch((err) =>
         console.warn(`[requestBuildAccess] failed to persist runtimeMode: ${safeErrorMessage(err)}`),
       );

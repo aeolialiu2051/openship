@@ -288,9 +288,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     router.push(`/projects/${config.projectId}?${params.toString()}`);
   }, [config.branch, config.projectId, router]);
 
-  // Runtime selection (direct host/Docker) for self-hosted server apps is now an
-  // inline setting in the target step (ServerRuntimePicker) — config.runtimeMode
-  // already carries the choice, so deploy proceeds with no interruption.
+  // Server workloads have a fixed Docker runtime, so deploy proceeds without a
+  // runtime-selection interruption.
   const continueDeploy = useCallback(async (overrides?: { buildStrategy?: BuildStrategy }) => {
     const deploymentId = await startDeployment(overrides);
     if (deploymentId) {

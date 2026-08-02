@@ -199,9 +199,7 @@
     "buildLocal": "هذا الجهاز",
     "buildRemote": "بعيد",
     "runtimeStatic": "ثابت · يُقدَّم عبر الحافة",
-    "runtimeContainerIsolated": "معزول داخل حاوية",
-    "runtimeDirectWarning": "مباشر على المضيف",
-    "runtimeDirectHint": "يعمل مباشرة كعملية على المضيف."
+    "runtimeContainerIsolated": "معزول داخل حاوية"
   },
   "power": {
     "heading": "الأداء",

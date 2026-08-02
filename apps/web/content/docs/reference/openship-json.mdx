@@ -55,7 +55,7 @@ It's **JSON, not JSONC** — no comments, no trailing commas.
 
 <TypeTable
   type={{
-    runtime: { type: '"bare" | "docker"', description: 'Runtime isolation for a single app. Services/docker projects are always "docker".' },
+    runtime: { type: '"docker"', description: 'Optional explicit marker. All self-hosted workloads run in Docker, including projects without a Dockerfile.' },
     productionMode: { type: '"host" | "static" | "standalone"', description: '"static" ⇒ served as files, no server.' },
     port: { type: 'integer', description: 'Port the server listens on (1–65535).' },
   }}

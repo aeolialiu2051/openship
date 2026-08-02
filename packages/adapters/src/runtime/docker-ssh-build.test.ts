@@ -1,11 +1,42 @@
 import { describe, expect, it, vi } from "vitest";
 
-import type { BuildConfig, CommandExecutor } from "../types";
+import type { BuildConfig, CommandExecutor, DeployConfig } from "../types";
 import type { MultiServiceDeployConfig } from "./types";
 import { BuildLogger } from "./build-pipeline";
 import { DockerRuntime } from "./docker";
 
 describe("DockerRuntime SSH builds", () => {
+  it("prints a runtime banner when deploy overrides the image start command", async () => {
+    const start = vi.fn(async () => {});
+    const createContainer = vi.fn(async () => ({ id: "container-runtime-banner", start }));
+    const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
+    Object.defineProperty(runtime, "_docker", { value: { createContainer } });
+
+    await runtime.deploy({
+      deploymentId: "deployment-runtime-banner",
+      projectId: "project-runtime-banner",
+      environment: "production",
+      imageRef: "openship/app:test",
+      port: 8000,
+      startCommand: "uvicorn app:api --host 0.0.0.0 --port $PORT",
+      envVars: {},
+      resources: { cpuCores: 1, memoryMb: 512, diskMb: 1024 },
+    } as DeployConfig);
+
+    expect(createContainer).toHaveBeenCalledOnce();
+    expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
+      Cmd: [
+        "sh",
+        "-c",
+        expect.stringContaining("[openship] Application starting on port 8000"),
+      ],
+    });
+    expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
+      Cmd: ["sh", "-c", expect.stringContaining("uvicorn app:api")],
+    });
+    expect(start).toHaveBeenCalledOnce();
+  });
+
   it("disposes Docker HTTP sockets and the transport exactly once", async () => {
     const destroy = vi.fn();
     const close = vi.fn(async () => {});

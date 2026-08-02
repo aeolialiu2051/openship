@@ -211,10 +211,11 @@ export const project = pgTable(
     /** Sleep mode: auto_sleep | always_on */
     sleepMode: text("sleep_mode").default("auto_sleep"),
     /**
-     * Runtime isolation mode for this project's deploys: "bare" (direct host
-     * process) | "docker" (isolated container). Editable in the Runtime tab and
-     * snapshotted onto each deployment's config. Null = resolve the default at
-     * deploy time (the prior wizard-only behavior).
+     * Runtime isolation mode for this project's deploys. New user workloads are
+     * always "docker"; "bare" may remain in legacy rows and the internal
+     * control-plane adopt deployment.
+     * Snapshotted onto each deployment's config. Null is retained for rows
+     * created before the Docker-only workload invariant.
      */
     runtimeMode: text("runtime_mode"),
     /** Number of previous successful releases to retain for rollback (null = use instance default) */

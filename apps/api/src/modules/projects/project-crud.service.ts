@@ -14,7 +14,6 @@ import {
   compareSemver,
   isReleaseProvider,
   isTemplateProvider,
-  isServicesFramework,
   isBehind,
   GITHUB_REPO,
   type ReleaseSource,
@@ -340,18 +339,9 @@ function buildProductionProjectInput(
     routeStrategy: data.routeStrategy ?? undefined,
     isApp: data.isApp ?? false,
     appTemplateId: data.appTemplateId ?? null,
-    // Services / docker(-compose) projects can only run on the Docker runtime, so
-    // pin it at creation — same rule the deploy wizard applies via
-    // normalizeRuntimeMode. Without this the row's runtime_mode is null, the
-    // deploy resolves to "bare", and a compose deploy fails with "services are
-    // not supported on the bare runtime". Git apps/monorepos stay null (chosen at
-    // deploy time).
-    runtimeMode:
-      data.projectType === "services" ||
-      data.projectType === "docker" ||
-      isServicesFramework(data.framework)
-        ? "docker"
-        : null,
+    // Every server workload is containerized, including projects without a
+    // repository Dockerfile (the runtime generates one from detected commands).
+    runtimeMode: "docker",
   };
 }
 
@@ -445,6 +435,7 @@ export async function createServicesProjectWithId(opts: {
   routeKey?: string | null;
   organizationId: string;
   hasBuild?: boolean;
+  /** Legacy import metadata is accepted but normalized to Docker below. */
   runtimeMode?: "bare" | "docker";
   gitProvider?: string | null;
   gitOwner?: string | null;
@@ -488,7 +479,7 @@ export async function createServicesProjectWithId(opts: {
       hasServer: true,
       hasBuild: opts.hasBuild ?? false,
       // services ⇒ docker runtime (same rule buildProductionProjectInput applies).
-      runtimeMode: opts.runtimeMode === "bare" ? "bare" : "docker",
+      runtimeMode: "docker",
     });
     await persistProjectRouteState(created.id, routing.publicEndpoints);
     return created;
@@ -762,16 +753,10 @@ export async function ensureProject(
       }
     }
     if (data.hasBuild !== undefined) update.hasBuild = data.hasBuild;
-    // Compose is a deployment contract. Do not depend on a UI/MCP caller also
-    // remembering projectType/runtimeMode when framework detection already made
-    // the project shape unambiguous.
-    if (
-      data.projectType === "services" ||
-      data.projectType === "docker" ||
-      isServicesFramework(data.framework ?? project.framework)
-    ) {
-      update.runtimeMode = "docker";
-    }
+    // Project ensure is shared by dashboard, MCP and CLI. Pin the invariant at
+    // this boundary so headless callers cannot inherit the control plane's bare
+    // runtime by omission.
+    update.runtimeMode = "docker";
     if (data.projectType === "monorepo" && data.monorepoWorkspace !== undefined) {
       update.workspacePrepareCommand = data.monorepoWorkspace.prepareCommand ?? null;
     }
@@ -1554,13 +1539,9 @@ export async function updateOptions(
     }
   }
   if (options.hasBuild !== undefined) update.hasBuild = options.hasBuild;
-  // Runtime isolation mode (bare/docker) — editable in the Runtime tab; read by
-  // buildConfigSnapshot so every deploy/redeploy respects the saved choice.
-  // (Resources have their own dedicated path — projectsApi.setResources — so
-  // we deliberately do NOT also write them here.)
-  if (options.runtimeMode === "bare" || options.runtimeMode === "docker") {
-    update.runtimeMode = options.runtimeMode;
-  }
+  // Runtime is fixed for user workloads. Accepting an old client payload must
+  // never restore direct-on-host deployment.
+  if (options.runtimeMode !== undefined) update.runtimeMode = "docker";
 
   // Persist the canonical config FIRST, then reconcile routes (best-effort) on a
   // port change. Ordering the project write before route-sync means a route-sync

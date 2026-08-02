@@ -69,7 +69,7 @@ describe("deriveEnvironmentPublicEndpoints", () => {
 });
 
 describe("reapplyProjectLiveRoutes loopback guard", () => {
-  // Mirrors the real self-app adopt deployment: meta { runtimeMode: "bare" } →
+  // Mirrors the real self-app adopt deployment: explicitly marked bare adopt →
   // the app runs on the host, so the runtime resolves the upstream to
   // 127.0.0.1:<dashboard port> rather than a container IP.
   const project = {
@@ -105,7 +105,7 @@ describe("reapplyProjectLiveRoutes loopback guard", () => {
     findDeployment.mockResolvedValue({
       id: "dep-1",
       containerId: "dep-1",
-      meta: { runtimeMode: "bare" },
+      meta: { runtimeMode: "bare", adopt: true, controlPlaneAdopt: true },
       organizationId: "org-1",
     });
     resolveRuntime.mockResolvedValue({

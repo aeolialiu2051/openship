@@ -4,6 +4,16 @@ import { describe, expect, it } from "vitest";
 import { BuildAccessBody } from "../../../src/modules/deployments/deployment.schema";
 
 describe("deployment build-access schema", () => {
+  it("allows Docker or omission, but rejects the removed bare workload runtime", () => {
+    expect(Value.Check(BuildAccessBody, { projectId: "proj_default" })).toBe(true);
+    expect(
+      Value.Check(BuildAccessBody, { projectId: "proj_docker", runtimeMode: "docker" }),
+    ).toBe(true);
+    expect(
+      Value.Check(BuildAccessBody, { projectId: "proj_bare", runtimeMode: "bare" }),
+    ).toBe(false);
+  });
+
   it("preserves compose command execution mode on the deploy wire payload", () => {
     expect(
       Value.Check(BuildAccessBody, {

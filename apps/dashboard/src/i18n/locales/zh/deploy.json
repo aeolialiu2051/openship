@@ -199,9 +199,7 @@
     "buildLocal": "此机器",
     "buildRemote": "远程",
     "runtimeStatic": "静态 · 边缘分发",
-    "runtimeContainerIsolated": "容器隔离",
-    "runtimeDirectWarning": "主机直接运行",
-    "runtimeDirectHint": "作为主机进程直接运行。"
+    "runtimeContainerIsolated": "容器隔离"
   },
   "power": {
     "heading": "性能",

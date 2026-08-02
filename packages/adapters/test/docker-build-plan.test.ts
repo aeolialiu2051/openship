@@ -32,7 +32,8 @@ describe("generateDockerfile - static branch", () => {
     expect(df).toContain("COPY --from=builder /workspace/frontend/dist /usr/share/nginx/html");
     expect(df).toContain("listen 8080 default_server;");
     expect(df).toContain("try_files $uri $uri/ /index.html;");
-    expect(df).toContain('CMD ["nginx", "-g", "daemon off;"]');
+    expect(df).toContain("[openship] Static server listening on port 8080");
+    expect(df).toContain("nginx -g");
   });
 
   it("serves from the repo root when rootDirectory is '.'", () => {
@@ -43,6 +44,7 @@ describe("generateDockerfile - static branch", () => {
   it("a non-static (server) sub-app does NOT use the static branch", () => {
     const df = generateDockerfile(baseConfig({ isStatic: false, startCommand: "node server.js" }));
     expect(df).not.toContain("nginx:alpine");
-    expect(df).toContain('CMD ["sh", "-c", "node server.js"]');
+    expect(df).toContain("[openship] Application starting on port 8080");
+    expect(df).toContain("node server.js");
   });
 });

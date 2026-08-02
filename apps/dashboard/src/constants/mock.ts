@@ -66,7 +66,7 @@ export interface Project {
   deployTarget?: string | null;
   serverId?: string | null;
   serverName?: string | null;
-  /** Runtime isolation mode (bare | docker) — editable in the Runtime tab. */
+  /** Legacy rows may be bare; new user workloads are always Docker. */
   runtimeMode?: "bare" | "docker" | null;
   /**
    * Resource config as returned by /info (enrichProject → encodeResources):

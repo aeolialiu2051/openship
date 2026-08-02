@@ -67,11 +67,11 @@ How strictly the budget is enforced depends on the runtime. On Docker, **memory 
 
 ## How the runtimes compare
 
-Openship can run your app three ways, and the isolation strength differs. Pick the tab that matches where you deploy.
+Openship runs self-hosted applications in Docker and cloud applications in isolated cloud workspaces.
 
-<Tabs items={['Docker', 'Server (no Docker)', 'Cloud']}>
+<Tabs items={['Self-hosted Docker', 'Cloud']}>
 
-<Tab value="Docker">
+<Tab value="Self-hosted Docker">
 
 The strongest isolation. Every deployment is its own container with:
 
@@ -79,19 +79,7 @@ The strongest isolation. Every deployment is its own container with:
 - a hard **memory** cap and a **CPU** weight, and
 - a random published port fronted by the router — never a fixed port another app could grab.
 
-Multi-service (compose) projects add a **private per-project network** and **project-scoped named volumes** on top of that. This is the recommended runtime whenever Docker is available.
-
-</Tab>
-
-<Tab value="Server (no Docker)">
-
-For hosts without Docker, Openship runs your app **directly as a process** on the machine, supervised by systemd (Linux) or a lightweight `nohup` fallback (macOS). Each deployment gets its own release directory and its own supervised process (on Linux, a dedicated systemd unit named `openship-<deployment>.service`).
-
-This is lighter, but the walls are thinner: processes **share the host's filesystem, network, and users**, and this mode does **not** enforce CPU or memory caps. systemd additionally gives you automatic restart-on-crash and reboot survival; the `nohup` fallback does not.
-
-<Callout title="Weaker isolation without Docker" type="warn">
-Because bare processes share the host and aren't resource-capped, run only apps you trust on a shared bare host, and prefer the Docker runtime for anything multi-tenant.
-</Callout>
+Multi-service (compose) projects add a **private per-project network** and **project-scoped named volumes** on top of that. Projects without a Dockerfile are containerized too: Openship generates a Dockerfile from the detected framework and commands.
 
 </Tab>
 

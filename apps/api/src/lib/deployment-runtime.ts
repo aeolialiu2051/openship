@@ -18,6 +18,7 @@ import { resolveOrgCloudUserId } from "./cloud/transport";
 import { platform } from "./controller-helpers";
 import { buildSshConfig, sshManager } from "./ssh-manager";
 import { createProvisionLock } from "./provision-lock";
+import { resolveServerWorkloadRuntimeMode } from "./workload-runtime";
 
 /**
  * The shape of `deployment.meta` JSONB. Snapshotted per-deploy —
@@ -39,6 +40,9 @@ export interface DeploymentMeta {
    * `adopt` flag threaded onto DeployConfig).
    */
   adopt?: boolean;
+  /** Internal-only discriminator for the Openship self-app's adopted host
+   * process. Generic adopt/migration deployments must remain Docker workloads. */
+  controlPlaneAdopt?: boolean;
   /**
    * Release/dist-source deploy: the semver version this deployment shipped
    * (no leading "v"). Captured in the snapshot by `applyReleaseSourceToSnapshot`
@@ -254,7 +258,7 @@ export async function resolveDeploymentPlatform(
 ): Promise<ResolvedDeploymentPlatform> {
   const basePlatform = opts?.basePlatform ?? platform();
   const effectiveTarget = resolveEffectiveTarget(basePlatform.target, snapshot);
-  const runtimeMode = snapshot.runtimeMode ?? (basePlatform.runtime.name === "docker" ? "docker" : "bare");
+  const runtimeMode = resolveServerWorkloadRuntimeMode(snapshot);
 
   if (effectiveTarget === "local" || effectiveTarget === "server") {
     const resolvedServerId = effectiveTarget === "server" ? (snapshot.serverId ?? null) : null;
@@ -309,7 +313,7 @@ export async function resolveDeploymentRuntimeOnly(
 ): Promise<ResolvedDeploymentRuntime> {
   const basePlatform = opts?.basePlatform ?? platform();
   const effectiveTarget = resolveEffectiveTarget(basePlatform.target, snapshot);
-  const runtimeMode = snapshot.runtimeMode ?? (basePlatform.runtime.name === "docker" ? "docker" : "bare");
+  const runtimeMode = resolveServerWorkloadRuntimeMode(snapshot);
 
   if (effectiveTarget === "local" || effectiveTarget === "server") {
     if (effectiveTarget === "server") {
@@ -358,7 +362,7 @@ export async function resolveDeploymentRuntimeOnly(
  */
 export async function resolveTargetPlatform(
   target: "local" | "server",
-  runtimeMode: RuntimeMode = "bare",
+  runtimeMode: RuntimeMode = "docker",
   serverId?: string,
   organizationId?: string,
 ): Promise<Platform> {

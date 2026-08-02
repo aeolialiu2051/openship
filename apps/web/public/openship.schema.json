@@ -35,8 +35,8 @@
     },
 
     "runtime": {
-      "description": "Runtime isolation for a single app. Services/docker projects are always \"docker\".",
-      "enum": ["bare", "docker"]
+      "description": "Server workloads always run in Docker. This field is optional and only accepts \"docker\".",
+      "enum": ["docker"]
     },
     "productionMode": {
       "description": "How the app is served. \"static\" ⇒ no server (files only).",

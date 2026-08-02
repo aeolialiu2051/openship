@@ -40,6 +40,7 @@ import {
   resolveDeploymentPlatform,
   resolveEffectiveTarget,
 } from "../../lib/deployment-runtime";
+import { resolveServerWorkloadRuntimeMode } from "../../lib/workload-runtime";
 import {
   resolveBuildRuntimeModes,
   resolveDeployRouting,
@@ -416,6 +417,14 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
   const snapshot = dep.meta as DeploymentConfigSnapshot | null;
   if (!snapshot) {
     throw new Error("Deployment has no config snapshot (meta is empty)");
+  }
+  // Normalize old/headless snapshots before preflight, build and lifecycle
+  // consumers observe them. Only the control plane's internal adopt deployment
+  // is permitted to retain a bare runtime.
+  const normalizedRuntimeMode = resolveServerWorkloadRuntimeMode(snapshot);
+  if (snapshot.runtimeMode !== normalizedRuntimeMode) {
+    snapshot.runtimeMode = normalizedRuntimeMode;
+    await repos.deployment.updateStatus(dep.id, dep.status, { meta: snapshot });
   }
   const routeState = await resolveProjectRouteState(project);
 

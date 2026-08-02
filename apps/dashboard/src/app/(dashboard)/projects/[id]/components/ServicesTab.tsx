@@ -88,7 +88,7 @@ export const ServicesTab = () => {
       setError(null);
       // allSettled, not all: with `all`, a rejection from the SECOND promise once
       // the first has already rejected is orphaned, and an unhandled rejection
-      // surfaces as a bare runtime error overlay instead of this component's
+      // surfaces as a raw runtime error overlay instead of this component's
       // error state. The container read is also the one that can time out
       // (it reflects live runtime state), so it must not take the tab down.
       const [, containersResult] = await Promise.allSettled([

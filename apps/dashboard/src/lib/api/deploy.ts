@@ -119,8 +119,8 @@ export interface PrepareProjectResponse extends PrepareAppConfig {
   //    ships the file. Seed wizard defaults; absent → detection is unchanged. ──
   /** Declared serve mode ("static" ⇒ no server). Seeds `options.hasServer`. */
   productionMode?: "host" | "static" | "standalone";
-  /** Declared runtime isolation. Seeds `runtimeMode` for a brand-new deploy. */
-  runtimeMode?: "bare" | "docker";
+  /** Optional explicit marker; server workloads always run in Docker. */
+  runtimeMode?: "docker";
   /** Declared project domains, normalized to the create shape. Seed endpoints. */
   publicEndpoints?: Array<{
     domain?: string;
@@ -254,7 +254,7 @@ export const deployApi = {
     serverId?: string;
     /** Folder-upload deploy: adopt the uploaded source (workspace / staging dir). */
     uploadSessionId?: string;
-    runtimeMode?: "bare" | "docker";
+    runtimeMode?: "docker";
     serviceDeploymentMode?: "services" | "single";
     services?: Array<{
       name: string;

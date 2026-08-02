@@ -1,5 +1,5 @@
 import type { FrameworkId } from "@/components/import-project/types";
-import { normalizeSubdomain } from "@/utils/subdomain";
+import { normalizeSubdomain } from "../../utils/subdomain";
 import {
   createPublicEndpoint,
   resolveBuildImageForDeploymentMode,
@@ -53,7 +53,7 @@ function buildSingleModeSnapshotFromPrimary(args: {
   const { config, defaults, primary, endpoints, productionPort, sourceSignature } = args;
   const existingSnapshot = config.modeSnapshots?.single;
   const buildStrategy = existingSnapshot?.buildStrategy ?? defaults?.buildStrategy ?? config.buildStrategy;
-  const runtimeMode = existingSnapshot?.runtimeMode ?? defaults?.runtimeMode ?? "bare";
+  const runtimeMode = "docker" as const;
 
   return {
     framework: primary.framework,
@@ -572,7 +572,7 @@ export function getModeSwitchUpdates(
   if (!singleSnapshot) {
     return {
       serviceDeploymentMode: "single",
-      runtimeMode: existingSingleSnapshot?.runtimeMode ?? "bare",
+      runtimeMode: "docker",
       buildStrategy: existingSingleSnapshot?.buildStrategy ?? config.buildStrategy,
       buildImage: resolveBuildImageForDeploymentMode(config, "single"),
     };

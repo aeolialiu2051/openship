@@ -97,7 +97,7 @@ import {
   resolveServiceDockerfile,
 } from "./docker-build-context";
 import { resolveDockerfileCandidates } from "./docker-paths";
-import { generateDockerfile } from "./docker-build-plan";
+import { generateDockerfile, withOpenshipRuntimeBanner } from "./docker-build-plan";
 import { transferLocalDirectory } from "./transfer";
 import { safeErrorMessage, type ComposeAdvanced, type ComposeHealthcheck } from "@repo/core";
 import {
@@ -2186,7 +2186,16 @@ export class DockerRuntime implements RuntimeAdapter {
     ];
 
     // Start command - if provided, split into Cmd array
-    const cmd = config.startCommand ? ["sh", "-c", config.startCommand] : undefined;
+    const cmd = config.startCommand
+      ? [
+          "sh",
+          "-c",
+          withOpenshipRuntimeBanner(
+            config.startCommand,
+            `Application starting on port ${config.port}`,
+          ),
+        ]
+      : undefined;
 
     const restartPolicy = resolveRestartPolicy(config.restartPolicy);
 

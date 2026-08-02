@@ -585,7 +585,7 @@ export function useDeploymentBuild(
 
   const startDeployment = useCallback(async (
     overrides?: {
-      runtimeMode?: DeploymentConfig["runtimeMode"];
+      runtimeMode?: "docker";
       // Applied to THIS deploy's payload directly, bypassing async React state
       // — lets the clone-strategy gate flip build-local for the in-flight
       // deploy without waiting for a re-render (updateConfig alone wouldn't be
@@ -703,9 +703,7 @@ export function useDeploymentBuild(
                   : undefined,
               hasServer: config.options.hasServer,
               hasBuild: config.options.hasBuild,
-              ...(config.runtimeMode === "bare" || config.runtimeMode === "docker"
-                ? { runtimeMode: config.runtimeMode }
-                : {}),
+              runtimeMode: "docker",
             }),
           ];
 
@@ -874,10 +872,7 @@ export function useDeploymentBuild(
           config.deployTarget === "server" && config.cloneStrategy !== "api-host"
             ? "server"
             : undefined,
-        runtimeMode:
-          config.projectType === "docker" || isServiceDeployment
-            ? "docker"
-            : (overrides?.runtimeMode ?? config.runtimeMode),
+        runtimeMode: "docker",
         // Send the mode for BOTH multi-app shapes so the operator's per-app vs
         // single choice reaches the backend. Monorepo was previously omitted,
         // leaving the backend to guess via shouldUseProjectServicePipeline.
@@ -1145,10 +1140,9 @@ export function useDeploymentBuild(
             // so the detail UI reflects how it really ran, not the live default.
             buildStrategy: apiConfig.buildStrategy || prev.buildStrategy,
             deployTarget: apiConfig.deployTarget || prev.deployTarget,
-            // Actual runtime isolation of THIS deployment (docker for compose),
-            // so the target step's clone picker + summary reflect reality rather
-            // than the "bare" default.
-            runtimeMode: apiConfig.runtimeMode || prev.runtimeMode,
+            // User workloads are always containerized. Ignore stale bare values
+            // returned by a pre-migration project/deployment snapshot.
+            runtimeMode: "docker",
             serverId: apiConfig.serverId ?? prev.serverId,
             serverName: apiConfig.serverName ?? prev.serverName,
             envVars: apiConfig.envVars || prev.envVars,

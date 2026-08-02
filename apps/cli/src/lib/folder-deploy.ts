@@ -193,6 +193,9 @@ export async function deployFolder(opts: {
     body: JSON.stringify({
       projectId: ensured.project_id,
       uploadSessionId: session.sessionId,
+      // Server workloads are always containerized. Send this explicitly so the
+      // CLI never inherits a native control plane's historical bare default.
+      runtimeMode: "docker",
       ...(opts.environment ? { environment: opts.environment } : {}),
       // Carry the scanned compose services so a multi-service folder deploys as
       // a services project (persisted rows + services-mode preflight). Absent for

@@ -17,6 +17,7 @@ import {
   resolveEffectiveTarget,
   usesManagedRouting as usesManagedRoutingFor,
 } from "../../lib/deployment-runtime";
+import { resolveServerWorkloadRuntimeMode } from "../../lib/workload-runtime";
 import {
   appendProjectRouteKey,
   resolveServiceHostnameLabel,
@@ -1369,7 +1370,7 @@ export async function runPreflightChecks(
   const effectiveBuildStrategy =
     opts?.buildStrategy ?? (snapshot.buildStrategy as "local" | "server" | undefined);
   const sourceAlreadyAvailable = Boolean(snapshot.localPath || snapshot.sourceStaged);
-  const runtimeMode = snapshot.runtimeMode ?? "docker";
+  const runtimeMode = resolveServerWorkloadRuntimeMode(snapshot);
   const clonePlan = resolveClonePlan({
     effectiveTarget,
     serverId: snapshot.serverId,

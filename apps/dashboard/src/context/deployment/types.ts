@@ -3,7 +3,7 @@ import type { FrameworkId, EnvironmentVariable } from "@/components/import-proje
 import type { PrepareComposeService, PrepareSingleAppCandidate } from "@/lib/api/deploy";
 import { getBuildImage, STACKS, type ProjectType, type BuildStrategy, type DeployTarget, type RuntimeMode, type StackId, type RoutingConfig, type SourceProvider } from "@repo/core";
 import type { BuildLog } from "@/utils/deploymentPhaseDetector";
-import { randomUUID } from "@/lib/random-uuid";
+import { randomUUID } from "../../lib/random-uuid";
 
 // ─── Monorepo sub-app ────────────────────────────────────────────────────────
 
@@ -267,7 +267,7 @@ export interface DeploymentConfig {
   noPublicRoute?: boolean;
   /** Display name of the target server (resolved by the API for the detail UI). */
   serverName?: string;
-  /** Runtime mode: "bare" (direct process) or "docker" (container-based) */
+  /** User workloads deployed to a server always run in Docker. */
   runtimeMode: RuntimeMode;
   projectType: ProjectType;
   framework: FrameworkId;
@@ -339,7 +339,7 @@ export const DEFAULT_CONFIG: DeploymentConfig = {
   sourceProvider: undefined,
   buildStrategy: "server",
   deployTarget: "cloud",
-  runtimeMode: "bare",
+  runtimeMode: "docker",
   projectType: "app",
   framework: "nextjs",
   detectedFramework: null,
@@ -749,7 +749,7 @@ export interface DeploymentContextType {
   ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
 
   // Build lifecycle
-  startDeployment: (overrides?: { runtimeMode?: RuntimeMode; buildStrategy?: BuildStrategy; saveConfigOnly?: boolean }) => Promise<string | null>;
+  startDeployment: (overrides?: { runtimeMode?: "docker"; buildStrategy?: BuildStrategy; saveConfigOnly?: boolean }) => Promise<string | null>;
   connectToBuild: (deploymentId?: string, startBuild?: boolean) => Promise<void>;
   loadBuildSession: (deploymentId: string) => Promise<{ success: boolean; error?: string }>;
   stopDeployment: () => Promise<void>;

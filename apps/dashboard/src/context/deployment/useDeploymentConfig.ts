@@ -637,7 +637,7 @@ export function useDeploymentConfig() {
 
   /** Resolve the seed buildStrategy. An explicit global pref (Settings) wins;
    *  otherwise default to "server" — UNIFIED BUILD, i.e. build where you deploy.
-   *  The wizard's target-aware preselect then confirms this per target (a bare
+   *  The wizard's target-aware preselect then confirms this per target (the
    *  local target builds locally, a server/cloud target builds remotely with a
    *  clone-on-server via git-credential forwarding). Matches the API default
    *  (settings.service resolves the same "server" fallback). docker/services are
@@ -659,12 +659,7 @@ export function useDeploymentConfig() {
   );
 
   const normalizeRuntimeMode = useCallback(
-    (projectType: DeploymentConfig["projectType"]): DeploymentConfig["runtimeMode"] => {
-      if (projectType === "docker" || projectType === "services") {
-        return "docker";
-      }
-      return DEFAULT_CONFIG.runtimeMode;
-    },
+    (_projectType: DeploymentConfig["projectType"]): DeploymentConfig["runtimeMode"] => "docker",
     [],
   );
 
@@ -732,29 +727,9 @@ export function useDeploymentConfig() {
           projectId && project?.framework ? project.framework : preparedContext.detectedStack,
         detectedFramework: preparedContext.detectedStack,
         buildStrategy: normalizeBuildStrategy(preparedContext.projectType, preparedContext.stackDef),
-        // Same hydration rule as framework: for an EXISTING project keep the
-        // SAVED runtime isolation so a config-save can't silently rewrite a
-        // chosen "docker" back to the "bare" default. resolvePreparedRuntimeConfig
-        // hydrates every OTHER options field from the project but not this one,
-        // so without this the wizard would re-send the default and clobber it.
-        //
-        // When the column is UNSET (legacy projects — 0021 added runtime_mode
-        // nullable with no backfill), default an existing project to "docker":
-        // the historical default runtime was Docker, so an un-chosen project
-        // must NOT be silently downgraded to Direct-on-host (bare) on save. Only
-        // brand-new deploys (no projectId) use the projectType-derived default.
-        runtimeMode:
-          projectId && (project?.runtimeMode === "bare" || project?.runtimeMode === "docker")
-            ? project.runtimeMode
-            : projectId
-              ? "docker"
-              // Brand-new deploy: honor a declared runtime (openship.json) for a
-              // single app; services/docker stay pinned to "docker" by normalize.
-              : response.runtimeMode &&
-                  preparedContext.projectType !== "services" &&
-                  preparedContext.projectType !== "docker"
-                ? response.runtimeMode
-                : normalizeRuntimeMode(preparedContext.projectType),
+        // Runtime is a backend invariant, not a per-project choice. Ignore old
+        // saved/direct-host values and any stale scan response.
+        runtimeMode: normalizeRuntimeMode(preparedContext.projectType),
         packageManager: runtimeConfig.packageManager,
         buildImage: runtimeConfig.buildImage,
         branch,

@@ -190,9 +190,7 @@
     "buildLocal": "Bu Bilgisayar",
     "buildRemote": "Uzak Sunucu",
     "runtimeStatic": "Statik · uçtan sunulur",
-    "runtimeContainerIsolated": "Konteyner yalıtımlı",
-    "runtimeDirectWarning": "Ana makinede doğrudan",
-    "runtimeDirectHint": "Doğrudan ana makine işlemi olarak çalışır."
+    "runtimeContainerIsolated": "Konteyner yalıtımlı"
   },
   "power": {
     "heading": "Performans Gücü",

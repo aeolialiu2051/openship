@@ -27,7 +27,7 @@ value. Validated by `openship config validate` (same parser the deploy uses).
 
 | Field | Type | Notes |
 |---|---|---|
-| `runtime` | `bare` \| `docker` | Runtime isolation for a single app. Services/docker projects are always `docker`. Seeds a new deploy's runtime. |
+| `runtime` | `docker` | Optional explicit marker. All server workloads run in Docker, including projects without a Dockerfile. |
 | `productionMode` | `host` \| `static` \| `standalone` | `static` ⇒ served as files, no server (sets `hasServer=false`). |
 | `port` | integer 1–65535 | Server port. |
 

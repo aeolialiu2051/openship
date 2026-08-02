@@ -83,14 +83,14 @@ Openship is a monorepo. Common logic lives in `@repo/*` packages that every app 
 
 ## One codebase, three roles
 
-The same code runs as **Openship Cloud** (the managed SaaS), as a **self-hosted** instance on your own server, or as the **desktop** app. Configuration at startup decides which role an instance plays and which runtime it uses (for self-hosted, `DEPLOY_MODE=docker` or `bare`). Nothing is forked — the cloud and the version you self-host are literally the same source.
+The same code runs as **Openship Cloud** (the managed SaaS), as a **self-hosted** instance on your own server, or as the **desktop** app. Configuration at startup decides which role an instance plays. User workloads on self-hosted machines run in Docker; the Openship control plane itself may still be supervised as a host process by `openship up`. Nothing is forked — the cloud and the version you self-host are literally the same source.
 
 The one thing that changes with the role is *where data is canonical*. Local and server projects live entirely in your own instance's database; cloud projects are owned by Openship Cloud and your instance acts as a gateway in front of them. That split is the subject of the next two pages.
 
 ## What next?
 
 <Cards>
-  <Card title="Runtime model" href="/docs/architecture/runtime-model" description="How a deployment resolves to Docker, a bare process, or cloud — and how routing and SSL are handled." />
+  <Card title="Runtime model" href="/docs/architecture/runtime-model" description="How a deployment resolves to local/server Docker or cloud — and how routing and SSL are handled." />
   <Card title="Cloud-as-source" href="/docs/architecture/cloud-as-source" description="Why cloud projects are owned by the SaaS and your instance is a gateway, not a mirror." />
   <Card title="Data ownership" href="/docs/architecture/data-ownership" description="Exactly what lives where, and how projects move between self-hosted and cloud." />
 </Cards>
