@@ -18,6 +18,8 @@ import { LOCAL_API_URL, LOCAL_DASHBOARD_URL } from "@repo/core";
 /** Cached discovery from GET /api/health/env (see caps.ts). */
 export interface ContextCaps {
   selfHosted: boolean;
+  /** Whether this runtime may manage user-owned SSH/mail servers. */
+  userServers?: boolean;
   deployMode: string;
   authMode: string;
   teamMode: string;

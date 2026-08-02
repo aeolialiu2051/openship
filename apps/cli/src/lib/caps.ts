@@ -15,6 +15,7 @@ const CAPS_TTL_MS = 5 * 60_000;
 
 interface HealthEnvResponse {
   selfHosted?: boolean;
+  userServers?: boolean;
   deployMode?: string;
   authMode?: string;
   teamMode?: string;
@@ -34,13 +35,19 @@ export function getCachedCaps(context?: string): ContextCaps | null {
 export async function fetchCaps(opts?: { force?: boolean; context?: string }): Promise<ContextCaps> {
   const name = opts?.context ?? getActiveContext();
   const cached = getContext(name).caps;
-  if (!opts?.force && cached && Date.now() - cached.fetchedAt < CAPS_TTL_MS) {
+  if (
+    !opts?.force &&
+    cached &&
+    typeof cached.userServers === "boolean" &&
+    Date.now() - cached.fetchedAt < CAPS_TTL_MS
+  ) {
     return cached;
   }
 
   const body = await apiRequest<HealthEnvResponse>("/health/env");
   const caps: ContextCaps = {
     selfHosted: body.selfHosted ?? true,
+    userServers: body.userServers ?? body.selfHosted ?? true,
     deployMode: body.deployMode ?? "unknown",
     authMode: body.authMode ?? "unknown",
     teamMode: body.teamMode ?? "single_user",
@@ -64,4 +71,16 @@ export function requireSelfHost(caps: ContextCaps): void {
       null,
     );
   }
+}
+
+/** Gate commands backed by the explicit user-owned-server API capability. */
+export function requireUserServers(caps: ContextCaps): void {
+  // Old cached configs did not contain userServers. Self-hosted instances have
+  // always supported the server surface, so retain that safe fallback.
+  if (caps.userServers === true || (caps.userServers === undefined && caps.selfHosted)) return;
+  throw new ApiError(
+    "This Vibrail instance does not allow managing user-owned servers.",
+    400,
+    null,
+  );
 }

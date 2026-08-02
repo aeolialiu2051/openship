@@ -9,7 +9,7 @@
  *   monitor           → GET  /system/monitor/stream    (SSE stats)
  *   ssh               → stubbed "coming soon" (interactive terminal needs ws)
  *
- * Every subcommand is [self-host] only: gated via caps.requireSelfHost.
+ * Every subcommand is gated by the API's explicit userServers capability.
  */
 import { Command } from "commander";
 import chalk from "chalk";
@@ -17,13 +17,13 @@ import ora from "ora";
 import { apiRequest, ApiError } from "../lib/api-client";
 import { sseRequest } from "../lib/sse";
 import { getToken } from "../lib/config";
-import { fetchCaps, requireSelfHost } from "../lib/caps";
+import { fetchCaps, requireUserServers } from "../lib/caps";
 import { isJsonMode, printJson, printTable, ok, err, info } from "../lib/output";
 
 const INSTALLABLE = ["docker", "git", "certbot", "rsync"] as const;
 
 /**
- * Wrap a subcommand action: require a token, enforce self-host, and turn any
+ * Wrap a subcommand action: require a token, enforce user-server support, and turn any
  * ApiError / network failure into a clean stderr message + exit(1) rather than
  * an unhandled rejection stack trace. Commander's own args (operands, options,
  * command) pass straight through to `fn`.
@@ -35,7 +35,7 @@ function guard<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...args
       process.exit(1);
     }
     try {
-      requireSelfHost(await fetchCaps());
+      requireUserServers(await fetchCaps());
       await fn(...args);
     } catch (e) {
       err(e instanceof ApiError ? e.message : e instanceof Error ? e.message : String(e));
@@ -86,7 +86,7 @@ function connBody(o: ConnOpts): Record<string, unknown> {
   };
 }
 
-const server = new Command("server").description("Manage self-hosted SSH servers");
+const server = new Command("server").description("Manage user-owned SSH servers");
 
 /* ── list ───────────────────────────────────────────────────────── */
 // GET /system/servers returns a bare array (no pagination envelope).

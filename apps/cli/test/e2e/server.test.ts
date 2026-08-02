@@ -6,8 +6,8 @@ vi.mock("../../src/lib/config", () => ({
   getToken: () => h.token,
 }));
 vi.mock("../../src/lib/caps", () => ({
-  fetchCaps: async () => ({ selfHosted: true }),
-  requireSelfHost: () => {},
+  fetchCaps: async () => ({ selfHosted: false, userServers: true }),
+  requireUserServers: () => {},
 }));
 
 import { serverCommand } from "../../src/commands/server";
