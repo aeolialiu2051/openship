@@ -49,7 +49,11 @@ const hostedOrigin = (() => {
 
 export const CLOUD_DASHBOARD_URL =
   envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? hostedOrigin;
-export const CLOUD_API_URL = envUrl("VIBRAIL_CLOUD_API_URL") ?? hostedOrigin;
+// Hosted Vibrail serves the dashboard and API on one public origin. General
+// API routes pass through the dashboard's Next.js catch-all proxy; callers
+// append their normal `/api/...` paths to this base.
+export const CLOUD_API_URL =
+  envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`;
 
 /**
  * THE runtime-target table. Keyed by id — the id IS the key, no

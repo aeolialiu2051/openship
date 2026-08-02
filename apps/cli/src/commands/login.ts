@@ -6,6 +6,10 @@ import { CLOUD_API_URL, CLOUD_DASHBOARD_URL } from "@repo/core";
 import { addContext, DEFAULT_CONTEXT, setActiveContext } from "../lib/config";
 import { fetchCaps } from "../lib/caps";
 
+export function tokenSettingsUrl(dashboardUrl: string): string {
+  return `${dashboardUrl.replace(/\/+$/, "")}/settings?tab=tokens`;
+}
+
 export const loginCommand = new Command("login")
   .description("Authenticate with a Personal Access Token (create one in dashboard Settings)")
   .option("--token <token>", "Personal Access Token (vibrail_pat_...) for non-interactive login")
@@ -21,7 +25,7 @@ export const loginCommand = new Command("login")
 
     // Interactive: open the PAT settings page and read a pasted token.
     if (!token) {
-      const settingsUrl = `${dashboardUrl}/settings`;
+      const settingsUrl = tokenSettingsUrl(dashboardUrl);
       console.log(
         chalk.bold("\n  Vibrail login\n") +
           chalk.dim("  Create a Personal Access Token in Settings → Personal Access Tokens,\n") +

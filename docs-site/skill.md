@@ -121,7 +121,7 @@ If authentication is missing, expired, or points at a different instance, run:
 ```bash
 vibrail login \
   --context vibrail \
-  --api-url https://vibrail.warpgateapi.com \
+  --api-url https://vibrail.warpgateapi.com/api/proxy \
   --dashboard-url https://vibrail.warpgateapi.com
 ```
 
