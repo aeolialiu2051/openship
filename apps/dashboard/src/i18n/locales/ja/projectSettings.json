@@ -36,7 +36,7 @@
     },
     "statusActive": "有効",
     "statusDisabled": "無効",
-    "hostedCloud": "Openship Cloud",
+    "hostedCloud": "Vibrail Cloud",
     "hostedServer": "サーバー",
     "hostedLocal": "ローカル",
     "projectStatus": {
@@ -66,7 +66,7 @@
       "anotherServer": "別のサーバー",
       "targetLocal": "ローカルマシン",
       "targetServer": "セルフホストサーバー",
-      "targetCloud": "Openship Cloud"
+      "targetCloud": "Vibrail Cloud"
     },
     "danger": {
       "title": "危険な操作",
@@ -179,7 +179,7 @@
   "build": {
     "edit": "編集",
     "webmail": {
-      "title": "openship による管理",
+      "title": "Vibrail による管理",
       "description": "Webmail は固定のビルドおよび起動パイプラインを使用します。install、build、run コマンドは設定できません。アップストリームの変更を反映するには、メール概要から再デプロイしてください。"
     },
     "services": {
@@ -297,7 +297,7 @@
     },
     "webhookBanner": {
       "title": "自動デプロイを有効にする",
-      "description": "自動デプロイには直接の webhook エンドポイントが必要です。この Openship API を公開 URL で公開するか、直接配信用の検証済み webhook ドメインを設定してください。"
+      "description": "自動デプロイには直接の webhook エンドポイントが必要です。この Vibrail API を公開 URL で公開するか、直接配信用の検証済み webhook ドメインを設定してください。"
     },
     "source": {
       "title": "ソースリポジトリ",
@@ -327,7 +327,7 @@
       "active": "アクティブ",
       "inactive": "非アクティブ",
       "descDirect": "イベントは {domain} 経由で直接配信されます",
-      "descActive": "リポジトリのイベントが Openship に届いています",
+      "descActive": "リポジトリのイベントが Vibrail に届いています",
       "descInactive": "Webhook が設定されていないか、応答していません"
     },
     "rollbackStrategy": {

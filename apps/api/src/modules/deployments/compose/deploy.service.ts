@@ -1427,7 +1427,7 @@ export async function deployComposeServices(
 
   // ── Cross-project service links (internal / shared-network mode) ────────────
   // Attach this consumer's containers to each internally-linked source app's
-  // `openship-<slug>` network so injected internal hosts resolve (see the shared
+  // `vibrail-<slug>` network so injected internal hosts resolve (see the shared
   // helper). Advisory — a link-networking failure never fails the deploy.
   await attachLinkedNetworks(project.id, runtime, (m, level) => logger.log(`${m}\n`, level));
 

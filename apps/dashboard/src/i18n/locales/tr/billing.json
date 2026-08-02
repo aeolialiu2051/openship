@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "Kapasite ve Kullanım",
-    "subtitle": "Planınıza dahil kapasite ve ne kadar kullandığınız. Canlı veriler Openship Cloud'dan senkronize edilir.",
+    "subtitle": "Planınıza dahil kapasite ve ne kadar kullandığınız. Canlı veriler Vibrail Cloud'dan senkronize edilir.",
     "routes": "Ücretsiz rotalar",
     "workspaces": "Çalışma alanları",
     "unlimited": "Sınırsız",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "Faturalandırmayı yönetmek için Openship Bulut'a bağlanın",
-      "description": "Yerel Openship kurulumunuz henüz Openship Bulut'a bağlı değil. Abonelik durumunu, kullanımı, faturaları ve kredi yüklemelerini görüntülemek için bağlanın.",
-      "connect": "Openship Bulut'a Bağlan",
+      "title": "Faturalandırmayı yönetmek için Vibrail Cloud'a bağlanın",
+      "description": "Yerel Vibrail kurulumunuz henüz Vibrail Cloud'a bağlı değil. Abonelik durumunu, kullanımı, faturaları ve kredi yüklemelerini görüntülemek için bağlanın.",
+      "connect": "Vibrail Cloud'a Bağlan",
       "connecting": "Giriş yapılması bekleniyor…"
     },
     "sessionExpired": {
-      "title": "Openship Bulut oturumunuzun süresi doldu",
-      "description": "Hâlâ bağlısınız ancak Openship Bulut tarafından sağlanan oturum jetonu artık geçerli değil. Yenilemek için yeniden bağlanın — önce bağlantıyı kesmeniz gerekmez.",
-      "reconnect": "Openship Bulut'a Tekrar Bağlan",
+      "title": "Vibrail Cloud oturumunuzun süresi doldu",
+      "description": "Hâlâ bağlısınız ancak Vibrail Cloud tarafından sağlanan oturum jetonu artık geçerli değil. Yenilemek için yeniden bağlanın — önce bağlantıyı kesmeniz gerekmez.",
+      "reconnect": "Vibrail Cloud'a Tekrar Bağlan",
       "connecting": "Giriş yapılması bekleniyor…"
     },
     "unreachable": {
-      "title": "Openship Bulut faturalandırma servisine ulaşılamadı",
+      "title": "Vibrail Cloud faturalandırma servisine ulaşılamadı",
       "description": "Bulut oturumunuzun süresi dolmuş olabilir veya bulut servisi geçici olarak kullanılamıyor olabilir. Tekrar deneyin ya da Ayarlar → Bulut bölümünden tekrar bağlanın.",
       "tryAgain": "Tekrar dene",
       "reconnect": "Tekrar Bağlan"

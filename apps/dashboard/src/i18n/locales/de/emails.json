@@ -21,7 +21,7 @@
   },
   "adopt": {
     "title": "Bestehenden Mailserver übernehmen",
-    "intro": "Hast du auf einem deiner Server bereits einen Mailserver mit Openship eingerichtet? Wähle ihn aus und scanne – wird ein Mail-Stack gefunden, wird er wieder ins Dashboard übernommen, ohne neu zu installieren oder deine Daten anzutasten.",
+    "intro": "Hast du auf einem deiner Server bereits einen Mailserver mit Vibrail eingerichtet? Wähle ihn aus und scanne – wird ein Mail-Stack gefunden, wird er wieder ins Dashboard übernommen, ohne neu zu installieren oder deine Daten anzutasten.",
     "scanning": "Wird gescannt…",
     "scan": "Server scannen",
     "detected": "Mailserver erkannt",

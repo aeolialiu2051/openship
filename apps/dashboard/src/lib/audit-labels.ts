@@ -179,7 +179,7 @@ export const AUDIT_EVENT_LABELS: Record<string, AuditLabel> = {
   /* ---------- Cloud connection ---------- */
   "cloud.disconnect": {
     label: "Cloud disconnected",
-    description: "This instance was disconnected from Openship Cloud.",
+    description: "This instance was disconnected from Vibrail Cloud.",
   },
 
   /* ---------- GitHub ---------- */

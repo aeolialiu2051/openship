@@ -30,7 +30,7 @@ describe("managed Traefik compatibility", () => {
     expect(
       isTraefikContainer(
         container({
-          name: "openship-suspended-project-1",
+          name: "vibrail-suspended-project-1",
           labels: { "openship.suspension-route": "true" },
           mounts: [],
         }),

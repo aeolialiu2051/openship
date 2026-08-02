@@ -254,7 +254,7 @@
     "deploymentModeDesc": "{mode} · Switch between per-app runtimes and single-app handling."
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Openship Cloud",
+    "targetOpenshipCloud": "Vibrail Cloud",
     "targetServerNamed": "Server · {name}",
     "targetServer": "Server",
     "targetLocal": "Local machine",
@@ -266,9 +266,9 @@
       "port": "Port",
       "process": "Process",
       "unitDescription": "Unit Description",
-      "openshipDeployment": "Openship Deployment",
+      "openshipDeployment": "Vibrail Deployment",
       "sites": {
-        "lead": "{count} site(s) are currently served by the existing proxy. Migrating imports them into Openship before it takes over ports 80/443:",
+        "lead": "{count} site(s) are currently served by the existing proxy. Migrating imports them into Vibrail before it takes over ports 80/443:",
         "tlsBadge": "TLS",
         "staticLabel": "static:",
         "warningsTitle": "Couldn't be migrated automatically — re-add these manually:"

@@ -1,7 +1,7 @@
 import { getCloudApiOrigin, getCloudDashboardUrl } from "@/lib/api/urls";
 
 export const DESKTOP_CLOUD_FLOW = "desktop-cloud";
-const DEFAULT_APP_NAME = "Openship Desktop";
+const DEFAULT_APP_NAME = "Vibrail Desktop";
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 
 type SearchParamsLike = {

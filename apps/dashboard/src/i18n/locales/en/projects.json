@@ -20,14 +20,14 @@
   },
   "serverCta": {
     "title": "Deploy to your own server",
-    "description": "Connect a server over SSH to run projects on your own infrastructure alongside Openship Cloud.",
+    "description": "Connect a server over SSH to run projects on your own infrastructure alongside Vibrail Cloud.",
     "button": "Connect a server"
   },
   "filters": {
     "title": "Filter by target",
     "subtitle": "Where projects are deployed",
     "allProjects": "All projects",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "Local"
   },
   "card": {
@@ -103,7 +103,7 @@
     "cleanupFailedTitle": "Cleanup failed",
     "alreadyDeleted": "Project already deleted",
     "forceModalTitle": "Couldn't remove it from the source",
-    "forceModalBody": "The runtime couldn't be reached (or kept failing), so this project wasn't torn down. You can delete it from Openship anyway — the record is removed now and any leftover resources are reclaimed automatically once the server is reachable.",
+    "forceModalBody": "The runtime couldn't be reached (or kept failing), so this project wasn't torn down. You can delete it from Vibrail anyway — the record is removed now and any leftover resources are reclaimed automatically once the server is reachable.",
     "forceModalConfirm": "Delete from storage",
     "forceModalCancel": "Cancel"
   },
@@ -223,7 +223,7 @@
     "delete": "Delete"
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "Self-hosted (Server)",
     "platformLocal": "Self-hosted (Local)",
     "modeStatic": "Static Site",

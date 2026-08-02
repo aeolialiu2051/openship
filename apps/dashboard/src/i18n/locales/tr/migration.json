@@ -1,7 +1,7 @@
 {
   "wizard": {
     "title": "Uygulamaları taşı",
-    "intro": "Bu sunucunun Docker yapısını inceleyin ve konteynerlerini bir Openship projesine aktarın. İnceleme salt okunurdur — siz dağıtım yapana kadar sunucuda hiçbir şey değişmez.",
+    "intro": "Bu sunucunun Docker yapısını inceleyin ve konteynerlerini bir Vibrail projesine aktarın. İnceleme salt okunurdur — siz dağıtım yapana kadar sunucuda hiçbir şey değişmez.",
     "selectServer": "Bir sunucu seçin",
     "scan": "Docker'ı İncele",
     "scanning": "İnceleniyor…",
@@ -62,7 +62,7 @@
   "run": {
     "title": "Teknoloji yığınınız taşınıyor",
     "queued": "Sıraya alındı…",
-    "adopting": "Openship projesi oluşturuluyor…",
+    "adopting": "Vibrail projesi oluşturuluyor…",
     "moving_data": "Disk birimi verileri hedefe taşınıyor…",
     "deploying": "Hedef sunucuya dağıtılıyor…",
     "verifying": "Yeni dağıtım doğrulanıyor…",
@@ -77,7 +77,7 @@
     "addDomains": "Alan adları ekle",
     "viewDeployLogs": "Dağıtım günlüklerini görüntüle",
     "deployDetail": "Dağıtım günlükleri",
-    "routeHint": "Servisleriniz içe aktarıldı ancak henüz herkese açık değil. Alan Adları sekmesinde her servis için bir alan adı ekleyin — Openship edge servisini (Traefik) kurmak üzere otomatik dağıtım yapar; eski proxy'niz hâlâ 80/443 portlarını kullanıyorsa devralmayı teklif eder.",
+    "routeHint": "Servisleriniz içe aktarıldı ancak henüz herkese açık değil. Alan Adları sekmesinde her servis için bir alan adı ekleyin — Vibrail edge servisini (Traefik) kurmak üzere otomatik dağıtım yapar; eski proxy'niz hâlâ 80/443 portlarını kullanıyorsa devralmayı teklif eder.",
     "downtimeNote": "Orijinal konteynerler taşıma sırasında durdurulur; yeni dağıtım canlıya geçene kadar kısa bir kesinti beklenir.",
     "movingImage": "imaj",
     "movingVolume": "disk birimi",
@@ -92,8 +92,8 @@
   },
   "discover": {
     "buildBlocked": "Kaynaktan derlenmiş — henüz taşınamıyor (önce bir imaj yayınlayın)",
-    "proxyExcluded": "Reverse proxy ({ports}) — içe aktarılmadı; yerini Openship'in edge servisi alacak.",
-    "edgePortReserved": "{ports} portları Openship'in edge servisi için ayrılmıştır; yayınlanmadı.",
+    "proxyExcluded": "Reverse proxy ({ports}) — içe aktarılmadı; yerini Vibrail'in edge servisi alacak.",
+    "edgePortReserved": "{ports} portları Vibrail'in edge servisi için ayrılmıştır; yayınlanmadı.",
     "nothing": "Bu sunucuda aktarılabilecek Docker konteyneri bulunamadı.",
     "servicesTitle": "Servisler",
     "volumesTitle": "Disk Birimleri (Volumes)",
@@ -120,15 +120,15 @@
     "reused": "yerinde yeniden kullanıldı",
     "volumeReuse": "Devral",
     "volumeCopy": "Kopyala",
-    "volumeCopyHint": "Devralma, mevcut disk birimini yerinde yeniden kullanır. Kopyalama ise bunu yeni bir Openship disk birimine kopyalar ve orijinale dokunmaz (ek disk kullanır).",
+    "volumeCopyHint": "Devralma, mevcut disk birimini yerinde yeniden kullanır. Kopyalama ise bunu yeni bir Vibrail disk birimine kopyalar ve orijinale dokunmaz (ek disk kullanır).",
     "bind": "sunucu yolu",
     "nVolumes": "{n} disk birimi",
     "nEnv": "{n} ortam değişkeni",
-    "alreadyManaged": "Openship tarafından zaten yönetilen {count} konteyner atlandı."
+    "alreadyManaged": "Vibrail tarafından zaten yönetilen {count} konteyner atlandı."
   },
   "reimport": {
-    "title": "Openship projeleri bulundu",
-    "intro": "Bu Openship projeleri sunucuda çalışıyor ancak bu kurulumda kayıtlı değil (veritabanı sıfırlanmış veya sunucu başka bir Openship kurulumundan gelmiş olabilir). Kurtarmak için yeniden içe aktarın — özgün kimlik korunur ve çalışan konteynerler tekrar bağlanır.",
+    "title": "Vibrail projeleri bulundu",
+    "intro": "Bu Vibrail projeleri sunucuda çalışıyor ancak bu kurulumda kayıtlı değil (veritabanı sıfırlanmış veya sunucu başka bir Vibrail kurulumundan gelmiş olabilir). Kurtarmak için yeniden içe aktarın — özgün kimlik korunur ve çalışan konteynerler tekrar bağlanır.",
     "services": "{n} servis",
     "action": "Tekrar içe aktar",
     "working": "Tekrar içe aktarılıyor…",
@@ -142,7 +142,7 @@
   "adoptFailed": "Proje oluşturulamadı",
   "entry": {
     "cardTitle": "Mevcut servisler",
-    "cardDesc": "Çalışan bir Docker veya Compose dağıtımını Openship'e taşıyın.",
+    "cardDesc": "Çalışan bir Docker veya Compose dağıtımını Vibrail'e taşıyın.",
     "action": "Uygulamaları taşı",
     "tab": "Mevcut sunucu",
     "comingSoon": "Docker taşıma özelliği yakında geliyor"
@@ -150,7 +150,7 @@
   "tab": {
     "new": "Yeni geçiş",
     "empty": "Henüz geçiş yok",
-    "emptyDesc": "Bu sunucuda çalışan bir Docker veya Compose yığınını Openship'e taşıyın ya da başka bir sunucudan içeri aktarın.",
+    "emptyDesc": "Bu sunucuda çalışan bir Docker veya Compose yığınını Vibrail'e taşıyın ya da başka bir sunucudan içeri aktarın.",
     "close": "Kapat",
     "sessionLog": "Oturum günlüğü",
     "noLogs": "Henüz günlük çıktısı yok.",

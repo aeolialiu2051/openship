@@ -41,7 +41,7 @@
   "page": {
     "title": "設定",
     "subtitle": "設定、チーム、インスタンス構成を管理します",
-    "cloudConnectedToast": "Openship Cloud に接続しました"
+    "cloudConnectedToast": "Vibrail Cloud に接続しました"
   },
   "sidebar": {
     "title": "設定",
@@ -62,7 +62,7 @@
     "noInstallations": "接続済み · インストールはまだありません",
     "connectedOne": "接続済み · 1 件のインストール",
     "connectedMany": "接続済み · {count} 件のインストール",
-    "requiresCloud": "Openship Cloud が必要です — Vibrail GitHub App は openship.io が所有しています",
+    "requiresCloud": "Vibrail Cloud が必要です — Vibrail GitHub App は openship.io が所有しています",
     "connectPrompt": "GitHub アカウントを接続してリポジトリをデプロイしましょう",
     "checkingConnection": "接続を確認中…",
     "addAccount": "アカウントを追加",
@@ -71,9 +71,9 @@
     "disconnect": "切断",
     "disconnectTitle": "{label} を切断",
     "disconnectAppLabel": "Vibrail GitHub App",
-    "disconnectAppBody": "これにより Openship の OAuth アカウント行が削除されます。GitHub App のインストールは、GitHub 上でアンインストールするまで残ります。",
-    "cloudExplainer": "Vibrail GitHub App は openship.io が所有しています。インスタンスを Openship Cloud に接続すると、プライベートリポジトリのクローンにスコープ付きのインストールトークンを使用できます（ローカルおよびリモートの両方のデプロイで機能します）。",
-    "connectCloud": "Openship Cloud に接続",
+    "disconnectAppBody": "これにより Vibrail の OAuth アカウント行が削除されます。GitHub App のインストールは、GitHub 上でアンインストールするまで残ります。",
+    "cloudExplainer": "Vibrail GitHub App は openship.io が所有しています。インスタンスを Vibrail Cloud に接続すると、プライベートリポジトリのクローンにスコープ付きのインストールトークンを使用できます（ローカルおよびリモートの両方のデプロイで機能します）。",
+    "connectCloud": "Vibrail Cloud に接続",
     "noCloudTitle": "クラウドなしでプライベートリポジトリをクローン",
     "useSshPerServer": "サーバーごとのSSHキー",
     "usePat": "アクセストークン",
@@ -121,13 +121,13 @@
         "desc": "構成済みの SSH サーバー"
       },
       "cloud": {
-        "label": "OpenShip Cloud",
+        "label": "Vibrail Cloud",
         "desc": "マネージドのクラウドインフラ"
       }
     },
     "labelFor": {
       "yourServer": "自分のサーバー",
-      "cloud": "Openship Cloud",
+      "cloud": "Vibrail Cloud",
       "local": "このマシン"
     },
     "toast": {
@@ -362,7 +362,7 @@
     "grantsMany": "{count} 件の付与",
     "sendVia": "送信方法",
     "yourMailServer": "自分のメールサーバー",
-    "openshipCloud": "Openship Cloud",
+    "openshipCloud": "Vibrail Cloud",
     "pickerTitle": "初期リソースアクセス",
     "pickerDesc": "制限付きメンバーはアクセス権なしで開始します。承認後にこの招待が解放するものを選択してください — 後からメンバーの行でさらに付与できます。",
     "sendInvite": "招待を送信",
@@ -376,7 +376,7 @@
   "teamWorkspace": {
     "title": "チームワークスペース",
     "description": "このインスタンスをマルチユーザーモードに移行します。",
-    "body": "現在このインスタンスはシングルユーザーです — あなただけがサインインできます。チームメンバーを追加する準備ができたら、デプロイを共有の場所に移行してください: 自分のサーバー、Openship Cloud、またはトンネル経由でこのマシンを公開します。",
+    "body": "現在このインスタンスはシングルユーザーです — あなただけがサインインできます。チームメンバーを追加する準備ができたら、デプロイを共有の場所に移行してください: 自分のサーバー、Vibrail Cloud、またはトンネル経由でこのマシンを公開します。",
     "currentMode": "現在のモード",
     "singleUserLocal": "シングルユーザー（ローカル）",
     "migrate": "移行",
@@ -385,7 +385,7 @@
   },
   "cloud": {
     "checking": "確認中…",
-    "fallbackName": "Openship Cloud",
+    "fallbackName": "Vibrail Cloud",
     "connectedAccount": "接続済みのクラウドアカウント",
     "connected": "接続済み",
     "disconnect": "切断",
@@ -394,10 +394,10 @@
     "unlockDesktop": "クラウドデプロイ、マネージド SSL、グローバル CDN のロックを解除します。",
     "deployLocal": "ローカルインスタンスから直接クラウドにデプロイします。",
     "waitingSignIn": "サインインを待機中…",
-    "connectButton": "Openship Cloud に接続",
-    "confirmDisconnect": "Openship Cloud から切断しますか？再接続するまでクラウドデプロイは機能しなくなります。",
+    "connectButton": "Vibrail Cloud に接続",
+    "confirmDisconnect": "Vibrail Cloud から切断しますか？再接続するまでクラウドデプロイは機能しなくなります。",
     "toast": {
-      "disconnected": "Openship Cloud から切断しました",
+      "disconnected": "Vibrail Cloud から切断しました",
       "disconnectFailed": "切断に失敗しました"
     }
   },
@@ -407,7 +407,7 @@
     "descCloud": "クラウド",
     "descSelfHosted": "セルフホスト",
     "typeDesktop": "デスクトップ",
-    "typeCloud": "Openship Cloud",
+    "typeCloud": "Vibrail Cloud",
     "typeSelfHosted": "セルフホスト",
     "deployMode": "デプロイモード: {mode}",
     "authNone": "ゼロ認証",
@@ -514,9 +514,9 @@
   },
   "updates": {
     "title": "アップデート",
-    "description": "Openship が新しいリリースを確認して適用する方法",
+    "description": "Vibrail が新しいリリースを確認して適用する方法",
     "checking": "アップデートを確認中…",
-    "available": "Openship {version} が利用可能です",
+    "available": "Vibrail {version} が利用可能です",
     "upToDate": "最新バージョンを使用しています",
     "current": "現在: {version}",
     "rerunToUpdate": " · インストールを再実行して更新してください",
@@ -529,12 +529,12 @@
     "viewChangelog": "変更履歴とリリースを表示",
     "securityTitle": "アップデート確認の仕組み",
     "securityDescription": "何があなたのインストールと通信するかを完全に透明化します",
-    "security1": "Openship はアップデートとセキュリティアドバイザリを確認します",
+    "security1": "Vibrail はアップデートとセキュリティアドバイザリを確認します",
     "securityOnlyGithub": "公開されている GitHub リリースからのみ",
     "security2": "オープンソースリポジトリの（",
     "security3": "）。データを取得するのは",
     "securityPulls": "取得",
-    "security4": "このデータのみです — サードパーティのサービスも、Openship が運用するサーバーも、アップデートやシグナルをあなたのインストールにプッシュすることはできません。アドバイザリは各リリースに固定されているため、未リリースの変更が届くことはありません。重大なセキュリティアドバイザリは常に一度だけ表示され、それ以外はすべて上記のトグルに従います。"
+    "security4": "このデータのみです — サードパーティのサービスも、Vibrail が運用するサーバーも、アップデートやシグナルをあなたのインストールにプッシュすることはできません。アドバイザリは各リリースに固定されているため、未リリースの変更が届くことはありません。重大なセキュリティアドバイザリは常に一度だけ表示され、それ以外はすべて上記のトグルに従います。"
   },
   "dataTransfer": {
     "export": {
@@ -555,7 +555,7 @@
     "import": {
       "title": "データをインポート",
       "description": "エクスポートしたファイルをこのインスタンスに復元します。",
-      "intro": "別の Openship インストールからエクスポートしたファイルを読み込みます。シークレットも復元するには、エクスポート時に使用したパスフレーズを入力してください。",
+      "intro": "別の Vibrail インストールからエクスポートしたファイルを読み込みます。シークレットも復元するには、エクスポート時に使用したパスフレーズを入力してください。",
       "importFromFile": "ファイルからインポート…",
       "modalTitle": "インスタンスデータをインポート",
       "modalSubtitle": "エクスポートしたスナップショットを復元します。",
@@ -573,7 +573,7 @@
       "importing": "インポート中…",
       "import": "インポート",
       "confirmWipe": "このインスタンス上のすべてのデータをインポートしたスナップショットで置き換えますか？これは元に戻せず、サインアウトされます。",
-      "notExport": "これは Openship のエクスポートファイルには見えません。",
+      "notExport": "これは Vibrail のエクスポートファイルには見えません。",
       "cantRead": "そのファイルを読み取れませんでした — 有効なエクスポートですか？",
       "importFailed": "インポートに失敗しました。",
       "rowsRestored": "{count} 行を復元しました",
@@ -584,20 +584,20 @@
   "migrate": {
     "chooseTitle": "マルチユーザーモードに移行",
     "serverTitle": "自分のサーバーに移行",
-    "cloudTitle": "Openship Cloud に移行",
+    "cloudTitle": "Vibrail Cloud に移行",
     "tunnelTitle": "トンネル経由で公開",
     "completeTitle": "移行完了",
     "back": "戻る",
     "chooseIntro": "現在このインスタンスはシングルユーザーです。チームメンバーがどのように到達するかを選択してください。",
     "cards": {
       "serverTitle": "自分のサーバーに移行",
-      "serverBody": "あなたが所有する VPS 上に openship を SSH でデプロイします。データはそこへ移動します。すでにインフラを持っているチームに最適です。",
+      "serverBody": "あなたが所有する VPS 上に Vibrail を SSH でデプロイします。データはそこへ移動します。すでにインフラを持っているチームに最適です。",
       "serverMeta": "外部依存なし",
-      "cloudTitle": "Openship Cloud に移行",
+      "cloudTitle": "Vibrail Cloud に移行",
       "cloudBody": "データを api.openship.io にプッシュします。すべてを当社がホストします。インフラを一切持ちたくないチームに最適です。",
       "cloudMetaConnected": "クラウドアカウント接続済み",
       "metaRequiresCloud": "クラウドアカウントが必要です",
-      "cloudWarn": "まず Openship Cloud に接続してください。",
+      "cloudWarn": "まず Vibrail Cloud に接続してください。",
       "tunnelTitle": "ローカルのまま、トンネル経由で公開",
       "tunnelBody": "データはこのマシンに残ります。Oblien エッジトンネルをプロビジョニングし、チームメンバーがインターネット経由で到達できるようにします — あなたのマシンはオンラインである必要があります。",
       "tunnelMetaConnected": "Oblien 経由のトンネル",
@@ -617,13 +617,13 @@
       "customHostPlaceholder": "team.acme.com",
       "preflight": "プリフライト",
       "sshReachable": "SSH に到達可能",
-      "releaseAvailable": "Openship リリースが利用可能",
+      "releaseAvailable": "Vibrail リリースが利用可能",
       "domainReady": "ドメインの準備完了",
       "runPreflight": "プリフライトを実行",
       "recheck": "再チェック",
       "deploying": "デプロイ中...",
       "startMigration": "移行を開始",
-      "successDetail": "openship はあなたのサーバー上で稼働中です。プロジェクト id {projectId}。",
+      "successDetail": "Vibrail はあなたのサーバー上で稼働中です。プロジェクト id {projectId}。",
       "toastLoadFailed": "サーバーの読み込みに失敗しました",
       "toastPreflightFailed": "プリフライトに失敗しました",
       "toastMigrationFailed": "移行に失敗しました"
@@ -645,7 +645,7 @@
     },
     "tunnel": {
       "connectFirstTitle": "まずクラウドアカウントを接続してください",
-      "connectFirstBody": "トンネルは Openship Cloud を通じてプロビジョニングされます。設定 → クラウド を開いてサインインし、その後ここに戻ってください。",
+      "connectFirstBody": "トンネルは Vibrail Cloud を通じてプロビジョニングされます。設定 → クラウド を開いてサインインし、その後ここに戻ってください。",
       "headsUp": "ご注意",
       "bullet1": "データはこのマシンに残ります。何も移動しません。",
       "bullet2": "チームメンバーは、このマシンがオンラインのときのみあなたに到達できます。",
@@ -683,7 +683,7 @@
     "heading": "シングルユーザーに戻す",
     "intro": "このインスタンスを {mode} から取り出し、このマシン上でソロモードに戻します。",
     "modeServer": "自分のサーバー",
-    "modeCloud": "Openship Cloud",
+    "modeCloud": "Vibrail Cloud",
     "modeTunnel": "トンネル",
     "current": "現在",
     "noUrl": "（URL は記録されていません）",

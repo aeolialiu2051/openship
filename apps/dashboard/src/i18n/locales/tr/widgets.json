@@ -169,12 +169,12 @@
   },
   "cloud": {
     "connectionGate": {
-      "reconnect": "Openship Bulut'a Tekrar Bağlan",
-      "deployedOn": "Bu proje Openship Bulut üzerinde dağıtılmıştır",
-      "sessionMissing": "Openship Bulut oturumunuz eksik. Dağıtımları yönetmek, günlükleri görüntülemek ve {name} için çalışma zamanı kontrollerine erişmek için bağlanın.",
+      "reconnect": "Vibrail Cloud'a Tekrar Bağlan",
+      "deployedOn": "Bu proje Vibrail Cloud üzerinde dağıtılmıştır",
+      "sessionMissing": "Vibrail Cloud oturumunuz eksik. Dağıtımları yönetmek, günlükleri görüntülemek ve {name} için çalışma zamanı kontrollerine erişmek için bağlanın.",
       "thisProject": "bu proje",
       "connecting": "Bağlanılıyor…",
-      "connect": "Openship Bulut'a Bağlan",
+      "connect": "Vibrail Cloud'a Bağlan",
       "readOnlyNote": "Bağlantı kesikken bu sayfaya yine de salt okunur modda göz atabilirsiniz."
     }
   },
@@ -182,7 +182,7 @@
     "githubPermission": {
       "title": "GitHub'a Bağlan",
       "subtitle": "Depo erişim seviyesini seçin",
-      "intro": "Openship'in hangi depolara erişebileceğini seçin. Bunu daha sonra GitHub ayarlarınızdan değiştirebilirsiniz.",
+      "intro": "Vibrail'in hangi depolara erişebileceğini seçin. Bunu daha sonra GitHub ayarlarınızdan değiştirebilirsiniz.",
       "publicTitle": "Yalnızca herkese açık (public) depolar",
       "publicDesc": "Herkese açık depolarınıza erişim. Açık kaynaklı projeler için idealdir.",
       "publicItem1": "Herkese açık depo verilerini oku",
@@ -300,12 +300,12 @@
     "youreOn": "· mevcut sürümünüz: {version}",
     "rerunInstall": "Kendi sunucunuzdaki kurulumu güncellemek için kurulum işlemini yeniden çalıştırın.",
     "updateNow": "Şimdi güncelle",
-    "downloading": "Openship {version} indiriliyor",
-    "installing": "Kuruluyor — Openship yeniden başlatılacak",
+    "downloading": "Vibrail {version} indiriliyor",
+    "installing": "Kuruluyor — Vibrail yeniden başlatılacak",
     "updateFailed": "Güncelleme başarısız oldu",
     "retry": "Tekrar dene",
     "changelog": "Değişiklik Günlüğü",
-    "updatedTo": "Openship {version} sürümüne güncellendi",
+    "updatedTo": "Vibrail {version} sürümüne güncellendi",
     "seeChanges": "Bu sürümdeki değişiklikleri görün.",
     "onLatest": "En son sürümdesiniz.",
     "whatsNew": "Yenilikler",

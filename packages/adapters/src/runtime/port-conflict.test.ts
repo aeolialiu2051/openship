@@ -123,4 +123,25 @@ describe("probeListeningPort — tiered fallback", () => {
     expect(occ?.pid).toBe(1001);
     expect(occ?.command).toContain("envoy");
   });
+
+  test.each(["vibrail-dep_123.service", "openship-dep_123.service"])(
+    "recognizes managed systemd unit %s",
+    async (unit) => {
+      const occ = await probeListeningPort(
+        makeExecutor([
+          ["sport = :3000", 'LISTEN 0 511 *:3000 *:* users:(("node",pid=123,fd=8))'],
+          ["-p 123 -o args=", "node server.js"],
+          ["/proc/123/cgroup", `0::/system.slice/${unit}`],
+          ["systemctl show", "Vibrail deployment dep_123"],
+        ]),
+        3000,
+      );
+
+      expect(occ).toMatchObject({
+        systemdUnit: unit,
+        deploymentId: "dep_123",
+        isManagedDeployment: true,
+      });
+    },
+  );
 });

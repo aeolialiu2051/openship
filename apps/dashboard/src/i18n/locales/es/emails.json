@@ -21,7 +21,7 @@
   },
   "adopt": {
     "title": "Adoptar servidor de correo existente",
-    "intro": "¿Ya configuraste un servidor de correo con Openship en uno de tus servidores? Selecciónalo y escanéalo: si se encuentra un stack de correo, se vuelve a adoptar en el panel sin reinstalar ni tocar tus datos.",
+    "intro": "¿Ya configuraste un servidor de correo con Vibrail en uno de tus servidores? Selecciónalo y escanéalo: si se encuentra un stack de correo, se vuelve a adoptar en el panel sin reinstalar ni tocar tus datos.",
     "scanning": "Escaneando…",
     "scan": "Escanear servidor",
     "detected": "Servidor de correo detectado",

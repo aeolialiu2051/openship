@@ -251,7 +251,7 @@
     "deploymentModeDesc": "{mode} · 在按应用运行时与单应用处理之间切换。"
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Openship Cloud",
+    "targetOpenshipCloud": "Vibrail Cloud",
     "targetServerNamed": "服务器 · {name}",
     "targetServer": "服务器",
     "targetLocal": "本地机器",
@@ -263,9 +263,9 @@
       "port": "端口",
       "process": "进程",
       "unitDescription": "单元描述",
-      "openshipDeployment": "Openship 部署",
+      "openshipDeployment": "Vibrail 部署",
       "sites": {
-        "lead": "现有代理当前提供 {count} 个站点。迁移会先将它们导入 Openship，然后接管 80/443 端口：",
+        "lead": "现有代理当前提供 {count} 个站点。迁移会先将它们导入 Vibrail，然后接管 80/443 端口：",
         "tlsBadge": "TLS",
         "staticLabel": "静态：",
         "warningsTitle": "无法自动迁移 — 请手动重新添加："

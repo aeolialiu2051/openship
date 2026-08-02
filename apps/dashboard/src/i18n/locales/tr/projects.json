@@ -20,14 +20,14 @@
   },
   "serverCta": {
     "title": "Kendi sunucunuza dağıtın",
-    "description": "Openship Bulut'un yanında kendi altyapınızda da projeler çalıştırmak için SSH üzerinden bir sunucu bağlayın.",
+    "description": "Vibrail Cloud'un yanında kendi altyapınızda da projeler çalıştırmak için SSH üzerinden bir sunucu bağlayın.",
     "button": "Bir sunucu bağla"
   },
   "filters": {
     "title": "Hedefe göre filtrele",
     "subtitle": "Projelerin dağıtıldığı yer",
     "allProjects": "Tüm projeler",
-    "cloud": "Openship Bulut",
+    "cloud": "Vibrail Cloud",
     "local": "Yerel"
   },
   "card": {
@@ -102,8 +102,8 @@
     "cleanupFailedTitle": "Temizlik başarısız oldu",
     "alreadyDeleted": "Proje zaten silinmiş",
     "forceModalTitle": "Kaynaktan kaldırılamadı",
-    "forceModalBody": "Çalışma zamanına ulaşılamadı (veya hata vermeye devam etti), bu nedenle bu proje kaldırılamadı. Yine de Openship'ten silebilirsiniz — kayıt şimdi kaldırılır ve sunucu erişilebilir olduğunda kalan kaynaklar otomatik olarak temizlenir.",
-    "forceModalConfirm": "Openship kayıtlarından sil",
+    "forceModalBody": "Çalışma zamanına ulaşılamadı (veya hata vermeye devam etti), bu nedenle bu proje kaldırılamadı. Yine de Vibrail'ten silebilirsiniz — kayıt şimdi kaldırılır ve sunucu erişilebilir olduğunda kalan kaynaklar otomatik olarak temizlenir.",
+    "forceModalConfirm": "Vibrail kayıtlarından sil",
     "forceModalCancel": "İptal"
   },
   "sidebar": {
@@ -182,7 +182,7 @@
     "delete": "Sil"
   },
   "overview": {
-    "platformCloud": "Openship Bulut",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "Self-hosted (Sunucu)",
     "platformLocal": "Self-hosted (Yerel)",
     "modeStatic": "Statik Site",
@@ -271,7 +271,7 @@
   },
   "routingRetry": {
     "title": "Ücretsiz alan adı yönlendirmesinin müdahaleye ihtiyacı var",
-    "description": "Uygulama sunucuda yayında ancak ücretsiz .vibrail.warpgateapi.com URL'si Openship Bulut'un edge servisi üzerinden yönlendirilmedi. Sunucuya buluttan 80 numaralı port üzerinden erişilebildiğinde tekrar deneyin.",
+    "description": "Uygulama sunucuda yayında ancak ücretsiz .vibrail.warpgateapi.com URL'si Vibrail Cloud'un edge servisi üzerinden yönlendirilmedi. Sunucuya buluttan 80 numaralı port üzerinden erişilebildiğinde tekrar deneyin.",
     "retry": "Yönlendirmeyi tekrar dene",
     "retrying": "Tekrar deneniyor…",
     "success": "Ücretsiz alan adı yönlendirmesi senkronize edildi.",

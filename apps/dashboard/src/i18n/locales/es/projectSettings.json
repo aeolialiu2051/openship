@@ -36,7 +36,7 @@
     },
     "statusActive": "Activo",
     "statusDisabled": "Deshabilitado",
-    "hostedCloud": "Openship Cloud",
+    "hostedCloud": "Vibrail Cloud",
     "hostedServer": "Servidor",
     "hostedLocal": "Local",
     "projectStatus": {
@@ -66,7 +66,7 @@
       "anotherServer": "Otro servidor",
       "targetLocal": "Máquina local",
       "targetServer": "Servidor autoalojado",
-      "targetCloud": "Openship Cloud"
+      "targetCloud": "Vibrail Cloud"
     },
     "danger": {
       "title": "Zona de peligro",
@@ -179,7 +179,7 @@
   "build": {
     "edit": "Editar",
     "webmail": {
-      "title": "Gestionado por openship",
+      "title": "Gestionado por Vibrail",
       "description": "El webmail usa una canalización fija de compilación e inicio: los comandos de instalación, compilación y ejecución no son configurables. Vuelve a desplegar desde el resumen de correo para incorporar los cambios de origen."
     },
     "services": {
@@ -297,7 +297,7 @@
     },
     "webhookBanner": {
       "title": "Habilitar despliegue automático",
-      "description": "El despliegue automático necesita un endpoint de webhook directo. Expón esta API de Openship en una URL pública o configura un dominio de webhook verificado para la entrega directa."
+      "description": "El despliegue automático necesita un endpoint de webhook directo. Expón esta API de Vibrail en una URL pública o configura un dominio de webhook verificado para la entrega directa."
     },
     "source": {
       "title": "Repositorio de origen",
@@ -327,7 +327,7 @@
       "active": "Activo",
       "inactive": "Inactivo",
       "descDirect": "Los eventos se entregan directamente vía {domain}",
-      "descActive": "Los eventos del repositorio están llegando a Openship",
+      "descActive": "Los eventos del repositorio están llegando a Vibrail",
       "descInactive": "El webhook no se ha configurado o no responde"
     },
     "rollbackStrategy": {

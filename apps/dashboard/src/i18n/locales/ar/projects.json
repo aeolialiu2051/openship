@@ -19,14 +19,14 @@
   },
   "serverCta": {
     "title": "انشر على خادمك الخاص",
-    "description": "اتصل بخادم عبر SSH لتشغيل المشاريع على بنيتك التحتية الخاصة إلى جانب سحابة Openship.",
+    "description": "اتصل بخادم عبر SSH لتشغيل المشاريع على بنيتك التحتية الخاصة إلى جانب سحابة Vibrail.",
     "button": "اتصل بخادم"
   },
   "filters": {
     "title": "التصفية حسب الهدف",
     "subtitle": "أين يتم نشر المشاريع",
     "allProjects": "جميع المشاريع",
-    "cloud": "سحابة Openship",
+    "cloud": "سحابة Vibrail",
     "local": "محلي"
   },
   "card": {
@@ -167,7 +167,7 @@
     "delete": "حذف"
   },
   "overview": {
-    "platformCloud": "سحابة Openship",
+    "platformCloud": "سحابة Vibrail",
     "platformServer": "مستضاف ذاتياً (خادم)",
     "platformLocal": "مستضاف ذاتياً (محلي)",
     "modeStatic": "موقع ثابت",
@@ -256,7 +256,7 @@
   },
   "routingRetry": {
     "title": "توجيه النطاق المجاني يحتاج إلى إجراء",
-    "description": "التطبيق يعمل على الخادم، لكن رابطه المجاني على vibrail.warpgateapi.com لم يُوجَّه عبر حافة Openship Cloud. أعد المحاولة بعد أن يصبح الخادم قابلاً للوصول من السحابة على المنفذ 80.",
+    "description": "التطبيق يعمل على الخادم، لكن رابطه المجاني على vibrail.warpgateapi.com لم يُوجَّه عبر حافة Vibrail Cloud. أعد المحاولة بعد أن يصبح الخادم قابلاً للوصول من السحابة على المنفذ 80.",
     "retry": "إعادة محاولة التوجيه",
     "retrying": "جارٍ إعادة المحاولة…",
     "success": "تمت مزامنة توجيه النطاق المجاني.",

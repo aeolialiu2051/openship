@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { isDeploySelectionComingSoon } from "./deploy-target-availability";
 
 describe("isDeploySelectionComingSoon", () => {
-  it("marks Openship Cloud deployments as coming soon", () => {
+  it("marks Vibrail Cloud deployments as coming soon", () => {
     expect(
       isDeploySelectionComingSoon({
         deployTarget: "cloud",
@@ -13,7 +13,7 @@ describe("isDeploySelectionComingSoon", () => {
     ).toBe(true);
   });
 
-  it("marks cloning on the Openship host as coming soon", () => {
+  it("marks cloning on the Vibrail host as coming soon", () => {
     expect(
       isDeploySelectionComingSoon({
         deployTarget: "server",

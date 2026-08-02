@@ -741,7 +741,7 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Canonical image tag for a build session. */
   private imageTag(slug: string | undefined, sessionId: string): string {
-    const name = slug ? `openship/${slug}` : `openship/build`;
+    const name = slug ? `vibrail/${slug}` : `vibrail/build`;
     return `${name}:${sessionId}`;
   }
 
@@ -1000,7 +1000,7 @@ export class DockerRuntime implements RuntimeAdapter {
 
   private suspensionRouteContainerName(projectId: string): string {
     const safe = projectId.replace(/[^a-zA-Z0-9_.-]+/g, "-").slice(0, 40);
-    return `openship-suspended-${safe}`;
+    return `vibrail-suspended-${safe}`;
   }
 
   /** Publish exact-Host redirect routers that survive the suspended workload
@@ -2176,7 +2176,7 @@ export class DockerRuntime implements RuntimeAdapter {
       throw new Error("Docker deploy requires an imageRef (built image tag)");
     }
 
-    const containerName = `openship-${config.runtimeName || config.projectId}-${config.deploymentId}`;
+    const containerName = `vibrail-${config.runtimeName || config.projectId}-${config.deploymentId}`;
 
     // Environment variables
     const env = [
@@ -3453,7 +3453,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * reach each other by service name as hostname.
    */
   async ensureNetwork(slug: string): Promise<string> {
-    const networkName = `openship-${slug}`;
+    const networkName = `vibrail-${slug}`;
     // list-then-create is check-then-act: two concurrent deploys for the same
     // slug would both miss and both create, yielding two networks with the same
     // name (Docker allows it) and ambiguous name lookups. Serialize per server.
@@ -3623,7 +3623,7 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /**
    * Join already-running containers (migration attach-live reuse) to a project's
-   * `openship-<slug>` network with a DNS alias each — so a natively-deployed
+   * `vibrail-<slug>` network with a DNS alias each — so a natively-deployed
    * service in the SAME project resolves them by name (e.g. a freshly-built `web`
    * reaching the reused `postgres:5432`). These containers keep their ORIGINAL
    * openship labels, so the label-scoped reconcileNetworkMembership never joins
@@ -3841,7 +3841,7 @@ export class DockerRuntime implements RuntimeAdapter {
   /**
    * Attach every container of `projectId` to the given networks (by name) — for
    * cross-project service links: a consumer joins a linked database app's
-   * `openship-<slug>` network so it resolves that app's service alias
+   * `vibrail-<slug>` network so it resolves that app's service alias
    * (`mongo:27017`) with no public port. Best-effort + idempotent; a network that
    * doesn't exist (source not deployed) is skipped and nothing here ever throws —
    * a link networking failure must never fail the consumer's deploy.
@@ -3885,16 +3885,20 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Remove a project network (best-effort). */
   async removeNetwork(slug: string): Promise<void> {
-    const networkName = `openship-${slug}`;
+    const networkNames = [`vibrail-${slug}`, `openship-${slug}`];
     if (this.usesRemoteDockerCli()) {
-      await this.remoteDockerExec(`network rm ${sq(networkName)}`).catch(() => {});
+      for (const networkName of networkNames) {
+        await this.remoteDockerExec(`network rm ${sq(networkName)}`).catch(() => {});
+      }
       return;
     }
-    try {
-      const network = this.docker.getNetwork(networkName);
-      await network.remove();
-    } catch {
-      // Already removed or doesn't exist - fine
+    for (const networkName of networkNames) {
+      try {
+        const network = this.docker.getNetwork(networkName);
+        await network.remove();
+      } catch {
+        // Already removed or doesn't exist - fine
+      }
     }
   }
 
@@ -3910,17 +3914,23 @@ export class DockerRuntime implements RuntimeAdapter {
     onLog?: LogCallback,
   ): Promise<MultiServiceDeployResult> {
     const log = onLog ?? (() => {});
-    const containerName = `openship-${config.slug}-${config.serviceName}`;
+    const containerName = `vibrail-${config.slug}-${config.serviceName}`;
+    const legacyContainerName = `openship-${config.slug}-${config.serviceName}`;
 
-    // Stop and remove any existing container with the same name
+    // Stop and remove any existing container with the current or legacy name.
+    // The legacy cleanup prevents the branding migration from leaving the old
+    // workload running beside its vibrail-prefixed replacement.
     if (this.usesRemoteDockerCli()) {
       await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
+      await this.remoteDockerExec(`rm -f ${sq(legacyContainerName)}`).catch(() => {});
     } else {
-      try {
-        const existing = this.docker.getContainer(containerName);
-        await existing.remove({ force: true });
-      } catch {
-        // Does not exist - fine
+      for (const existingName of [containerName, legacyContainerName]) {
+        try {
+          const existing = this.docker.getContainer(existingName);
+          await existing.remove({ force: true });
+        } catch {
+          // Does not exist - fine
+        }
       }
     }
 
@@ -3942,7 +3952,8 @@ export class DockerRuntime implements RuntimeAdapter {
       for (const route of config.traefik.routes) exposedPorts[`${route.port}/tcp`] = {};
     }
 
-    // Project-scope NAMED volumes (openship-<slug>-<name>) so two projects can
+    // Project-scope NAMED volumes retain their legacy openship-<slug>-<name>
+    // namespace so this branding change cannot disconnect persistent data.
     // never share one docker volume; bind mounts / anonymous volumes pass
     // through. Grandfathered services (namespaceVolumes=false) keep their bare
     // names — for those, fail fast if a bare name already belongs to another
@@ -3963,7 +3974,7 @@ export class DockerRuntime implements RuntimeAdapter {
     });
 
     // Pull image if not local
-    if (!config.image.startsWith("openship/")) {
+    if (!config.image.startsWith("vibrail/") && !config.image.startsWith("openship/")) {
       try {
         log({
           timestamp: new Date().toISOString(),

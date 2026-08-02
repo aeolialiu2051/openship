@@ -124,7 +124,7 @@
       "removeCustomFailed": "无法移除应用。",
       "needsVersion": "需要 v{version}",
       "needsUpdate": "需要更新",
-      "updateRequiredDescription": "请更新 Openship 后再安装此应用。",
+      "updateRequiredDescription": "请更新 Vibrail 后再安装此应用。",
       "unverified": "未验证",
       "removeCustomTitle": "移除自定义应用",
       "verifiedApp": {

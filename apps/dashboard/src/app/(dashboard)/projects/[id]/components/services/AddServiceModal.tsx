@@ -603,7 +603,7 @@ function CatalogPickStep({
   const m = t.projectDetail.services.addModal;
   const hasNoResults = !loading && catalog.length === 0 && !showCustomTile;
 
-  // Cloud catalog picked but the instance isn't linked to Openship Cloud yet —
+  // Cloud catalog picked but the instance isn't linked to Vibrail Cloud yet —
   // there's nothing to browse, so lead with a connect CTA instead of an empty
   // pane. Connecting flips `cloud.connected`, which re-fetches the catalog.
   if (source === "cloud" && cloudConnected === false && !loading) {
@@ -752,9 +752,10 @@ function SourceSwitcher({
   onChange: (v: "local" | "cloud") => void;
 }) {
   const { t } = useI18n();
+  const m = t.projectDetail.services.addModal;
   const options: Array<{ value: "local" | "cloud"; label: string; icon: React.ElementType }> = [
-    { value: "local", label: t.projectDetail.services.addModal.localImages, icon: Cpu },
-    { value: "cloud", label: t.projectDetail.services.addModal.openshipCloud, icon: Cloud },
+    { value: "local", label: m.localImages, icon: Cpu },
+    { value: "cloud", label: m.openshipCloud, icon: Cloud },
   ];
   return (
     <div className="inline-flex w-fit items-center gap-0.5 rounded-xl border border-border/60 bg-muted/60 p-0.5">
@@ -774,6 +775,11 @@ function SourceSwitcher({
           >
             <Icon className="size-3.5" />
             {opt.label}
+            {opt.value === "cloud" && (
+              <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary">
+                {m.comingSoon}
+              </span>
+            )}
           </button>
         );
       })}
@@ -1159,11 +1165,17 @@ function Field({
 
 function ModeBadge({ mode }: { mode: "cloud" | "local" }) {
   const { t } = useI18n();
+  const m = t.projectDetail.services.addModal;
   const Icon = mode === "cloud" ? Cloud : Cpu;
   return (
     <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/40 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
       <Icon className="size-3" />
-      {mode === "cloud" ? t.projectDetail.services.addModal.openshipCloud : t.projectDetail.services.addModal.localDocker}
+      {mode === "cloud" ? m.openshipCloud : m.localDocker}
+      {mode === "cloud" && (
+        <span className="rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold leading-none text-primary">
+          {m.comingSoon}
+        </span>
+      )}
     </span>
   );
 }

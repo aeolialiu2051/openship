@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "容量と使用状況",
-    "subtitle": "プランに含まれる容量と使用量です。ライブの数値は Openship Cloud から同期されます。",
+    "subtitle": "プランに含まれる容量と使用量です。ライブの数値は Vibrail Cloud から同期されます。",
     "routes": "無料ルート",
     "workspaces": "ワークスペース",
     "unlimited": "無制限",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "請求を管理するにはOpenship Cloudに接続してください",
-      "description": "ローカルインスタンスはまだOpenship Cloudに接続されていません。接続すると、サブスクリプションの状態、使用量、請求書、追加購入を確認できます。",
-      "connect": "Openship Cloudに接続",
+      "title": "請求を管理するにはVibrail Cloudに接続してください",
+      "description": "ローカルインスタンスはまだVibrail Cloudに接続されていません。接続すると、サブスクリプションの状態、使用量、請求書、追加購入を確認できます。",
+      "connect": "Vibrail Cloudに接続",
       "connecting": "サインインを待機しています…"
     },
     "sessionExpired": {
-      "title": "Openship Cloudのセッションが期限切れになりました",
-      "description": "リンクは維持されていますが、Openship Cloudが発行したセッショントークンは無効になりました。再接続して更新してください。先に切断する必要はありません。",
-      "reconnect": "Openship Cloudに再接続",
+      "title": "Vibrail Cloudのセッションが期限切れになりました",
+      "description": "リンクは維持されていますが、Vibrail Cloudが発行したセッショントークンは無効になりました。再接続して更新してください。先に切断する必要はありません。",
+      "reconnect": "Vibrail Cloudに再接続",
       "connecting": "サインインを待機しています…"
     },
     "unreachable": {
-      "title": "Openship Cloudの請求に接続できませんでした",
+      "title": "Vibrail Cloudの請求に接続できませんでした",
       "description": "クラウドセッションの期限が切れているか、クラウドが一時的に利用できない可能性があります。もう一度お試しいただくか、設定 → クラウドから再接続してください。",
       "tryAgain": "もう一度試す",
       "reconnect": "再接続"

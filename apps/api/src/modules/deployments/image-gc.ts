@@ -1,7 +1,7 @@
 /**
  * Built-image garbage collector.
  *
- * Every build mints a globally-unique tag (`openship/<slug>-<svc>:bld_..-svc_..`)
+ * Every build mints a globally-unique tag (`vibrail/<slug>-<svc>:bld_..-svc_..`)
  * so a redeploy never overwrites the prior image — without a sweep, each deploy
  * server accumulates old builds (and dangling layers) forever. This reconciles
  * the images ACTUALLY on each host against the DB keep-set and prunes the rest.
@@ -99,7 +99,7 @@ export interface ReapResult {
  * critical selection, kept pure + unit-tested so "never ruin an operator's
  * image" is verifiable:
  *   - in the keep-set (active/pinned/rollback-window) → keep (`[]`).
- *   - has `openship/…` tags → return THOSE tags: we untag only what we own, so
+ *   - has `vibrail/…` or legacy `openship/…` tags → return THOSE tags: we untag only what we own, so
  *     Docker deletes the image when our last tag is gone. Removing by these tags
  *     (not the image id) can never yank a foreign tag the operator added.
  *   - truly dangling (NO tags at all) → the image id: our superseded, untagged
@@ -111,7 +111,9 @@ export function selectImageRemovalRefs(
   keep: Set<string>,
 ): string[] {
   if (img.repoTags.some((t) => keep.has(t))) return [];
-  const ownTags = img.repoTags.filter((t) => t.startsWith("openship/"));
+  const ownTags = img.repoTags.filter(
+    (tag) => tag.startsWith("vibrail/") || tag.startsWith("openship/"),
+  );
   if (ownTags.length > 0) return ownTags;
   if (img.repoTags.length === 0) return [img.id];
   return []; // only foreign tags → never touch

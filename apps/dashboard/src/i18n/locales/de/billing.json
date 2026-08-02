@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "Kapazität & Nutzung",
-    "subtitle": "In Ihrem Tarif enthaltene Kapazität und wie viel Sie genutzt haben. Live-Werte werden aus Openship Cloud synchronisiert.",
+    "subtitle": "In Ihrem Tarif enthaltene Kapazität und wie viel Sie genutzt haben. Live-Werte werden aus Vibrail Cloud synchronisiert.",
     "routes": "Kostenlose Routen",
     "workspaces": "Workspaces",
     "unlimited": "Unbegrenzt",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "Mit Openship Cloud verbinden, um die Abrechnung zu verwalten",
-      "description": "Deine lokale Instanz ist noch nicht mit Openship Cloud verbunden. Verbinde dich, um Abonnementstatus, Nutzung, Rechnungen und Aufladungen einzusehen.",
-      "connect": "Mit Openship Cloud verbinden",
+      "title": "Mit Vibrail Cloud verbinden, um die Abrechnung zu verwalten",
+      "description": "Deine lokale Instanz ist noch nicht mit Vibrail Cloud verbunden. Verbinde dich, um Abonnementstatus, Nutzung, Rechnungen und Aufladungen einzusehen.",
+      "connect": "Mit Vibrail Cloud verbinden",
       "connecting": "Warten auf Anmeldung…"
     },
     "sessionExpired": {
-      "title": "Deine Openship-Cloud-Sitzung ist abgelaufen",
-      "description": "Du bist weiterhin verknüpft, aber das von Openship Cloud ausgestellte Sitzungstoken ist nicht mehr gültig. Verbinde dich erneut, um es zu aktualisieren – du musst die Verbindung nicht zuerst trennen.",
-      "reconnect": "Erneut mit Openship Cloud verbinden",
+      "title": "Deine Vibrail-Cloud-Sitzung ist abgelaufen",
+      "description": "Du bist weiterhin verknüpft, aber das von Vibrail Cloud ausgestellte Sitzungstoken ist nicht mehr gültig. Verbinde dich erneut, um es zu aktualisieren – du musst die Verbindung nicht zuerst trennen.",
+      "reconnect": "Erneut mit Vibrail Cloud verbinden",
       "connecting": "Warten auf Anmeldung…"
     },
     "unreachable": {
-      "title": "Openship-Cloud-Abrechnung konnte nicht erreicht werden",
+      "title": "Vibrail-Cloud-Abrechnung konnte nicht erreicht werden",
       "description": "Möglicherweise ist deine Cloud-Sitzung abgelaufen oder die Cloud ist vorübergehend nicht verfügbar. Versuche es erneut oder verbinde dich neu über Einstellungen → Cloud.",
       "tryAgain": "Erneut versuchen",
       "reconnect": "Erneut verbinden"

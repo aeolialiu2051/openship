@@ -1,13 +1,13 @@
 {
   "wizard": {
     "title": "Migrer un déploiement Docker",
-    "intro": "Inspectez Docker sur ce serveur et adoptez ses conteneurs comme projet Openship. L'inspection est en lecture seule — rien ne change sur le serveur tant que vous ne déployez pas.",
+    "intro": "Inspectez Docker sur ce serveur et adoptez ses conteneurs comme projet Vibrail. L'inspection est en lecture seule — rien ne change sur le serveur tant que vous ne déployez pas.",
     "selectServer": "Sélectionner un serveur",
     "scan": "Scanner le serveur",
     "scanning": "Analyse…",
     "flatDocker": "Liste à plat",
-    "flatDockerHint": "Ignorer les libellés Openship — adopter tout (y compris les conteneurs gérés par Openship) comme du Docker brut.",
-    "flatDockerShort": "Adopte aussi les conteneurs gérés par Openship.",
+    "flatDockerHint": "Ignorer les libellés Vibrail — adopter tout (y compris les conteneurs gérés par Vibrail) comme du Docker brut.",
+    "flatDockerShort": "Adopte aussi les conteneurs gérés par Vibrail.",
     "rescan": "Re-scanner",
     "cancel": "Annuler",
     "close": "Fermer",
@@ -69,7 +69,7 @@
       "back": "Retour",
       "sourceHint": "Liez éventuellement un dépôt et mappez vos conteneurs à ses services compose — l'image en cours d'exécution est toujours réutilisée.",
       "linkRepo": "Lier un dépôt",
-      "linkRepoDesc": "Liez le dépôt pour qu'Openship connaisse la source de chaque service (auto-déploiement + reconstruction plus tard). Cette migration réutilise toujours l'image en cours — aucune reconstruction maintenant.",
+      "linkRepoDesc": "Liez le dépôt pour qu'Vibrail connaisse la source de chaque service (auto-déploiement + reconstruction plus tard). Cette migration réutilise toujours l'image en cours — aucune reconstruction maintenant.",
       "repoOptional": "facultatif",
       "connectGithub": "Connecter GitHub",
       "selectRepo": "Choisir un dépôt",
@@ -106,7 +106,7 @@
   "run": {
     "title": "Migration de votre stack",
     "queued": "En file d'attente…",
-    "adopting": "Création du projet Openship…",
+    "adopting": "Création du projet Vibrail…",
     "moving_data": "Transfert des données de volume vers la cible…",
     "deploying": "Déploiement sur le serveur cible…",
     "verifying": "Vérification du nouveau déploiement…",
@@ -158,15 +158,15 @@
     "reused": "réutilisé sur place",
     "volumeReuse": "Reprendre",
     "volumeCopy": "Copier",
-    "volumeCopyHint": "Reprendre réutilise le volume existant sur place. Copier le duplique dans un nouveau volume Openship et laisse l'original intact (utilise de l'espace disque supplémentaire).",
+    "volumeCopyHint": "Reprendre réutilise le volume existant sur place. Copier le duplique dans un nouveau volume Vibrail et laisse l'original intact (utilise de l'espace disque supplémentaire).",
     "bind": "chemin hôte",
     "nVolumes": "{n} volumes",
     "nEnv": "{n} variables d'env",
-    "alreadyManaged": "{count} conteneur(s) déjà géré(s) par Openship ont été ignorés."
+    "alreadyManaged": "{count} conteneur(s) déjà géré(s) par Vibrail ont été ignorés."
   },
   "reimport": {
-    "title": "Projets Openship détectés",
-    "intro": "Ces projets Openship s'exécutent sur ce serveur mais sont absents de cette instance (base de données réinitialisée, ou serveur provenant d'une autre instance Openship). Ré-importez-les pour les récupérer — l'identifiant d'origine est conservé pour que les conteneurs actifs se rattachent.",
+    "title": "Projets Vibrail détectés",
+    "intro": "Ces projets Vibrail s'exécutent sur ce serveur mais sont absents de cette instance (base de données réinitialisée, ou serveur provenant d'une autre instance Vibrail). Ré-importez-les pour les récupérer — l'identifiant d'origine est conservé pour que les conteneurs actifs se rattachent.",
     "services": "{n} service(s)",
     "lastSeen": "Dernier déploiement {when}",
     "fullRestore": "Restauration complète",
@@ -183,7 +183,7 @@
   "adoptFailed": "Impossible de créer le projet",
   "entry": {
     "cardTitle": "Services existants",
-    "cardDesc": "Migrez un déploiement Docker ou Compose en cours vers Openship.",
+    "cardDesc": "Migrez un déploiement Docker ou Compose en cours vers Vibrail.",
     "action": "Migrer Docker",
     "tab": "Serveur existant",
     "comingSoon": "La migration Docker arrive bientôt"
@@ -199,7 +199,7 @@
   "tab": {
     "new": "Nouvelle migration",
     "empty": "Aucune migration pour l'instant",
-    "emptyDesc": "Déplacez une pile Docker ou Compose en cours d'exécution depuis ce serveur vers Openship, ou importez-en une depuis un autre serveur.",
+    "emptyDesc": "Déplacez une pile Docker ou Compose en cours d'exécution depuis ce serveur vers Vibrail, ou importez-en une depuis un autre serveur.",
     "close": "Fermer",
     "sessionLog": "Journal de session",
     "noLogs": "Aucune sortie de journal pour l'instant.",

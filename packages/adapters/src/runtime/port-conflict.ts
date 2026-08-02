@@ -16,8 +16,6 @@ export interface PortOccupant {
   isManagedDeployment?: boolean;
 }
 
-const OPENSHIP_UNIT_PREFIX = "openship-";
-
 async function tryExec(executor: CommandExecutor, command: string): Promise<string | null> {
   try {
     return await executor.exec(command);
@@ -46,7 +44,7 @@ async function resolveSystemdUnit(
     executor,
     `systemctl show ${systemdUnit} --property=Description --value 2>/dev/null || true`,
   );
-  const managedMatch = systemdUnit.match(/^openship-(.+)\.service$/);
+  const managedMatch = systemdUnit.match(/^(?:vibrail|openship)-(.+)\.service$/);
 
   return {
     systemdUnit,

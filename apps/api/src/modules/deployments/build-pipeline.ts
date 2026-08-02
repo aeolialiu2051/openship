@@ -1598,7 +1598,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
   // only deactivates prevDep.containerId — which in compose mode is just the
   // old primary service's container (or the literal "compose" sentinel, not a
   // real container) — so the remaining per-service containers
-  // (openship-{slug}-{service}) have no owner in the single-app path and would
+  // (vibrail-{slug}-{service}) have no owner in the single-app path and would
   // otherwise orphan. Skip the one runDeployPipeline already handles and the
   // sentinel. Best-effort; never blocks the deploy.
   if (prevDep) {

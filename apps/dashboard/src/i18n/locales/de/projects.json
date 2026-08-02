@@ -19,14 +19,14 @@
   },
   "serverCta": {
     "title": "Auf eigenem Server bereitstellen",
-    "description": "Verbinde einen Server über SSH, um Projekte auf deiner eigenen Infrastruktur neben Openship Cloud auszuführen.",
+    "description": "Verbinde einen Server über SSH, um Projekte auf deiner eigenen Infrastruktur neben Vibrail Cloud auszuführen.",
     "button": "Server verbinden"
   },
   "filters": {
     "title": "Nach Ziel filtern",
     "subtitle": "Wo Projekte bereitgestellt werden",
     "allProjects": "Alle Projekte",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "Lokal"
   },
   "card": {
@@ -167,7 +167,7 @@
     "delete": "Löschen"
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "Selbst gehostet (Server)",
     "platformLocal": "Selbst gehostet (Lokal)",
     "modeStatic": "Statische Website",
@@ -256,7 +256,7 @@
   },
   "routingRetry": {
     "title": "Freie Domain-Weiterleitung erfordert Aufmerksamkeit",
-    "description": "Die App ist auf dem Server live, aber ihre kostenlose .vibrail.warpgateapi.com-URL wurde nicht über die Edge von Openship Cloud geleitet. Versuche es erneut, sobald der Server aus der Cloud über Port 80 erreichbar ist.",
+    "description": "Die App ist auf dem Server live, aber ihre kostenlose .vibrail.warpgateapi.com-URL wurde nicht über die Edge von Vibrail Cloud geleitet. Versuche es erneut, sobald der Server aus der Cloud über Port 80 erreichbar ist.",
     "retry": "Weiterleitung erneut versuchen",
     "retrying": "Wird erneut versucht…",
     "success": "Freie Domain-Weiterleitung synchronisiert.",

@@ -61,7 +61,7 @@ describe("DockerRuntime SSH builds", () => {
       config,
       "/tmp/openship-build-build-1",
       "Dockerfile",
-      "openship/app:build-1",
+      "vibrail/app:build-1",
       new BuildLogger(),
     );
 
@@ -558,7 +558,7 @@ describe("DockerRuntime SSH builds", () => {
 
     await expect(runtime.ensureNetwork("app")).resolves.toBe("network-cli-1");
     expect(remoteDockerExec).toHaveBeenCalledWith(
-      "network inspect --format '{{.Id}}' 'openship-app'",
+      "network inspect --format '{{.Id}}' 'vibrail-app'",
       { timeout: 20_000 },
     );
   });
@@ -580,10 +580,10 @@ describe("DockerRuntime SSH builds", () => {
       runtime as unknown as {
         assertBuiltImageExists(tag: string, executor: CommandExecutor): Promise<void>;
       }
-    ).assertBuiltImageExists("openship/app:build-1", executor);
+    ).assertBuiltImageExists("vibrail/app:build-1", executor);
 
     expect(exec).toHaveBeenCalledWith(
-      "docker --host 'unix:///run/user/1000/docker.sock' image inspect --format '{{.Id}}' 'openship/app:build-1'",
+      "docker --host 'unix:///run/user/1000/docker.sock' image inspect --format '{{.Id}}' 'vibrail/app:build-1'",
       { timeout: 30_000 },
     );
   });

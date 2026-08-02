@@ -36,7 +36,7 @@
     },
     "statusActive": "نشط",
     "statusDisabled": "معطّل",
-    "hostedCloud": "Openship Cloud",
+    "hostedCloud": "Vibrail Cloud",
     "hostedServer": "خادم",
     "hostedLocal": "محلي",
     "projectStatus": {
@@ -66,7 +66,7 @@
       "anotherServer": "خادم آخر",
       "targetLocal": "الجهاز المحلي",
       "targetServer": "خادم مُستضاف ذاتيًا",
-      "targetCloud": "Openship Cloud"
+      "targetCloud": "Vibrail Cloud"
     },
     "danger": {
       "title": "منطقة الخطر",
@@ -179,7 +179,7 @@
   "build": {
     "edit": "تعديل",
     "webmail": {
-      "title": "مُدار بواسطة openship",
+      "title": "مُدار بواسطة Vibrail",
       "description": "يستخدم بريد الويب مسار بناء وتشغيل ثابتًا — أوامر التثبيت والبناء والتشغيل غير قابلة للتهيئة. أعِد النشر من نظرة عامة البريد لالتقاط التغييرات من المصدر."
     },
     "services": {
@@ -304,7 +304,7 @@
     },
     "webhookBanner": {
       "title": "تفعيل النشر التلقائي",
-      "description": "يحتاج النشر التلقائي إلى نقطة webhook مباشرة. اعرض واجهة برمجة تطبيقات Openship هذه على عنوان عام أو هيّئ نطاق webhook موثّقًا للتسليم المباشر."
+      "description": "يحتاج النشر التلقائي إلى نقطة webhook مباشرة. اعرض واجهة برمجة تطبيقات Vibrail هذه على عنوان عام أو هيّئ نطاق webhook موثّقًا للتسليم المباشر."
     },
     "source": {
       "title": "المستودع المصدر",
@@ -334,7 +334,7 @@
       "active": "نشط",
       "inactive": "غير نشط",
       "descDirect": "تُسلَّم الأحداث مباشرة عبر {domain}",
-      "descActive": "أحداث المستودع تصل إلى Openship",
+      "descActive": "أحداث المستودع تصل إلى Vibrail",
       "descInactive": "لم يتم تهيئة webhook أو أنه لا يستجيب"
     },
     "rollbackStrategy": {

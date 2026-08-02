@@ -21,7 +21,7 @@
   },
   "adopt": {
     "title": "Adopter un serveur de messagerie existant",
-    "intro": "Vous avez déjà configuré un serveur de messagerie avec Openship sur l'un de vos serveurs ? Sélectionnez-le et lancez l'analyse — si une pile de messagerie est détectée, elle est réadoptée dans le tableau de bord sans réinstallation ni modification de vos données.",
+    "intro": "Vous avez déjà configuré un serveur de messagerie avec Vibrail sur l'un de vos serveurs ? Sélectionnez-le et lancez l'analyse — si une pile de messagerie est détectée, elle est réadoptée dans le tableau de bord sans réinstallation ni modification de vos données.",
     "scanning": "Analyse en cours…",
     "scan": "Analyser le serveur",
     "detected": "Serveur de messagerie détecté",

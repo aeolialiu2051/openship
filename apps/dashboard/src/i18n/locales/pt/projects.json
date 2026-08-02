@@ -19,14 +19,14 @@
   },
   "serverCta": {
     "title": "Implementar no seu próprio servidor",
-    "description": "Ligue um servidor via SSH para executar projetos na sua própria infraestrutura, juntamente com o Openship Cloud.",
+    "description": "Ligue um servidor via SSH para executar projetos na sua própria infraestrutura, juntamente com o Vibrail Cloud.",
     "button": "Ligar um servidor"
   },
   "filters": {
     "title": "Filtrar por destino",
     "subtitle": "Onde os projetos estão implementados",
     "allProjects": "Todos os projetos",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "Local"
   },
   "card": {
@@ -167,7 +167,7 @@
     "delete": "Eliminar"
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "Auto-hospedado (Servidor)",
     "platformLocal": "Auto-hospedado (Local)",
     "modeStatic": "Site Estático",
@@ -256,7 +256,7 @@
   },
   "routingRetry": {
     "title": "O encaminhamento do domínio gratuito precisa de atenção",
-    "description": "A aplicação está ativa no servidor, mas o seu URL gratuito .vibrail.warpgateapi.com não foi encaminhado através da edge do Openship Cloud. Tente novamente assim que o servidor estiver acessível a partir da cloud na porta 80.",
+    "description": "A aplicação está ativa no servidor, mas o seu URL gratuito .vibrail.warpgateapi.com não foi encaminhado através da edge do Vibrail Cloud. Tente novamente assim que o servidor estiver acessível a partir da cloud na porta 80.",
     "retry": "Repetir encaminhamento",
     "retrying": "A repetir…",
     "success": "Encaminhamento do domínio gratuito sincronizado.",

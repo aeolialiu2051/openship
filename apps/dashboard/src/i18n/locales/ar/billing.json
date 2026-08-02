@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "السعة والاستخدام",
-    "subtitle": "السعة المضمّنة في خطتك ومقدار ما استخدمته. تتم مزامنة الأرقام الحية من Openship Cloud.",
+    "subtitle": "السعة المضمّنة في خطتك ومقدار ما استخدمته. تتم مزامنة الأرقام الحية من Vibrail Cloud.",
     "routes": "المسارات المجانية",
     "workspaces": "مساحات العمل",
     "unlimited": "غير محدود",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "اتصل بـ Openship Cloud لإدارة الفوترة",
-      "description": "لم يتصل مثيلك المحلي بـ Openship Cloud بعد. اتصل لعرض حالة الاشتراك والاستخدام والفواتير وعمليات الشحن.",
-      "connect": "الاتصال بـ Openship Cloud",
+      "title": "اتصل بـ Vibrail Cloud لإدارة الفوترة",
+      "description": "لم يتصل مثيلك المحلي بـ Vibrail Cloud بعد. اتصل لعرض حالة الاشتراك والاستخدام والفواتير وعمليات الشحن.",
+      "connect": "الاتصال بـ Vibrail Cloud",
       "connecting": "في انتظار تسجيل الدخول…"
     },
     "sessionExpired": {
-      "title": "انتهت صلاحية جلسة Openship Cloud",
-      "description": "لا تزال مرتبطًا، لكن رمز الجلسة الذي أصدره Openship Cloud لم يعد صالحًا. أعد الاتصال لتحديثه — دون الحاجة إلى قطع الاتصال أولًا.",
-      "reconnect": "إعادة الاتصال بـ Openship Cloud",
+      "title": "انتهت صلاحية جلسة Vibrail Cloud",
+      "description": "لا تزال مرتبطًا، لكن رمز الجلسة الذي أصدره Vibrail Cloud لم يعد صالحًا. أعد الاتصال لتحديثه — دون الحاجة إلى قطع الاتصال أولًا.",
+      "reconnect": "إعادة الاتصال بـ Vibrail Cloud",
       "connecting": "في انتظار تسجيل الدخول…"
     },
     "unreachable": {
-      "title": "تعذّر الوصول إلى فوترة Openship Cloud",
+      "title": "تعذّر الوصول إلى فوترة Vibrail Cloud",
       "description": "قد تكون جلستك السحابية قد انتهت أو أن السحابة غير متاحة مؤقتًا. حاول مرة أخرى، أو أعد الاتصال من الإعدادات ثم السحابة.",
       "tryAgain": "حاول مرة أخرى",
       "reconnect": "إعادة الاتصال"

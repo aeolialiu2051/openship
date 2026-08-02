@@ -18,7 +18,7 @@ describe("attachLinkedNetworks", () => {
     findById.mockReset();
   });
 
-  it("attaches the consumer to each INTERNAL-linked source's openship-<slug> network (public links ignored)", async () => {
+  it("attaches the consumer to each INTERNAL-linked source's vibrail-<slug> network (public links ignored)", async () => {
     listByTarget.mockResolvedValue([
       { mode: "internal", sourceProjectId: "s1" },
       { mode: "public", sourceProjectId: "s2" }, // must be skipped
@@ -32,7 +32,7 @@ describe("attachLinkedNetworks", () => {
     await attachLinkedNetworks("target", { attachToExternalNetworks: attach });
 
     expect(attach).toHaveBeenCalledTimes(1);
-    expect(attach).toHaveBeenCalledWith("target", ["openship-supabase", "openship-mongo"]);
+    expect(attach).toHaveBeenCalledWith("target", ["vibrail-supabase", "vibrail-mongo"]);
   });
 
   it("no-ops (never reads links) when the runtime can't join external networks — e.g. cloud", async () => {
@@ -55,7 +55,7 @@ describe("attachLinkedNetworks", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("linkedNetworkName builds openship-<slug>", () => {
-    expect(linkedNetworkName("foo")).toBe("openship-foo");
+  it("linkedNetworkName builds vibrail-<slug>", () => {
+    expect(linkedNetworkName("foo")).toBe("vibrail-foo");
   });
 });

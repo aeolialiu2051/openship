@@ -18,7 +18,7 @@
     "switchOrganization": "Organizasyonu değiştir",
     "current": "Mevcut",
     "cloudLabel": "Bulut: {email}",
-    "linkedToCloud": "Openship Bulut'a {email} hesabıyla bağlı",
+    "linkedToCloud": "Vibrail Cloud'a {email} hesabıyla bağlı",
     "backToSetup": "Kurulum ekranına dön",
     "personal": "Kişisel"
   },
@@ -29,14 +29,14 @@
     "newLocation": "Yeni konum",
     "switchBackPrompt": "Bu makinede yeniden tek kullanıcılı moda mı ihtiyacınız var?",
     "switchBackAction": "Tek kullanıcılı moda geri dön",
-    "cloudTitle": "Bu Openship kurulumu Openship Bulut'a taşındı",
-    "cloudBody": "Ekibiniz artık aşağıdaki URL üzerinden iş birliği yapıyor. Bu yerel Openship kurulumu artık projelerinizi, ayarlarınızı veya dağıtımlarınızı barındırmıyor — devam etmek için bulut panelini açın.",
+    "cloudTitle": "Bu Vibrail kurulumu Vibrail Cloud'a taşındı",
+    "cloudBody": "Ekibiniz artık aşağıdaki URL üzerinden iş birliği yapıyor. Bu yerel Vibrail kurulumu artık projelerinizi, ayarlarınızı veya dağıtımlarınızı barındırmıyor — devam etmek için bulut panelini açın.",
     "cloudCta": "Bulut panelini aç",
-    "tunneledTitle": "Openship kurulumunuza artık tünel üzerinden erişilebilir",
+    "tunneledTitle": "Vibrail kurulumunuza artık tünel üzerinden erişilebilir",
     "tunneledBody": "Makineniz çevrimiçi olduğunda ekip arkadaşlarınız aşağıdaki URL'den giriş yapabilir. Veriler hâlâ bu cihazda bulunur — tünel yalnızca cihazınızı Oblien edge ağı üzerinden erişime açar.",
     "tunneledCta": "Tünel URL'sini aç",
-    "serverTitle": "Bu Openship kurulumu sunucunuza taşındı",
-    "serverBody": "Ekibiniz artık aşağıdaki URL üzerinden iş birliği yapıyor. Bu yerel Openship kurulumu artık projelerinizi, ayarlarınızı veya dağıtımlarınızı barındırmıyor — devam etmek için ekip panelini açın.",
+    "serverTitle": "Bu Vibrail kurulumu sunucunuza taşındı",
+    "serverBody": "Ekibiniz artık aşağıdaki URL üzerinden iş birliği yapıyor. Bu yerel Vibrail kurulumu artık projelerinizi, ayarlarınızı veya dağıtımlarınızı barındırmıyor — devam etmek için ekip panelini açın.",
     "serverCta": "Ekip panelini aç"
   },
   "notFound": {

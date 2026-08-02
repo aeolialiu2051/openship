@@ -41,7 +41,7 @@
   "page": {
     "title": "Einstellungen",
     "subtitle": "Verwalte deine Einstellungen, dein Team und die Instanzkonfiguration",
-    "cloudConnectedToast": "Mit Openship Cloud verbunden"
+    "cloudConnectedToast": "Mit Vibrail Cloud verbunden"
   },
   "sidebar": {
     "title": "Einstellungen",
@@ -62,7 +62,7 @@
     "noInstallations": "Verbunden · Noch keine Installationen",
     "connectedOne": "Verbunden · 1 Installation",
     "connectedMany": "Verbunden · {count} Installationen",
-    "requiresCloud": "Erfordert Openship Cloud — die Vibrail GitHub-App gehört openship.io",
+    "requiresCloud": "Erfordert Vibrail Cloud — die Vibrail GitHub-App gehört openship.io",
     "connectPrompt": "Verbinde dein GitHub-Konto, um Repositories zu deployen",
     "checkingConnection": "Verbindung wird geprüft…",
     "addAccount": "Konto hinzufügen",
@@ -71,9 +71,9 @@
     "disconnect": "Trennen",
     "disconnectTitle": "{label} trennen",
     "disconnectAppLabel": "Vibrail GitHub-App",
-    "disconnectAppBody": "Dadurch wird der Openship-OAuth-Kontoeintrag entfernt. Die Installation der GitHub-App bleibt bestehen, bis du sie auf GitHub deinstallierst.",
-    "cloudExplainer": "Die Vibrail GitHub-App gehört openship.io. Verbinde deine Instanz mit Openship Cloud, um scoped Installations-Tokens zum Klonen privater Repos zu verwenden (funktioniert für lokale UND entfernte Deployments).",
-    "connectCloud": "Openship Cloud verbinden",
+    "disconnectAppBody": "Dadurch wird der Vibrail-OAuth-Kontoeintrag entfernt. Die Installation der GitHub-App bleibt bestehen, bis du sie auf GitHub deinstallierst.",
+    "cloudExplainer": "Die Vibrail GitHub-App gehört openship.io. Verbinde deine Instanz mit Vibrail Cloud, um scoped Installations-Tokens zum Klonen privater Repos zu verwenden (funktioniert für lokale UND entfernte Deployments).",
+    "connectCloud": "Vibrail Cloud verbinden",
     "noCloudTitle": "Private Repos ohne Cloud klonen",
     "useSshPerServer": "SSH-Schlüssel pro Server",
     "usePat": "Zugriffstoken",
@@ -121,13 +121,13 @@
         "desc": "Ein konfigurierter SSH-Server"
       },
       "cloud": {
-        "label": "OpenShip Cloud",
+        "label": "Vibrail Cloud",
         "desc": "Verwaltete Cloud-Infrastruktur"
       }
     },
     "labelFor": {
       "yourServer": "dein Server",
-      "cloud": "Openship Cloud",
+      "cloud": "Vibrail Cloud",
       "local": "Dieser Rechner"
     },
     "toast": {
@@ -362,7 +362,7 @@
     "grantsMany": "{count} Berechtigungen",
     "sendVia": "Senden über",
     "yourMailServer": "Dein Mailserver",
-    "openshipCloud": "Openship Cloud",
+    "openshipCloud": "Vibrail Cloud",
     "pickerTitle": "Anfänglicher Ressourcenzugriff",
     "pickerDesc": "Eingeschränkte Mitglieder starten ohne Zugriff. Wähle aus, was diese Einladung nach der Annahme freischaltet — später kannst du über die Zeile des Mitglieds mehr gewähren.",
     "sendInvite": "Einladung senden",
@@ -376,7 +376,7 @@
   "teamWorkspace": {
     "title": "Team-Arbeitsbereich",
     "description": "Versetze diese Instanz in den Mehrbenutzermodus.",
-    "body": "Derzeit ist diese Instanz für einen einzelnen Benutzer — nur du kannst dich anmelden. Wenn du bereit bist, Teammitglieder hinzuzufügen, migriere das Deployment an einen gemeinsamen Ort: deinen eigenen Server, Openship Cloud oder mache diesen Rechner über einen Tunnel erreichbar.",
+    "body": "Derzeit ist diese Instanz für einen einzelnen Benutzer — nur du kannst dich anmelden. Wenn du bereit bist, Teammitglieder hinzuzufügen, migriere das Deployment an einen gemeinsamen Ort: deinen eigenen Server, Vibrail Cloud oder mache diesen Rechner über einen Tunnel erreichbar.",
     "currentMode": "Aktueller Modus",
     "singleUserLocal": "Einzelbenutzer (lokal)",
     "migrate": "Migrieren",
@@ -385,7 +385,7 @@
   },
   "cloud": {
     "checking": "Wird geprüft…",
-    "fallbackName": "Openship Cloud",
+    "fallbackName": "Vibrail Cloud",
     "connectedAccount": "Verbundenes Cloud-Konto",
     "connected": "Verbunden",
     "disconnect": "Trennen",
@@ -394,10 +394,10 @@
     "unlockDesktop": "Schalte Cloud-Deployments, verwaltetes SSL und globales CDN frei.",
     "deployLocal": "Deploye direkt von deiner lokalen Instanz in die Cloud.",
     "waitingSignIn": "Warten auf Anmeldung…",
-    "connectButton": "Mit Openship Cloud verbinden",
-    "confirmDisconnect": "Verbindung zu Openship Cloud trennen? Cloud-Deployments funktionieren erst wieder, wenn du dich erneut verbindest.",
+    "connectButton": "Mit Vibrail Cloud verbinden",
+    "confirmDisconnect": "Verbindung zu Vibrail Cloud trennen? Cloud-Deployments funktionieren erst wieder, wenn du dich erneut verbindest.",
     "toast": {
-      "disconnected": "Verbindung zu Openship Cloud getrennt",
+      "disconnected": "Verbindung zu Vibrail Cloud getrennt",
       "disconnectFailed": "Trennen fehlgeschlagen"
     }
   },
@@ -407,7 +407,7 @@
     "descCloud": "Cloud",
     "descSelfHosted": "Selbst gehostet",
     "typeDesktop": "Desktop",
-    "typeCloud": "Openship Cloud",
+    "typeCloud": "Vibrail Cloud",
     "typeSelfHosted": "Selbst gehostet",
     "deployMode": "Deploy-Modus: {mode}",
     "authNone": "Zero Auth",
@@ -514,9 +514,9 @@
   },
   "updates": {
     "title": "Updates",
-    "description": "Wie Openship nach neuen Releases sucht und sie anwendet",
+    "description": "Wie Vibrail nach neuen Releases sucht und sie anwendet",
     "checking": "Nach Updates wird gesucht…",
-    "available": "Openship {version} ist verfügbar",
+    "available": "Vibrail {version} ist verfügbar",
     "upToDate": "Du verwendest die neueste Version",
     "current": "Aktuell: {version}",
     "rerunToUpdate": " · führe deine Installation erneut aus, um zu aktualisieren",
@@ -529,12 +529,12 @@
     "viewChangelog": "Changelog & Releases anzeigen",
     "securityTitle": "Wie Update-Prüfungen funktionieren",
     "securityDescription": "Volle Transparenz darüber, was mit deiner Installation kommuniziert",
-    "security1": "Openship sucht nach Updates und Sicherheitshinweisen",
+    "security1": "Vibrail sucht nach Updates und Sicherheitshinweisen",
     "securityOnlyGithub": "nur aus den öffentlichen GitHub-Releases",
     "security2": "des Open-Source-Repositorys (",
     "security3": "). Es",
     "securityPulls": "zieht",
-    "security4": "diese Daten nur — kein Drittanbieterdienst und kein von Openship betriebener Server kann Updates oder Signale an deine Installation senden. Hinweise sind an jedes Release gebunden, sodass unveröffentlichte Änderungen dich nie erreichen. Kritische Sicherheitshinweise werden immer einmal angezeigt; alles andere richtet sich nach dem obigen Schalter."
+    "security4": "diese Daten nur — kein Drittanbieterdienst und kein von Vibrail betriebener Server kann Updates oder Signale an deine Installation senden. Hinweise sind an jedes Release gebunden, sodass unveröffentlichte Änderungen dich nie erreichen. Kritische Sicherheitshinweise werden immer einmal angezeigt; alles andere richtet sich nach dem obigen Schalter."
   },
   "dataTransfer": {
     "export": {
@@ -555,7 +555,7 @@
     "import": {
       "title": "Daten importieren",
       "description": "Stelle eine exportierte Datei auf dieser Instanz wieder her.",
-      "intro": "Lade eine aus einer anderen Openship-Installation exportierte Datei. Gib die beim Export verwendete Passphrase ein, um auch Geheimnisse wiederherzustellen.",
+      "intro": "Lade eine aus einer anderen Vibrail-Installation exportierte Datei. Gib die beim Export verwendete Passphrase ein, um auch Geheimnisse wiederherzustellen.",
       "importFromFile": "Aus Datei importieren…",
       "modalTitle": "Instanzdaten importieren",
       "modalSubtitle": "Stelle einen exportierten Snapshot wieder her.",
@@ -573,7 +573,7 @@
       "importing": "Wird importiert…",
       "import": "Importieren",
       "confirmWipe": "ALLE Daten auf dieser Instanz durch den importierten Snapshot ersetzen? Dies kann nicht rückgängig gemacht werden und du wirst abgemeldet.",
-      "notExport": "Das sieht nicht nach einer Openship-Exportdatei aus.",
+      "notExport": "Das sieht nicht nach einer Vibrail-Exportdatei aus.",
       "cantRead": "Diese Datei konnte nicht gelesen werden — ist es ein gültiger Export?",
       "importFailed": "Import fehlgeschlagen.",
       "rowsRestored": "{count} Zeilen wiederhergestellt",
@@ -584,20 +584,20 @@
   "migrate": {
     "chooseTitle": "In den Mehrbenutzermodus wechseln",
     "serverTitle": "Auf deinen Server migrieren",
-    "cloudTitle": "Zu Openship Cloud migrieren",
+    "cloudTitle": "Zu Vibrail Cloud migrieren",
     "tunnelTitle": "Über Tunnel bereitstellen",
     "completeTitle": "Migration abgeschlossen",
     "back": "Zurück",
     "chooseIntro": "Derzeit ist diese Instanz für einen einzelnen Benutzer. Wähle, wie deine Teammitglieder sie erreichen sollen.",
     "cards": {
       "serverTitle": "Auf deinen Server migrieren",
-      "serverBody": "Deploye Openship per SSH auf einem VPS, der dir gehört. Die Daten wandern dorthin. Am besten für Teams, die bereits über Infrastruktur verfügen.",
+      "serverBody": "Deploye Vibrail per SSH auf einem VPS, der dir gehört. Die Daten wandern dorthin. Am besten für Teams, die bereits über Infrastruktur verfügen.",
       "serverMeta": "Keine externe Abhängigkeit",
-      "cloudTitle": "Zu Openship Cloud migrieren",
+      "cloudTitle": "Zu Vibrail Cloud migrieren",
       "cloudBody": "Übertrage deine Daten an api.openship.io. Wir hosten alles. Am besten für Teams, die keine Infrastruktur wollen.",
       "cloudMetaConnected": "Cloud-Konto verbunden",
       "metaRequiresCloud": "Erfordert Cloud-Konto",
-      "cloudWarn": "Verbinde dich zuerst mit Openship Cloud.",
+      "cloudWarn": "Verbinde dich zuerst mit Vibrail Cloud.",
       "tunnelTitle": "Lokal bleiben, über Tunnel bereitstellen",
       "tunnelBody": "Deine Daten bleiben auf diesem Rechner. Wir stellen einen Oblien-Edge-Tunnel bereit, damit Teammitglieder dich über das öffentliche Internet erreichen können — dein Rechner muss online sein.",
       "tunnelMetaConnected": "Tunnel über Oblien",
@@ -617,13 +617,13 @@
       "customHostPlaceholder": "team.acme.com",
       "preflight": "Preflight",
       "sshReachable": "SSH erreichbar",
-      "releaseAvailable": "Openship-Release verfügbar",
+      "releaseAvailable": "Vibrail-Release verfügbar",
       "domainReady": "Domain bereit",
       "runPreflight": "Preflight ausführen",
       "recheck": "Erneut prüfen",
       "deploying": "Wird deployt...",
       "startMigration": "Migration starten",
-      "successDetail": "Openship läuft jetzt auf deinem Server. Projekt-ID {projectId}.",
+      "successDetail": "Vibrail läuft jetzt auf deinem Server. Projekt-ID {projectId}.",
       "toastLoadFailed": "Server konnten nicht geladen werden",
       "toastPreflightFailed": "Preflight fehlgeschlagen",
       "toastMigrationFailed": "Migration fehlgeschlagen"
@@ -645,7 +645,7 @@
     },
     "tunnel": {
       "connectFirstTitle": "Verbinde zuerst dein Cloud-Konto",
-      "connectFirstBody": "Tunnel werden über Openship Cloud bereitgestellt. Öffne Einstellungen → Cloud und melde dich an, komm dann hierher zurück.",
+      "connectFirstBody": "Tunnel werden über Vibrail Cloud bereitgestellt. Öffne Einstellungen → Cloud und melde dich an, komm dann hierher zurück.",
       "headsUp": "Hinweis",
       "bullet1": "Deine Daten bleiben auf diesem Rechner. Nichts wird verschoben.",
       "bullet2": "Teammitglieder können dich nur erreichen, wenn dieser Rechner online ist.",
@@ -683,7 +683,7 @@
     "heading": "Zurück zum Einzelbenutzermodus wechseln",
     "intro": "Hole diese Instanz aus {mode} heraus und versetze sie zurück in den Solo-Modus auf diesem Rechner.",
     "modeServer": "deinem Server",
-    "modeCloud": "Openship Cloud",
+    "modeCloud": "Vibrail Cloud",
     "modeTunnel": "dem Tunnel",
     "current": "Aktuell",
     "noUrl": "(keine URL aufgezeichnet)",

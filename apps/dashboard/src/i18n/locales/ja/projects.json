@@ -19,14 +19,14 @@
   },
   "serverCta": {
     "title": "自分のサーバーにデプロイ",
-    "description": "SSH でサーバーを接続し、Openship Cloud と並行して自分のインフラでプロジェクトを実行できます。",
+    "description": "SSH でサーバーを接続し、Vibrail Cloud と並行して自分のインフラでプロジェクトを実行できます。",
     "button": "サーバーを接続"
   },
   "filters": {
     "title": "ターゲットで絞り込む",
     "subtitle": "プロジェクトのデプロイ先",
     "allProjects": "すべてのプロジェクト",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "ローカル"
   },
   "card": {
@@ -167,7 +167,7 @@
     "delete": "削除"
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "セルフホスト（サーバー）",
     "platformLocal": "セルフホスト（ローカル）",
     "modeStatic": "静的サイト",
@@ -256,7 +256,7 @@
   },
   "routingRetry": {
     "title": "無料ドメインのルーティングに対応が必要です",
-    "description": "アプリはサーバー上で稼働していますが、無料の .vibrail.warpgateapi.com URL が Openship Cloud のエッジ経由でルーティングされませんでした。クラウドからサーバーにポート 80 で接続できるようになったら再試行してください。",
+    "description": "アプリはサーバー上で稼働していますが、無料の .vibrail.warpgateapi.com URL が Vibrail Cloud のエッジ経由でルーティングされませんでした。クラウドからサーバーにポート 80 で接続できるようになったら再試行してください。",
     "retry": "ルーティングを再試行",
     "retrying": "再試行中…",
     "success": "無料ドメインのルーティングを同期しました。",

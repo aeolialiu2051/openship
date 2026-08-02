@@ -251,7 +251,7 @@
     "deploymentModeDesc": "{mode} · アプリごとのランタイムと単一アプリの処理を切り替えます。"
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Openship Cloud",
+    "targetOpenshipCloud": "Vibrail Cloud",
     "targetServerNamed": "サーバー · {name}",
     "targetServer": "サーバー",
     "targetLocal": "ローカルマシン",
@@ -263,9 +263,9 @@
       "port": "ポート",
       "process": "プロセス",
       "unitDescription": "ユニットの説明",
-      "openshipDeployment": "Openship デプロイ",
+      "openshipDeployment": "Vibrail デプロイ",
       "sites": {
-        "lead": "既存のプロキシは現在 {count} 件のサイトを配信しています。移行すると、ポート 80/443 を引き継ぐ前にそれらを Openship にインポートします：",
+        "lead": "既存のプロキシは現在 {count} 件のサイトを配信しています。移行すると、ポート 80/443 を引き継ぐ前にそれらを Vibrail にインポートします：",
         "tlsBadge": "TLS",
         "staticLabel": "静的:",
         "warningsTitle": "自動的に移行できませんでした — 手動で再追加してください："

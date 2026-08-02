@@ -125,7 +125,7 @@
       "removeCustomFailed": "Couldn't remove the app.",
       "needsVersion": "Needs v{version}",
       "needsUpdate": "Needs update",
-      "updateRequiredDescription": "Update your Openship instance to install this app.",
+      "updateRequiredDescription": "Update your Vibrail instance to install this app.",
       "unverified": "Unverified",
       "removeCustomTitle": "Remove custom app",
       "verifiedApp": {

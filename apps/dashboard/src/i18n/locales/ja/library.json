@@ -1,8 +1,8 @@
 {
   "ghCliConsent": {
     "title": "リポジトリを読み取りますか？",
-    "body": "OpenShip は、あなたが既にログインしている gh CLI を使って GitHub リポジトリを一覧表示できます。",
-    "bodyWithLogin": "OpenShip は、@{login} としてログイン中の gh CLI を使って GitHub リポジトリを一覧表示できます。",
+    "body": "Vibrail は、あなたが既にログインしている gh CLI を使って GitHub リポジトリを一覧表示できます。",
+    "bodyWithLogin": "Vibrail は、@{login} としてログイン中の gh CLI を使って GitHub リポジトリを一覧表示できます。",
     "pointNoCloud": "クラウドには何も送信されません — 一覧はこのマシンから外に出ません。",
     "pointDesktopOnly": "デスクトップアプリでのみ動作し、ローカルの gh 認証を使用します。",
     "pointReadOnly": "読み取り専用：デプロイするリポジトリを選べるように一覧表示するだけです。",
@@ -34,12 +34,12 @@
     },
     "default": {
       "title": "デプロイするには GitHub に接続",
-      "descSelfHosted": "Openship がリポジトリにアクセスする方法を選択してください。",
+      "descSelfHosted": "Vibrail がリポジトリにアクセスする方法を選択してください。",
       "descSaas": "GitHub アカウントを連携すると、リポジトリを閲覧し、プッシュのたびにデプロイできます。",
       "recommended": "推奨",
       "cloudApp": "Vibrail GitHub App",
       "cloudAppDesc": "短命トークンを使ってリモートサーバーにデプロイします。",
-      "connectCloud": "Openship Cloud に接続",
+      "connectCloud": "Vibrail Cloud に接続",
       "localBuilds": "ローカルビルド",
       "ghCli": "gh CLI でログイン",
       "ghCliDesc": "お使いのマシンの GitHub ログインを使用します。クラウドは不要です。",

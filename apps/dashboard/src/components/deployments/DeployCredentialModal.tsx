@@ -163,7 +163,7 @@ export function DeployCredentialModal({
   const handleInstallApp = useCallback(() => {
     if (!installUrl) {
       showToast(
-        "Install URL is not available — connect Openship Cloud first.",
+        "Install URL is not available — Vibrail Cloud is coming soon.",
         "error",
         "GitHub App",
       );
@@ -236,7 +236,7 @@ export function DeployCredentialModal({
 
   // ── Copy ───────────────────────────────────────────────────────────
   const targetLabel =
-    deployTarget === "cloud" ? "Openship Cloud" : "your server";
+    deployTarget === "cloud" ? "Vibrail Cloud" : "your server";
   const headline =
     trigger === "preflight-gate"
       ? `How should we clone ${owner} on the build worker?`
@@ -349,7 +349,7 @@ export function DeployCredentialModal({
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
                   {hasGlobalToken
                     ? "Use the global PAT you've already saved — scoped narrower than your GitHub session."
-                    : "Paste a fine-grained PAT scoped to this repo. You control the scope and expiry — Openship just uses it for clones."}
+                    : "Paste a fine-grained PAT scoped to this repo. You control the scope and expiry — Vibrail just uses it for clones."}
                 </p>
               </div>
             </div>

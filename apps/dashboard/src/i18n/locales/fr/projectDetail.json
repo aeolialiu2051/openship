@@ -97,11 +97,12 @@
       "serviceCountOne": "{count} service",
       "serviceCountOther": "{count} services",
       "searchPlaceholder": "Rechercher par nom, image ou tag…",
-      "cloudConnectHint": "Connectez Openship Cloud pour parcourir le catalogue de services cloud. Vous pouvez toujours ajouter n'importe quelle image manuellement.",
+      "cloudConnectHint": "Connectez Vibrail Cloud pour parcourir le catalogue de services cloud. Vous pouvez toujours ajouter n'importe quelle image manuellement.",
+      "comingSoon": "Bientôt disponible",
       "noMatchesTitle": "Aucun résultat",
       "noMatchesBody": "Essayez une autre catégorie ou un autre terme de recherche - ou choisissez Image personnalisée dans la barre latérale.",
       "localImages": "Images locales",
-      "openshipCloud": "Openship Cloud",
+      "openshipCloud": "Vibrail Cloud",
       "localDocker": "Docker local",
       "customEntryName": "Image personnalisée",
       "customEntryDescription": "Récupérez n'importe quelle image Docker publique ou privée par tag.",
@@ -133,9 +134,9 @@
         "runtime": "Environnements d'exécution",
         "other": "Autre"
       },
-      "cloudConnectTitle": "Connecter Openship Cloud",
-      "cloudConnectBody": "Liez cette instance à Openship Cloud pour parcourir et ajouter des images cloud gérées. Vous pouvez toujours ajouter n'importe quelle image manuellement depuis Images locales.",
-      "cloudConnectButton": "Se connecter à Openship Cloud"
+      "cloudConnectTitle": "Connecter Vibrail Cloud",
+      "cloudConnectBody": "Liez cette instance à Vibrail Cloud pour parcourir et ajouter des images cloud gérées. Vous pouvez toujours ajouter n'importe quelle image manuellement depuis Images locales.",
+      "cloudConnectButton": "Se connecter à Vibrail Cloud"
     },
     "detail": {
       "tabs": {

@@ -20,14 +20,14 @@
   },
   "serverCta": {
     "title": "Déployez sur votre propre serveur",
-    "description": "Connectez un serveur via SSH pour exécuter des projets sur votre propre infrastructure, aux côtés d'Openship Cloud.",
+    "description": "Connectez un serveur via SSH pour exécuter des projets sur votre propre infrastructure, aux côtés d'Vibrail Cloud.",
     "button": "Connecter un serveur"
   },
   "filters": {
     "title": "Filtrer par cible",
     "subtitle": "Où les projets sont déployés",
     "allProjects": "Tous les projets",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "Local"
   },
   "card": {
@@ -180,7 +180,7 @@
     "managedImagesText": "Cette application s'exécute à partir d'images préconstruites — il n'y a pas de dépôt à connecter. Déployez simplement."
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "Auto-hébergé (Serveur)",
     "platformLocal": "Auto-hébergé (Local)",
     "modeStatic": "Site statique",
@@ -269,7 +269,7 @@
   },
   "routingRetry": {
     "title": "Le routage du domaine gratuit nécessite votre attention",
-    "description": "L'application est en ligne sur le serveur, mais son URL gratuite .vibrail.warpgateapi.com n'a pas été routée via l'edge d'Openship Cloud. Réessayez une fois que le serveur est accessible depuis le cloud sur le port 80.",
+    "description": "L'application est en ligne sur le serveur, mais son URL gratuite .vibrail.warpgateapi.com n'a pas été routée via l'edge d'Vibrail Cloud. Réessayez une fois que le serveur est accessible depuis le cloud sur le port 80.",
     "retry": "Réessayer le routage",
     "retrying": "Nouvelle tentative…",
     "success": "Routage du domaine gratuit synchronisé.",

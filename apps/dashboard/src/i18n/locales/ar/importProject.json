@@ -254,7 +254,7 @@
     "deploymentModeDesc": "{mode} · التبديل بين أوقات التشغيل لكل تطبيق ومعالجة التطبيق الواحد."
   },
   "deploymentProcessing": {
-    "targetOpenshipCloud": "Openship Cloud",
+    "targetOpenshipCloud": "Vibrail Cloud",
     "targetServerNamed": "الخادم · {name}",
     "targetServer": "الخادم",
     "targetLocal": "الجهاز المحلي",
@@ -266,9 +266,9 @@
       "port": "المنفذ",
       "process": "العملية",
       "unitDescription": "وصف الوحدة",
-      "openshipDeployment": "نشر Openship",
+      "openshipDeployment": "نشر Vibrail",
       "sites": {
-        "lead": "يخدم الوكيل الحالي {count} موقعًا في الوقت الحالي. يؤدي الترحيل إلى استيرادها إلى Openship قبل الاستيلاء على المنفذين 80/443:",
+        "lead": "يخدم الوكيل الحالي {count} موقعًا في الوقت الحالي. يؤدي الترحيل إلى استيرادها إلى Vibrail قبل الاستيلاء على المنفذين 80/443:",
         "tlsBadge": "TLS",
         "staticLabel": "ثابت:",
         "warningsTitle": "تعذّر ترحيلها تلقائيًا — أعد إضافتها يدويًا:"

@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "容量与用量",
-    "subtitle": "您套餐包含的容量以及已用量。实时数据从 Openship Cloud 同步。",
+    "subtitle": "您套餐包含的容量以及已用量。实时数据从 Vibrail Cloud 同步。",
     "routes": "免费路由",
     "workspaces": "工作区",
     "unlimited": "无限制",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "连接到 Openship Cloud 以管理账单",
-      "description": "您的本地实例尚未连接到 Openship Cloud。连接后即可查看订阅状态、用量、账单和充值。",
-      "connect": "连接到 Openship Cloud",
+      "title": "连接到 Vibrail Cloud 以管理账单",
+      "description": "您的本地实例尚未连接到 Vibrail Cloud。连接后即可查看订阅状态、用量、账单和充值。",
+      "connect": "连接到 Vibrail Cloud",
       "connecting": "正在等待登录…"
     },
     "sessionExpired": {
-      "title": "您的 Openship Cloud 会话已过期",
-      "description": "您仍处于关联状态，但 Openship Cloud 签发的会话令牌已失效。重新连接即可刷新，无需先断开连接。",
-      "reconnect": "重新连接到 Openship Cloud",
+      "title": "您的 Vibrail Cloud 会话已过期",
+      "description": "您仍处于关联状态，但 Vibrail Cloud 签发的会话令牌已失效。重新连接即可刷新，无需先断开连接。",
+      "reconnect": "重新连接到 Vibrail Cloud",
       "connecting": "正在等待登录…"
     },
     "unreachable": {
-      "title": "无法连接到 Openship Cloud 账单服务",
+      "title": "无法连接到 Vibrail Cloud 账单服务",
       "description": "您的云会话可能已过期，或云服务暂时不可用。请重试，或从“设置 → 云”重新连接。",
       "tryAgain": "重试",
       "reconnect": "重新连接"

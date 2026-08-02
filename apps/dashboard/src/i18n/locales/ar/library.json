@@ -1,8 +1,8 @@
 {
   "ghCliConsent": {
     "title": "قراءة مستودعاتك؟",
-    "body": "يستطيع OpenShip سرد مستودعات GitHub الخاصة بك باستخدام gh CLI الذي سجّلت الدخول به بالفعل.",
-    "bodyWithLogin": "يستطيع OpenShip سرد مستودعات GitHub الخاصة بك باستخدام gh CLI المسجَّل باسم @{login}.",
+    "body": "يستطيع Vibrail سرد مستودعات GitHub الخاصة بك باستخدام gh CLI الذي سجّلت الدخول به بالفعل.",
+    "bodyWithLogin": "يستطيع Vibrail سرد مستودعات GitHub الخاصة بك باستخدام gh CLI المسجَّل باسم @{login}.",
     "pointNoCloud": "لا يُرسَل أي شيء إلى السحابة — القائمة لا تغادر هذا الجهاز أبداً.",
     "pointDesktopOnly": "يعمل فقط في تطبيق سطح المكتب، باستخدام مصادقة gh المحلية لديك.",
     "pointReadOnly": "للقراءة فقط: يسرد المستودعات لتختار واحداً لنشره.",
@@ -34,12 +34,12 @@
     },
     "default": {
       "title": "اتصل بـ GitHub للنشر",
-      "descSelfHosted": "اختر كيف يصل Openship إلى مستودعاتك.",
+      "descSelfHosted": "اختر كيف يصل Vibrail إلى مستودعاتك.",
       "descSaas": "اربط حساب GitHub الخاص بك لتصفح المستودعات والنشر مع كل دفعة.",
       "recommended": "موصى به",
       "cloudApp": "تطبيق Vibrail على GitHub",
       "cloudAppDesc": "انشر على الخوادم البعيدة برموز قصيرة الأجل.",
-      "connectCloud": "الاتصال بسحابة Openship",
+      "connectCloud": "الاتصال بسحابة Vibrail",
       "localBuilds": "عمليات بناء محلية",
       "ghCli": "سجّل الدخول عبر gh CLI",
       "ghCliDesc": "استخدم تسجيل دخول GitHub على جهازك. لا حاجة إلى السحابة.",

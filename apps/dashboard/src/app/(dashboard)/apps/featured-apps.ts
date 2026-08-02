@@ -18,7 +18,7 @@ export interface FeaturedApp {
 
 /** Shared product-priority order for every featured-app preview. */
 export const FEATURED_APPS: readonly FeaturedApp[] = [
-  { id: "mail", name: "OpenShipMail", icon: Mail },
+  { id: "mail", name: "Vibrail Mail", icon: Mail },
   { id: "cli-proxy-api", name: "CLIProxyAPI", icon: Activity },
   { id: "n8n", name: "n8n", icon: Workflow },
   { id: "supabase", name: "Supabase", icon: Database },

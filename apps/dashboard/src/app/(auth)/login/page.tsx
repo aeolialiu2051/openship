@@ -171,7 +171,7 @@ function LoginPageInner() {
           onClick={() => { void handleCloudSignIn(callbackUrl); }}
         >
           {loading ? <Loader2 className="me-2 size-4 animate-spin" /> : <ExternalLink className="me-2 size-4" />}
-          {loading ? "Opening Openship Cloud..." : "Sign in with Openship"}
+          {loading ? "Opening Vibrail Cloud..." : "Sign in with Vibrail"}
         </Button>
       </AuthShell>
     );

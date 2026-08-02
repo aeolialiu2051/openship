@@ -21,7 +21,7 @@
   },
   "adopt": {
     "title": "Adotar servidor de email existente",
-    "intro": "Já configurou um servidor de email com o Openship num dos seus servidores? Selecione-o e faça a análise — se for encontrada uma stack de email, esta é readotada no painel sem reinstalar nem tocar nos seus dados.",
+    "intro": "Já configurou um servidor de email com o Vibrail num dos seus servidores? Selecione-o e faça a análise — se for encontrada uma stack de email, esta é readotada no painel sem reinstalar nem tocar nos seus dados.",
     "scanning": "A analisar…",
     "scan": "Analisar servidor",
     "detected": "Servidor de email detetado",

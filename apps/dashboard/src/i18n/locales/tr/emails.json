@@ -21,7 +21,7 @@
   },
   "adopt": {
     "title": "Mevcut e-posta sunucusunu yönetime al",
-    "intro": "Sunucularınızdan birinde daha önce Openship ile bir e-posta sunucusu kurdunuz mu? Sunucuyu seçip tarayın — bir e-posta yığını bulunursa verilerinize dokunulmadan ve yeniden kurulum yapılmadan kontrol paneline tekrar alınır.",
+    "intro": "Sunucularınızdan birinde daha önce Vibrail ile bir e-posta sunucusu kurdunuz mu? Sunucuyu seçip tarayın — bir e-posta yığını bulunursa verilerinize dokunulmadan ve yeniden kurulum yapılmadan kontrol paneline tekrar alınır.",
     "scanning": "Taranıyor…",
     "scan": "Sunucuyu tara",
     "detected": "E-posta sunucusu tespit edildi",

@@ -1,8 +1,8 @@
 {
   "ghCliConsent": {
     "title": "Lire vos dépôts ?",
-    "body": "OpenShip peut lister vos dépôts GitHub via la CLI gh à laquelle vous êtes déjà connecté.",
-    "bodyWithLogin": "OpenShip peut lister vos dépôts GitHub via la CLI gh connectée en tant que @{login}.",
+    "body": "Vibrail peut lister vos dépôts GitHub via la CLI gh à laquelle vous êtes déjà connecté.",
+    "bodyWithLogin": "Vibrail peut lister vos dépôts GitHub via la CLI gh connectée en tant que @{login}.",
     "pointNoCloud": "Rien n'est envoyé au cloud — la liste ne quitte jamais cette machine.",
     "pointDesktopOnly": "Fonctionne uniquement dans l'app de bureau, avec votre authentification gh locale.",
     "pointReadOnly": "Lecture seule : liste les dépôts pour que vous en choisissiez un à déployer.",
@@ -34,12 +34,12 @@
     },
     "default": {
       "title": "Connectez GitHub pour déployer",
-      "descSelfHosted": "Choisissez comment Openship accède à vos dépôts.",
+      "descSelfHosted": "Choisissez comment Vibrail accède à vos dépôts.",
       "descSaas": "Liez votre compte GitHub pour parcourir vos dépôts et déployer à chaque push.",
       "recommended": "Recommandé",
       "cloudApp": "Application GitHub Vibrail",
       "cloudAppDesc": "Déployez sur des serveurs distants avec des jetons éphémères.",
-      "connectCloud": "Connecter Openship Cloud",
+      "connectCloud": "Connecter Vibrail Cloud",
       "localBuilds": "Builds locaux",
       "ghCli": "Se connecter avec la CLI gh",
       "ghCliDesc": "Utilisez la connexion GitHub de votre machine. Aucun cloud requis.",

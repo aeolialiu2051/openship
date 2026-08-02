@@ -70,24 +70,24 @@ describe("computeKeepSet", () => {
 });
 
 describe("selectImageRemovalRefs (never ruin an operator's image)", () => {
-  const keep = new Set<string>(["openship/app-web:keep"]);
+  const keep = new Set<string>(["vibrail/app-web:keep"]);
 
   it("keeps an image whose tag is in the keep-set", () => {
-    expect(selectImageRemovalRefs({ id: "sha1", repoTags: ["openship/app-web:keep"] }, keep)).toEqual([]);
+    expect(selectImageRemovalRefs({ id: "sha1", repoTags: ["vibrail/app-web:keep"] }, keep)).toEqual([]);
   });
 
   it("removes ONLY our openship tags (never by id) for a prunable built image", () => {
     expect(
-      selectImageRemovalRefs({ id: "sha2", repoTags: ["openship/app-web:bld_old-svc_x"] }, keep),
-    ).toEqual(["openship/app-web:bld_old-svc_x"]);
+      selectImageRemovalRefs({ id: "sha2", repoTags: ["vibrail/app-web:bld_old-svc_x"] }, keep),
+    ).toEqual(["vibrail/app-web:bld_old-svc_x"]);
   });
 
   it("on a multi-tagged image, untags only ours and leaves the operator's tag", () => {
     const refs = selectImageRemovalRefs(
-      { id: "sha3", repoTags: ["openship/app-web:bld_old-svc_x", "myteam/custom:latest"] },
+      { id: "sha3", repoTags: ["vibrail/app-web:bld_old-svc_x", "myteam/custom:latest"] },
       keep,
     );
-    expect(refs).toEqual(["openship/app-web:bld_old-svc_x"]); // never "myteam/custom:latest", never "sha3"
+    expect(refs).toEqual(["vibrail/app-web:bld_old-svc_x"]); // never "myteam/custom:latest", never "sha3"
   });
 
   it("NEVER touches an image left with only foreign tags (operator re-purposed it)", () => {

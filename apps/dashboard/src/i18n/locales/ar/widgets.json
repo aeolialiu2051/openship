@@ -150,12 +150,12 @@
   },
   "cloud": {
     "connectionGate": {
-      "reconnect": "إعادة الاتصال بـ Openship Cloud",
-      "deployedOn": "هذا المشروع منشور على Openship Cloud",
-      "sessionMissing": "جلسة Openship Cloud الخاصة بك مفقودة. اتصل لإدارة عمليات النشر وعرض السجلات والوصول إلى عناصر التحكم في وقت التشغيل لـ {name}.",
+      "reconnect": "إعادة الاتصال بـ Vibrail Cloud",
+      "deployedOn": "هذا المشروع منشور على Vibrail Cloud",
+      "sessionMissing": "جلسة Vibrail Cloud الخاصة بك مفقودة. اتصل لإدارة عمليات النشر وعرض السجلات والوصول إلى عناصر التحكم في وقت التشغيل لـ {name}.",
       "thisProject": "هذا المشروع",
       "connecting": "جارٍ الاتصال…",
-      "connect": "الاتصال بـ Openship Cloud",
+      "connect": "الاتصال بـ Vibrail Cloud",
       "readOnlyNote": "لا يزال بإمكانك تصفح هذه الصفحة في وضع القراءة فقط أثناء قطع الاتصال."
     }
   },
@@ -163,7 +163,7 @@
     "githubPermission": {
       "title": "الاتصال بـ GitHub",
       "subtitle": "اختر مستوى الوصول إلى المستودعات",
-      "intro": "اختر المستودعات التي يمكن لـ Openship الوصول إليها. يمكنك تغيير ذلك لاحقًا في إعدادات GitHub الخاصة بك.",
+      "intro": "اختر المستودعات التي يمكن لـ Vibrail الوصول إليها. يمكنك تغيير ذلك لاحقًا في إعدادات GitHub الخاصة بك.",
       "publicTitle": "المستودعات العامة فقط",
       "publicDesc": "الوصول إلى مستودعاتك العامة. مثالي لمشاريع المصدر المفتوح.",
       "publicItem1": "قراءة بيانات المستودعات العامة",
@@ -281,12 +281,12 @@
     "youreOn": "· أنت على {version}",
     "rerunInstall": "أعد تشغيل التثبيت لتحديث خادمك المستضاف ذاتيًا.",
     "updateNow": "التحديث الآن",
-    "downloading": "جارٍ تنزيل Openship {version}",
-    "installing": "جارٍ التثبيت — ستتم إعادة تشغيل Openship",
+    "downloading": "جارٍ تنزيل Vibrail {version}",
+    "installing": "جارٍ التثبيت — ستتم إعادة تشغيل Vibrail",
     "updateFailed": "فشل التحديث",
     "retry": "إعادة المحاولة",
     "changelog": "سجل التغييرات",
-    "updatedTo": "تم التحديث إلى Openship {version}",
+    "updatedTo": "تم التحديث إلى Vibrail {version}",
     "seeChanges": "اطّلع على ما تغيّر في هذا الإصدار.",
     "onLatest": "أنت على أحدث إصدار.",
     "whatsNew": "ما الجديد",

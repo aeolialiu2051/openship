@@ -9,7 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Cloud, ExternalLink, X, Rocket, Shield, Globe, Zap, Loader2 } from "lucide-react";
+import { Cloud, X, Rocket, Shield, Globe, Zap } from "lucide-react";
 import { cloudApi } from "@/lib/api";
 import {
   getCloudConnectHandoffUrl,
@@ -21,6 +21,8 @@ import {
 import { canUseCloudConnection, usePlatform } from "@/context/PlatformContext";
 import { useGitHub } from "@/context/GitHubContext";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/components/i18n-provider";
+import { cloudBrandCopy } from "@/lib/cloud-brand";
 import { openAuthWindow } from "@/utils/authWindow";
 import type { CloudCapability } from "@repo/core";
 import { useCloudCapabilityCopy, type CloudRequirementPrompt } from "./cloud/capability-copy";
@@ -92,6 +94,8 @@ const FEATURES = [
 ];
 
 export function CloudProvider({ children }: { children: ReactNode }) {
+  const { locale } = useI18n();
+  const cloudCopy = cloudBrandCopy(locale);
   const { selfHosted, deployMode, cloudAuthUrl, cloudApiUrl } = usePlatform();
   const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
   const hasNativeCloudAccess = !canConnectCloud;
@@ -405,7 +409,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
 
             {/* Title */}
             <h2 className="text-lg font-semibold text-foreground">
-              Connect Openship Cloud
+              {cloudCopy.connectTitle}
             </h2>
             {modalFeature.description ? (
               <div className="mt-1 space-y-1.5 text-sm leading-relaxed">
@@ -414,8 +418,8 @@ export function CloudProvider({ children }: { children: ReactNode }) {
               </div>
             ) : (
               <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
-                <strong className="text-foreground">{modalFeature.feature}</strong> requires
-                an Openship Cloud connection. Connect your account to unlock:
+                <strong className="text-foreground">{modalFeature.feature}</strong>{" "}
+                {cloudCopy.connectionRequired}
               </p>
             )}
 
@@ -441,26 +445,16 @@ export function CloudProvider({ children }: { children: ReactNode }) {
             <div className="mt-6 flex flex-col gap-2">
               <Button
                 size="lg"
-                disabled={connecting}
-                onClick={() => {
-                  // Keep the modal open in the `connecting` state — it stays the
-                  // dismissal arbiter. Success closes it (the isConnected effect);
-                  // an abandoned/blocked connect is dismissed → resolves false.
-                  startConnect();
-                }}
+                disabled
               >
-                {connecting ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <ExternalLink className="size-4" />
-                )}
-                {connecting ? "Waiting for sign in…" : (modalFeature.ctaLabel ?? "Connect to Openship Cloud")}
+                <Cloud className="size-4" />
+                {cloudCopy.displayName}
               </Button>
               <Button
                 variant="ghost"
                 onClick={dismissCloudModal}
               >
-                Maybe later
+                {cloudCopy.maybeLater}
               </Button>
             </div>
           </div>

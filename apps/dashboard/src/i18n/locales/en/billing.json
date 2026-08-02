@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "Capacity & usage",
-    "subtitle": "Included capacity on your plan and how much you've used. Live figures sync from Openship Cloud.",
+    "subtitle": "Included capacity on your plan and how much you've used. Live figures sync from Vibrail Cloud.",
     "routes": "Free routes",
     "workspaces": "Workspaces",
     "unlimited": "Unlimited",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "Connect to Openship Cloud to manage billing",
-      "description": "Your local instance isn't connected to Openship Cloud yet. Connect to view subscription state, usage, invoices, and top-ups.",
-      "connect": "Connect to Openship Cloud",
+      "title": "Connect to Vibrail Cloud to manage billing",
+      "description": "Your local instance isn't connected to Vibrail Cloud yet. Connect to view subscription state, usage, invoices, and top-ups.",
+      "connect": "Connect to Vibrail Cloud",
       "connecting": "Waiting for sign in…"
     },
     "sessionExpired": {
-      "title": "Your Openship Cloud session expired",
-      "description": "You're still linked, but the session token Openship Cloud issued is no longer valid. Reconnect to refresh it — no need to disconnect first.",
-      "reconnect": "Reconnect to Openship Cloud",
+      "title": "Your Vibrail Cloud session expired",
+      "description": "You're still linked, but the session token Vibrail Cloud issued is no longer valid. Reconnect to refresh it — no need to disconnect first.",
+      "reconnect": "Reconnect to Vibrail Cloud",
       "connecting": "Waiting for sign in…"
     },
     "unreachable": {
-      "title": "Couldn't reach Openship Cloud billing",
+      "title": "Couldn't reach Vibrail Cloud billing",
       "description": "Your cloud session may have expired or the cloud is temporarily unavailable. Try again, or reconnect from Settings → Cloud.",
       "tryAgain": "Try again",
       "reconnect": "Reconnect"

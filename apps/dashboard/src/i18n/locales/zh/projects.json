@@ -20,14 +20,14 @@
   },
   "serverCta": {
     "title": "部署到你自己的服务器",
-    "description": "通过 SSH 连接一台服务器，在你自己的基础设施上运行项目，与 Openship Cloud 并行使用。",
+    "description": "通过 SSH 连接一台服务器，在你自己的基础设施上运行项目，与 Vibrail Cloud 并行使用。",
     "button": "连接服务器"
   },
   "filters": {
     "title": "按目标筛选",
     "subtitle": "项目部署的位置",
     "allProjects": "全部项目",
-    "cloud": "Openship Cloud",
+    "cloud": "Vibrail Cloud",
     "local": "本地"
   },
   "card": {
@@ -169,7 +169,7 @@
     "delete": "删除"
   },
   "overview": {
-    "platformCloud": "Openship Cloud",
+    "platformCloud": "Vibrail Cloud",
     "platformServer": "自托管（服务器）",
     "platformLocal": "自托管（本地）",
     "modeStatic": "静态站点",

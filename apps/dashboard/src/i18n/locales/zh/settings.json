@@ -41,7 +41,7 @@
   "page": {
     "title": "设置",
     "subtitle": "管理你的偏好设置、团队和实例配置",
-    "cloudConnectedToast": "已连接到 Openship Cloud"
+    "cloudConnectedToast": "已连接到 Vibrail Cloud"
   },
   "sidebar": {
     "title": "设置",
@@ -60,8 +60,8 @@
   "account": {
     "password": {
       "title": "密码",
-      "changeDescription": "修改用于登录 Openship 账户的密码。",
-      "setDescription": "添加密码，作为登录 Openship 账户的另一种方式。",
+      "changeDescription": "修改用于登录 Vibrail 账户的密码。",
+      "setDescription": "添加密码，作为登录 Vibrail 账户的另一种方式。",
       "loading": "正在检查登录方式…",
       "oauthHint": "你目前通过 GitHub 或 Google 登录。设置密码后，也可以使用账户邮箱和密码直接登录。",
       "currentPassword": "当前密码",
@@ -93,7 +93,7 @@
     "noInstallations": "已连接 · 尚无安装",
     "connectedOne": "已连接 · 1 个安装",
     "connectedMany": "已连接 · {count} 个安装",
-    "requiresCloud": "需要 Openship Cloud —— Vibrail GitHub App 归 openship.io 所有",
+    "requiresCloud": "需要 Vibrail Cloud —— Vibrail GitHub App 归 openship.io 所有",
     "connectPrompt": "连接你的 GitHub 账户以部署代码仓库",
     "checkingConnection": "正在检查连接…",
     "addAccount": "添加账户",
@@ -102,9 +102,9 @@
     "disconnect": "断开连接",
     "disconnectTitle": "断开 {label}",
     "disconnectAppLabel": "Vibrail GitHub App",
-    "disconnectAppBody": "这会移除 Openship OAuth 账户记录。GitHub App 安装会保留，直到你在 GitHub 上卸载它。",
-    "cloudExplainer": "Vibrail GitHub App 归 openship.io 所有。将你的实例连接到 Openship Cloud，即可使用受限的安装令牌来克隆私有仓库（本地和远程部署均可用）。",
-    "connectCloud": "连接 Openship Cloud",
+    "disconnectAppBody": "这会移除 Vibrail OAuth 账户记录。GitHub App 安装会保留，直到你在 GitHub 上卸载它。",
+    "cloudExplainer": "Vibrail GitHub App 归 openship.io 所有。将你的实例连接到 Vibrail Cloud，即可使用受限的安装令牌来克隆私有仓库（本地和远程部署均可用）。",
+    "connectCloud": "连接 Vibrail Cloud",
     "noCloudTitle": "无需云连接克隆私有仓库",
     "useSshPerServer": "每台服务器的 SSH 密钥",
     "usePat": "访问令牌",
@@ -152,13 +152,13 @@
         "desc": "已配置的 SSH 服务器"
       },
       "cloud": {
-        "label": "OpenShip Cloud",
+        "label": "Vibrail Cloud",
         "desc": "托管云基础设施"
       }
     },
     "labelFor": {
       "yourServer": "你的服务器",
-      "cloud": "Openship Cloud",
+      "cloud": "Vibrail Cloud",
       "local": "本机"
     },
     "toast": {
@@ -393,7 +393,7 @@
     "grantsMany": "{count} 项授权",
     "sendVia": "发送方式",
     "yourMailServer": "你的邮件服务器",
-    "openshipCloud": "Openship Cloud",
+    "openshipCloud": "Vibrail Cloud",
     "pickerTitle": "初始资源访问权限",
     "pickerDesc": "受限成员起初没有任何访问权限。选择此邀请在被接受后解锁的内容 —— 之后你可以从该成员的行中授予更多权限。",
     "sendInvite": "发送邀请",
@@ -407,7 +407,7 @@
   "teamWorkspace": {
     "title": "团队工作区",
     "description": "将此实例切换到多用户模式。",
-    "body": "目前此实例为单用户模式 —— 只有你能登录。当你准备好添加队友时，请将部署迁移到共享位置：你自己的服务器、Openship Cloud，或通过隧道暴露此机器。",
+    "body": "目前此实例为单用户模式 —— 只有你能登录。当你准备好添加队友时，请将部署迁移到共享位置：你自己的服务器、Vibrail Cloud，或通过隧道暴露此机器。",
     "currentMode": "当前模式",
     "singleUserLocal": "单用户（本地）",
     "migrate": "迁移",
@@ -416,7 +416,7 @@
   },
   "cloud": {
     "checking": "正在检查…",
-    "fallbackName": "Openship Cloud",
+    "fallbackName": "Vibrail Cloud",
     "connectedAccount": "已连接的云账户",
     "connected": "已连接",
     "disconnect": "断开连接",
@@ -425,10 +425,10 @@
     "unlockDesktop": "解锁云部署、托管 SSL 和全球 CDN。",
     "deployLocal": "直接从你的本地实例部署到云。",
     "waitingSignIn": "正在等待登录…",
-    "connectButton": "连接到 Openship Cloud",
-    "confirmDisconnect": "断开与 Openship Cloud 的连接？在你重新连接之前，云部署将停止工作。",
+    "connectButton": "连接到 Vibrail Cloud",
+    "confirmDisconnect": "断开与 Vibrail Cloud 的连接？在你重新连接之前，云部署将停止工作。",
     "toast": {
-      "disconnected": "已断开与 Openship Cloud 的连接",
+      "disconnected": "已断开与 Vibrail Cloud 的连接",
       "disconnectFailed": "断开连接失败"
     }
   },
@@ -438,7 +438,7 @@
     "descCloud": "云",
     "descSelfHosted": "自托管",
     "typeDesktop": "桌面",
-    "typeCloud": "Openship Cloud",
+    "typeCloud": "Vibrail Cloud",
     "typeSelfHosted": "自托管",
     "deployMode": "部署模式：{mode}",
     "authNone": "零认证",
@@ -545,9 +545,9 @@
   },
   "updates": {
     "title": "更新",
-    "description": "Openship 如何检查并应用新版本",
+    "description": "Vibrail 如何检查并应用新版本",
     "checking": "正在检查更新…",
-    "available": "Openship {version} 可用",
+    "available": "Vibrail {version} 可用",
     "upToDate": "你使用的是最新版本",
     "current": "当前版本：{version}",
     "rerunToUpdate": " · 重新运行你的安装以更新",
@@ -560,12 +560,12 @@
     "viewChangelog": "查看更新日志与版本发布",
     "securityTitle": "更新检查的工作原理",
     "securityDescription": "对与你的安装通信的内容完全透明",
-    "security1": "Openship 检查更新和安全公告",
+    "security1": "Vibrail 检查更新和安全公告",
     "securityOnlyGithub": "仅来自公开的 GitHub 版本发布",
     "security2": "，来自开源仓库（",
     "security3": "）。它只会",
     "securityPulls": "拉取",
-    "security4": "这些数据 —— 没有任何第三方服务，也没有任何 Openship 运营的服务器能向你的安装推送更新或信号。公告与每个版本绑定，因此未发布的更改绝不会送达你。关键安全公告始终会显示一次；其他一切都遵循上面的开关设置。"
+    "security4": "这些数据 —— 没有任何第三方服务，也没有任何 Vibrail 运营的服务器能向你的安装推送更新或信号。公告与每个版本绑定，因此未发布的更改绝不会送达你。关键安全公告始终会显示一次；其他一切都遵循上面的开关设置。"
   },
   "dataTransfer": {
     "export": {
@@ -586,7 +586,7 @@
     "import": {
       "title": "导入数据",
       "description": "将导出的文件恢复到此实例上。",
-      "intro": "加载从另一个 Openship 安装导出的文件。输入导出时所用的口令，即可同时恢复机密信息。",
+      "intro": "加载从另一个 Vibrail 安装导出的文件。输入导出时所用的口令，即可同时恢复机密信息。",
       "importFromFile": "从文件导入…",
       "modalTitle": "导入实例数据",
       "modalSubtitle": "恢复一份导出的快照。",
@@ -604,7 +604,7 @@
       "importing": "正在导入…",
       "import": "导入",
       "confirmWipe": "用导入的快照替换此实例上的所有数据？此操作无法撤销，并且你将被注销。",
-      "notExport": "这看起来不像一个 Openship 导出文件。",
+      "notExport": "这看起来不像一个 Vibrail 导出文件。",
       "cantRead": "无法读取该文件 —— 它是有效的导出文件吗？",
       "importFailed": "导入失败。",
       "rowsRestored": "已恢复 {count} 行",
@@ -615,20 +615,20 @@
   "migrate": {
     "chooseTitle": "切换到多用户模式",
     "serverTitle": "迁移到你的服务器",
-    "cloudTitle": "迁移到 Openship Cloud",
+    "cloudTitle": "迁移到 Vibrail Cloud",
     "tunnelTitle": "通过隧道暴露",
     "completeTitle": "迁移完成",
     "back": "返回",
     "chooseIntro": "目前此实例为单用户模式。选择你希望队友如何访问它。",
     "cards": {
       "serverTitle": "迁移到你的服务器",
-      "serverBody": "通过 SSH 将 openship 部署到你自己的 VPS 上。数据会迁移到那里。最适合已有基础设施的团队。",
+      "serverBody": "通过 SSH 将 Vibrail 部署到你自己的 VPS 上。数据会迁移到那里。最适合已有基础设施的团队。",
       "serverMeta": "无外部依赖",
-      "cloudTitle": "迁移到 Openship Cloud",
+      "cloudTitle": "迁移到 Vibrail Cloud",
       "cloudBody": "将你的数据推送到 api.openship.io。我们托管一切。最适合希望零基础设施的团队。",
       "cloudMetaConnected": "已连接云账户",
       "metaRequiresCloud": "需要云账户",
-      "cloudWarn": "请先连接到 Openship Cloud。",
+      "cloudWarn": "请先连接到 Vibrail Cloud。",
       "tunnelTitle": "保持本地，通过隧道暴露",
       "tunnelBody": "你的数据保留在此机器上。我们会配置一个 Oblien 边缘隧道，让队友可以通过公共互联网访问你 —— 你的机器必须保持在线。",
       "tunnelMetaConnected": "通过 Oblien 建立隧道",
@@ -648,13 +648,13 @@
       "customHostPlaceholder": "team.acme.com",
       "preflight": "预检",
       "sshReachable": "SSH 可达",
-      "releaseAvailable": "Openship 版本可用",
+      "releaseAvailable": "Vibrail 版本可用",
       "domainReady": "域名就绪",
       "runPreflight": "运行预检",
       "recheck": "重新检查",
       "deploying": "正在部署...",
       "startMigration": "开始迁移",
-      "successDetail": "openship 现已在你的服务器上运行。项目 id {projectId}。",
+      "successDetail": "Vibrail 现已在你的服务器上运行。项目 id {projectId}。",
       "toastLoadFailed": "加载服务器失败",
       "toastPreflightFailed": "预检失败",
       "toastMigrationFailed": "迁移失败"
@@ -676,7 +676,7 @@
     },
     "tunnel": {
       "connectFirstTitle": "请先连接你的云账户",
-      "connectFirstBody": "隧道通过 Openship Cloud 配置。打开 设置 → 云 并登录，然后回到这里。",
+      "connectFirstBody": "隧道通过 Vibrail Cloud 配置。打开 设置 → 云 并登录，然后回到这里。",
       "headsUp": "请注意",
       "bullet1": "你的数据保留在此机器上。什么都不会迁移。",
       "bullet2": "只有当此机器在线时，队友才能访问你。",
@@ -714,7 +714,7 @@
     "heading": "切换回单用户模式",
     "intro": "将此实例从 {mode} 中撤出，并在此机器上恢复为单人模式。",
     "modeServer": "你的服务器",
-    "modeCloud": "Openship Cloud",
+    "modeCloud": "Vibrail Cloud",
     "modeTunnel": "隧道",
     "current": "当前",
     "noUrl": "（未记录 URL）",

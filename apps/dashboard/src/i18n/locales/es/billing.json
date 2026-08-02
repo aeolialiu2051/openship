@@ -1,7 +1,7 @@
 {
   "capacity": {
     "title": "Capacidad y uso",
-    "subtitle": "Capacidad incluida en tu plan y cuánto has usado. Las cifras en vivo se sincronizan desde Openship Cloud.",
+    "subtitle": "Capacidad incluida en tu plan y cuánto has usado. Las cifras en vivo se sincronizan desde Vibrail Cloud.",
     "routes": "Rutas gratuitas",
     "workspaces": "Espacios de trabajo",
     "unlimited": "Ilimitado",
@@ -39,19 +39,19 @@
   },
   "unavailable": {
     "notConnected": {
-      "title": "Conéctate a Openship Cloud para gestionar la facturación",
-      "description": "Tu instancia local aún no está conectada a Openship Cloud. Conéctate para ver el estado de la suscripción, el uso, las facturas y las recargas.",
-      "connect": "Conectar a Openship Cloud",
+      "title": "Conéctate a Vibrail Cloud para gestionar la facturación",
+      "description": "Tu instancia local aún no está conectada a Vibrail Cloud. Conéctate para ver el estado de la suscripción, el uso, las facturas y las recargas.",
+      "connect": "Conectar a Vibrail Cloud",
       "connecting": "Esperando el inicio de sesión…"
     },
     "sessionExpired": {
-      "title": "Tu sesión de Openship Cloud expiró",
-      "description": "Sigues vinculado, pero el token de sesión que emitió Openship Cloud ya no es válido. Vuelve a conectarte para actualizarlo: no es necesario desconectarte primero.",
-      "reconnect": "Volver a conectar a Openship Cloud",
+      "title": "Tu sesión de Vibrail Cloud expiró",
+      "description": "Sigues vinculado, pero el token de sesión que emitió Vibrail Cloud ya no es válido. Vuelve a conectarte para actualizarlo: no es necesario desconectarte primero.",
+      "reconnect": "Volver a conectar a Vibrail Cloud",
       "connecting": "Esperando el inicio de sesión…"
     },
     "unreachable": {
-      "title": "No se pudo acceder a la facturación de Openship Cloud",
+      "title": "No se pudo acceder a la facturación de Vibrail Cloud",
       "description": "Es posible que tu sesión en la nube haya expirado o que la nube no esté disponible temporalmente. Inténtalo de nuevo o vuelve a conectarte desde Configuración → Nube.",
       "tryAgain": "Intentar de nuevo",
       "reconnect": "Volver a conectar"

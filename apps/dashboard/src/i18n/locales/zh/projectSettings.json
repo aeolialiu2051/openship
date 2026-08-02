@@ -29,7 +29,7 @@
     "installing": "正在安装…",
     "advanced": "高级部署选项",
     "nameLabel": "名称",
-    "nameHint": "此应用在 Openship 中显示的名称。",
+    "nameHint": "此应用在 Vibrail 中显示的名称。",
     "domainTitle": "应用应部署在哪里？",
     "domainFree": "免费子域名",
     "domainFreeHint": "使用 {domain} 下的免费子域名",
@@ -52,12 +52,12 @@
     "destinationTitle": "安装位置",
     "destinationHint": "选择运行此应用的服务器或云端。",
     "destLocal": "本机",
-    "destLocalDesc": "在当前 Openship 主机上运行。",
+    "destLocalDesc": "在当前 Vibrail 主机上运行。",
     "routePortLabel": "仅端口（无域名）",
-    "routePortDesc": "通过主机地址和端口访问，无需域名或 Openship Cloud。",
+    "routePortDesc": "通过主机地址和端口访问，无需域名或 Vibrail Cloud。",
     "routeFreeLabel": "免费子域名",
-    "routeFreeDesc": "使用 {domain} 下由 Openship Cloud 路由的免费子域名。",
-    "routeFreeNeedsCloud": "连接 Openship Cloud 后才能使用免费子域名。",
+    "routeFreeDesc": "使用 {domain} 下由 Vibrail Cloud 路由的免费子域名。",
+    "routeFreeNeedsCloud": "连接 Vibrail Cloud 后才能使用免费子域名。",
     "routeCustomLabel": "自定义域名",
     "routeCustomDesc": "将你拥有的域名指向此应用。",
     "routeDomainLabel": "域名",
@@ -124,7 +124,7 @@
     },
     "statusActive": "已激活",
     "statusDisabled": "已禁用",
-    "hostedCloud": "Openship Cloud",
+    "hostedCloud": "Vibrail Cloud",
     "hostedServer": "服务器",
     "hostedLocal": "本地",
     "projectStatus": {
@@ -154,7 +154,7 @@
       "anotherServer": "另一台服务器",
       "targetLocal": "本地机器",
       "targetServer": "自托管服务器",
-      "targetCloud": "Openship Cloud"
+      "targetCloud": "Vibrail Cloud"
     },
     "danger": {
       "title": "危险操作区",
@@ -267,7 +267,7 @@
   "build": {
     "edit": "编辑",
     "webmail": {
-      "title": "由 openship 管理",
+      "title": "由 Vibrail 管理",
       "description": "Webmail 使用固定的构建和启动流程——安装、构建和运行命令均不可配置。如需应用上游更改，请从邮件概览中重新部署。"
     },
     "services": {
@@ -385,7 +385,7 @@
     },
     "webhookBanner": {
       "title": "启用自动部署",
-      "description": "自动部署需要一个直接的 webhook 端点。请将此 Openship API 暴露在公网 URL 上，或配置一个已验证的 webhook 域名以进行直接投递。"
+      "description": "自动部署需要一个直接的 webhook 端点。请将此 Vibrail API 暴露在公网 URL 上，或配置一个已验证的 webhook 域名以进行直接投递。"
     },
     "source": {
       "title": "源仓库",
@@ -415,7 +415,7 @@
       "active": "活跃",
       "inactive": "未活跃",
       "descDirect": "事件通过 {domain} 直接投递",
-      "descActive": "仓库事件正在到达 Openship",
+      "descActive": "仓库事件正在到达 Vibrail",
       "descInactive": "Webhook 尚未配置或未响应"
     },
     "rollbackStrategy": {
