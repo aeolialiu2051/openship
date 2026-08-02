@@ -198,7 +198,8 @@ jobs:
 
   build-desktop:
     name: Build desktop installer (${{ matrix.label }})
-    if: github.event_name == 'push'
+    # Temporarily disabled: Vibrail does not currently expose desktop releases.
+    if: ${{ false }}
     strategy:
       fail-fast: false
       matrix:
@@ -328,7 +329,8 @@ jobs:
 
   build-desktop-macos:
     name: Build desktop installers (macOS arm64 + x64)
-    if: github.event_name == 'push'
+    # Temporarily disabled: Vibrail does not currently expose desktop releases.
+    if: ${{ false }}
     runs-on: macos-14
     # Apple signing/notarization creds (repo secrets). All optional: when unset,
     # the signing + notarization steps below are skipped and the build is
@@ -525,7 +527,7 @@ jobs:
   publish:
     name: Publish GitHub release
     if: github.event_name == 'push'
-    needs: [build-vibrail, build-email, build-dashboard, build-desktop, build-desktop-macos]
+    needs: [build-vibrail, build-email, build-dashboard]
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -552,6 +554,8 @@ jobs:
           path: dist
 
       - name: Download desktop installers
+        # Temporarily disabled together with the desktop build jobs above.
+        if: ${{ false }}
         uses: actions/download-artifact@v8
         with:
           pattern: desktop-*
@@ -580,6 +584,8 @@ jobs:
             dist/vibrail-dashboard-${TAG}.tar.gz.sha256
 
       - name: Attach desktop installers
+        # Temporarily disabled together with the desktop build jobs above.
+        if: ${{ false }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
