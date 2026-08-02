@@ -32,6 +32,9 @@ jobs:
       - name: Typecheck apps/api
         run: bun run --cwd apps/api lint
 
+      - name: Typecheck apps/cli
+        run: bun run --cwd apps/cli lint
+
       - name: Typecheck apps/dashboard
         working-directory: apps/dashboard
         run: |
@@ -72,3 +75,11 @@ jobs:
       # apps/api, apps/dashboard). Packages resolve to src, so no build needed.
       - name: Run tests
         run: bun run test
+
+      # Source-level tests cannot catch bundler/runtime interop failures. Build
+      # the exact npm payload and execute its Node entrypoint before merging.
+      - name: Build and verify CLI package
+        run: |
+          bun run --cwd apps/cli build
+          bun run --cwd apps/cli package:prepare
+          bun run --cwd apps/cli package:check

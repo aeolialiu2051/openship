@@ -10,7 +10,15 @@ const { version } = JSON.parse(
 export default defineConfig({
   entry: ["src/index.ts"],
   format: ["esm"],
-  dts: true,
+  platform: "node",
+  // Some bundled workspace dependencies still contain CommonJS modules with
+  // dynamic require() calls (notably ws). Native Node ESM has no global
+  // `require`, so provide a module-local one for esbuild's compatibility shim.
+  banner: {
+    js: 'import { createRequire as __createRequire } from "node:module"; const require = __createRequire(import.meta.url);',
+  },
+  // This package only exposes an executable, not a JavaScript library API.
+  dts: false,
   clean: true,
   define: { __CLI_VERSION__: JSON.stringify(version) },
   // Bundle the workspace packages (@repo/core, @repo/onboarding) INTO the

@@ -74,6 +74,8 @@ export function resolveDesktopUpdate(input: {
 
 export type CliPackageManager = "bun" | "npm";
 
+export const VIBRAIL_CLI_PACKAGE = "@vibrail/cli";
+
 export type CliUpdatePlan =
   | { action: "up-to-date"; current: string; latest: string }
   | { action: "install"; current: string; latest: string };
@@ -87,6 +89,6 @@ export function resolveCliUpdatePlan(current: string, latest: string): CliUpdate
 
 /** The global re-install command for the detected package manager. */
 export function cliInstallCommand(pm: CliPackageManager, version: string): string {
-  const ref = `vibrail@${version || "latest"}`;
+  const ref = `${VIBRAIL_CLI_PACKAGE}@${version || "latest"}`;
   return pm === "bun" ? `bun add -g ${ref}` : `npm install -g ${ref}`;
 }

@@ -60,13 +60,13 @@ command -v bun >/dev/null 2>&1 || {
 
 # 2. Install the Vibrail CLI globally (fetched from the registry by Bun —
 #    the npm CLI itself is never invoked).
-PKG="vibrail"
-[ -n "${VIBRAIL_VERSION:-}" ] && PKG="vibrail@${VIBRAIL_VERSION}"
+PKG="@vibrail/cli"
+[ -n "${VIBRAIL_VERSION:-}" ] && PKG="@vibrail/cli@${VIBRAIL_VERSION}"
 info "Installing the Vibrail CLI (${PKG})…"
 bun add -g "$PKG"
 
 BUN_BIN="${BUN_INSTALL:-$HOME/.bun}/bin"
-CLI_JS="${BUN_INSTALL:-$HOME/.bun}/install/global/node_modules/vibrail/dist/index.js"
+CLI_JS="${BUN_INSTALL:-$HOME/.bun}/install/global/node_modules/@vibrail/cli/dist/index.js"
 
 # 3. Heal installs broken by the pre-fix installer (issue #21). That version
 #    wrote the Bun launcher THROUGH the bin symlink, clobbering the compiled
@@ -75,7 +75,7 @@ CLI_JS="${BUN_INSTALL:-$HOME/.bun}/install/global/node_modules/vibrail/dist/inde
 #    tell-tale shell shebang and force a clean reinstall to restore the bundle.
 if [ -f "$CLI_JS" ] && IFS= read -r _first_line < "$CLI_JS" && [ "$_first_line" = "#!/bin/sh" ]; then
   info "Repairing a previously broken install…"
-  bun remove -g vibrail >/dev/null 2>&1 || true
+  bun remove -g @vibrail/cli >/dev/null 2>&1 || true
   bun add -g "$PKG"
 fi
 

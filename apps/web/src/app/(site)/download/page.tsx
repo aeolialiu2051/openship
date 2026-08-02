@@ -50,10 +50,10 @@ const DOWNLOAD_BASE = "https://github.com/aeolialiu2051/vibrail/releases/latest/
 const CLI_OPTIONS = [
   { manager: "macOS / Linux", cmd: "curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh" },
   { manager: "Windows",       cmd: "irm https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.ps1 | iex" },
-  { manager: "npm",  cmd: "npm i -g vibrail" },
+  { manager: "npm",  cmd: "npm i -g @vibrail/cli" },
   { manager: "pnpm", cmd: "pnpm add -g vibrail" },
   { manager: "yarn", cmd: "yarn global add vibrail" },
-  { manager: "bun",  cmd: "bun add -g vibrail" },
+  { manager: "bun",  cmd: "bun add -g @vibrail/cli" },
 ];
 
 const STEPS = [
@@ -397,7 +397,7 @@ export default function DownloadPage() {
                   color: "var(--th-text-muted)",
                 }}
               >
-                + vibrail@1.0.0 installed in 4.2s &nbsp;·&nbsp; <span style={{ color: "var(--th-clr-sea)" }}>ready</span>
+                + @vibrail/cli@1.0.0 installed in 4.2s &nbsp;·&nbsp; <span style={{ color: "var(--th-clr-sea)" }}>ready</span>
               </div>
             </div>
           </div>
@@ -721,13 +721,13 @@ export default function DownloadPage() {
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3.5">
               <button
-                onClick={() => handleCopy("npm i -g vibrail")}
+                onClick={() => handleCopy("npm i -g @vibrail/cli")}
                 className="th-btn group rounded-full px-7 py-3 text-[15px] font-medium"
               >
                 <span className="font-mono opacity-60">$</span>
-                npm i -g vibrail
+                npm i -g @vibrail/cli
                 <span className="ml-1.5 text-[11px] uppercase tracking-[0.08em] opacity-50">
-                  {copied === "npm i -g vibrail" ? "copied" : "copy"}
+                  {copied === "npm i -g @vibrail/cli" ? "copied" : "copy"}
                 </span>
               </button>
               <Link href="https://docs.vibrail.warpgateapi.com/" className="th-btn-ghost group rounded-full px-7 py-3 text-[15px] font-medium">

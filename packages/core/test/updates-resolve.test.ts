@@ -84,8 +84,8 @@ describe("resolveCliUpdatePlan + cliInstallCommand", () => {
   });
 
   it("builds the right global install command per package manager", () => {
-    expect(cliInstallCommand("bun", "0.2.0")).toBe("bun add -g vibrail@0.2.0");
-    expect(cliInstallCommand("npm", "0.2.0")).toBe("npm install -g vibrail@0.2.0");
-    expect(cliInstallCommand("bun", "")).toBe("bun add -g vibrail@latest");
+    expect(cliInstallCommand("bun", "0.2.0")).toBe("bun add -g @vibrail/cli@0.2.0");
+    expect(cliInstallCommand("npm", "0.2.0")).toBe("npm install -g @vibrail/cli@0.2.0");
+    expect(cliInstallCommand("bun", "")).toBe("bun add -g @vibrail/cli@latest");
   });
 });

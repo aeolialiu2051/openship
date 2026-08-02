@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs-site/logo_vibrail.png" alt="Vibrail logo" width="112" />
+</p>
+
 <h1 align="center">Vibrail</h1>
 
 <p align="center">
@@ -6,13 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://trendshift.io/repositories/38817?utm_source=repository-badge&utm_medium=badge&utm_campaign=badge-repository-38817">
-    <img src="https://trendshift.io/api/badge/repositories/38817" alt="Trendshift" width="250" height="55" />
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
   <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
 </p>
@@ -76,7 +74,7 @@ From the desktop app you connect a server (SSH) or Vibrail Cloud and deploy to i
 Install the CLI (it bundles the API + dashboard), then run **`vibrail`** — an interactive wizard creates the first admin, wires your domain, and installs Vibrail as a boot service. Run it again anytime to manage the instance.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh          # install  (or: npm i -g vibrail)
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh          # install  (or: npm i -g @vibrail/cli)
 vibrail                                          # guided setup, then control panel
 ```
 
@@ -220,7 +218,7 @@ bun scripts/release.ts 0.2.0        # explicit version
 Pushing the tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
 
 - builds the **macOS / Windows / Linux installers** and the server tarballs (with SHA-256 sidecars),
-- **publishes the `vibrail` CLI to npm** — via npm [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token), and
+- **publishes the `@vibrail/cli` package to npm** — via npm [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token), and
 - creates the **GitHub Release** with the built assets (notes come from the tag).
 
 Official Docker images (`ghcr.io/aeolialiu2051/vibrail-{api,dashboard,edge}`) publish from
@@ -266,6 +264,11 @@ first reports.
     </picture>
   </a>
 </p>
+
+---
+## Acknowledgements
+
+Vibrail is based on [OpenShip](https://github.com/oblien/openship). We are grateful to the original authors and contributors for their work and for making the project open source.
 
 ---
 ## License

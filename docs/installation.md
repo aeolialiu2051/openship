@@ -37,7 +37,7 @@ Add the server (SSH), then **install Vibrail onto it like any other app** — pi
 Install the CLI, then just run **`vibrail`** — an interactive wizard walks you through it: it creates the **first admin**, attaches your domain, and installs Vibrail as a boot service. Run `vibrail` again later to manage the running instance.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh      # install  (or: npm i -g vibrail)
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh      # install  (or: npm i -g @vibrail/cli)
 vibrail                                     # interactive setup, then control panel
 ```
 

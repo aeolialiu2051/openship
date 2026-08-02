@@ -20,7 +20,12 @@
  */
 import { Command } from "commander";
 import { spawnSync } from "node:child_process";
-import { resolveCliUpdatePlan, cliInstallCommand, type CliPackageManager } from "@repo/core";
+import {
+  VIBRAIL_CLI_PACKAGE,
+  resolveCliUpdatePlan,
+  cliInstallCommand,
+  type CliPackageManager,
+} from "@repo/core";
 import { resolveLatestTag } from "../lib/github-releases";
 import { restart as restartService } from "../lib/service";
 import { readInstallMethod, composeUpdate } from "../lib/compose";
@@ -137,7 +142,7 @@ export const updateCommand = new Command("update")
     }
 
     const pm = detectPackageManager(opts.via);
-    const ref = `vibrail@${latest}`;
+    const ref = `${VIBRAIL_CLI_PACKAGE}@${latest}`;
     const argv = pm === "bun" ? ["add", "-g", ref] : ["install", "-g", ref];
 
     info(`Updating v${current} → v${latest} (${cliInstallCommand(pm, latest)})...`);

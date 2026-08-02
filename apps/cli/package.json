@@ -1,5 +1,5 @@
 {
-  "name": "vibrail",
+  "name": "@vibrail/cli",
   "version": "0.4.0",
   "description": "Vibrail CLI - deploy, manage, and open your Vibrail platform from the terminal",
   "license": "Apache-2.0",
@@ -8,7 +8,10 @@
     "url": "https://github.com/aeolialiu2051/vibrail.git",
     "directory": "apps/cli"
   },
-  "homepage": "https://github.com/aeolialiu2051/vibrail",
+  "homepage": "https://github.com/aeolialiu2051/vibrail#readme",
+  "bugs": {
+    "url": "https://github.com/aeolialiu2051/vibrail/issues"
+  },
   "keywords": [
     "vibrail",
     "deploy",
@@ -17,28 +20,35 @@
     "self-hosted"
   ],
   "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "bin": {
     "vibrail": "./dist/index.js"
   },
   "files": [
     "dist",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsup && bun run build/stage-server.ts",
+    "package:prepare": "node build/prepare-package.mjs",
+    "package:check": "node build/verify-package.mjs",
     "cli": "bun dist/index.js",
     "dev": "bun run build && bun run build/stage-dashboard.ts && VIBRAIL_DASHBOARD_DIR=\"$(cd ../dashboard/.next/standalone && pwd)\" bun dist/index.js",
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "clean": "rm -rf dist .turbo node_modules README.md",
-    "prepack": "cp ../../README.md README.md"
+    "clean": "rm -rf dist .turbo node_modules",
+    "prepack": "bun run package:prepare && bun run build && bun run package:check"
   },
   "dependencies": {
     "@clack/prompts": "^0.11.0",
-    "@repo/adapters": "workspace:*",
-    "@repo/core": "workspace:*",
-    "@repo/onboarding": "workspace:*",
     "commander": "^14.0.3",
     "chalk": "^5.6.2",
     "dockerode": "^4.0.9",
@@ -47,6 +57,9 @@
     "ssh2": "^1.17.0"
   },
   "devDependencies": {
+    "@repo/adapters": "workspace:*",
+    "@repo/core": "workspace:*",
+    "@repo/onboarding": "workspace:*",
     "@types/node": "^22.13.0",
     "tsx": "^4.21.0",
     "tsup": "^8.5.1",

@@ -403,7 +403,7 @@ async function runForeground(opts: UpOpts, source?: FromSourceRun): Promise<void
       if (!existsSync(serverEntry)) {
         console.error(
           chalk.red("\n  Bundled server not found in this install.") +
-            chalk.dim("\n  Reinstall with `vibrail update` (or `npm i -g vibrail`).\n"),
+            chalk.dim("\n  Reinstall with `vibrail update` (or `npm i -g @vibrail/cli`).\n"),
         );
         process.exit(1);
       }

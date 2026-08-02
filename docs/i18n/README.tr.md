@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm sürümü" /></a>
+  <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm sürümü" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Lisans" /></a>
   <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Web sitesi" /></a>
 </p>
@@ -59,7 +59,7 @@ Linux: `chmod +x Vibrail.AppImage && ./Vibrail.AppImage`. Bağlantılar her zama
 API ve kontrol panelini birlikte içeren CLI'ı kurup **`vibrail`** komutunu çalıştırın. Etkileşimli sihirbaz ilk yöneticiyi oluşturur, alan adınızı yapılandırır ve Vibrail'i açılışta çalışan bir servis olarak kurar. Kurulumu daha sonra yönetmek için aynı komutu yeniden çalıştırabilirsiniz.
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh             # kurulum (alternatif: npm i -g vibrail)
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh             # kurulum (alternatif: npm i -g @vibrail/cli)
 vibrail                                            # etkileşimli kurulum ve kontrol paneli
 ```
 
@@ -175,7 +175,7 @@ bun scripts/release.ts 0.2.0        # açık sürüm numarası
 Etiketin gönderilmesi [`.github/workflows/release.yml`](../../.github/workflows/release.yml) iş akışını tetikler. Bu iş akışı:
 
 - **macOS, Windows ve Linux kurulum paketleri** ile sunucu arşivlerini ve SHA-256 dosyalarını oluşturur,
-- npm [OIDC güvenilir yayınlama](https://docs.npmjs.com/trusted-publishers) üzerinden **`vibrail` CLI paketini npm'de yayımlar** ve
+- npm [OIDC güvenilir yayınlama](https://docs.npmjs.com/trusted-publishers) üzerinden **`@vibrail/cli` paketini npm'de yayımlar** ve
 - oluşturulan dosyalarla bir **GitHub Release** yayımlar.
 
 Bir sürümü uygulama içi güncelleyicide **kritik** olarak işaretlemek veya öneri/bilgi notları eklemek için etiket oluşturmadan önce [`release-advisories.json`](../../release-advisories.json) dosyasına kayıt ekleyin. Genel sürüm notları [`CHANGELOG.md`](../../CHANGELOG.md) dosyasındadır.

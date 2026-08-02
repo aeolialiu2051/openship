@@ -26,8 +26,8 @@ if (-not (Get-Command bun -ErrorAction SilentlyContinue)) {
 
 # 2. Install the Vibrail CLI globally (Bun fetches it from the registry —
 #    the npm CLI itself is never invoked).
-$pkg = "vibrail"
-if ($env:VIBRAIL_VERSION) { $pkg = "vibrail@$($env:VIBRAIL_VERSION)" }
+$pkg = "@vibrail/cli"
+if ($env:VIBRAIL_VERSION) { $pkg = "@vibrail/cli@$($env:VIBRAIL_VERSION)" }
 Info "Installing the Vibrail CLI ($pkg)..."
 bun add -g $pkg
 

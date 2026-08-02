@@ -6,7 +6,7 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/vibrail"><img src="https://img.shields.io/npm/v/vibrail?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
   <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
 </p>
@@ -32,7 +32,7 @@
 ## Inicio rápido
 
 ```bash
-npm i -g vibrail
+npm i -g @vibrail/cli
 vibrail init
 ```
 
