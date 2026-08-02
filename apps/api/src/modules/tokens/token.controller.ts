@@ -1,4 +1,5 @@
 import type { Context } from "hono";
+import { createHash, randomBytes } from "node:crypto";
 import { repos, type Permission, type PublicPersonalAccessToken } from "@repo/db";
 import { param } from "../../lib/controller-helpers";
 import { getRequestContext, type RequestContext } from "../../lib/request-context";
@@ -6,6 +7,38 @@ import { checkPermissionOnResource } from "../../lib/permission";
 import { canUseGitHubRepo } from "../github/github-access";
 import { mintPatToken } from "../../lib/pat";
 import { wildcardProjectGrantRejected, type TCreateTokenBody } from "./token.schema";
+
+const CLI_LOGIN_TTL_MS = 5 * 60_000;
+const CLI_LOGIN_PURPOSE = "vibrail-cli-login";
+const PKCE_CHALLENGE_RE = /^[A-Za-z0-9_-]{40,128}$/;
+
+interface CliLoginGrant {
+  purpose: typeof CLI_LOGIN_PURPOSE;
+  organizationId: string;
+  name: string;
+}
+
+function parseCliLoginGrant(value: string): CliLoginGrant | null {
+  try {
+    const parsed = JSON.parse(value) as Partial<CliLoginGrant>;
+    if (
+      parsed.purpose !== CLI_LOGIN_PURPOSE ||
+      typeof parsed.organizationId !== "string" ||
+      !parsed.organizationId ||
+      typeof parsed.name !== "string" ||
+      !parsed.name
+    ) {
+      return null;
+    }
+    return {
+      purpose: CLI_LOGIN_PURPOSE,
+      organizationId: parsed.organizationId,
+      name: parsed.name,
+    };
+  } catch {
+    return null;
+  }
+}
 
 /** Resource types a token may be scoped to (mirrors the picker + grants API). */
 const GRANTABLE_TOKEN_TYPES = new Set<string>([
@@ -159,6 +192,112 @@ export async function create(c: Context) {
   return c.json({ data: { ...serialize(row), token } }, 201);
 }
 
+/**
+ * POST /api/tokens/cli-authorize
+ *
+ * Browser consent step for `vibrail login`. The authenticated dashboard
+ * creates a short-lived, PKCE-bound grant; it does NOT mint the PAT yet. The
+ * CLI retrieves the opaque code by polling with `state`, then exchanges it
+ * with the verifier. Keeping PAT creation until exchange avoids leaving an
+ * unreachable live token behind when the terminal disappears mid-flow.
+ */
+export async function authorizeCli(c: Context) {
+  const ctx = getRequestContext(c);
+  let body: { state?: string; codeChallenge?: string; name?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body", code: "INVALID_BODY" }, 400);
+  }
+
+  const state = body.state?.trim();
+  const codeChallenge = body.codeChallenge?.trim();
+  const name = body.name?.trim();
+  if (!state || state.length < 16 || state.length > 256) {
+    return c.json({ error: "state is required", code: "MISSING_STATE" }, 400);
+  }
+  if (!codeChallenge || !PKCE_CHALLENGE_RE.test(codeChallenge)) {
+    return c.json({ error: "codeChallenge is required", code: "MISSING_CODE_CHALLENGE" }, 400);
+  }
+  if (!name || name.length > 100) {
+    return c.json({ error: "name is required", code: "INVALID_NAME" }, 400);
+  }
+
+  await repos.cloudHandoffCode.purgeExpired().catch(() => undefined);
+  const code = randomBytes(32).toString("hex");
+  await repos.cloudHandoffCode.create({
+    code,
+    userData: { id: ctx.userId },
+    sessionToken: JSON.stringify({
+      purpose: CLI_LOGIN_PURPOSE,
+      organizationId: ctx.organizationId,
+      name,
+    } satisfies CliLoginGrant),
+    codeChallenge,
+    state,
+    expiresAt: new Date(Date.now() + CLI_LOGIN_TTL_MS),
+  });
+
+  return c.json({ data: { authorized: true } });
+}
+
+/** GET /api/tokens/cli-poll?state=... — public, state is an unguessable capability. */
+export async function pollCli(c: Context) {
+  const state = c.req.query("state");
+  if (!state || state.length < 16 || state.length > 256) {
+    return c.json({ error: "state is required", code: "MISSING_STATE" }, 400);
+  }
+  const row = await repos.cloudHandoffCode.findByState(state);
+  if (!row || !parseCliLoginGrant(row.sessionToken)) {
+    return c.json({ status: "pending" });
+  }
+  return c.json({ status: "ready", code: row.code });
+}
+
+/** POST /api/tokens/cli-exchange — exchange a one-time PKCE code for a new PAT. */
+export async function exchangeCli(c: Context) {
+  let body: { code?: string; codeVerifier?: string };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: "Invalid JSON body", code: "INVALID_BODY" }, 400);
+  }
+
+  if (!body.code || !body.codeVerifier) {
+    return c.json({ error: "code and codeVerifier are required", code: "MISSING_CODE" }, 400);
+  }
+
+  const row = await repos.cloudHandoffCode.consume(body.code);
+  const grant = row ? parseCliLoginGrant(row.sessionToken) : null;
+  if (!row || !grant || !row.codeChallenge) {
+    return c.json({ error: "Invalid or expired code", code: "INVALID_CODE" }, 401);
+  }
+  const challenge = createHash("sha256").update(body.codeVerifier).digest("base64url");
+  if (challenge !== row.codeChallenge) {
+    return c.json({ error: "Invalid or expired code", code: "INVALID_CODE" }, 401);
+  }
+
+  const user = await repos.user.findById(row.userData.id);
+  const membership = user ? await repos.member.find(grant.organizationId, row.userData.id) : null;
+  if (!user || !membership) {
+    return c.json({ error: "Account access changed during login", code: "ACCESS_CHANGED" }, 403);
+  }
+
+  const { token, tokenPrefix, tokenHash } = mintPatToken();
+  await repos.personalAccessToken.create({
+    userId: row.userData.id,
+    organizationId: grant.organizationId,
+    name: grant.name,
+    tokenPrefix,
+    tokenHash,
+    readOnly: false,
+    scoped: false,
+    expiresAt: null,
+  });
+
+  return c.json({ data: { token } });
+}
+
 /** GET /api/tokens — the caller's own tokens (no secrets). */
 export async function list(c: Context) {
   const ctx = getRequestContext(c);
@@ -255,9 +394,7 @@ export async function listMcpClients(c: Context) {
   const bindings = await repos.personalAccessToken.listOAuthBindings(ctx.userId);
   if (bindings.length === 0) return c.json({ data: [] });
 
-  const clientIds = bindings
-    .map((b) => b.oauthClientId)
-    .filter((id): id is string => !!id);
+  const clientIds = bindings.map((b) => b.oauthClientId).filter((id): id is string => !!id);
   const orgIds = Array.from(
     new Set(bindings.map((b) => b.organizationId).filter((id): id is string => !!id)),
   );

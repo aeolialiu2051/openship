@@ -119,7 +119,7 @@ Linux only (the edge needs host networking); pin `VIBRAIL_VERSION` in `.env` for
 ### Auth, config & automation
 | Command | Does |
 |---|---|
-| `vibrail login` / `logout` | Authenticate with a Personal Access Token (create one in dashboard Settings) |
+| `vibrail login` / `logout` | Authenticate in your browser (`--token` remains available for CI) |
 | `vibrail context` | Manage contexts — which instance the CLI talks to |
 | `vibrail token` | Manage personal access tokens |
 | `vibrail api <method> <path>` | Authenticated request to any API route (like `gh api`) |

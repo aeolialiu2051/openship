@@ -23,19 +23,18 @@ vibrail deploy --help       # flags for one command
 vibrail domain add --help   # flags for a subcommand
 ```
 
-## Log in with a token
+## Log in through your browser
 
 The CLI authenticates with a **Personal Access Token (PAT)** — a string that starts with `vibrail_pat_`.
-You create one in the dashboard, then hand it to `vibrail login`.
+`vibrail login` creates it through browser authorization and stores it without a copy/paste step.
 
 <Steps>
 
 <Step>
 
-### Get a token
+### Start login
 
-In the dashboard, open **Settings → Personal Access Tokens** and create one. Copy it — the secret is shown
-only once. (You can also mint tokens from the CLI with [`vibrail token create`](/docs/cli/access).)
+Run `vibrail login`. The CLI opens the dashboard authorization page and waits for your approval.
 
 </Step>
 
@@ -43,18 +42,18 @@ only once. (You can also mint tokens from the CLI with [`vibrail token create`](
 
 ### Log in
 
-Running `vibrail login` with no arguments opens `/settings?tab=tokens` and waits for you to paste the token.
-For scripts and CI, pass it directly:
+After approval, the CLI exchanges a short-lived PKCE code for its credential. For scripts and CI, pass a
+token directly:
 
 ```bash
-# Interactive — opens Settings and prompts for a paste
+# Interactive — opens browser authorization
 vibrail login
 
 # Non-interactive — pass the token (great for CI)
 vibrail login --token vibrail_pat_xxxxxxxxxxxx
 
-# Point at a self-hosted instance instead of hosted Vibrail
-vibrail login --token vibrail_pat_xxxxxxxxxxxx \
+# Point browser login at a self-hosted instance instead of hosted Vibrail
+vibrail login \
   --api-url https://your-host --dashboard-url https://your-host
 ```
 
@@ -66,9 +65,10 @@ The token is validated against the API and saved to `~/.vibrail/config.json`.
 
 | `vibrail login` flag | Purpose | Default |
 |---|---|---|
-| `--token <token>` | PAT (`vibrail_pat_…`) for non-interactive login. | prompt |
+| `--token <token>` | PAT (`vibrail_pat_…`) for non-interactive login. | browser login |
+| `--no-browser` | Print the authorization URL without opening it. | off |
 | `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.warpgateapi.com/api/proxy` |
-| `--dashboard-url <url>` | Dashboard base URL (opened for the paste flow). | `https://vibrail.warpgateapi.com` |
+| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.warpgateapi.com` |
 | `--context <name>` | Name of the [context](#connection-contexts) to store this login under. | `default` |
 
 Set `HOST_DOMAIN` to change both hosted defaults without rebuilding the CLI. A bare hostname is interpreted
@@ -162,7 +162,7 @@ Who you are, which instance you're talking to, and an escape hatch to any route.
 
 | Command | Purpose |
 |---|---|
-| `vibrail login` | Authenticate with a Personal Access Token. |
+| `vibrail login` | Authenticate through browser authorization. |
 | `vibrail logout` | Remove the stored token from the active context. |
 | `vibrail context` (alias `ctx`) | Manage connection contexts — see [above](#connection-contexts). |
 | `vibrail token` | Manage personal access tokens (list, create, revoke). |

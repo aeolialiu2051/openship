@@ -10,7 +10,9 @@
     "permDeploy": "Desplegar y gestionar aplicaciones",
     "permAccess": "Acceder a tus proyectos y ajustes",
     "authorize": "Autorizar",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "successTitle": "Autorización completada",
+    "successBody": "Puedes cerrar esta pestaña y volver a tu terminal."
   },
   "mcpAuthorize": {
     "switchOrgError": "No se pudo cambiar de organización. Inténtalo de nuevo.",

@@ -17,6 +17,19 @@ const r = secureRouter(new Hono(), {
 
 r.get("/", { tag: "settings:read" }, ctrl.list);
 r.post("/", { tag: "settings:write" }, tbValidator("json", CreateTokenBody), ctrl.create);
+r.post("/cli-authorize", { tag: "settings:write" }, ctrl.authorizeCli);
+r.public(
+  "get",
+  "/cli-poll",
+  { reason: "CLI browser-login poll; protected by unguessable state and PKCE" },
+  ctrl.pollCli,
+);
+r.public(
+  "post",
+  "/cli-exchange",
+  { reason: "CLI one-time authorization-code exchange; protected by PKCE" },
+  ctrl.exchangeCli,
+);
 r.delete("/:id", { tag: "settings:write" }, ctrl.revoke);
 r.post("/mcp-authorize", { tag: "settings:write" }, ctrl.authorizeMcpClient);
 // Connected MCP clients (OAuth bindings) — list + disconnect (revoke).

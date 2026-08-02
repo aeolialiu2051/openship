@@ -6,7 +6,7 @@ import type { Context } from "hono";
 import { AppError } from "@repo/core";
 import { repos } from "@repo/db";
 import { streamSSE } from "../../lib/sse";
-import { param } from "../../lib/controller-helpers";
+import { isServerInOrg, param } from "../../lib/controller-helpers";
 import { getRequestContext } from "../../lib/request-context";
 import { permission } from "../../lib/permission";
 import * as deploymentService from "./deployment.service";
@@ -74,10 +74,23 @@ export async function create(c: Context) {
     smartRoute?: boolean;
     /** Refresh: re-apply current env to the active deploy — no git pull, no rebuild. */
     refresh?: boolean;
+    deployTarget?: "local" | "server" | "cloud";
+    serverId?: string;
+    runtimeMode?: "docker";
     /** Auto-deploy marker from the webhook forward. Only "webhook" is honored
      *  (sanitized below) so it can't spoof trigger provenance. */
     trigger?: string;
   }>();
+  if (body.serverId) {
+    await permission.assert(ctx, {
+      resourceType: "server",
+      resourceId: body.serverId,
+      action: "write",
+    });
+    if (!(await isServerInOrg(ctx, body.serverId))) {
+      return c.json({ error: "Server not found" }, 404);
+    }
+  }
   if (body.projectId) {
     await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: body.projectId, action: "write" });
     // Cloud-as-source: a cloud project's deploy runs on the SaaS; proxy it as
@@ -103,6 +116,9 @@ export async function create(c: Context) {
     serviceIds: body.serviceIds,
     smartRoute: body.smartRoute,
     refresh: body.refresh,
+    deployTarget: body.deployTarget,
+    serverId: body.serverId,
+    runtimeMode: body.runtimeMode,
     trigger: body.trigger === "webhook" ? "webhook" : undefined,
   });
   return c.json({ data: result }, 202);

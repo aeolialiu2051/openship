@@ -10,7 +10,9 @@
     "permDeploy": "Uygulamaları dağıtma ve yönetme",
     "permAccess": "Projelerinize ve ayarlarınıza erişme",
     "authorize": "Yetkilendir",
-    "cancel": "İptal"
+    "cancel": "İptal",
+    "successTitle": "Yetkilendirme tamamlandı",
+    "successBody": "Bu sekmeyi kapatıp terminalinize dönebilirsiniz."
   },
   "mcpAuthorize": {
     "switchOrgError": "Organizasyon değiştirilemedi. Lütfen tekrar deneyin.",

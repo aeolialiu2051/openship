@@ -93,6 +93,8 @@ export async function deployFolder(opts: {
   /** Scope a folder REDEPLOY to a subset of services; others carry forward
    *  untouched (no needless stateful recreate). Ignored on a first deploy. */
   serviceIds?: string[];
+  /** Bind this upload and deployment to a user-owned server. */
+  serverId?: string;
   onStep?: (message: string) => void;
 }): Promise<FolderDeployResult> {
   const { cwd } = opts;
@@ -103,7 +105,12 @@ export async function deployFolder(opts: {
   step("Creating upload session");
   const session = await apiRequest<FolderSessionRes>("/projects/folder/session", {
     method: "POST",
-    body: JSON.stringify({ name, packageManager: detectPackageManager(cwd), stack: detectStack(cwd) }),
+    body: JSON.stringify({
+      name,
+      packageManager: detectPackageManager(cwd),
+      stack: detectStack(cwd),
+      serverId: opts.serverId,
+    }),
   });
   if (!session.sessionId || !session.upload) {
     throw new Error(session.error || "Failed to open upload session");
@@ -196,6 +203,7 @@ export async function deployFolder(opts: {
       // Server workloads are always containerized. Send this explicitly so the
       // CLI never inherits a native control plane's historical bare default.
       runtimeMode: "docker",
+      ...(opts.serverId ? { deployTarget: "server", serverId: opts.serverId } : {}),
       ...(opts.environment ? { environment: opts.environment } : {}),
       // Carry the scanned compose services so a multi-service folder deploys as
       // a services project (persisted rows + services-mode preflight). Absent for

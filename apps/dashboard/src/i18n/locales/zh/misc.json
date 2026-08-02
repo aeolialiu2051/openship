@@ -10,7 +10,9 @@
     "permDeploy": "部署和管理应用",
     "permAccess": "访问你的项目和设置",
     "authorize": "授权",
-    "cancel": "取消"
+    "cancel": "取消",
+    "successTitle": "授权完成",
+    "successBody": "你可以关闭此页面并返回终端。"
   },
   "mcpAuthorize": {
     "switchOrgError": "无法切换组织，请重试。",

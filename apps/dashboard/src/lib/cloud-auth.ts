@@ -1,6 +1,7 @@
 import { getCloudApiOrigin, getCloudDashboardUrl } from "@/lib/api/urls";
 
 export const DESKTOP_CLOUD_FLOW = "desktop-cloud";
+export const CLI_LOGIN_FLOW = "cli-login";
 const DEFAULT_APP_NAME = "Vibrail Desktop";
 const DEFAULT_POLL_INTERVAL_MS = 2000;
 
@@ -121,7 +122,10 @@ export function getCloudDesktopHandoffUrl(options: {
   return `${getCloudApiOrigin(options.cloudApiUrl)}/api/cloud/desktop-handoff?${params.toString()}`;
 }
 
-export function buildAuthPageHref(route: "/login" | "/register" | "/authorize", searchParams: SearchParamsLike) {
+export function buildAuthPageHref(
+  route: "/login" | "/register" | "/authorize",
+  searchParams: SearchParamsLike,
+) {
   const params = new URLSearchParams();
 
   for (const key of ["callback", "app", "machine", "state", "code_challenge", "flow"]) {
@@ -145,6 +149,10 @@ export function getPostAuthRedirect(searchParams: SearchParamsLike) {
   // Take precedence over the older `callback` flow when both are present.
   const returnTo = validateReturnTo(searchParams.get("returnTo"));
   if (returnTo) return returnTo;
+
+  if (searchParams.get("flow") === CLI_LOGIN_FLOW) {
+    return buildAuthPageHref("/authorize", searchParams);
+  }
 
   const callback = searchParams.get("callback");
   if (!callback) return null;

@@ -49,7 +49,7 @@ If the correct project instruction file is unknown, continue the deployment with
 ## Safety rules
 
 - Never ask the user to send a Personal Access Token, password, private key, database URL, or other secret in chat.
-- If login is required, start the interactive login command. The user must create the token in the Vibrail Console and paste it directly into their own secure terminal prompt.
+- If login is required, start the interactive login command. It opens a browser authorization page and stores the resulting credential without asking the user to copy or paste a token.
 - Do not use `vibrail login --token ...` interactively because the token may be retained in shell history or process metadata.
 - Only send source archives and authentication requests to the configured Vibrail API or to an upload URL returned by that API.
 - Never upload `.env`, credentials, private keys, cloud credential directories, source-control metadata, agent memory, local databases, or unrelated files.
@@ -109,13 +109,7 @@ vibrail login \
   --dashboard-url https://vibrail.warpgateapi.com
 ```
 
-The CLI opens:
-
-```text
-https://vibrail.warpgateapi.com/settings?tab=tokens
-```
-
-The user creates a Personal Access Token there and enters it directly in the terminal. After login, verify again with `vibrail status` and `vibrail --json project list`.
+The CLI opens a Vibrail browser authorization URL. The user approves access there; after login, verify again with `vibrail status` and `vibrail --json project list`.
 
 Login data is stored in `~/.vibrail/config.json`. Never print or read its token value. The file is not deployment source and must never be uploaded.
 
@@ -172,13 +166,17 @@ vibrail server reachability <server-id>
 
 Do not deploy when the server name is ambiguous or reachability is false.
 
-CLI `0.4.3` can inspect user servers but `vibrail deploy` does not yet provide a `--server` or `--server-id` option for a fresh source deployment. Therefore:
+Deploy to the selected server with either equivalent flag:
 
-- An existing project whose active deployment already targets the intended server may be redeployed with `vibrail deploy --watch` after verifying its project/deployment metadata.
-- For an existing configured project that must explicitly deploy to a selected server, use the authenticated API escape hatch shown below.
-- For a brand-new local-folder upload to a selected server, do not silently deploy it to Cloud. Explain that CLI `0.4.3` cannot express that target during folder upload and ask the user to use the Dashboard deployment picker or wait for CLI target flags.
+```bash
+vibrail deploy --server-id <server-id> --watch
+vibrail deploy --server <server-id> --watch
+```
 
-For an existing configured project, explicitly starting a server deployment uses:
+The target applies to both Git deployments and brand-new local-folder uploads. For folder uploads,
+the CLI binds the upload session to the server before transferring the source.
+
+For low-level API automation of an existing configured project, the equivalent request is:
 
 ```bash
 vibrail api /deployments/build/access -X POST -d '{

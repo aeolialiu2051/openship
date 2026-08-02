@@ -46,9 +46,17 @@ export const deployCommand = new Command("deploy")
   .option("--smart-route", "Rebuild only services changed since the active deploy")
   .option("--refresh", "Re-apply current env to the active deploy (no git pull, no rebuild)")
   .option("--name <name>", "Project name for a folder (non-git) deploy (defaults to the directory name)")
+  .option("--server <id>", "Deploy to a user-owned server (alias of --server-id)")
+  .option("--server-id <id>", "Deploy to a user-owned server by ID")
   .option("--watch", "Stream the deployment logs until it finishes")
   .action(async (opts) => {
     const link = readProjectLink();
+
+    if (opts.server && opts.serverId && opts.server !== opts.serverId) {
+      err("--server and --server-id must refer to the same server when both are provided.");
+      process.exit(1);
+    }
+    const serverId: string | undefined = opts.serverId || opts.server;
 
     const env: string = opts.env;
     if (env !== "production" && env !== "preview") {
@@ -80,6 +88,7 @@ export const deployCommand = new Command("deploy")
           projectId: opts.project || link?.projectId,
           environment: env,
           serviceIds,
+          serverId,
           onStep: (m) => {
             if (spinner) spinner.text = m;
           },
@@ -111,6 +120,9 @@ export const deployCommand = new Command("deploy")
         serviceIds,
         smartRoute: opts.smartRoute || undefined,
         refresh: opts.refresh || undefined,
+        deployTarget: serverId ? "server" : undefined,
+        serverId,
+        runtimeMode: serverId ? "docker" : undefined,
       };
 
       const spinner = isJsonMode() ? null : ora("Triggering deployment").start();

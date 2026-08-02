@@ -10,7 +10,9 @@
     "permDeploy": "Deploy and manage applications",
     "permAccess": "Access your projects and settings",
     "authorize": "Authorize",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "successTitle": "Authorization complete",
+    "successBody": "You can close this tab and return to your terminal."
   },
   "mcpAuthorize": {
     "switchOrgError": "Couldn't switch organization. Please try again.",

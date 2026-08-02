@@ -27,6 +27,11 @@ export const TriggerDeployBody = Type.Object({
   branch: Type.Optional(Type.String({ default: "main" })),
   commitSha: Type.Optional(Type.String()),
   environment: Type.Optional(Type.Union([Type.Literal("production"), Type.Literal("preview")])),
+  deployTarget: Type.Optional(
+    Type.Union([Type.Literal("local"), Type.Literal("server"), Type.Literal("cloud")]),
+  ),
+  serverId: Type.Optional(Type.String({ minLength: 1 })),
+  runtimeMode: Type.Optional(Type.Literal("docker")),
 });
 
 /** Public endpoint (domain/route) as sent by the deploy wizard. */

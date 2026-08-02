@@ -32,6 +32,9 @@ vibrail deploy --watch
 
 # Deploy a specific project to the preview environment
 vibrail deploy --project proj_123 --env preview
+
+# Deploy to a connected user-owned server
+vibrail deploy --server-id srv_123 --watch
 ```
 
 | Flag | Purpose |
@@ -45,7 +48,12 @@ vibrail deploy --project proj_123 --env preview
 | `--smart-route` | Rebuild only services changed since the active deploy. |
 | `--refresh` | Re-apply current env to the active deploy — no git pull, no rebuild. |
 | `--name <name>` | Project name for a folder (non-git) deploy. Defaults to the directory name. |
+| `--server <id>` | Deploy to a connected user-owned server. Alias of `--server-id`. |
+| `--server-id <id>` | Deploy to a connected user-owned server by ID. |
 | `--watch` | Stream the deployment logs until it finishes. |
+
+The server target is applied to both Git deployments and local-folder uploads. For folder uploads,
+the upload session is bound to the selected server before any source bytes are transferred.
 
 <Callout title="Not watching? Follow it later" type="info">
 Without `--watch`, the command queues the build and prints its deployment ID plus the exact

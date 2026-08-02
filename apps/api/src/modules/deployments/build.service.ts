@@ -1579,6 +1579,11 @@ export async function triggerDeployment(
      * the newest advertised version. Ignored for non-release projects.
      */
     releaseVersion?: string;
+    /** Explicit per-deploy destination selected by a CLI/UI caller. */
+    deployTarget?: DeployTarget;
+    /** User-owned server selected for this deployment. */
+    serverId?: string;
+    runtimeMode?: "docker";
   },
 ) {
   const project = await repos.project.findById(data.projectId);
@@ -1663,7 +1668,11 @@ export async function triggerDeployment(
   // gates serverId on target==="server" so a non-server deploy can't carry a stale
   // serverId. (reuse/rollback already carries the frozen target — leave it.)
   if (!reuse) {
-    const resolvedTarget = await resolveSnapshotTarget(project);
+    const resolvedTarget = await resolveSnapshotTarget(project, {
+      deployTarget: data.deployTarget,
+      serverId: data.serverId,
+      runtimeMode: data.runtimeMode,
+    });
     snapshot.deployTarget = resolvedTarget.deployTarget;
     snapshot.serverId = resolvedTarget.serverId;
     snapshot.runtimeMode = resolvedTarget.runtimeMode;

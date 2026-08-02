@@ -7,6 +7,7 @@ import {
   buildAuthPageHref,
   validateReturnTo,
   DESKTOP_CLOUD_FLOW,
+  CLI_LOGIN_FLOW,
 } from "@/lib/cloud-auth";
 import { AuthProviders } from "./providers";
 
@@ -20,11 +21,7 @@ import { AuthProviders } from "./providers";
  *                          users with a live SaaS session.
  *   - Without `?callback=` → home.
  */
-export default async function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
   // Only redirect away from /login if the BROWSER has a real session
   // cookie. In desktop zero-auth mode the api auto-provisions a
   // session and sets the cookie on its OWN response (server-to-server
@@ -60,6 +57,10 @@ export default async function AuthLayout({
     const returnTo = validateReturnTo(params.get("returnTo"));
     if (returnTo) {
       redirect(returnTo);
+    }
+
+    if (params.get("flow") === CLI_LOGIN_FLOW) {
+      redirect(buildAuthPageHref("/authorize", params));
     }
 
     if (callback) {
@@ -100,7 +101,11 @@ export default async function AuthLayout({
   if (!deploymentInfo) return <ApiUnavailable />;
 
   return (
-    <AuthProviders authMode={deploymentInfo.authMode} cloudAuthUrl={deploymentInfo.cloudAuthUrl} selfHosted={deploymentInfo.selfHosted}>
+    <AuthProviders
+      authMode={deploymentInfo.authMode}
+      cloudAuthUrl={deploymentInfo.cloudAuthUrl}
+      selfHosted={deploymentInfo.selfHosted}
+    >
       <div className="th-page">{children}</div>
     </AuthProviders>
   );

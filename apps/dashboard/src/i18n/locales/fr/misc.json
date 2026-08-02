@@ -10,7 +10,9 @@
     "permDeploy": "Déployer et gérer des applications",
     "permAccess": "Accéder à vos projets et paramètres",
     "authorize": "Autoriser",
-    "cancel": "Annuler"
+    "cancel": "Annuler",
+    "successTitle": "Autorisation terminée",
+    "successBody": "Vous pouvez fermer cet onglet et retourner à votre terminal."
   },
   "mcpAuthorize": {
     "switchOrgError": "Impossible de changer d'organisation. Veuillez réessayer.",

@@ -38,7 +38,7 @@ r.post(
     collection: true,
     mcp: {
       description:
-        "Git-based deploy — redeploy an already-linked project from its git source. To deploy a LOCAL FOLDER instead, use the folder-upload flow: projects folder/session → (upload) → folder/scan → projects/ensure → deployments/build/access.",
+        "Git-based deploy — redeploy an already-linked project from its git source. Pass deployTarget:'server', serverId, and runtimeMode:'docker' to explicitly deploy it to a connected user server. To deploy a LOCAL FOLDER instead, use the folder-upload flow: projects folder/session (pass serverId here to bind the upload) → (upload) → folder/scan → projects/ensure → deployments/build/access.",
       body: TriggerDeployBody,
     },
   },

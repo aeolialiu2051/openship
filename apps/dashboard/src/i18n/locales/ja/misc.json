@@ -10,7 +10,9 @@
     "permDeploy": "アプリケーションのデプロイと管理",
     "permAccess": "プロジェクトと設定へのアクセス",
     "authorize": "承認",
-    "cancel": "キャンセル"
+    "cancel": "キャンセル",
+    "successTitle": "認証が完了しました",
+    "successBody": "このタブを閉じてターミナルに戻ることができます。"
   },
   "mcpAuthorize": {
     "switchOrgError": "組織を切り替えられませんでした。もう一度お試しください。",

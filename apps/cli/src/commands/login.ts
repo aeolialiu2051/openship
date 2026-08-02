@@ -1,18 +1,15 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { createInterface } from "node:readline/promises";
-import { stdin as input, stdout as output } from "node:process";
+import { hostname } from "node:os";
 import { CLOUD_API_URL, CLOUD_DASHBOARD_URL } from "@repo/core";
 import { addContext, DEFAULT_CONTEXT, setActiveContext } from "../lib/config";
 import { fetchCaps } from "../lib/caps";
-
-export function tokenSettingsUrl(dashboardUrl: string): string {
-  return `${dashboardUrl.replace(/\/+$/, "")}/settings?tab=tokens`;
-}
+import { createBrowserLoginRequest, waitForBrowserLogin } from "../lib/browser-login";
 
 export const loginCommand = new Command("login")
-  .description("Authenticate with a Personal Access Token (create one in dashboard Settings)")
+  .description("Sign in through your browser")
   .option("--token <token>", "Personal Access Token (vibrail_pat_...) for non-interactive login")
+  .option("--no-browser", "Print the authorization URL without opening a browser")
   .option("--api-url <url>", "API base URL", CLOUD_API_URL)
   .option("--dashboard-url <url>", "Dashboard base URL", CLOUD_DASHBOARD_URL)
   .option("--context <name>", "Name of the context to store this login under", DEFAULT_CONTEXT)
@@ -23,27 +20,35 @@ export const loginCommand = new Command("login")
 
     let token: string | undefined = opts.token;
 
-    // Interactive: open the PAT settings page and read a pasted token.
+    // Interactive: authorize in the browser. The CLI polls with an unguessable
+    // state and exchanges the one-time code using PKCE, so the PAT never enters
+    // a URL, browser history, shell history, or manual paste prompt.
     if (!token) {
-      const settingsUrl = tokenSettingsUrl(dashboardUrl);
+      const request = createBrowserLoginRequest(dashboardUrl, hostname());
       console.log(
         chalk.bold("\n  Vibrail login\n") +
-          chalk.dim("  Create a Personal Access Token in Settings → Personal Access Tokens,\n") +
-          chalk.dim("  then paste it here.\n"),
+          chalk.dim("  Complete sign-in and authorization in your browser.\n"),
       );
-      try {
-        const { default: open } = await import("open");
-        await open(settingsUrl);
-      } catch {
-        // Browser open is best-effort; the URL is printed below regardless.
+      if (opts.browser !== false) {
+        try {
+          const { default: open } = await import("open");
+          await open(request.authorizeUrl);
+        } catch {
+          // Browser open is best-effort; the URL is printed below regardless.
+        }
       }
       console.log(
-        chalk.dim("  If the browser didn't open, visit:\n") + chalk.cyan(`  ${settingsUrl}\n`),
+        chalk.dim("  If the browser didn't open, visit:\n") +
+          chalk.cyan(`  ${request.authorizeUrl}\n`) +
+          chalk.dim("  Waiting for authorization…\n"),
       );
-
-      const rl = createInterface({ input, output });
-      token = await rl.question("  Paste your token: ");
-      rl.close();
+      try {
+        token = await waitForBrowserLogin(apiUrl, request);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(chalk.red(`\n  ${message}\n`));
+        process.exit(1);
+      }
     }
 
     token = token?.trim();

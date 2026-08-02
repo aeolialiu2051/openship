@@ -22,13 +22,12 @@ data is written to stdout as JSON while status messages go to stderr, so a piped
 
 ## `vibrail login`
 
-Authenticate against an instance and save the token into a context. Run with no `--token` and it opens the
-dashboard's **Settings → Personal Access Tokens** tab (`/settings?tab=tokens`) and waits for you to paste one; pass
-`--token` to log in non-interactively (CI, scripts). The token is validated against the API before it's stored, and it must
-start with `vibrail_pat_`.
+Authenticate against an instance and save the credential into a context. Run with no `--token` and it opens
+a browser authorization page. After approval, the CLI exchanges a short-lived PKCE code for its token, with
+no secret copied through a URL or paste prompt. Pass `--token` for non-interactive CI/scripts.
 
 ```bash
-# Interactive — opens the dashboard, prompts for a pasted token
+# Interactive — opens browser authorization
 vibrail login
 
 # Interactive — against a local self-hosted instance
@@ -47,13 +46,14 @@ vibrail login \
 
 | Flag | Purpose | Default |
 |---|---|---|
-| `--token <token>` | Personal access token (`vibrail_pat_…`) for non-interactive login. | *(prompted)* |
+| `--token <token>` | Personal access token (`vibrail_pat_…`) for non-interactive login. | *(browser login)* |
+| `--no-browser` | Print the authorization URL without opening it. | off |
 | `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.warpgateapi.com/api/proxy` |
-| `--dashboard-url <url>` | Dashboard base URL (used to open the token page). | `https://vibrail.warpgateapi.com` |
+| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.warpgateapi.com` |
 | `--context <name>` | Name of the context to store this login under. | `default` |
 
 The hosted default is derived from `HOST_DOMAIN`. A bare hostname uses HTTPS, so
-`HOST_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/settings` and validates
+`HOST_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/authorize` and validates
 the token through `https://next.vibrail.example/api/proxy/api/tokens`. A complete URL such as
 `HOST_DOMAIN=http://localhost:3002` keeps its scheme. `VIBRAIL_CLOUD_API_URL` and
 `VIBRAIL_CLOUD_DASHBOARD_URL` can still override the two endpoints individually and take precedence over

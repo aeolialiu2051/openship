@@ -10,7 +10,9 @@
     "permDeploy": "Anwendungen deployen und verwalten",
     "permAccess": "Auf deine Projekte und Einstellungen zugreifen",
     "authorize": "Autorisieren",
-    "cancel": "Abbrechen"
+    "cancel": "Abbrechen",
+    "successTitle": "Autorisierung abgeschlossen",
+    "successBody": "Sie können diesen Tab schließen und zu Ihrem Terminal zurückkehren."
   },
   "mcpAuthorize": {
     "switchOrgError": "Organisation konnte nicht gewechselt werden. Bitte versuche es erneut.",
