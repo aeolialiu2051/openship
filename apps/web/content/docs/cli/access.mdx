@@ -10,7 +10,8 @@ hatch (`vibrail api`) for reaching any route that doesn't have its own command y
 The CLI keeps its settings in **`~/.vibrail/config.json`** (mode `0600`). That file holds one or more named
 **contexts** — each pins an API URL, a dashboard URL, and a personal access token (a `vibrail_pat_…` string).
 One context is *active* at a time; every authenticated command reads from it. The default context is called
-**`default`** and points at your local instance (`http://localhost:4000`).
+**`default`**. A plain `vibrail login` connects it to the hosted Vibrail production service; pass endpoint
+flags when you want that context (or another named context) to point at a self-hosted instance.
 </Callout>
 
 <Callout title="JSON output" type="info">
@@ -30,6 +31,12 @@ start with `vibrail_pat_`.
 # Interactive — opens the dashboard, prompts for a pasted token
 vibrail login
 
+# Interactive — against a local self-hosted instance
+vibrail login \
+  --api-url http://localhost:4000 \
+  --dashboard-url http://localhost:3001 \
+  --context local
+
 # Non-interactive — against a remote self-hosted instance, stored as a named context
 vibrail login \
   --token vibrail_pat_xxxxxxxx \
@@ -41,9 +48,15 @@ vibrail login \
 | Flag | Purpose | Default |
 |---|---|---|
 | `--token <token>` | Personal access token (`vibrail_pat_…`) for non-interactive login. | *(prompted)* |
-| `--api-url <url>` | API base URL to authenticate against. | `http://localhost:4000` |
-| `--dashboard-url <url>` | Dashboard base URL (used to open the token page). | `http://localhost:3001` |
+| `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.warpgateapi.com` |
+| `--dashboard-url <url>` | Dashboard base URL (used to open the token page). | `https://vibrail.warpgateapi.com` |
 | `--context <name>` | Name of the context to store this login under. | `default` |
+
+The hosted default is derived from `HOST_DOMAIN`. A bare hostname uses HTTPS, so
+`HOST_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/settings` and validates
+the token against the same origin. A complete URL such as `HOST_DOMAIN=http://localhost:3002` keeps its
+scheme. `VIBRAIL_CLOUD_API_URL` and `VIBRAIL_CLOUD_DASHBOARD_URL` can still override the two endpoints
+individually and take precedence over `HOST_DOMAIN`.
 
 <Callout title="Can't reach the API?" type="warn">
 If login reports it couldn't reach the API, the host in `--api-url` isn't responding. Point it at the right

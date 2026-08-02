@@ -17,12 +17,15 @@ const cliRoot = join(here, "..", "..");
 const inject = join(here, "..", "helpers", "inject-version.mjs");
 const entry = join(cliRoot, "src", "index.ts");
 
-function runCli(args: string[]): Promise<{ stdout: string; stderr: string; code: number }> {
+function runCli(
+  args: string[],
+  extraEnv: Record<string, string> = {},
+): Promise<{ stdout: string; stderr: string; code: number }> {
   return new Promise((resolve) => {
     execFile(
       process.execPath,
       ["--import", "tsx", "--import", inject, entry, ...args],
-      { cwd: cliRoot, env: { ...process.env } },
+      { cwd: cliRoot, env: { ...process.env, ...extraEnv } },
       (error, stdout, stderr) => {
         const code = error && typeof (error as { code?: number }).code === "number"
           ? (error as { code: number }).code
@@ -56,6 +59,24 @@ describe("cli smoke", { timeout: 40_000 }, () => {
     expect(code).toBe(0);
     expect(stdout.toLowerCase()).toContain("server");
     expect(stdout).toContain("--help");
+  });
+
+  it("defaults login to the hosted Vibrail production endpoint", async () => {
+    const { stdout, code } = await runCli(["login", "--help"]);
+    expect(code).toBe(0);
+    expect(stdout).toContain("https://vibrail.warpgateapi.com");
+    expect(stdout).not.toContain("http://localhost:4000");
+    expect(stdout).not.toContain("http://localhost:3001");
+  });
+
+  it("derives the hosted login endpoint from HOST_DOMAIN", async () => {
+    const { stdout, code } = await runCli(["login", "--help"], {
+      HOST_DOMAIN: "next.vibrail.example",
+      VIBRAIL_CLOUD_API_URL: "",
+      VIBRAIL_CLOUD_DASHBOARD_URL: "",
+    });
+    expect(code).toBe(0);
+    expect(stdout).toContain("https://next.vibrail.example");
   });
 
   it("exits non-zero on an unknown command", async () => {

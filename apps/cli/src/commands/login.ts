@@ -2,19 +2,19 @@ import { Command } from "commander";
 import chalk from "chalk";
 import { createInterface } from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
-import { LOCAL_API_URL, LOCAL_DASHBOARD_URL } from "@repo/core";
+import { CLOUD_API_URL, CLOUD_DASHBOARD_URL } from "@repo/core";
 import { addContext, DEFAULT_CONTEXT, setActiveContext } from "../lib/config";
 import { fetchCaps } from "../lib/caps";
 
 export const loginCommand = new Command("login")
   .description("Authenticate with a Personal Access Token (create one in dashboard Settings)")
   .option("--token <token>", "Personal Access Token (vibrail_pat_...) for non-interactive login")
-  .option("--api-url <url>", "API base URL", LOCAL_API_URL)
-  .option("--dashboard-url <url>", "Dashboard base URL", LOCAL_DASHBOARD_URL)
+  .option("--api-url <url>", "API base URL", CLOUD_API_URL)
+  .option("--dashboard-url <url>", "Dashboard base URL", CLOUD_DASHBOARD_URL)
   .option("--context <name>", "Name of the context to store this login under", DEFAULT_CONTEXT)
   .action(async (opts) => {
-    const apiUrl: string = opts.apiUrl || LOCAL_API_URL;
-    const dashboardUrl: string = opts.dashboardUrl || LOCAL_DASHBOARD_URL;
+    const apiUrl: string = opts.apiUrl || CLOUD_API_URL;
+    const dashboardUrl: string = opts.dashboardUrl || CLOUD_DASHBOARD_URL;
     const contextName: string = opts.context || DEFAULT_CONTEXT;
 
     let token: string | undefined = opts.token;

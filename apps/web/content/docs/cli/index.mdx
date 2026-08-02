@@ -53,7 +53,7 @@ vibrail login
 # Non-interactive — pass the token (great for CI)
 vibrail login --token vibrail_pat_xxxxxxxxxxxx
 
-# Point at a remote instance instead of localhost
+# Point at a self-hosted instance instead of hosted Vibrail
 vibrail login --token vibrail_pat_xxxxxxxxxxxx \
   --api-url https://your-host --dashboard-url https://your-host
 ```
@@ -67,9 +67,13 @@ The token is validated against the API and saved to `~/.vibrail/config.json`.
 | `vibrail login` flag | Purpose | Default |
 |---|---|---|
 | `--token <token>` | PAT (`vibrail_pat_…`) for non-interactive login. | prompt |
-| `--api-url <url>` | API base URL to authenticate against. | `http://localhost:4000` |
-| `--dashboard-url <url>` | Dashboard base URL (opened for the paste flow). | `http://localhost:3001` |
+| `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.warpgateapi.com` |
+| `--dashboard-url <url>` | Dashboard base URL (opened for the paste flow). | `https://vibrail.warpgateapi.com` |
 | `--context <name>` | Name of the [context](#connection-contexts) to store this login under. | `default` |
+
+Set `HOST_DOMAIN` to change both hosted defaults without rebuilding the CLI. A bare hostname is interpreted
+as HTTPS; `VIBRAIL_CLOUD_API_URL` and `VIBRAIL_CLOUD_DASHBOARD_URL` remain available as higher-priority,
+per-endpoint overrides.
 
 <Callout title="Signing out" type="info">
 `vibrail logout` removes the stored token from the active context.

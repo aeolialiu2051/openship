@@ -28,19 +28,28 @@ export const LOCAL_WEB_URL = localhost(DEFAULT_PORT.web);
 export const LOCAL_DASHBOARD_URL = localhost(DEFAULT_PORT.dashboard);
 export const LOCAL_API_URL = localhost(DEFAULT_PORT.api);
 
-// The production cloud endpoints — env-overridable so a dev instance can point
-// "cloud" at a LOCAL SaaS without editing code or flipping the whole target row.
-// Unset (production / the default) → the real remote cloud, so self-hosted
-// production is unaffected. Set VIBRAIL_CLOUD_API_URL / VIBRAIL_CLOUD_DASHBOARD_URL
-// (e.g. http://localhost:4100 / http://localhost:3002) to exercise cloud flows
-// against a local `dev:saas` instance. Only consulted for the `cloud-saas` row.
+// The production cloud endpoints. HOST_DOMAIN changes the shared hosted origin
+// without a source edit (a bare hostname is served over HTTPS; a full URL keeps
+// its explicit scheme). The VIBRAIL_CLOUD_* variables remain the highest-
+// priority per-endpoint overrides, which is useful when API and dashboard use
+// different origins or when local development needs HTTP ports.
 const envUrl = (key: string): string | undefined => {
   const v = typeof process !== "undefined" ? process.env?.[key] : undefined;
   return v && v.trim() ? v.trim() : undefined;
 };
+
+const hostedOrigin = (() => {
+  const configured = envUrl("HOST_DOMAIN");
+  if (!configured) return "https://vibrail.warpgateapi.com";
+  const withoutTrailingSlash = configured.replace(/\/+$/, "");
+  return /^[a-z][a-z\d+.-]*:\/\//i.test(withoutTrailingSlash)
+    ? withoutTrailingSlash
+    : `https://${withoutTrailingSlash}`;
+})();
+
 export const CLOUD_DASHBOARD_URL =
-  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? "https://vibrail.warpgateapi.com";
-export const CLOUD_API_URL = envUrl("VIBRAIL_CLOUD_API_URL") ?? "https://vibrail.warpgateapi.com";
+  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? hostedOrigin;
+export const CLOUD_API_URL = envUrl("VIBRAIL_CLOUD_API_URL") ?? hostedOrigin;
 
 /**
  * THE runtime-target table. Keyed by id — the id IS the key, no

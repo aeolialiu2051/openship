@@ -87,18 +87,18 @@ Before every deployment, compare the installed CLI with the latest published npm
 
 ```bash
 LOCAL_VERSION="$(vibrail --version 2>/dev/null || true)"
-LATEST_VERSION="$(npm view vibrail version)"
+LATEST_VERSION="$(npm view @vibrail/cli version)"
 printf 'vibrail local: %s\nvibrail latest: %s\n' "${LOCAL_VERSION:-missing}" "$LATEST_VERSION"
 ```
 
 If the CLI is missing or the versions differ, update it before continuing:
 
 ```bash
-npm i -g vibrail@latest
+npm i -g @vibrail/cli@latest
 vibrail --version
 ```
 
-If global installation is inappropriate or unavailable, use `npx -y vibrail@latest` as the command prefix for every Vibrail command in this guide. Explain that choice. If installation or update fails, stop before deployment and report the exact error unless the user explicitly asks to continue with the existing CLI.
+If global installation is inappropriate or unavailable, use `npx -y @vibrail/cli@latest` as the command prefix for every Vibrail command in this guide. Explain that choice. If installation or update fails, stop before deployment and report the exact error unless the user explicitly asks to continue with the existing CLI.
 
 ## Authenticate with Vibrail
 
