@@ -26,6 +26,7 @@ interface Health {
 }
 interface HealthEnv {
   selfHosted?: boolean;
+  userServers?: boolean;
   deployMode?: string;
   authMode?: string;
   teamMode?: string;
@@ -106,6 +107,7 @@ export const statusCommand = new Command("status")
       out +=
         row("Health", chalk.green(health.status ?? "ok")) +
         row("Mode", envInfo.selfHosted ? "self-hosted" : "cloud") +
+        row("User servers", envInfo.userServers ? "enabled" : "disabled") +
         row("Deploy", envInfo.deployMode) +
         row("Auth", envInfo.authMode) +
         row("Team", envInfo.teamMode) +

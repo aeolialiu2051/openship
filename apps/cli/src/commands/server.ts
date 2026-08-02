@@ -47,6 +47,7 @@ function guard<A extends unknown[]>(fn: (...args: A) => Promise<void>): (...args
 interface ServerRow {
   id: string;
   name: string | null;
+  isLocal?: boolean;
   sshHost: string;
   sshPort: number;
   sshUser: string;
@@ -54,7 +55,26 @@ interface ServerRow {
   sshKeyPath: string | null;
   sshJumpHost: string | null;
   sshArgs: string | null;
+  country?: string | null;
+  projectCount?: number;
   createdAt: string;
+}
+
+interface DockerOverview {
+  server: Pick<ServerRow, "id" | "name" | "isLocal" | "sshHost" | "sshPort" | "sshUser">;
+  summary: {
+    runningProjects: number;
+    runningContainers: number;
+    totalContainers: number;
+  };
+  projects: Array<{
+    id: string;
+    name: string;
+    environmentName: string;
+    containers: unknown[];
+  }>;
+  containers: unknown[];
+  collectedAt: string;
 }
 
 interface ConnOpts {
@@ -110,6 +130,80 @@ server
         })),
         ["id", "name", "host", "port", "user", "auth"],
       );
+    }),
+  );
+
+/* ── show / reachability / overview (read-only; mirrors MCP tools) ── */
+server
+  .command("show <id>")
+  .alias("get")
+  .description("Show one server's non-secret connection details")
+  .action(
+    guard(async (id: string) => {
+      const item = await apiRequest<ServerRow>(`/system/servers/${encodeURIComponent(id)}`);
+      if (isJsonMode()) return printJson(item);
+      printTable(
+        [{
+          id: item.id,
+          name: item.name ?? "-",
+          host: item.sshHost,
+          port: item.sshPort,
+          user: item.sshUser,
+          auth: item.sshAuthMethod ?? "-",
+          country: item.country ?? "-",
+          local: item.isLocal ? "yes" : "no",
+        }],
+        ["id", "name", "host", "port", "user", "auth", "country", "local"],
+      );
+    }),
+  );
+
+server
+  .command("reachability <id>")
+  .alias("ping")
+  .description("Check whether a saved server is reachable")
+  .action(
+    guard(async (id: string) => {
+      const result = await apiRequest<{ reachable: boolean }>(
+        `/system/servers/${encodeURIComponent(id)}/reachability`,
+      );
+      if (isJsonMode()) return printJson({ id, ...result });
+      if (result.reachable) ok(`  Server ${id} is reachable.`);
+      else info(`  Server ${id} is not reachable.`);
+    }),
+  );
+
+server
+  .command("overview <id>")
+  .alias("docker")
+  .description("Inspect live Docker workloads and running projects")
+  .action(
+    guard(async (id: string) => {
+      const result = await apiRequest<DockerOverview>(
+        `/system/servers/${encodeURIComponent(id)}/docker/overview`,
+      );
+      if (isJsonMode()) return printJson(result);
+      printTable(
+        [{
+          server: result.server.name ?? result.server.sshHost,
+          projects: result.summary.runningProjects,
+          running: result.summary.runningContainers,
+          containers: result.summary.totalContainers,
+          collected: result.collectedAt,
+        }],
+        ["server", "projects", "running", "containers", "collected"],
+      );
+      if (result.projects.length > 0) {
+        printTable(
+          result.projects.map((project) => ({
+            id: project.id,
+            project: project.name,
+            environment: project.environmentName,
+            containers: project.containers.length,
+          })),
+          ["id", "project", "environment", "containers"],
+        );
+      }
     }),
   );
 

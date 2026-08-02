@@ -48,6 +48,48 @@ describe("vibrail server list", () => {
   });
 });
 
+describe("vibrail server read-only inspection", () => {
+  it("GETs one server by id", async () => {
+    fetchStub = stubFetch(() => ({ json: SERVERS[0] }));
+    const { out, code } = await runCommand(serverCommand, ["show", "srv1"]);
+    expect(code).toBe(0);
+    expect(fetchStub.calls[0].url).toBe("http://api.test/api/system/servers/srv1");
+    expect(out).toContain("1.2.3.4");
+  });
+
+  it("checks lightweight reachability", async () => {
+    fetchStub = stubFetch(() => ({ json: { reachable: true } }));
+    const { err, code } = await runCommand(serverCommand, ["reachability", "srv1"]);
+    expect(code).toBe(0);
+    expect(fetchStub.calls[0].url).toBe(
+      "http://api.test/api/system/servers/srv1/reachability",
+    );
+    expect(err).toContain("reachable");
+  });
+
+  it("returns the Docker overview as JSON", async () => {
+    const overview = {
+      server: SERVERS[0],
+      summary: { runningProjects: 1, runningContainers: 2, totalContainers: 3 },
+      projects: [],
+      containers: [],
+      collectedAt: "2026-08-02T00:00:00.000Z",
+    };
+    setJsonMode(true);
+    fetchStub = stubFetch(() => ({ json: overview }));
+    try {
+      const { out, code } = await runCommand(serverCommand, ["overview", "srv1"]);
+      expect(code).toBe(0);
+      expect(fetchStub.calls[0].url).toBe(
+        "http://api.test/api/system/servers/srv1/docker/overview",
+      );
+      expect(JSON.parse(out)).toEqual(overview);
+    } finally {
+      setJsonMode(false);
+    }
+  });
+});
+
 describe("vibrail server rm", () => {
   it("DELETEs the server by id", async () => {
     fetchStub = stubFetch(() => ({ status: 204 }));

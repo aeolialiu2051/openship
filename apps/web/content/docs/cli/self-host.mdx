@@ -10,9 +10,10 @@ They're the terminal equivalent of the dashboard's [Servers](/docs/dashboard/ser
 [Backups](/docs/dashboard/backups) screens.
 
 <Callout title="Log in first, and know your instance type">
-Every command here talks to your instance's API and needs a token — run `vibrail login` once. The
-`server`, `system`, and `mail` groups only work on a **self-hosted** instance; run against Vibrail Cloud
-and they exit with a clean "self-host only" message. `backup` works on any instance.
+Every command here talks to your instance's API and needs a token — run `vibrail login` once. `server` and
+`mail` work whenever the instance advertises the `userServers` capability, including a SaaS control plane
+that orchestrates customer-owned VPS hosts. `system` remains strictly self-hosted; `backup` works on any
+instance.
 </Callout>
 
 <Callout title="--json everywhere" type="info">
@@ -28,6 +29,9 @@ Manage the SSH servers your instance can build and deploy on. See the
 | Subcommand | Purpose |
 |---|---|
 | `list` (alias `ls`) | List servers in the active organization. |
+| `show <id>` (alias `get`) | Show one server's non-secret connection details. |
+| `reachability <id>` (alias `ping`) | Run a lightweight reachability probe. |
+| `overview <id>` (alias `docker`) | Inspect live Docker workloads and running projects. |
 | `add` | Register a new server by its SSH connection details. |
 | `rm <id>` (alias `remove`) | Delete a server. |
 | `test-connection` (alias `test`) | Try an SSH connection **without** saving it. |
@@ -58,6 +62,9 @@ Both commands take the same SSH connection flags. `--host` is the only required 
 vibrail server add --host 203.0.113.10 --name web-1 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
 vibrail server test-connection --host 203.0.113.10 --user deploy --auth-method key --key-path ~/.ssh/id_ed25519
 vibrail server list
+vibrail server show srv_123
+vibrail server reachability srv_123
+vibrail server overview srv_123
 ```
 
 ### `check` and `install`

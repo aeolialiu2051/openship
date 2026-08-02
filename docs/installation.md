@@ -111,7 +111,7 @@ Linux only (the edge needs host networking); pin `VIBRAIL_VERSION` in `.env` for
 ### Infrastructure & admin
 | Command | Does |
 |---|---|
-| `vibrail server` | Manage self-hosted SSH servers |
+| `vibrail server` | Manage user-owned SSH servers when the instance enables them |
 | `vibrail system` | Read / update instance settings |
 | `vibrail mail` | Mail server setup |
 | `vibrail backup` | Backup policies (schedules) for a project |
