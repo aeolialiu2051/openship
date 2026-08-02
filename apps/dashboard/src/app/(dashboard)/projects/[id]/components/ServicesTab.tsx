@@ -68,10 +68,16 @@ export const ServicesTab = () => {
     () => sortServicesByPublicFirst(servicesData.services),
     [servicesData.services],
   );
+  const primaryRuntime = containers.find((container) => container.role === "primary") ?? null;
   // Service configuration is a fast DB read; live container state is a remote
-  // runtime read and can take longer. Render the service list as soon as its
-  // rows arrive instead of holding the whole tab behind SSH/Docker discovery.
-  const loading = servicesData.isLoading && services.length === 0;
+  // runtime read and can take longer. When there are persisted service rows we
+  // can render them immediately; a single-container project must wait for the
+  // live read because that is where its synthesized primary service comes from.
+  const loading =
+    servicesData.isLoading && services.length === 0
+      ? true
+      : containersLoading && services.length === 0;
+  const visibleServiceCount = services.length + (primaryRuntime ? 1 : 0);
   const projectSlugBase = projectData.slug || projectData.name || "project";
   const selectedId = slug?.[1] ?? null;
   const hasProjectId = Boolean(id && id !== "undefined");
@@ -135,6 +141,11 @@ export const ServicesTab = () => {
   const openService = (serviceId: string) => {
     if (!hasProjectId) return;
     router.push(`/projects/${id}/services/${serviceId}`);
+  };
+
+  const openProjectRuntime = () => {
+    if (!hasProjectId) return;
+    router.push(`/projects/${id}/runtime`);
   };
 
   const closeService = () => {
@@ -280,7 +291,7 @@ export const ServicesTab = () => {
   }
 
   /* ── Empty state ───────────────────────────────────────────────── */
-  if (services.length === 0) {
+  if (services.length === 0 && !primaryRuntime) {
     return (
       <>
         <div className="bg-card rounded-2xl border border-border/50 px-6 pb-10 text-center">
@@ -534,10 +545,10 @@ export const ServicesTab = () => {
             <div>
               <h3 className="text-sm font-semibold text-foreground">
                 {interpolate(
-                  services.length === 1
+                  visibleServiceCount === 1
                     ? t.projects.services.countOne
                     : t.projects.services.countOther,
-                  { count: String(services.length) },
+                  { count: String(visibleServiceCount) },
                 )}
               </h3>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -626,6 +637,41 @@ export const ServicesTab = () => {
       )}
 
       <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/30 overflow-hidden">
+        {primaryRuntime && (
+          <button
+            type="button"
+            onClick={openProjectRuntime}
+            className="w-full flex items-center gap-4 px-5 py-4 text-start transition-colors hover:bg-foreground/[0.025]"
+          >
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-primary/10">
+              <Container className="size-[18px] text-primary" />
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[14px] font-semibold text-foreground truncate">
+                  {projectData.name}
+                </span>
+                <span className="inline-flex items-center rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
+                  {t.projectSettings.logs.projectRuntime}
+                </span>
+                {primaryRuntime.hostPort != null && (
+                  <span className="inline-flex items-center rounded-full bg-muted/60 px-2 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground/70">
+                    :{primaryRuntime.hostPort}
+                  </span>
+                )}
+              </div>
+              <p className="text-[12px] text-muted-foreground truncate mt-1 font-mono">
+                {primaryRuntime.imageRef || primaryRuntime.ip || projectData.framework || "Docker"}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0">
+              <StatusBadge status={primaryRuntime.status} t={t} />
+              <ChevronRight className="size-4 text-muted-foreground/50 rtl:rotate-180" />
+            </div>
+          </button>
+        )}
         {services.map((svc) => {
           const ct = containerFor(svc.id);
           const status = ct?.status ?? (error ? "unknown" : svc.enabled ? "stopped" : "disabled");

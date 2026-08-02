@@ -11,6 +11,7 @@ import { LogsActions } from "./logs/LogsActions";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { endpoints } from "@/lib/api/endpoints";
 import { sortServicesByPublicFirst } from "@/lib/api/services";
+import { resolveProjectLogCapabilities } from "./logs/log-capabilities";
 
 type LogsTab = "terminal" | "server";
 
@@ -55,31 +56,27 @@ export const LogsSettings = () => {
   const servicesLoading = servicesData.isLoading;
   const servicesLoaded = !servicesData.isLoading;
   const hasServices = services.length > 0;
-  // A project has a standalone "project runtime" log source ONLY when it has no
-  // services. A services/compose project's runtime IS its services — there's no
-  // project-level container, so `projects/:id/logs` 404s for it. Treating
-  // `effectiveHasServer` as a project-runtime log target was the bug: it offered
-  // + defaulted "Project runtime" for services projects, which 404'd.
-  const hasProjectRuntime = effectiveHasServer && !hasServices;
-  // Cloud deploys (including static apps) always have edge-access
-  // logs available via the same /server-logs/* endpoints — those
-  // endpoints route by `resolveProjectTrafficSource` server-side and
-  // fall back to Oblien's edge proxy when there's no runtime
-  // container. So a static .vibrail.warpgateapi.com page still has request logs even
-  // with no runtime stdout to stream.
   const deployTarget = projectData?.deployTarget as string | null | undefined;
-  const canShowRequestLogs = deployTarget === "cloud";
-  const canShowRuntimeLogs = effectiveHasServer || hasServices;
-  const canShowLogs = canShowRuntimeLogs || canShowRequestLogs;
-  // Terminal (container stdout) still requires an actual runtime —
-  // no terminal output exists for static pages.
-  const canShowTerminal = canShowRuntimeLogs;
+  // `hasServer=false` means the app produces static files; it no longer means
+  // "no runtime" on self-hosted targets. Those files are served by an nginx
+  // Docker container whose stdout/stderr is available through the normal
+  // project runtime-log endpoints. Services projects still have only service
+  // runtimes, while cloud-static projects expose request logs without a project
+  // container.
+  const {
+    hasProjectRuntime,
+    canShowRequestLogs,
+    canShowLogs,
+    canShowTerminal,
+    isRequestLogsOnly,
+  } = resolveProjectLogCapabilities({
+    activeDeploymentId: projectData?.activeDeploymentId,
+    deployTarget,
+    effectiveHasServer,
+    hasServices,
+  });
   const hasResolvedLogTargets =
     hasResolvedServerMode && (effectiveHasServer || servicesLoaded || canShowRequestLogs);
-  // True when the only signal available is edge access logs — used to
-  // relabel the Server tab as "Requests" so the operator knows what
-  // they're looking at.
-  const isRequestLogsOnly = canShowRequestLogs && !canShowRuntimeLogs;
   // True when there's more than one runtime to stream from - used to gate
   // the switcher UI. A "target" is the project's own runtime OR a service.
   // Previously this was `hasMultipleServices` (services count > 1) which

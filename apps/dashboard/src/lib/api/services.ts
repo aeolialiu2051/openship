@@ -120,6 +120,9 @@ export interface ServiceDrift {
  *  running | starting | restarting | stopped | failed | unknown
  *  ("unknown" = the host couldn't be reached, not a claim about the service). */
 export interface ServiceContainer {
+  /** Primary is the project's single-app runtime; service is a persisted
+   * Compose/monorepo/add-on service row. Older servers may omit this field. */
+  role?: "primary" | "service";
   serviceId: string;
   serviceName: string;
   containerId: string | null;

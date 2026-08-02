@@ -34,6 +34,7 @@ import {
   resolveServiceRuntime,
 } from "./service-container";
 import { resolveLiveServiceState, type LiveMatchKind } from "./live-state";
+import { shouldExposeProjectRuntime } from "./service-runtime-overview";
 import { parseVolumeSpec, type VolumeKind } from "./volume-spec";
 import { sq } from "../migration/direct-transfer";
 import { bounded, duBytes, volumeBytes } from "../migration/migration-size";
@@ -756,6 +757,9 @@ export async function listServiceDeployments(deploymentId: string) {
 /** One row of the Services panel's live view. Config (id/name) is DB-owned;
  *  everything else is read off the host on every request. */
 export interface LiveServiceContainer {
+  /** Project runtime = the single-app deployment container; service = a
+   * persisted Compose/monorepo/add-on service row. */
+  role: "primary" | "service";
   serviceId: string;
   serviceName: string;
   /** The container the service ACTUALLY runs as — resolved live, so logs /
@@ -797,11 +801,19 @@ export async function getActiveServiceContainers(
   // — a service the deployment never recorded (attached by a migration, added
   // afterwards) must still report its real state instead of vanishing.
   const services = await repos.service.listByProject(projectId);
-  if (services.length === 0) return [];
 
   const dep = project.activeDeploymentId
     ? await repos.deployment.findById(project.activeDeploymentId)
     : null;
+  // A single-app deployment owns one project-level container in
+  // deployment.containerId. Compose projects and monorepos already model their
+  // app containers as service rows, so synthesizing a project runtime for those
+  // shapes would duplicate the primary service in the UI.
+  const hasProjectRuntime = shouldExposeProjectRuntime({
+    containerId: dep?.containerId,
+    framework: project.framework,
+    serviceKinds: services.map((service) => service.kind),
+  });
   // service_deployment rows are IDENTITY HINTS ONLY (container id, image). Their
   // `status` column is a deploy-time artifact and is never read for liveness.
   const hints = new Map(
@@ -813,12 +825,41 @@ export async function getActiveServiceContainers(
 
   /** Shape one row without a live match — used when there is nothing to query
    *  (never deployed) or when the host could not be reached ("unknown"). */
+  const primary = (
+    status: ServiceContainerState,
+    info?: { ip?: string; hostPort?: number } | null,
+  ): LiveServiceContainer[] =>
+    hasProjectRuntime && dep?.containerId
+      ? [
+          {
+            role: "primary",
+            serviceId: "__project_runtime__",
+            serviceName: project.name,
+            containerId: dep.containerId,
+            status,
+            ip: info?.ip ?? null,
+            hostPort: info?.hostPort ?? project.hostPort ?? null,
+            imageRef: dep.imageRef ?? null,
+            matchedBy: info ? "trackedId" : null,
+            duplicates: [],
+          },
+        ]
+      : [];
+
+  const withPrimary = (
+    rows: LiveServiceContainer[],
+    status: ServiceContainerState,
+    info?: { ip?: string; hostPort?: number } | null,
+  ) => [...primary(status, info), ...rows];
+
   const flat = (status: ServiceContainerState): LiveServiceContainer[] =>
-    services
+    withPrimary(
+      services
       .filter((svc) => svc.enabled !== false)
       .map((svc) => {
         const hint = hints.get(svc.id);
         return {
+          role: "service",
           serviceId: svc.id,
           serviceName: svc.name,
           containerId: hint?.containerId ?? null,
@@ -829,7 +870,9 @@ export async function getActiveServiceContainers(
           matchedBy: null,
           duplicates: [],
         };
-      });
+      }),
+      status,
+    );
 
   if (!dep) return flat("stopped"); // nothing deployed yet → nothing can be live
 
@@ -847,6 +890,14 @@ export async function getActiveServiceContainers(
       if (!runtime) return null;
 
       try {
+        const primaryInfo =
+          hasProjectRuntime && dep.containerId
+            ? await runtime.getContainerInfo(dep.containerId).catch(() => null)
+            : null;
+        const primaryStatus: ServiceContainerState = primaryInfo
+          ? containerStatusToServiceState(primaryInfo.status)
+          : "unknown";
+
         // Docker: ONE label-agnostic `docker ps -a` for the whole host, matched
         // by identity. One call — the dashboard polls this endpoint, and N
         // per-service `docker inspect` round-trips over SSH took ~17s.
@@ -869,17 +920,22 @@ export async function getActiveServiceContainers(
               }),
             );
             if (tracked.every(({ info }) => info && info.status !== "missing")) {
-              return tracked.map(({ svc, hint, containerId, info }) => ({
-                serviceId: svc.id,
-                serviceName: svc.name,
-                containerId,
-                status: containerStatusToServiceState(info!.status),
-                ip: info!.ip ?? hint.ip ?? null,
-                hostPort: info!.hostPort ?? hint.hostPort ?? null,
-                imageRef: hint.imageRef ?? null,
-                matchedBy: "trackedId" as LiveMatchKind,
-                duplicates: [],
-              }));
+              return withPrimary(
+                tracked.map(({ svc, hint, containerId, info }) => ({
+                  role: "service" as const,
+                  serviceId: svc.id,
+                  serviceName: svc.name,
+                  containerId,
+                  status: containerStatusToServiceState(info!.status),
+                  ip: info!.ip ?? hint.ip ?? null,
+                  hostPort: info!.hostPort ?? hint.hostPort ?? null,
+                  imageRef: hint.imageRef ?? null,
+                  matchedBy: "trackedId" as LiveMatchKind,
+                  duplicates: [],
+                })),
+                primaryStatus,
+                primaryInfo,
+              );
             }
           }
 
@@ -891,7 +947,7 @@ export async function getActiveServiceContainers(
             slug: project.slug,
             trackedIds,
           });
-          return (
+          return withPrimary(
             services
               // A DISABLED service with no container is left OUT so the panel can
               // render "Disabled"; one that is somehow still running is reported
@@ -901,6 +957,7 @@ export async function getActiveServiceContainers(
                 const m = matches.get(svc.id);
                 const hint = hints.get(svc.id);
                 return {
+                  role: "service" as const,
                   serviceId: svc.id,
                   serviceName: svc.name,
                   containerId: m?.containerId ?? null,
@@ -911,18 +968,21 @@ export async function getActiveServiceContainers(
                   matchedBy: m?.matchedBy ?? null,
                   duplicates: m?.duplicates ?? [],
                 } satisfies LiveServiceContainer;
-              })
+              }),
+            primaryStatus,
+            primaryInfo,
           );
         }
         // Cloud (no host container list): per-workload lookup — bounded set,
         // Oblien API (not SSH), and it also refreshes the live private IP.
         if (runtime.supports("containerInfo")) {
-          return Promise.all(
+          const rows = await Promise.all(
             services
               .filter((svc) => svc.enabled !== false)
               .map(async (svc) => {
                 const hint = hints.get(svc.id);
                 const base = {
+                  role: "service" as const,
                   serviceId: svc.id,
                   serviceName: svc.name,
                   containerId: hint?.containerId ?? null,
@@ -943,6 +1003,7 @@ export async function getActiveServiceContainers(
                 } satisfies LiveServiceContainer;
               }),
           );
+          return withPrimary(rows, primaryStatus, primaryInfo);
         }
         return null; // runtime can't report → unknown, never a stale DB status
       } finally {
