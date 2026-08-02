@@ -40,7 +40,7 @@ The npm package bundles the local Vibrail control-plane server. The dashboard is
 
 ## Links
 
-- [Documentation](https://vibrail.warpgateapi.com/docs)
+- [Documentation](https://docs.vibrail.warpgateapi.com)
 - [GitHub repository](https://github.com/aeolialiu2051/vibrail)
 - [Issue tracker](https://github.com/aeolialiu2051/vibrail/issues)
 - [Security policy](https://github.com/aeolialiu2051/vibrail/security/policy)
