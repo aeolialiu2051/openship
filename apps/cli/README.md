@@ -38,9 +38,47 @@ vibrail deploy --help
 
 The npm package bundles the local Vibrail control-plane server. The dashboard is downloaded from the matching GitHub release when needed, while Docker-based installations use the published Vibrail images.
 
+### Deploy an application
+
+Sign in, link a directory to a project, and deploy it:
+
+```bash
+vibrail login
+cd my-app
+vibrail init
+vibrail deploy --watch
+```
+
+Inside a Git repository, Vibrail deploys the current branch by default. In a non-Git directory, it uploads the folder and runs the same deployment pipeline. Use `vibrail config init` when you need a declarative `vibrail.json`; Vibrail otherwise auto-detects the application.
+
+### Use multiple instances
+
+Named contexts keep Vibrail Cloud, staging, and self-hosted credentials separate:
+
+```bash
+vibrail login --context production \
+  --api-url https://ops.example.com/api/proxy \
+  --dashboard-url https://ops.example.com
+vibrail context list
+vibrail context use production
+```
+
+### Automate with JSON
+
+Place the global `--json` option before the command:
+
+```bash
+vibrail --json project list
+vibrail --json deployment list --project <project-id>
+vibrail api /projects
+```
+
+See the [complete CLI guide](https://github.com/aeolialiu2051/vibrail/blob/main/docs/cli.md) for authentication, contexts, deployment modes, self-hosted lifecycle management, infrastructure commands, CI usage, and troubleshooting.
+
 ## Links
 
 - [Documentation](https://docs.vibrail.warpgateapi.com)
+- [CLI guide](https://github.com/aeolialiu2051/vibrail/blob/main/docs/cli.md)
 - [GitHub repository](https://github.com/aeolialiu2051/vibrail)
 - [Issue tracker](https://github.com/aeolialiu2051/vibrail/issues)
 - [Security policy](https://github.com/aeolialiu2051/vibrail/security/policy)

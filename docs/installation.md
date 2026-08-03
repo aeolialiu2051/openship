@@ -82,13 +82,19 @@ Linux only (the edge needs host networking); pin `VIBRAIL_VERSION` in `.env` for
 
 ## CLI reference
 
+This page is a quick index for installation-related commands. See the
+**[complete CLI guide](cli.md)** for login and contexts, Git and folder
+deployments, `vibrail.json`, JSON output, CI usage, infrastructure commands, and
+troubleshooting.
+
 ### Run & manage the instance
 | Command | Does |
 |---|---|
 | `vibrail up [--foreground]` | Start Vibrail as a service (boot + auto-restart); `--foreground` runs it attached |
 | `vibrail up --public-url <url> [--host <address>]` | Serve the dashboard behind your public ingress |
 | `vibrail stop` | Stop the service |
-| `vibrail status [--json]` | Is it running? Resolved ports + API health |
+| `vibrail uninstall` | Remove the local service and state after confirmation |
+| `vibrail status` / `vibrail --json status` | Is it running? Resolved ports + API health |
 | `vibrail open` | Open the dashboard in your browser |
 | `vibrail update` | Update the CLI + bundled server to the latest release |
 | `vibrail reset-admin-password` | Reset the local admin login on this machine (no sign-in) |
@@ -99,6 +105,7 @@ Linux only (the edge needs host networking); pin `VIBRAIL_VERSION` in `.env` for
 | Command | Does |
 |---|---|
 | `vibrail init` | Link the current directory to a project (`.vibrail/project.json`) |
+| `vibrail config` | Create or validate declarative `vibrail.json` deployment config |
 | `vibrail deploy` | Trigger a deployment for the current project |
 | `vibrail logs <deploymentId> [-f] [--tail N]` | View or stream a deployment's logs (`-f` = live) |
 | `vibrail deployment` | List / manage deployments |
@@ -122,9 +129,10 @@ Linux only (the edge needs host networking); pin `VIBRAIL_VERSION` in `.env` for
 | `vibrail login` / `logout` | Authenticate in your browser (`--token` remains available for CI) |
 | `vibrail context` | Manage contexts — which instance the CLI talks to |
 | `vibrail token` | Manage personal access tokens |
-| `vibrail api <method> <path>` | Authenticated request to any API route (like `gh api`) |
+| `vibrail api [-X <method>] <path>` | Authenticated request to any API route (like `gh api`) |
 
-Add `--json` to most read commands for scripting.
+Add the global `--json` option **before** most read commands for scripting, for
+example `vibrail --json project list`.
 
 ---
 

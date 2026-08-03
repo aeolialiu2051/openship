@@ -110,7 +110,7 @@ vibrail init            # link this directory to a project
 vibrail deploy
 ```
 
-Full server guide + complete CLI reference: **[docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)**.
+Full guides: **[CLI reference](docs/cli.md)** · **[Installation and self-hosting](docs/installation.md)** · **[docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)**.
 
 <details>
 <summary>Self-host with raw Docker Compose (no CLI)</summary>

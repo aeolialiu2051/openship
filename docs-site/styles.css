@@ -411,7 +411,7 @@ tr:last-child td { border-bottom: 0; }
   .toc { display: none; }
   .topbar { grid-template-columns: var(--sidebar-width) 1fr auto; }
   .topnav { gap: 17px; }
-  .topnav a:nth-child(4) { display: none; }
+  .topnav a:nth-child(5) { display: none; }
 }
 
 @media (max-width: 820px) {

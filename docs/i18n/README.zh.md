@@ -31,20 +31,28 @@
 
 ## 快速开始
 
+安装已发布的 CLI（需要 Node.js 22 或更高版本）：
+
 ```bash
 npm i -g @vibrail/cli
+vibrail login
+cd my-app
 vibrail init
+vibrail deploy --watch
 ```
 
-就这么简单。或者，如果你更喜欢 Docker：
+CLI 会在 Git 仓库中默认部署当前分支；在非 Git 目录中则自动上传当前文件夹。使用多个 Cloud / 自托管实例时，可通过 `vibrail context` 管理和切换上下文。
+
+在服务器上自托管 Vibrail，可直接运行交互式安装向导：
 
 ```bash
-git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
-cp .env.example .env
-docker compose up -d
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh
+vibrail
 ```
 
-或从 [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com) 下载桌面应用。
+无交互服务器或 CI 环境可改用 `vibrail up --public-url https://ops.example.com`。完整的登录、上下文、Git / 文件夹部署、JSON 输出、自托管运维和排错说明见 **[CLI 使用指南](../cli.md)**。
+
+也可以从 [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com) 下载桌面应用。
 
 ---
 
@@ -93,7 +101,7 @@ docker compose up -d
 - **Web 控制台** —— 浏览器中的同一套界面，为团队打造。
 - **CLI** —— 可脚本化、对 CI 友好。
 
-**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令与 API 参考见 [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)。
+**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令说明见 [CLI 使用指南](../cli.md)，在线文档与 API 参考见 [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)。
 
 > [!NOTE]
 > 文档仍在完善中 —— 我们正在积极补充。如果有缺失或不清楚的地方，非常欢迎[贡献](../../CONTRIBUTING.md)，这能帮助我们更快完善。

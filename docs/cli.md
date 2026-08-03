@@ -1,0 +1,288 @@
+# Vibrail CLI
+
+The Vibrail CLI installs and operates a self-hosted Vibrail instance, deploys
+applications, and exposes the same project and infrastructure workflows used by
+the dashboard.
+
+## Requirements and installation
+
+The npm package requires Node.js 22 or newer:
+
+```bash
+npm install --global @vibrail/cli
+vibrail --version
+```
+
+Run the latest release without installing it globally:
+
+```bash
+npx --yes @vibrail/cli@latest --help
+```
+
+On a new server, the installer can install the required runtime and the CLI:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh
+```
+
+Upgrade an existing installation with `vibrail update`. Use
+`vibrail update --check` to check for a release without changing anything.
+
+## Choose an instance
+
+Authenticated commands operate on the active **context**. A context stores the
+API endpoint, dashboard endpoint, and login token for one Vibrail instance.
+
+Sign in to Vibrail Cloud:
+
+```bash
+vibrail login
+vibrail status
+```
+
+Sign in to a self-hosted instance and give it a distinct context name:
+
+```bash
+vibrail login \
+  --context production \
+  --api-url https://ops.example.com/api/proxy \
+  --dashboard-url https://ops.example.com
+```
+
+Manage and switch contexts:
+
+```bash
+vibrail context list
+vibrail context use production
+vibrail logout
+```
+
+Browser login is recommended. For CI, create a personal access token with
+`vibrail token create <name>`, store it as a masked CI secret, and authenticate
+non-interactively:
+
+```bash
+vibrail login --token "$VIBRAIL_TOKEN" --context ci
+```
+
+Login state is stored with file mode `0600` in `~/.vibrail/config.json`. Do not
+commit that file or print its contents in CI logs.
+
+## Deploy a project
+
+Link a repository once, then deploy from its root:
+
+```bash
+cd my-app
+vibrail init
+vibrail deploy --watch
+```
+
+`vibrail init` writes `.vibrail/project.json`, which records the project ID,
+active context, and default environment. Commit that file only when the link is
+intended to be shared by everyone using the repository.
+
+For a non-interactive setup, pass the project explicitly:
+
+```bash
+vibrail init --project proj_example --yes
+vibrail deploy --watch
+```
+
+Inside a Git repository, `deploy` uses the current branch by default. Outside a
+Git repository, it uploads the current folder and runs the same deployment
+pipeline:
+
+```bash
+vibrail deploy --name my-folder-app --server-id srv_example --watch
+```
+
+Common deployment controls:
+
+```bash
+vibrail deploy --env preview --watch
+vibrail deploy --branch main --commit <sha> --watch
+vibrail deploy --smart-route --watch
+vibrail deploy --service-ids api,worker --watch
+vibrail deploy --refresh --watch
+```
+
+Inspect and operate deployments:
+
+```bash
+vibrail deployment list
+vibrail deployment get <deployment-id>
+vibrail logs <deployment-id> --follow
+vibrail deployment redeploy <deployment-id>
+vibrail deployment rollback <deployment-id>
+```
+
+`vibrail logs` without an ID uses the latest deployment of the linked project.
+Use `--tail <n>` for a snapshot or `--follow` for a live stream.
+
+## Declarative configuration
+
+Vibrail auto-detects most applications. Add `vibrail.json` when the repository
+needs explicit build, start, port, service, domain, or resource settings:
+
+```bash
+vibrail config init
+vibrail config validate
+```
+
+The generated file includes the published JSON Schema URL for editor completion.
+Validation uses the same parser as the deployment pipeline.
+
+## Projects, services, and domains
+
+Use `--help` on a command group to see its resource-specific operations:
+
+```bash
+vibrail project --help
+vibrail service --help
+vibrail domain --help
+```
+
+Typical workflows include:
+
+```bash
+vibrail project list
+vibrail project env set <project-id> --set KEY=value
+vibrail project logs <project-id> --follow
+
+vibrail service list --project <project-id>
+vibrail service logs --project <project-id> <service> --follow
+
+vibrail domain add --project <project-id> app.example.com
+vibrail domain records <domain-id>
+vibrail domain verify <domain-id>
+```
+
+Command details can differ by resource, so check the nested help before using a
+command in automation, for example `vibrail project env set --help`.
+
+## Machine-readable output and API access
+
+Place the global `--json` option **before** the command:
+
+```bash
+vibrail --json status
+vibrail --json project list
+vibrail --json deployment get <deployment-id>
+```
+
+JSON mode keeps structured data on stdout so scripts can parse it. Diagnostics
+and progress messages are kept separate where applicable. Commands that stream
+logs remain stream-oriented rather than returning one JSON document.
+
+For an API operation that does not have a dedicated command, use the
+authenticated escape hatch:
+
+```bash
+vibrail api /projects
+vibrail api -X POST /some/route --data '{"key":"value"}'
+vibrail api /deployments --query page=1 perPage=20
+```
+
+Paths are relative to `/api`, and the request uses the active context's token.
+
+## Run a self-hosted instance
+
+Run `vibrail` with no subcommand for guided first-time setup. After setup, the
+same command opens the interactive control panel.
+
+For a headless server:
+
+```bash
+vibrail up --public-url https://ops.example.com
+vibrail status
+vibrail open
+```
+
+On Linux with Docker, `up` defaults to the published Docker Compose stack. On
+other systems, or when Docker is unavailable, it runs the bundled bare service.
+Use `--compose` or `--bare` to choose explicitly. Both service modes start on
+boot and restart after failure.
+
+Useful lifecycle commands:
+
+| Command                        | Purpose                                                 |
+| ------------------------------ | ------------------------------------------------------- |
+| `vibrail up --foreground`      | Run attached to the current terminal                    |
+| `vibrail up --dry-run`         | Print the service definition without installing it      |
+| `vibrail status`               | Check the local service and active context API          |
+| `vibrail stop`                 | Stop and disable the installed service                  |
+| `vibrail update`               | Update the CLI and bundled server                       |
+| `vibrail reset-admin-password` | Reset the local instance's admin password               |
+| `vibrail doctor`               | Diagnose runtime, context, database, and service health |
+| `vibrail doctor --fix`         | Back up and attempt repair of a corrupt local database  |
+| `vibrail uninstall`            | Remove the local service and state after confirmation   |
+
+`vibrail uninstall` removes the local Vibrail service and its local state, but
+leaves applications already deployed to other servers running. It asks for
+confirmation unless `--yes` is supplied; use `--keep-data` to retain the local
+database, certificates, and `~/.vibrail`.
+
+For unattended first-time provisioning, inspect `vibrail up --help`. Prefer the
+`VIBRAIL_ADMIN_PASSWORD` environment variable over `--admin-password` so the
+password does not enter shell history or process arguments.
+
+## Infrastructure and administration
+
+Self-hosted instances expose additional command groups when the corresponding
+capability is enabled:
+
+| Command group    | Purpose                                                     |
+| ---------------- | ----------------------------------------------------------- |
+| `vibrail server` | Add, inspect, test, and monitor user-owned SSH servers      |
+| `vibrail system` | Instance settings, onboarding, migration, and data transfer |
+| `vibrail mail`   | Install and operate the self-hosted mail stack              |
+| `vibrail backup` | Backup policies, runs, restores, and destinations           |
+| `vibrail token`  | Create, list, and revoke personal access tokens             |
+
+Start with `<group> --help`, then use nested help for the exact operation.
+
+## Desktop app and download cache
+
+The CLI can also download the desktop release for the current operating system:
+
+```bash
+vibrail install
+vibrail install --no-launch
+vibrail install cache list
+vibrail install cache verify
+```
+
+Downloads are SHA-256 verified when the release provides a checksum sidecar.
+
+## Troubleshooting
+
+Start with these read-only checks:
+
+```bash
+vibrail --version
+vibrail context list
+vibrail status
+vibrail doctor
+```
+
+- If the API is unreachable, confirm the active context and its endpoints.
+- If authentication fails, run `vibrail login` again for that context.
+- If a directory is linked to the wrong project, rerun `vibrail init --force`.
+- If a command or option is unclear, use `vibrail <command> --help`; grouped
+  resources also provide `vibrail <command> <subcommand> --help`.
+
+## Command index
+
+| Area                       | Commands                                                                   |
+| -------------------------- | -------------------------------------------------------------------------- |
+| Install and lifecycle      | `up`, `stop`, `uninstall`, `install`, `update`, `open`, `status`, `doctor` |
+| Authentication             | `login`, `logout`, `context`, `token`                                      |
+| Project setup              | `init`, `config`                                                           |
+| Deployments                | `deploy`, `deployment`, `logs`                                             |
+| Resources                  | `project`, `service`, `domain`                                             |
+| Self-hosted infrastructure | `server`, `system`, `mail`, `backup`, `reset-admin-password`               |
+| Advanced access            | `api`                                                                      |
+
+Run `vibrail --help` for the authoritative list shipped by your installed
+version.

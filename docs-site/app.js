@@ -1,5 +1,5 @@
 const DASHBOARD_URL = 'https://vibrail.warpgateapi.com'
-const API_URL = `${DASHBOARD_URL}/api`
+const API_URL = `${DASHBOARD_URL}/api/proxy/api`
 const MCP_URL = `${API_URL}/mcp`
 
 const sectionsByLocale = {
@@ -33,6 +33,7 @@ const sectionsByLocale = {
       links: [
         ['REST API', '/docs/api'],
         ['MCP', '/docs/mcp'],
+        ['CLI', '/docs/cli'],
         ['常见问题', '/docs/faq'],
       ],
     },
@@ -67,6 +68,7 @@ const sectionsByLocale = {
       links: [
         ['REST API', '/docs/api'],
         ['MCP', '/docs/mcp'],
+        ['CLI', '/docs/cli'],
         ['FAQ', '/docs/faq'],
       ],
     },
@@ -75,7 +77,7 @@ const sectionsByLocale = {
 
 const ui = {
   zh: {
-    nav: ['文档', '部署', 'API', 'MCP', '常见问题'],
+    nav: ['文档', '部署', 'CLI', 'API', 'MCP', '常见问题'],
     search: '搜索或提问…',
     searchLabel: '搜索文档',
     searchPlaceholder: '搜索文档…',
@@ -95,7 +97,7 @@ const ui = {
     language: 'EN',
   },
   en: {
-    nav: ['Docs', 'Deploy', 'API', 'MCP', 'FAQ'],
+    nav: ['Docs', 'Deploy', 'CLI', 'API', 'MCP', 'FAQ'],
     search: 'Search or ask…',
     searchLabel: 'Search documentation',
     searchPlaceholder: 'Search documentation…',
@@ -416,6 +418,7 @@ const pagesZh = {
     lead: '从代码到线上服务：使用 Vibrail 部署应用、连接自己的服务器，并通过 API 与 MCP 自动化整个工作流。',
     body: `<p>Vibrail 是面向开发者的应用部署与运维平台。你可以从 GitHub 仓库或本地文件夹发布项目，将它运行在 Vibrail Cloud、自己的 Linux 服务器或本机环境中。</p><h2 id="start">快速开始</h2><p>创建项目时，只需要选择代码来源、运行位置和部署配置。Vibrail 会完成构建、启动、路由与后续版本管理。</p>${cards([
       ['部署第一个项目', '通过控制台完成一次从 GitHub 到公网地址的部署。', '/docs/quickstart'],
+      ['使用 Vibrail CLI', '从终端登录、部署项目、管理自托管实例并接入 CI。', '/docs/cli'],
       ['打开 Vibrail 控制台', '创建项目、查看构建日志并管理运行中的服务。', DASHBOARD_URL],
     ])}<h2 id="deploy">选择部署方式</h2><p>Vibrail 对 GitHub 与本地文件夹使用同一套构建流水线，并允许你自由选择运行目标。</p>${cards([
       ['从 GitHub 部署', '连接仓库，支持私有仓库与 push 自动部署。', '/docs/deploy/github'],
@@ -437,6 +440,94 @@ const pagesZh = {
       ['环境变量与项目配置', '配置构建命令、启动命令、端口和敏感变量。', '/docs/projects'],
       ['日志与故障排查', '构建失败或服务无法访问时从这里开始。', '/docs/logs'],
     ])}`,
+  },
+  '/docs/cli': {
+    nav: 'cli',
+    eyebrow: '命令行工具',
+    title: 'Vibrail CLI',
+    lead: '从终端部署应用、管理多个 Vibrail 实例，并安装和运维自托管控制面。',
+    body: `<h2 id="install">安装</h2><p>npm 包需要 Node.js 22 或更高版本。服务器安装脚本可以安装所需运行时和最新 CLI。</p>${code(
+      'Terminal',
+      `npm install --global @vibrail/cli
+vibrail --version
+
+# 无需全局安装，直接运行最新版
+npx --yes @vibrail/cli@latest --help
+
+# 新服务器安装
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh`,
+    )}<p>使用 <code>vibrail update --check</code> 检查新版本，使用 <code>vibrail update</code> 完成升级。</p><h2 id="login">登录与上下文</h2><p>每个上下文保存一个 Vibrail 实例的 API 地址、控制台地址和登录令牌。浏览器登录是推荐方式。</p>${code(
+      'Terminal',
+      `# Vibrail Cloud
+vibrail login
+
+# 自托管实例
+vibrail login \\
+  --context production \\
+  --api-url https://ops.example.com/api/proxy \\
+  --dashboard-url https://ops.example.com
+
+vibrail context list
+vibrail context use production
+vibrail status`,
+    )}<div class="callout warning"><strong>保护登录令牌</strong><p>登录信息保存在 <code>~/.vibrail/config.json</code>。不要提交或打印该文件；CI 中应使用受保护的 Secret。</p></div><h2 id="deploy">部署项目</h2><p>首次使用时将目录关联到项目，之后即可直接部署。Git 仓库默认使用当前分支；非 Git 目录会自动走文件夹上传流程。</p>${code(
+      'Terminal',
+      `cd my-app
+vibrail init
+vibrail deploy --watch
+
+# 非交互关联
+vibrail init --project proj_example --yes
+
+# 部署本地文件夹到指定服务器
+vibrail deploy --name my-app --server-id srv_example --watch`,
+    )}<h3 id="deploy-options">常用部署选项</h3>${table(
+      ['命令', '用途'],
+      [
+        ['<code>vibrail deploy --env preview --watch</code>', '创建预览环境部署'],
+        ['<code>vibrail deploy --branch main --commit &lt;sha&gt; --watch</code>', '部署指定分支与提交'],
+        ['<code>vibrail deploy --smart-route --watch</code>', '只重建发生变化的服务'],
+        ['<code>vibrail deploy --service-ids api,worker --watch</code>', '只部署指定服务'],
+        ['<code>vibrail deploy --refresh --watch</code>', '应用最新环境变量，不重新构建'],
+      ],
+    )}<h2 id="inspect">日志与部署操作</h2>${code(
+      'Terminal',
+      `vibrail deployment list
+vibrail deployment get <deployment-id>
+vibrail logs <deployment-id> --follow
+vibrail deployment redeploy <deployment-id>
+vibrail deployment rollback <deployment-id>`,
+    )}<p><code>vibrail logs</code> 不传部署 ID 时，会使用当前关联项目的最新部署。</p><h2 id="config">声明式项目配置</h2><p>Vibrail 默认自动检测应用。需要明确覆盖构建命令、启动命令、端口或服务设置时，可创建 <code>vibrail.json</code>。</p>${code(
+      'Terminal',
+      `vibrail config init
+vibrail config validate`,
+    )}<h2 id="automation">JSON 与自动化</h2><p>全局 <code>--json</code> 必须放在子命令之前。没有专用 CLI 命令的接口可以通过 <code>vibrail api</code> 调用。</p>${code(
+      'Terminal',
+      `vibrail --json status
+vibrail --json project list
+vibrail --json deployment get <deployment-id>
+vibrail api /projects
+vibrail api -X POST /some/route --data '{"key":"value"}'`,
+    )}<h2 id="self-host">自托管实例</h2><p>首次运行裸命令 <code>vibrail</code> 会打开安装向导；完成安装后再次运行会进入交互式控制面板。无交互服务器可以直接使用 <code>up</code>。</p>${code(
+      'Terminal',
+      `vibrail up --public-url https://ops.example.com
+vibrail status
+vibrail open
+
+# 常用生命周期命令
+vibrail stop
+vibrail update
+vibrail doctor`,
+    )}<p>Linux 且 Docker 可用时，<code>up</code> 默认安装已发布的 Docker Compose 栈；其他环境运行捆绑的轻量服务。使用 <code>--compose</code> 或 <code>--bare</code> 可明确选择。</p><div class="callout warning"><strong>卸载会删除本机数据</strong><p><code>vibrail uninstall</code> 会在确认后删除本机服务和状态，但不会停止已经部署到其他服务器的应用。使用 <code>--keep-data</code> 可保留本地数据库、证书和配置目录。</p></div><h2 id="commands">命令索引</h2>${table(
+      ['范围', '命令'],
+      [
+        ['安装与生命周期', '<code>up</code>、<code>stop</code>、<code>uninstall</code>、<code>install</code>、<code>update</code>、<code>open</code>、<code>status</code>、<code>doctor</code>'],
+        ['登录与项目', '<code>login</code>、<code>logout</code>、<code>context</code>、<code>token</code>、<code>init</code>、<code>config</code>'],
+        ['部署与资源', '<code>deploy</code>、<code>deployment</code>、<code>logs</code>、<code>project</code>、<code>service</code>、<code>domain</code>'],
+        ['自托管基础设施', '<code>server</code>、<code>system</code>、<code>mail</code>、<code>backup</code>、<code>reset-admin-password</code>'],
+        ['高级接口', '<code>api</code>'],
+      ],
+    )}<h2 id="troubleshooting">排错</h2><p>依次运行 <code>vibrail --version</code>、<code>vibrail context list</code>、<code>vibrail status</code> 和 <code>vibrail doctor</code>。使用 <code>vibrail &lt;command&gt; --help</code> 查看当前已安装版本的权威参数说明。</p>`,
   },
   '/docs/concepts': {
     nav: 'docs',
@@ -464,7 +555,9 @@ const pagesZh = {
     eyebrow: '部署应用',
     title: '部署本地文件夹',
     lead: '无需创建 Git 仓库，直接将本地源代码上传到 Vibrail 的构建流水线。',
-    body: `<h2 id="dashboard">通过控制台</h2><ol class="steps"><li><strong>创建文件夹项目</strong>选择“本地文件夹”作为代码来源。</li><li><strong>选择源代码</strong>Vibrail 会打包文件并扫描技术栈。</li><li><strong>确认配置</strong>检查构建命令、启动命令、端口和运行目标。</li><li><strong>部署</strong>上传后启动构建并查看日志。</li></ol>`,
+    body: `<h2 id="dashboard">通过控制台</h2><ol class="steps"><li><strong>创建文件夹项目</strong>选择“本地文件夹”作为代码来源。</li><li><strong>选择源代码</strong>Vibrail 会打包文件并扫描技术栈。</li><li><strong>确认配置</strong>检查构建命令、启动命令、端口和运行目标。</li><li><strong>部署</strong>上传后启动构建并查看日志。</li></ol><h2 id="cli">通过 CLI</h2><p>在非 Git 目录中运行 <code>deploy</code>，CLI 会自动打包并上传当前文件夹。</p>${code('Terminal', `vibrail login
+cd my-folder
+vibrail deploy --name my-app --watch`)}<p>更多选项见 <a href="#/docs/cli">CLI 使用指南</a>。</p>`,
   },
   '/docs/deploy/server': {
     nav: 'deploy',
@@ -557,6 +650,7 @@ const pagesEn = {
     lead: 'Go from source code to a live service with Vibrail, then automate deployments and operations through the API or MCP.',
     body: `<p>Vibrail is an application deployment and operations platform. Deploy from GitHub or a local folder to Vibrail Cloud, your own Linux server, or your local machine.</p><h2 id="start">Get started</h2><p>Choose a source, runtime target, and build settings. Vibrail handles builds, process lifecycle, routing, and deployment history.</p>${cards([
       ['Deploy your first project', 'Walk through a GitHub deployment from the console.', '/docs/quickstart'],
+      ['Use the Vibrail CLI', 'Sign in, deploy, operate self-hosted instances, and automate CI from the terminal.', '/docs/cli'],
       ['Open the Vibrail Console', 'Create projects, watch builds, and manage services.', DASHBOARD_URL],
     ])}<h2 id="deploy">Choose a deployment path</h2>${cards([
       ['Deploy from GitHub', 'Connect a repository with private-repo and push-deploy support.', '/docs/deploy/github'],
@@ -578,6 +672,94 @@ const pagesEn = {
       ['Project configuration', 'Set commands, ports, and environment variables.', '/docs/projects'],
       ['Logs and troubleshooting', 'Start here when a build fails or a service is unreachable.', '/docs/logs'],
     ])}`,
+  },
+  '/docs/cli': {
+    nav: 'cli',
+    eyebrow: 'Command line',
+    title: 'Vibrail CLI',
+    lead: 'Deploy applications, switch between Vibrail instances, and install or operate a self-hosted control plane from your terminal.',
+    body: `<h2 id="install">Install</h2><p>The npm package requires Node.js 22 or newer. The server installer can set up the required runtime and latest CLI.</p>${code(
+      'Terminal',
+      `npm install --global @vibrail/cli
+vibrail --version
+
+# Run the latest release without a global install
+npx --yes @vibrail/cli@latest --help
+
+# Install on a new server
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh`,
+    )}<p>Use <code>vibrail update --check</code> to check for a release and <code>vibrail update</code> to upgrade.</p><h2 id="login">Login and contexts</h2><p>Each context stores the API endpoint, dashboard endpoint, and login token for one Vibrail instance. Browser login is recommended.</p>${code(
+      'Terminal',
+      `# Vibrail Cloud
+vibrail login
+
+# Self-hosted instance
+vibrail login \\
+  --context production \\
+  --api-url https://ops.example.com/api/proxy \\
+  --dashboard-url https://ops.example.com
+
+vibrail context list
+vibrail context use production
+vibrail status`,
+    )}<div class="callout warning"><strong>Protect login tokens</strong><p>Login state is stored in <code>~/.vibrail/config.json</code>. Never commit or print that file; use a protected secret in CI.</p></div><h2 id="deploy">Deploy a project</h2><p>Link a directory once, then deploy from its root. Git repositories use the current branch by default; non-Git directories automatically use folder upload.</p>${code(
+      'Terminal',
+      `cd my-app
+vibrail init
+vibrail deploy --watch
+
+# Non-interactive linking
+vibrail init --project proj_example --yes
+
+# Deploy a local folder to a selected server
+vibrail deploy --name my-app --server-id srv_example --watch`,
+    )}<h3 id="deploy-options">Common deploy options</h3>${table(
+      ['Command', 'Purpose'],
+      [
+        ['<code>vibrail deploy --env preview --watch</code>', 'Create a preview deployment'],
+        ['<code>vibrail deploy --branch main --commit &lt;sha&gt; --watch</code>', 'Deploy a specific branch and commit'],
+        ['<code>vibrail deploy --smart-route --watch</code>', 'Rebuild only changed services'],
+        ['<code>vibrail deploy --service-ids api,worker --watch</code>', 'Deploy selected services'],
+        ['<code>vibrail deploy --refresh --watch</code>', 'Apply current environment without rebuilding'],
+      ],
+    )}<h2 id="inspect">Logs and deployment operations</h2>${code(
+      'Terminal',
+      `vibrail deployment list
+vibrail deployment get <deployment-id>
+vibrail logs <deployment-id> --follow
+vibrail deployment redeploy <deployment-id>
+vibrail deployment rollback <deployment-id>`,
+    )}<p>Without a deployment ID, <code>vibrail logs</code> uses the latest deployment for the linked project.</p><h2 id="config">Declarative project configuration</h2><p>Vibrail auto-detects applications by default. Create <code>vibrail.json</code> when you need to override build, start, port, or service settings.</p>${code(
+      'Terminal',
+      `vibrail config init
+vibrail config validate`,
+    )}<h2 id="automation">JSON and automation</h2><p>The global <code>--json</code> option must appear before the command. Use <code>vibrail api</code> when an API operation has no dedicated command.</p>${code(
+      'Terminal',
+      `vibrail --json status
+vibrail --json project list
+vibrail --json deployment get <deployment-id>
+vibrail api /projects
+vibrail api -X POST /some/route --data '{"key":"value"}'`,
+    )}<h2 id="self-host">Self-hosted instances</h2><p>Run bare <code>vibrail</code> for guided setup. After installation, the same command opens the interactive control panel. Headless servers can use <code>up</code> directly.</p>${code(
+      'Terminal',
+      `vibrail up --public-url https://ops.example.com
+vibrail status
+vibrail open
+
+# Common lifecycle commands
+vibrail stop
+vibrail update
+vibrail doctor`,
+    )}<p>On Linux with Docker, <code>up</code> defaults to the published Docker Compose stack. Other environments run the bundled lightweight service. Use <code>--compose</code> or <code>--bare</code> to select explicitly.</p><div class="callout warning"><strong>Uninstall removes local data</strong><p><code>vibrail uninstall</code> removes the local service and state after confirmation, but leaves applications deployed to other servers running. Use <code>--keep-data</code> to retain the database, certificates, and configuration directory.</p></div><h2 id="commands">Command index</h2>${table(
+      ['Area', 'Commands'],
+      [
+        ['Install and lifecycle', '<code>up</code>, <code>stop</code>, <code>uninstall</code>, <code>install</code>, <code>update</code>, <code>open</code>, <code>status</code>, <code>doctor</code>'],
+        ['Authentication and setup', '<code>login</code>, <code>logout</code>, <code>context</code>, <code>token</code>, <code>init</code>, <code>config</code>'],
+        ['Deployments and resources', '<code>deploy</code>, <code>deployment</code>, <code>logs</code>, <code>project</code>, <code>service</code>, <code>domain</code>'],
+        ['Self-hosted infrastructure', '<code>server</code>, <code>system</code>, <code>mail</code>, <code>backup</code>, <code>reset-admin-password</code>'],
+        ['Advanced access', '<code>api</code>'],
+      ],
+    )}<h2 id="troubleshooting">Troubleshooting</h2><p>Run <code>vibrail --version</code>, <code>vibrail context list</code>, <code>vibrail status</code>, and <code>vibrail doctor</code> in order. Use <code>vibrail &lt;command&gt; --help</code> for the authoritative options shipped by your installed version.</p>`,
   },
   '/docs/concepts': {
     nav: 'docs',
@@ -605,7 +787,9 @@ const pagesEn = {
     eyebrow: 'Deploy',
     title: 'Deploy a local folder',
     lead: 'Upload local source directly into the Vibrail build pipeline without creating a Git repository.',
-    body: `<h2 id="dashboard">From the console</h2><ol class="steps"><li><strong>Create a folder project</strong>Select Local folder as the source.</li><li><strong>Choose the source</strong>Vibrail packages the folder and scans the stack.</li><li><strong>Review settings</strong>Confirm commands, port, and runtime target.</li><li><strong>Deploy</strong>Upload, build, and follow the logs.</li></ol>`,
+    body: `<h2 id="dashboard">From the console</h2><ol class="steps"><li><strong>Create a folder project</strong>Select Local folder as the source.</li><li><strong>Choose the source</strong>Vibrail packages the folder and scans the stack.</li><li><strong>Review settings</strong>Confirm commands, port, and runtime target.</li><li><strong>Deploy</strong>Upload, build, and follow the logs.</li></ol><h2 id="cli">From the CLI</h2><p>Run <code>deploy</code> outside a Git repository and the CLI automatically packages and uploads the current folder.</p>${code('Terminal', `vibrail login
+cd my-folder
+vibrail deploy --name my-app --watch`)}<p>See the <a href="#/docs/cli">CLI guide</a> for more options.</p>`,
   },
   '/docs/deploy/server': {
     nav: 'deploy',
