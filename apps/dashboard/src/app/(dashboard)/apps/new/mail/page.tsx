@@ -19,6 +19,8 @@ import { useToast } from "@/context/ToastContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n } from "@/components/i18n-provider";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
+import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
+import { appendProjectRouteKey, generateProjectRouteKey } from "@repo/core";
 
 /**
  * Mail provider wizard — the app-catalog entry point for Vibrail Mail. A clean
@@ -48,7 +50,12 @@ export default function MailWizardPage() {
     searchParams.get("mode") === "connect" ? "connect" : "choose",
   );
   const [preset, setPreset] = useState<MailProviderId>("custom");
-  const [hostname, setHostname] = useState("");
+  const [routeKey] = useState(() => generateProjectRouteKey());
+  const [managedDomain, setManagedDomain] = useState(() =>
+    appendProjectRouteKey("webmail", routeKey),
+  );
+  const [customDomain, setCustomDomain] = useState("");
+  const [domainType, setDomainType] = useState<"free" | "custom">("free");
   const [imapHost, setImapHost] = useState("");
   const [imapPort, setImapPort] = useState(993);
   const [smtpHost, setSmtpHost] = useState("");
@@ -60,6 +67,7 @@ export default function MailWizardPage() {
   const [projectId, setProjectId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [phaseLabel, setPhaseLabel] = useState("");
+  const [logs, setLogs] = useState("");
   const [liveUrl, setLiveUrl] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -72,7 +80,7 @@ export default function MailWizardPage() {
     setSmtpPort(p.smtpPort);
   };
 
-  // ── Clean progress poll (status only, never raw logs) ──────────────────────
+  // ── Clean progress poll ────────────────────────────────────────────────────
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
     if (phase !== "installing" || !deploymentId) return;
@@ -84,6 +92,7 @@ export default function MailWizardPage() {
         const status: string = s.deploymentStatus ?? s.status ?? "queued";
         setProgress(typeof s.progress === "number" ? s.progress : 0);
         setPhaseLabel(labelForStatus(status, w));
+        if (typeof s.logs === "string") setLogs(s.logs);
         if (status === "ready") {
           setLiveUrl(firstPublicHost(s?.config?.publicEndpoints, baseDomain));
           setPhase("done");
@@ -108,8 +117,8 @@ export default function MailWizardPage() {
 
   const deploy = async () => {
     if (busy || !destination || destination.deployTarget === "cloud") return;
-    const host = hostname.trim().toLowerCase();
-    if (!host) {
+    const customHost = customDomain.trim().toLowerCase();
+    if (domainType === "custom" && !customHost) {
       showToast(m.hostnameRequired, "error");
       return;
     }
@@ -117,10 +126,16 @@ export default function MailWizardPage() {
       showToast(m.hostsRequired, "error");
       return;
     }
+    setLogs("");
+    setProgress(0);
     setBusy(true);
     try {
       const res = await mailApi.webmail.deployExternal({
-        hostname: host,
+        routing: {
+          routeKey,
+          managedDomain,
+          ...(domainType === "custom" ? { customDomain: customHost } : {}),
+        },
         backend: {
           provider: mailProvider(preset).backendProvider,
           imapHost: imapHost.trim().toLowerCase(),
@@ -156,6 +171,7 @@ export default function MailWizardPage() {
         progress={progress}
         phaseLabel={phaseLabel}
         liveUrl={liveUrl}
+        logs={logs}
         errorMsg={errorMsg}
         deploymentId={deploymentId}
         onGoToProject={() => projectId && router.push(`/projects/${projectId}`)}
@@ -261,14 +277,23 @@ export default function MailWizardPage() {
 
               {/* Hosts */}
               <div className="rounded-2xl border border-border/50 bg-card p-5 space-y-4">
-                <Field label={m.hostname} hint={m.hostnameHint}>
-                  <input
-                    value={hostname}
-                    onChange={(e) => setHostname(e.target.value)}
-                    placeholder="mail.example.com"
-                    className={INPUT}
+                <div className="space-y-1.5">
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{m.hostname}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{m.hostnameHint}</p>
+                  </div>
+                  <RoutingSettingsCard
+                    projectName={m.title}
+                    routeKey={routeKey}
+                    domain={managedDomain}
+                    customDomain={customDomain}
+                    domainType={domainType}
+                    readOnlyTarget={{ label: "Port", value: "4080", icon: "port" }}
+                    onDomainTypeChange={setDomainType}
+                    onDomainChange={setManagedDomain}
+                    onCustomDomainChange={setCustomDomain}
                   />
-                </Field>
+                </div>
                 <div className="grid grid-cols-[1fr_auto] gap-3">
                   <Field label={m.imapHost}>
                     <input

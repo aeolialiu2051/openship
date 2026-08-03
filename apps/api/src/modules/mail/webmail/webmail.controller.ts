@@ -8,6 +8,7 @@
  */
 
 import type { Context } from "hono";
+import { normalizeProjectRouteKey } from "@repo/core";
 import { env, USER_SERVERS_ENABLED } from "../../../config";
 import { getRequestContext } from "../../../lib/request-context";
 import { listWebmailTargets } from "./webmail.service";
@@ -17,6 +18,7 @@ import {
 } from "./webmail-project.service";
 
 const HOSTNAME_RE = /^[a-z0-9][a-z0-9.-]+\.[a-z]{2,}$/;
+const MANAGED_LABEL_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 const portOk = (n: number) => Number.isInteger(n) && n >= 1 && n <= 65535;
 
 // ─── GET /mail/webmail/targets ───────────────────────────────────────────────
@@ -114,7 +116,12 @@ export async function startDeployAsProjectHandler(c: Context) {
  *
  * Body:
  *   {
- *     hostname: string,                       // public host for the webmail UI
+ *     routing: {
+ *       routeKey?: string,                    // reserved six-character Base36 key
+ *       managedDomain?: string,               // managed hostname label
+ *       customDomain?: string                 // optional additional hostname
+ *     },
+ *     hostname?: string,                      // legacy custom-domain fallback
  *     backend: {
  *       provider: "ses" | "custom",
  *       imapHost, imapPort, smtpHost, smtpPort
@@ -133,9 +140,34 @@ export async function startExternalDeployAsProjectHandler(c: Context) {
   const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
 
-  const hostname = (body.hostname as string | undefined)?.trim().toLowerCase();
-  if (!hostname || !HOSTNAME_RE.test(hostname))
-    return c.json({ error: "Invalid domain" }, 400);
+  const legacyHostname = (body.hostname as string | undefined)?.trim().toLowerCase();
+  const routingBody = body.routing as Record<string, unknown> | undefined;
+  let routeKey: string | undefined;
+  const managedDomain = (routingBody?.managedDomain as string | undefined)
+    ?.trim()
+    .toLowerCase();
+  const customDomain = (
+    (routingBody?.customDomain as string | undefined) ?? legacyHostname
+  )
+    ?.trim()
+    .toLowerCase();
+
+  if (routingBody?.routeKey !== undefined) {
+    try {
+      routeKey = normalizeProjectRouteKey(String(routingBody.routeKey));
+    } catch {
+      return c.json({ error: "routing.routeKey must be a six-character Base36 value" }, 400);
+    }
+  }
+  if (managedDomain && !MANAGED_LABEL_RE.test(managedDomain)) {
+    return c.json({ error: "Invalid free domain" }, 400);
+  }
+  if (customDomain && !HOSTNAME_RE.test(customDomain)) {
+    return c.json({ error: "Invalid custom domain" }, 400);
+  }
+  if (!managedDomain && !customDomain) {
+    return c.json({ error: "A public domain is required" }, 400);
+  }
 
   const backendBody = body.backend as Record<string, unknown> | undefined;
   const provider = backendBody?.provider;
@@ -172,7 +204,7 @@ export async function startExternalDeployAsProjectHandler(c: Context) {
 
   try {
     const { deploymentId, projectId } = await startExternalWebmailDeploy(ctx, {
-      hostname,
+      routing: { routeKey, managedDomain, customDomain },
       backend: { provider, imapHost, imapPort, smtpHost, smtpPort },
       target: { deployTarget: dt, serverId: targetBody?.serverId },
       internalPort,

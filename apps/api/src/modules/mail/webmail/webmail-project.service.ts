@@ -24,10 +24,18 @@
  */
 import { randomBytes, createHash } from "node:crypto";
 import { repos, type Project } from "@repo/db";
-import { safeErrorMessage, type ReleaseSource, type DeployTarget } from "@repo/core";
+import {
+  appendProjectRouteKey,
+  replaceProjectRouteKey,
+  safeErrorMessage,
+  type ReleaseSource,
+  type DeployTarget,
+} from "@repo/core";
 import { sshManager } from "../../../lib/ssh-manager";
 import { decryptEnvMap } from "../../../lib/encryption";
 import { assertResourceInOrg } from "../../../lib/controller-helpers";
+import { getRoutingBaseDomain } from "../../../lib/routing-domains";
+import { publicEndpointHostname } from "../../../lib/public-endpoints";
 import type { RequestContext } from "../../../lib/request-context";
 import {
   apiRootPath,
@@ -55,6 +63,13 @@ import {
   type MailWebmailState,
   type MailServerState,
 } from "../mail-state";
+import {
+  ensureWebmailPersistence,
+  removeWebmailBranding,
+  WEBMAIL_BRANDING_DIR,
+  WEBMAIL_SQLITE_PATH,
+} from "./webmail-persistence";
+import { webmailPublicEndpoints } from "./webmail-routing";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -65,10 +80,6 @@ const PROJECT_NAME = "Webmail";
  * per-deploy workspace on every redeploy, so anything that must survive
  * (branding config, the SQLite session DB) lives under this dir instead.
  */
-const REMOTE_PERSIST_DIR = "/var/lib/vibrail-webmail";
-const REMOTE_BRANDING_DIR = `${REMOTE_PERSIST_DIR}/branding`;
-const REMOTE_SQLITE_PATH = `${REMOTE_PERSIST_DIR}/zero.db`;
-
 /** Internal port Zero binds to behind the Traefik vhost the pipeline creates. */
 const DEFAULT_INTERNAL_PORT = 4080;
 
@@ -112,6 +123,25 @@ function deriveAcmeEmail(hostname: string): string {
   return `admin@${base}`;
 }
 
+function trustedOrigins(
+  routeState: Awaited<ReturnType<typeof syncProjectRouteState>>,
+  additionalHostnames: Array<string | undefined> = [],
+): string {
+  return Array.from(
+    new Set(
+      [
+        ...routeState.publicEndpoints.map((endpoint) =>
+          publicEndpointHostname(endpoint),
+        ),
+        ...additionalHostnames,
+      ]
+        .map((hostname) => hostname?.trim().toLowerCase())
+        .filter((hostname): hostname is string => Boolean(hostname))
+        .map((hostname) => `https://${hostname}`),
+    ),
+  ).join(",");
+}
+
 /**
  * The only operational concern that doesn't fit in the standard pipeline:
  * a persistent branding dir outside the workspace. The pipeline wipes the
@@ -122,14 +152,7 @@ function deriveAcmeEmail(hostname: string): string {
  */
 async function prepareTarget(serverId: string): Promise<void> {
   await sshManager.withExecutor(serverId, async (exec) => {
-    await exec.mkdir(REMOTE_PERSIST_DIR);
-    await exec.exec(`chmod 0750 ${REMOTE_PERSIST_DIR}`);
-    await exec.mkdir(REMOTE_BRANDING_DIR);
-    await exec.exec(`chmod 0750 ${REMOTE_BRANDING_DIR}`);
-    // The runtime adapter (re-)chowns these to the sandbox user on every
-    // deploy, but doing it here too means a fresh server has the dirs in
-    // the right shape before the first deploy starts - no permission
-    // shuffle mid-pipeline that the user might see scroll past.
+    await ensureWebmailPersistence(exec);
   });
 }
 
@@ -328,7 +351,7 @@ export async function cleanupWebmailInstall(input: {
   if (targetServerId) {
     try {
       await sshManager.withExecutor(targetServerId, async (exec) => {
-        await exec.rm(REMOTE_BRANDING_DIR);
+        await removeWebmailBranding(exec);
       });
     } catch (err) {
       console.warn(
@@ -410,6 +433,7 @@ async function ensureWebmailProjectRow(
   slug: string,
   releaseDistPath: string,
   port: number,
+  routeKey?: string,
 ): Promise<{ projectId: string; groupId: string; project: Project }> {
   const WEBMAIL_CONFIG = webmailProjectConfig(releaseDistPath, port);
 
@@ -447,6 +471,7 @@ async function ensureWebmailProjectRow(
       // lifecycle install hook, teardown, /emails reconcile) are untouched.
       isApp: true,
       appTemplateId: "mail-webmail",
+      routeKey,
     });
   } else {
     // Defensive: confirm the row really is in this org before we mutate it.
@@ -490,13 +515,13 @@ export async function ensureWebmailProject(
 
 /**
  * Stable, collision-free slug tail for an external webmail. The readable base
- * is truncated for display, but a hash of the FULL hostname is appended so two
- * distinct hostnames that share a truncated prefix never map to the same slug
- * (which would repoint one webmail's route onto the other). Deterministic →
- * redeploying the same hostname reuses its row.
+ * is truncated for display, but a hash of the full routing identity is
+ * appended so two distinct installs never map to the same slug. New installs
+ * use the reserved route key as their identity; legacy callers fall back to a
+ * hostname/backend identity.
  */
-function externalWebmailSlug(hostname: string): string {
-  const h = hostname.toLowerCase();
+function externalWebmailSlug(identity: string): string {
+  const h = identity.toLowerCase();
   const base = h
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
@@ -506,22 +531,24 @@ function externalWebmailSlug(hostname: string): string {
 }
 
 /**
- * External-backend webmail project (BYO IMAP/SMTP). Keyed off the public
- * hostname so redeploying the same webmail reuses its row — no mail server
- * anchor, so the mail-state lifecycle hooks skip it (see
- * mailServerIdFromWebmailSlug).
+ * External-backend webmail project (BYO IMAP/SMTP). Keyed off a stable routing
+ * identity so changing between the managed and custom hostname does not create
+ * a second project. There is no mail-server anchor, so mail-state lifecycle
+ * hooks skip it (see mailServerIdFromWebmailSlug).
  */
 export async function ensureExternalWebmailProject(
   organizationId: string,
-  hostname: string,
+  identity: string,
   releaseDistPath: string,
   port: number,
+  routeKey?: string,
 ): Promise<{ projectId: string; groupId: string; project: Project }> {
   return ensureWebmailProjectRow(
     organizationId,
-    externalWebmailSlug(hostname),
+    externalWebmailSlug(identity),
     releaseDistPath,
     port,
+    routeKey,
   );
 }
 
@@ -590,7 +617,6 @@ export async function startWebmailDeploy(
 
   const internalPort = input.internalPort ?? DEFAULT_INTERNAL_PORT;
   const publicUrl = `https://${input.hostname}/`;
-  const publicOrigin = `https://${input.hostname}`;
 
   // ── 1. Locate the pre-built webmail dist on the API host. NO build
   //       runs here - the dist must already exist (operator runs
@@ -643,15 +669,15 @@ export async function startWebmailDeploy(
   const projectDomains = await listProjectRouteRows(project.id);
   const routeState = await syncProjectRouteState(project, {
     projectDomains,
-    nextPublicEndpoints: useProxyVariant
-      ? [] // no custom domain on the cloud workload - proxy lives on mail VPS
-      : [
-          {
-            port: internalPort,
-            customDomain: input.hostname,
-            domainType: "custom",
-          },
-        ],
+    // The route-keyed managed hostname is always present. For the proxy
+    // variant only that hostname lives on the workload; mail.<install> is
+    // registered on the mail VPS after success. Other variants additionally
+    // retain the user-provided custom hostname.
+    nextPublicEndpoints: webmailPublicEndpoints(
+      project,
+      internalPort,
+      useProxyVariant ? undefined : input.hostname,
+    ),
   });
 
   // ── 5. Mint / reuse secrets, persist mail-state. `installed` stays
@@ -707,7 +733,10 @@ export async function startWebmailDeploy(
     HOST: "127.0.0.1",
     NODE_ENV: "production",
     COOKIE_DOMAIN: input.hostname,
-    TRUSTED_ORIGINS: publicOrigin,
+    // The managed route remains available alongside a custom route. Trust
+    // every persisted project hostname, plus the mail-VPS proxy hostname when
+    // that hostname intentionally is not registered on the workload itself.
+    TRUSTED_ORIGINS: trustedOrigins(routeState, [input.hostname]),
     SESSION_ENCRYPTION_KEY: sessionEncryptionKey,
     BRANDING_ADMIN_TOKEN: brandingToken,
     DEFAULT_IMAP_HOST: mailHost,
@@ -717,8 +746,8 @@ export async function startWebmailDeploy(
     ACME_EMAIL: deriveAcmeEmail(input.hostname),
   };
   if (input.target.kind === "self") {
-    plainEnvMap.SQLITE_PATH = REMOTE_SQLITE_PATH;
-    plainEnvMap.BRANDING_PATH = REMOTE_BRANDING_DIR;
+    plainEnvMap.SQLITE_PATH = WEBMAIL_SQLITE_PATH;
+    plainEnvMap.BRANDING_PATH = WEBMAIL_BRANDING_DIR;
   }
 
   // ── 8. Snapshot → target → preflight → queue (shared tail). Cloud → cloud
@@ -792,7 +821,11 @@ export interface WebmailExternalBackend {
 }
 
 export interface StartExternalWebmailDeployInput {
-  hostname: string;
+  routing: {
+    routeKey?: string;
+    managedDomain?: string;
+    customDomain?: string;
+  };
   backend: WebmailExternalBackend;
   target: { deployTarget: DeployTarget; serverId?: string };
   internalPort?: number;
@@ -832,6 +865,8 @@ async function readPriorWebmailSecrets(projectId: string): Promise<{
  *   - Zero's DEFAULT_IMAP_HOST/PORT + DEFAULT_SMTP_HOST/PORT are pinned to the
  *     caller's backend instead of `mail.<installDomain>`.
  *   - No mail-VPS proxy variant (there's no iRedMail behind it).
+ *   - The route-keyed managed hostname is permanent; a custom hostname is an
+ *     additional route rather than a replacement.
  */
 export async function startExternalWebmailDeploy(
   ctx: RequestContext,
@@ -847,23 +882,47 @@ export async function startExternalWebmailDeploy(
   }
 
   const internalPort = input.internalPort ?? DEFAULT_INTERNAL_PORT;
-  const publicOrigin = `https://${input.hostname}`;
+  const identity =
+    (input.routing.routeKey ? `route-${input.routing.routeKey}` : undefined) ||
+    input.routing.customDomain ||
+    input.routing.managedDomain ||
+    `${input.backend.provider}-${input.backend.imapHost}-${input.backend.smtpHost}`;
 
   const releaseDistPath = await resolveWebmailDistDir();
   const { project, projectId } = await ensureExternalWebmailProject(
     ctx.organizationId,
-    input.hostname,
+    identity,
     releaseDistPath,
     internalPort,
+    input.routing.routeKey,
   );
 
-  // Always a standard custom-domain hostname (no mail-VPS proxy variant).
+  let managedDomain = input.routing.managedDomain?.trim().toLowerCase();
+  if (project.routeKey) {
+    if (managedDomain && input.routing.routeKey && input.routing.routeKey !== project.routeKey) {
+      managedDomain = replaceProjectRouteKey(
+        managedDomain,
+        input.routing.routeKey,
+        project.routeKey,
+      );
+    } else {
+      managedDomain = appendProjectRouteKey(managedDomain || project.slug, project.routeKey);
+    }
+  } else {
+    managedDomain ||= project.slug;
+  }
+  const customHostname = input.routing.customDomain?.trim().toLowerCase() || undefined;
+  const publicHostname = customHostname || `${managedDomain}.${getRoutingBaseDomain()}`;
+  // The route-keyed managed hostname is permanent; custom is additive.
   const projectDomains = await listProjectRouteRows(project.id);
   const routeState = await syncProjectRouteState(project, {
     projectDomains,
-    nextPublicEndpoints: [
-      { port: internalPort, customDomain: input.hostname, domainType: "custom" },
-    ],
+    nextPublicEndpoints: webmailPublicEndpoints(
+      project,
+      internalPort,
+      customHostname,
+      managedDomain,
+    ),
   });
 
   const prior = await readPriorWebmailSecrets(projectId);
@@ -879,22 +938,20 @@ export async function startExternalWebmailDeploy(
     PORT: String(internalPort),
     HOST: "127.0.0.1",
     NODE_ENV: "production",
-    COOKIE_DOMAIN: input.hostname,
-    TRUSTED_ORIGINS: publicOrigin,
+    COOKIE_DOMAIN: publicHostname,
+    TRUSTED_ORIGINS: trustedOrigins(routeState),
     SESSION_ENCRYPTION_KEY: sessionEncryptionKey,
     BRANDING_ADMIN_TOKEN: brandingToken,
     DEFAULT_IMAP_HOST: input.backend.imapHost,
     DEFAULT_IMAP_PORT: String(input.backend.imapPort),
     DEFAULT_SMTP_HOST: input.backend.smtpHost,
     DEFAULT_SMTP_PORT: String(input.backend.smtpPort),
-    ACME_EMAIL: deriveAcmeEmail(input.hostname),
+    ACME_EMAIL: deriveAcmeEmail(publicHostname),
   };
   if (input.target.deployTarget === "server") {
-    plainEnvMap.SQLITE_PATH = REMOTE_SQLITE_PATH;
-    plainEnvMap.BRANDING_PATH = REMOTE_BRANDING_DIR;
+    plainEnvMap.SQLITE_PATH = WEBMAIL_SQLITE_PATH;
+    plainEnvMap.BRANDING_PATH = WEBMAIL_BRANDING_DIR;
   }
 
   return finalizeWebmailDeploy(ctx, project, projectId, routeState, plainEnvMap, input.target);
 }
-
-

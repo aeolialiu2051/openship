@@ -31,6 +31,7 @@ import {
   resolveEnvironment,
   waitForReady,
 } from "@repo/adapters";
+import { managedWebmailBindMounts } from "../mail/webmail/webmail-persistence";
 import { platform } from "../../lib/controller-helpers";
 import { resolveUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
 import { webhookProxyTarget } from "../../config";
@@ -1419,6 +1420,16 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     runtimeName: project.slug ?? project.id,
     managedDomain: getRoutingBaseDomain(),
     publicEndpoints: routeState.publicEndpoints,
+    // Host-path mounts are reserved for the managed webmail app. Checking
+    // both immutable app identity and framework keeps ordinary projects from
+    // gaining an arbitrary host-mount surface by changing one field.
+    bindMounts: managedWebmailBindMounts({
+      isApp: project.isApp,
+      appTemplateId: project.appTemplateId,
+      framework: snapshot.framework,
+      isSelfHostedDocker:
+        runtime instanceof DockerRuntime && phase.effectiveTarget !== "cloud",
+    }),
     outputDirectory: snapshot.outputDirectory,
     productionPaths: snapshot.productionPaths.length ? snapshot.productionPaths : undefined,
     // Bare uses this to hard-link identical files across releases.

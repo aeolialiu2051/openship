@@ -567,7 +567,11 @@ export const mailApi = {
      * host, or a fully custom backend). No mail server / iRedMail required.
      */
     deployExternal: (input: {
-      hostname: string;
+      routing: {
+        routeKey: string;
+        managedDomain: string;
+        customDomain?: string;
+      };
       backend: {
         provider: "ses" | "custom";
         imapHost: string;

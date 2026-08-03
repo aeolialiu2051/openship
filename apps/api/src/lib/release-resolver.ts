@@ -31,8 +31,20 @@ const __dirname = (() => {
   }
 })();
 
-/** apps/api/ directory — repo-local dist anchors + package.json read. */
-const API_ROOT = resolve(__dirname, "../..");
+/**
+ * apps/api/ directory — repo-local dist anchors + package.json read.
+ *
+ * Source execution puts this module under `src/lib` (two levels below the
+ * package root), while the production tsup bundle reports `dist` as its
+ * directory (one level below the package root). Detect both layouts instead
+ * of assuming the source-tree depth; the old assumption resolved to
+ * `/app/apps` in the API container and tried to read `/app/apps/package.json`.
+ */
+const API_ROOT = (() => {
+  const bundledRoot = resolve(__dirname, "..");
+  if (existsSync(join(bundledRoot, "package.json"))) return bundledRoot;
+  return resolve(__dirname, "../..");
+})();
 
 /**
  * Resolve a path relative to apps/api/. Consumers use this for their

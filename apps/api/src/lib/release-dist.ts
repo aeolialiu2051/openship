@@ -31,8 +31,17 @@ const __dirname = (() => {
   }
 })();
 
-/** apps/api/ directory — repo-local dist anchors + package.json read. */
-const API_ROOT = resolve(__dirname, "../..");
+/**
+ * apps/api/ directory — repo-local dist anchors + package.json read.
+ * Source execution is under `src/lib`; the production bundle is under
+ * `dist`. In the bundle, always walking up two levels incorrectly lands at
+ * `/app/apps` instead of `/app/apps/api`.
+ */
+const API_ROOT = (() => {
+  const bundledRoot = resolve(__dirname, "..");
+  if (existsSync(join(bundledRoot, "package.json"))) return bundledRoot;
+  return resolve(__dirname, "../..");
+})();
 
 /**
  * Resolve a path relative to apps/api/. Consumers use this for their

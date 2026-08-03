@@ -293,6 +293,15 @@ export interface DeployConfig {
   /** Runtime-owned shared Traefik routing. Docker joins `network`, adds only
    * Vibrail router labels, and does not publish the workload port on the host. */
   traefik?: TraefikEdgeConfig;
+  /**
+   * Internal, trusted host-path mounts for a managed workload. Callers must
+   * never populate this directly from user/project input.
+   */
+  bindMounts?: Array<{
+    source: string;
+    target: string;
+    readOnly?: boolean;
+  }>;
   /** Files/directories to copy into /app/production/ before starting the workload.
    *  When set, the workload runs from /app/production/ instead of /app/. */
   productionPaths?: string[];

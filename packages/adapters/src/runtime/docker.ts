@@ -2229,6 +2229,16 @@ export class DockerRuntime implements RuntimeAdapter {
         RestartPolicy: restartPolicy,
         Memory: config.resources.memoryMb * 1024 * 1024,
         CpuShares: Math.round(config.resources.cpuCores * 1024),
+        ...(config.bindMounts?.length
+          ? {
+              Mounts: config.bindMounts.map((mount) => ({
+                Type: "bind" as const,
+                Source: mount.source,
+                Target: mount.target,
+                ReadOnly: mount.readOnly ?? false,
+              })),
+            }
+          : {}),
         // Publish on the LOOPBACK interface only — the edge (host process, or a
         // host-net Traefik container) reaches it at 127.0.0.1:<hostPort>, and
         // it never faces the network. Binding 0.0.0.0 here would expose every
