@@ -60,6 +60,10 @@ export function isVibrailManagedHostname(hostname: string): boolean {
 export interface DnsPropagationProbeOptions {
   attempts?: number;
   intervalMs?: number;
+  /** Optional wall-clock budget for the whole probe loop. This prevents an
+   *  HTTP-triggered repair from multiplying per-resolver timeouts by the
+   *  attempt count and outliving its caller. */
+  deadlineMs?: number;
   resolve?: (hostname: string) => Promise<string[]>;
   sleep?: (delayMs: number) => Promise<void>;
 }
@@ -81,6 +85,10 @@ export async function waitForDeploymentDnsPropagation(
   // not leave an otherwise healthy deployment without a Traefik router.
   const attempts = Math.max(1, Math.floor(options.attempts ?? 60));
   const intervalMs = Math.max(0, Math.floor(options.intervalMs ?? 1_000));
+  const deadlineAt =
+    options.deadlineMs === undefined
+      ? undefined
+      : Date.now() + Math.max(1, Math.floor(options.deadlineMs));
   // Do not use node:dns directly for the propagation gate. In production the
   // API commonly runs behind a container/host resolver whose negative cache or
   // DNS egress policy can disagree with public DNS long after Cloudflare has
@@ -105,7 +113,13 @@ export async function waitForDeploymentDnsPropagation(
     } catch {
       // NXDOMAIN / propagation lag: retry within the bounded window below.
     }
-    if (attempt + 1 < attempts && intervalMs > 0) await sleep(intervalMs);
+    if (attempt + 1 >= attempts) break;
+    if (deadlineAt !== undefined && Date.now() >= deadlineAt) break;
+    if (intervalMs > 0) {
+      const delay =
+        deadlineAt === undefined ? intervalMs : Math.min(intervalMs, deadlineAt - Date.now());
+      if (delay > 0) await sleep(delay);
+    }
   }
   return false;
 }

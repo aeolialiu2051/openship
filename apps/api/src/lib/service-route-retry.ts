@@ -32,8 +32,8 @@ export async function retryProjectServiceRoutes(opts: {
    *  repair must therefore recreate only the affected service containers from
    *  their existing images; registerRoute is intentionally a no-op there. */
   recreateDockerServices?: (serviceIds: string[]) => Promise<void>;
-}): Promise<{ failures: ServiceRouteRetryFailure[] }> {
-  if (!opts.usesManagedRouting) return { failures: [] };
+}): Promise<{ failures: ServiceRouteRetryFailure[]; attemptedRoutes: number }> {
+  if (!opts.usesManagedRouting) return { failures: [], attemptedRoutes: 0 };
 
   let services = await repos.service.listByProject(opts.project.id);
   const domains = await repos.domain.listByProject(opts.project.id);
@@ -68,6 +68,7 @@ export async function retryProjectServiceRoutes(opts: {
     route: ReturnType<typeof buildServiceRouteDomains>[number];
     live: (typeof liveRows)[number] | undefined;
   }> = [];
+  let attemptedRoutes = 0;
 
   for (const service of services.filter((candidate) => candidate.enabled && candidate.exposed)) {
     const routes = buildServiceRouteDomains({
@@ -78,6 +79,7 @@ export async function retryProjectServiceRoutes(opts: {
       domainByHostname,
     });
     if (routes.length === 0) continue;
+    attemptedRoutes += routes.length;
 
     const dns = await syncServiceRouteDns({
       projectId: opts.project.id,
@@ -110,6 +112,7 @@ export async function retryProjectServiceRoutes(opts: {
       propagated: await waitForDeploymentDnsPropagation(pending.route.hostname, {
         attempts: ROUTING_RETRY_DNS_ATTEMPTS,
         intervalMs: 1_000,
+        deadlineMs: 60_000,
       }),
     })),
   );
@@ -162,7 +165,8 @@ export async function retryProjectServiceRoutes(opts: {
           ...new Set(dockerRoutes.map((route) => route.serviceId)),
         ]);
       } catch (error) {
-        const message = error instanceof Error ? error.message : "unknown Docker route repair error";
+        const message =
+          error instanceof Error ? error.message : "unknown Docker route repair error";
         for (const route of dockerRoutes) failures.push({ hostname: route.hostname, message });
       }
     }
@@ -182,5 +186,5 @@ export async function retryProjectServiceRoutes(opts: {
     }
   }
 
-  return { failures };
+  return { failures, attemptedRoutes };
 }

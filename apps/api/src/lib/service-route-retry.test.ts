@@ -97,6 +97,7 @@ describe("retryProjectServiceRoutes", () => {
     expect(mocks.waitForDns).toHaveBeenCalledWith(route.hostname, {
       attempts: 60,
       intervalMs: 1_000,
+      deadlineMs: 60_000,
     });
     expect(mocks.recreateDockerServices).toHaveBeenCalledWith(["svc_1"]);
     expect(mocks.reconcile).not.toHaveBeenCalled();

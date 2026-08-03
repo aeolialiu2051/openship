@@ -309,14 +309,14 @@ export const projectsApi = {
   toggle: (id: string | number, enable: boolean) =>
     api.post<any>(endpoints.projects.toggle(id, enable ? "enable" : "disable")),
 
-  /** Retry DNS + live proxy routing without rebuilding. DNS propagation alone
-   *  can legitimately take 60 seconds, so this request must outlive the API
-   *  client's generic 15-second timeout. */
+  /** Retry DNS + live proxy routing without rebuilding. The backend bounds DNS
+   *  propagation to 60 seconds, then may recreate an existing-image container
+   *  over SSH, so leave enough room for both phases. */
   retryRouting: (id: string | number) =>
     api.post<{ ok: boolean; warning?: string; error?: string }>(
       endpoints.projects.retryRouting(id),
       undefined,
-      { timeout: 120_000 },
+      { timeout: 240_000 },
     ),
 
   /** Clear CDN / proxy cache */

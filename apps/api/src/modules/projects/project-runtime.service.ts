@@ -19,6 +19,7 @@ import {
   markServiceRoutingWarning,
 } from "../../lib/deployment-routing-warning";
 import { retryProjectServiceRoutes } from "../../lib/service-route-retry";
+import { retryProjectApplicationRoutes } from "../../lib/project-route-retry";
 import { deployComposeServices } from "../deployments/compose/deploy.service";
 
 // ─── Runtime logs ────────────────────────────────────────────────────────────
@@ -151,10 +152,12 @@ export async function retryProjectRouting(
     return { ok: false, warning: "No active deployment is available to rebuild routing." };
   }
 
-  const { ok, failures } = await syncProjectManagedEdge(p, organizationId, {
+  const edgeResult = await syncProjectManagedEdge(p, organizationId, {
     clearOnSuccess: false,
   });
-  if (!ok) return { ok: false, warning: edgeUnsyncedWarning(failures, "retry") };
+  const routingFailures: string[] = edgeResult.ok
+    ? []
+    : [edgeUnsyncedWarning(edgeResult.failures, "retry")];
 
   const snapshot = (dep.meta ?? {}) as DeploymentMeta;
   const resolved = await resolveDeploymentPlatform(snapshot, {
@@ -202,10 +205,29 @@ export async function retryProjectRouting(
           }
         : {}),
     });
-    if (serviceRetry.failures.length > 0) {
-      const warning = `Routing retry still needs attention: ${serviceRetry.failures
-        .map((failure) => `${failure.hostname}: ${failure.message}`)
-        .join("; ")}`;
+    const applicationRetry = await retryProjectApplicationRoutes({
+      project: p,
+      deployment: dep,
+      runtime,
+      usesManagedRouting: usesManagedRouting(platform().target, resolved.effectiveTarget),
+      serverId: resolved.serverId ?? undefined,
+    });
+    const routeFailures = [...serviceRetry.failures, ...applicationRetry.failures];
+    if (routeFailures.length > 0) {
+      routingFailures.push(
+        `Routing retry still needs attention: ${routeFailures
+          .map((failure) => `${failure.hostname}: ${failure.message}`)
+          .join("; ")}`,
+      );
+    }
+    const attemptedRoutes = serviceRetry.attemptedRoutes + applicationRetry.attemptedRoutes;
+    if (attemptedRoutes === 0 && routingFailures.length === 0) {
+      routingFailures.push(
+        "Routing retry found no configured public route to repair. Check the project's domain and public endpoint settings.",
+      );
+    }
+    if (routingFailures.length > 0) {
+      const warning = routingFailures.join(" · ");
       await markServiceRoutingWarning(dep, warning);
       return { ok: false, warning };
     }
