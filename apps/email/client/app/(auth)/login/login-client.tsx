@@ -18,32 +18,17 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTRPC } from '@/providers/query-provider';
 
-/** Vibrail's gradient V mark, matching the dashboard and product icon. */
+/** Canonical Vibrail ribbon mark shared with the website and product icon. */
 function VibrailLogo({ size = 44 }: { size?: number }) {
   return (
-    <svg
+    <img
       aria-hidden="true"
-      viewBox="0 0 512 512"
+      src="/apple-touch-icon.png"
+      alt=""
       width={size}
       height={size}
-      className="shrink-0 overflow-visible"
-    >
-      <defs>
-        <linearGradient id="vibrail-logo-gradient" x1="70" y1="80" x2="430" y2="410">
-          <stop offset="0" stopColor="#982cff" />
-          <stop offset="0.55" stopColor="#315cff" />
-          <stop offset="1" stopColor="#00dcec" />
-        </linearGradient>
-      </defs>
-      <path
-        d="M105 112 238 376c13 27 51 29 67 3L409 108"
-        fill="none"
-        stroke="url(#vibrail-logo-gradient)"
-        strokeWidth="92"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
+      className="shrink-0 object-contain"
+    />
   );
 }
 
@@ -111,7 +96,7 @@ export function LoginClient() {
       {/* Main */}
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-[440px]">
-          {/* Brand mark - Vibrail ring above the heading. */}
+          {/* Brand mark - canonical Vibrail ribbon above the heading. */}
           <div className="mb-10 flex flex-col items-center text-center">
             <VibrailLogo size={44} />
             <h1 className="mt-5 text-3xl font-semibold tracking-tight text-foreground sm:text-[34px]">
