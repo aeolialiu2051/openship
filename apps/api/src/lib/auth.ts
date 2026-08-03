@@ -495,7 +495,7 @@ export const auth = betterAuth({
             // --public-url seed still wins inside resolveDashboardPublicUrl.
             await refreshSelfAppPublicUrl().catch(() => {});
             const inviteBase = resolveDashboardPublicUrl();
-            const inviteUrl = `${inviteBase}/accept-invite/${data.id}`;
+            const inviteUrl = resolveDashboardPageUrl(inviteBase, `/accept-invite/${data.id}`);
             const email = organizationInviteEmail({
               invitee: { email: data.email },
               inviter: { name: data.inviter.user.name, email: data.inviter.user.email },

@@ -5,6 +5,49 @@ import { createMDX } from "fumadocs-mdx/next";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const withMDX = createMDX({ configPath: "./source.config.ts" });
 
+// Before the hosted dashboard moved under /dashboard, external callbacks,
+// invitation emails, bookmarks, and client-side history could point at these
+// root paths. Keep them working at the marketing-site edge instead of serving a
+// misleading 404. The destination deliberately stays relative so query strings
+// (OAuth state, reset tokens, suspended site names, etc.) are preserved.
+const DASHBOARD_COMPAT_REDIRECTS = [
+  "accept-invite",
+  "admin",
+  "apps",
+  "audit",
+  "authorize",
+  "backups",
+  "billing",
+  "build",
+  "cloud-authorize",
+  "cloud-connect-callback",
+  "deploy",
+  "deployments",
+  "domains",
+  "emails",
+  "forgot-password",
+  "jobs",
+  "library",
+  "login",
+  "mcp/authorize",
+  "members",
+  "monitoring",
+  "onboarding",
+  "projects",
+  "register",
+  "reset-password",
+  "select-organization",
+  "servers",
+  "settings",
+  "suspended",
+  "verify-email",
+  "auth/callback",
+].map((route) => ({
+  source: `/${route}/:path*`,
+  destination: `/dashboard/${route}/:path*`,
+  permanent: false,
+}));
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
@@ -19,6 +62,9 @@ const nextConfig = {
     resolveAlias: {
       "@/.source/*": "./.source/*",
     },
+  },
+  async redirects() {
+    return DASHBOARD_COMPAT_REDIRECTS;
   },
 };
 

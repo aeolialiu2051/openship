@@ -115,6 +115,7 @@ describe("connectRedirect", () => {
 
   it("uses the configured public dashboard URL for a production-served local SaaS", async () => {
     env.CLOUD_MODE = true;
+    resolveDashboardPublicUrl.mockReturnValue("https://ops.example.com/dashboard");
     getGitHubAuthMode.mockReturnValue("app");
 
     linkSocialAccount.mockResolvedValue(
@@ -134,8 +135,8 @@ describe("connectRedirect", () => {
     expect(linkSocialAccount).toHaveBeenCalledWith(
       expect.objectContaining({
         body: expect.objectContaining({
-          callbackURL: "https://ops.example.com/auth/callback/install",
-          errorCallbackURL: "https://ops.example.com/auth/callback/close",
+          callbackURL: "https://ops.example.com/dashboard/auth/callback/install",
+          errorCallbackURL: "https://ops.example.com/dashboard/auth/callback/close",
         }),
       }),
     );

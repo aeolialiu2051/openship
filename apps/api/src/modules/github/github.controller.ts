@@ -11,6 +11,7 @@
  */
 
 import type { Context } from "hono";
+import { resolveDashboardPageUrl } from "@repo/core";
 import { env } from "../../config/env";
 import { auth } from "../../lib/auth";
 import { audit, auditContextFrom } from "../../lib/audit";
@@ -421,11 +422,13 @@ export async function connectRedirect(c: Context) {
   // public domain. Use the shared resolver so VIBRAIL_PUBLIC_URL (or the
   // verified self-app domain) wins over the localhost runtime-target fallback.
   const dashOrigin = env.CLOUD_MODE ? resolveDashboardPublicUrl() : "";
-  const callbackURL = `${dashOrigin}${path}`;
+  const callbackURL = dashOrigin ? resolveDashboardPageUrl(dashOrigin, path) : path;
   // Route link FAILURES to the app's close page (which surfaces the error via
   // localStorage → opener toast) instead of Better Auth's raw error page on
   // the API origin, where the popup would otherwise dead-end.
-  const errorCallbackURL = `${dashOrigin}/auth/callback/close`;
+  const errorCallbackURL = dashOrigin
+    ? resolveDashboardPageUrl(dashOrigin, "/auth/callback/close")
+    : "/auth/callback/close";
 
   try {
     // Use linkSocialAccount (not signInSocial) because the user is already
