@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { withDashboardBasePath, withoutDashboardBasePath } from "@/lib/dashboard-path";
 
 // Cookie presence only — never proof of a valid session. Server-side
 // `getSession()` in (dashboard) layout is the real authoritative
@@ -20,6 +21,7 @@ const SESSION_COOKIE_SUFFIX = ".session_token";
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
+  const appPathname = withoutDashboardBasePath(pathname);
 
   // Never redirect API routes. The page-auth redirect below is meant for
   // navigations; applying it to /api/* breaks single-host proxy mode
@@ -27,14 +29,14 @@ export function proxy(req: NextRequest) {
   // /api/proxy/api/auth/sign-in/email — with no session cookie yet, it
   // was being bounced to /login, making login impossible. API auth is
   // enforced by the API process, which returns 401 rather than a redirect.
-  if (pathname.startsWith("/api/")) return NextResponse.next();
+  if (appPathname.startsWith("/api/")) return NextResponse.next();
 
-  const isPublic = PUBLIC_ROUTES.some((r) => pathname.startsWith(r));
+  const isPublic = PUBLIC_ROUTES.some((r) => appPathname.startsWith(r));
   const hasCookie = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX));
 
   if (!hasCookie && !isPublic) {
-    const url = new URL("/login", req.url);
-    url.searchParams.set("from", pathname);
+    const url = new URL(withDashboardBasePath("/login"), req.url);
+    url.searchParams.set("from", appPathname);
     return NextResponse.redirect(url);
   }
 
@@ -43,7 +45,7 @@ export function proxy(req: NextRequest) {
   // Router). (auth)/layout.tsx uses this to honor a `callback=` on
   // /login when the user already has a SaaS session.
   const requestHeaders = new Headers(req.headers);
-  requestHeaders.set("x-pathname-with-search", `${pathname}${search}`);
+  requestHeaders.set("x-pathname-with-search", `${appPathname}${search}`);
 
   // Mirror the locale cookie onto a request header. The root layout reads it
   // to render the right language on the SERVER (no English→Arabic

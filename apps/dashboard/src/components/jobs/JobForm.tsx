@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { Check, Loader2, Plus, Trash2, Server as ServerIcon, CalendarClock, ShieldCheck, KeyRound, GitBranch, Bell, ArrowRight, BookOpen, ListChecks, Terminal, FileText, Upload } from "lucide-react";
 import {
   jobsApi,
@@ -290,9 +291,9 @@ export function JobForm({
           {channels.length === 0 ? (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground/60">{c.noChannels}</p>
-              <a href="/settings?tab=notifications" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+              <Link href="/settings?tab=notifications" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
                 {c.setupChannel} <ArrowRight className="size-3.5" />
-              </a>
+              </Link>
             </div>
           ) : (
             <>

@@ -30,6 +30,10 @@
 # The API + dashboard bind fixed internal ports via PORT (the API honors PORT
 # regardless of VIBRAIL_TARGET); a reverse proxy maps the public domains to
 # them. postgres/redis are internal-only. The API auto-migrates Postgres on boot.
+# The hosted path-routing contract and a Traefik file-provider example live at
+# docker/traefik-vibrail-saas.yml:
+#   /dashboard/* → dashboard, /api/proxy/* (+ OAuth/MCP/WS) → dashboard,
+#   everything else → web.
 #
 # REMOTE ACCESS: reaching this from another machine (LAN IP or a reverse proxy)
 # requires VIBRAIL_PUBLIC_URL in .env — else the dashboard loads but login is
@@ -111,6 +115,10 @@ services:
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
+      args:
+        # Hosted SaaS shares the marketing origin and mounts the UI beneath
+        # /dashboard. Self-hosted/release builds leave this empty and stay at /.
+        NEXT_PUBLIC_DASHBOARD_BASE_PATH: "${DASHBOARD_BASE_PATH:-/dashboard}"
     restart: unless-stopped
     ports:
       - "${VIBRAIL_BIND_ADDR:-0.0.0.0}:${DASHBOARD_PORT:-3001}:${DASHBOARD_PORT:-3001}"
@@ -120,6 +128,9 @@ services:
       NODE_ENV: production
       PORT: "${DASHBOARD_PORT:-3001}"
       INTERNAL_API_URL: http://api:${API_PORT:-4000}
+      # The front server uses the same mount to map root-level API/OAuth/MCP
+      # requests into the basePath-aware Next app.
+      NEXT_PUBLIC_DASHBOARD_BASE_PATH: "${DASHBOARD_BASE_PATH:-/dashboard}"
     depends_on:
       api:
         condition: service_healthy
@@ -135,6 +146,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "${WEB_PORT:-3000}"
+      VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:-https://vibrail.warpgateapi.com/dashboard}"
 
 volumes:
   postgres_data:

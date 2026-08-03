@@ -13,7 +13,7 @@ nothing from home. No local ID cards, no house keys, no return address.
 - **Self-hosted instance** — the Vibrail you run on your own machine or server.
   It is the single **control plane** and **permission plane**: the layer that
   decides who may do what. Every request is checked here first.
-- **Vibrail Cloud** — the hosted service at `https://vibrail.warpgateapi.com`. It is the
+- **Vibrail Cloud** — the hosted control plane at `https://vibrail.warpgateapi.com/dashboard`. It is the
   **upstream authority** (the final say) for any project that lives on the Cloud.
 - **Proxy** — when a request is for a Cloud-owned project, your instance *forwards*
   it upstream instead of answering itself. That forwarding step is the boundary,

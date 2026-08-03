@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "Sign in",
   description: "Sign in to your Vibrail account.",
   robots: { index: false, follow: false, nocache: true },
-  alternates: { canonical: "https://vibrail.warpgateapi.com/login" },
+  alternates: { canonical: "https://vibrail.warpgateapi.com/dashboard/login" },
 };
 
 export default function LoginLayout({ children }: { children: ReactNode }) {

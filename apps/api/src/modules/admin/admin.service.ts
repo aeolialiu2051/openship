@@ -622,7 +622,7 @@ async function suspendedRouteOptions(
     routes: domains
       .filter((domain) => domain.verified && domain.status === "active")
       .map((domain) => {
-        const redirect = new URL("/suspended", dashboard);
+        const redirect = new URL("suspended", `${dashboard.replace(/\/+$/, "")}/`);
         redirect.searchParams.set("site", domain.hostname);
         return { hostname: domain.hostname, redirectUrl: redirect.toString() };
       }),

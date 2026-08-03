@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { getApiOrigin } from "@/lib/api/urls";
+import { dashboardUrl } from "@/lib/dashboard-path";
 import { useI18n } from "@/components/i18n-provider";
 import { api, endpoints, getApiErrorCode, getApiErrorMessage } from "@/lib/api";
 import { validateSshPayload } from "@repo/onboarding";
@@ -144,7 +145,7 @@ export function SshStep({ state, onUpdate, onNext, onBack }: StepProps) {
     onUpdate({
       ssh: payload,
       apiUrl: getApiOrigin(),
-      dashboardUrl: window.location.origin,
+      dashboardUrl: dashboardUrl(window.location.origin),
     });
     setError(null);
     onNext();

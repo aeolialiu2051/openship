@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { alignLoopbackOrigin, getWebSocketApiBaseUrl, resolveProxyWebSocketApiBase } from "./urls";
+import {
+  alignLoopbackOrigin,
+  getCloudApiOrigin,
+  getCloudDashboardUrl,
+  getWebSocketApiBaseUrl,
+  resolveProxyWebSocketApiBase,
+} from "./urls";
 
 describe("alignLoopbackOrigin", () => {
   it("rewrites a 127.0.0.1 API origin when the page is served from localhost", () => {
@@ -64,5 +70,17 @@ describe("getWebSocketApiBaseUrl", () => {
     expect(new URL("services/terminal/ws/svc_1", base).pathname).toBe(
       "/api/services/terminal/ws/svc_1",
     );
+  });
+});
+
+describe("hosted control-plane URL paths", () => {
+  it("preserves the Dashboard /dashboard mount", () => {
+    expect(getCloudDashboardUrl("https://vibrail.example/dashboard/"))
+      .toBe("https://vibrail.example/dashboard");
+  });
+
+  it("preserves the public API /api/proxy mount", () => {
+    expect(getCloudApiOrigin("https://vibrail.example/api/proxy/"))
+      .toBe("https://vibrail.example/api/proxy");
   });
 });

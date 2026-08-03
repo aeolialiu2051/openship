@@ -1,5 +1,5 @@
-const DASHBOARD_URL = 'https://vibrail.warpgateapi.com'
-const API_URL = `${DASHBOARD_URL}/api/proxy/api`
+const DASHBOARD_URL = 'https://vibrail.warpgateapi.com/dashboard'
+const API_URL = 'https://vibrail.warpgateapi.com/api/proxy/api'
 const MCP_URL = `${API_URL}/mcp`
 
 const sectionsByLocale = {

@@ -49,13 +49,13 @@ vibrail login \
 | `--token <token>` | Personal access token (`vibrail_pat_…`) for non-interactive login. | *(browser login)* |
 | `--no-browser` | Print the authorization URL without opening it. | off |
 | `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.warpgateapi.com/api/proxy` |
-| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.warpgateapi.com` |
+| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.warpgateapi.com/dashboard` |
 | `--context <name>` | Name of the context to store this login under. | `default` |
 
 The hosted default is derived from `HOST_DOMAIN`. A bare hostname uses HTTPS, so
-`HOST_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/authorize` and validates
+`HOST_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/dashboard/authorize` and validates
 the token through `https://next.vibrail.example/api/proxy/api/tokens`. A complete URL such as
-`HOST_DOMAIN=http://localhost:3002` keeps its scheme. `VIBRAIL_CLOUD_API_URL` and
+`HOST_DOMAIN=http://localhost:3002` keeps its scheme and mounts the dashboard at `/dashboard`. `VIBRAIL_CLOUD_API_URL` and
 `VIBRAIL_CLOUD_DASHBOARD_URL` can still override the two endpoints individually and take precedence over
 `HOST_DOMAIN`.
 

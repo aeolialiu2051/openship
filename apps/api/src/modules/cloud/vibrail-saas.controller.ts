@@ -260,7 +260,10 @@ export async function connectHandoff(c: Context) {
   // renders the consent UI; on Authorize click it POSTs back to
   // /api/cloud/connect-authorize below, which is where the code mint
   // actually happens.
-  const consentUrl = new URL("/cloud-authorize", cloudRuntimeTarget.dashboard);
+  const consentUrl = new URL(
+    "cloud-authorize",
+    `${cloudRuntimeTarget.dashboard.replace(/\/+$/, "")}/`,
+  );
   consentUrl.searchParams.set("state", state);
   consentUrl.searchParams.set("code_challenge", codeChallenge);
   if (isDevice) {

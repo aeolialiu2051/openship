@@ -581,7 +581,7 @@ export async function buildAuthHandoff(opts: {
   loginFlow?: string;
 }): Promise<{ kind: "login"; url: string } | { kind: "handoff"; url: string }> {
   if (!opts.session) {
-    const loginUrl = new URL("/login", opts.dashboardOrigin);
+    const loginUrl = new URL("login", `${opts.dashboardOrigin.replace(/\/+$/, "")}/`);
     loginUrl.searchParams.set("callback", opts.redirect.toString());
     if (opts.loginFlow) loginUrl.searchParams.set("flow", opts.loginFlow);
     if (opts.state) loginUrl.searchParams.set("state", opts.state);

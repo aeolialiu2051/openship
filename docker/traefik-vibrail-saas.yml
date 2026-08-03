@@ -1,0 +1,44 @@
+# Traefik file-provider routes for the hosted Vibrail control plane.
+#
+# Assumptions:
+#   - Traefik can resolve the Compose service names `web` and `dashboard`.
+#   - The root SaaS compose defaults are used (web :3000, dashboard :3002).
+#   - TLS/certificate resolution is configured by the parent Traefik install.
+#
+# The Dashboard image is built with NEXT_PUBLIC_DASHBOARD_BASE_PATH=/dashboard.
+# Root-level API/OAuth/MCP paths stay clean and are handled by Dashboard rewrites.
+http:
+  routers:
+    vibrail-control-api:
+      rule: >-
+        Host(`vibrail.warpgateapi.com`) &&
+        (PathPrefix(`/api/proxy`) || PathPrefix(`/api/auth`) || Path(`/api/mcp`) || PathPrefix(`/.well-known`) || PathPrefix(`/_vibrail/ws`))
+      entryPoints: [websecure]
+      service: vibrail-dashboard
+      priority: 120
+      tls: {}
+
+    vibrail-dashboard:
+      rule: Host(`vibrail.warpgateapi.com`) && PathPrefix(`/dashboard`)
+      entryPoints: [websecure]
+      service: vibrail-dashboard
+      priority: 110
+      tls: {}
+
+    vibrail-web:
+      rule: Host(`vibrail.warpgateapi.com`)
+      entryPoints: [websecure]
+      service: vibrail-web
+      priority: 10
+      tls: {}
+
+  services:
+    vibrail-dashboard:
+      loadBalancer:
+        servers:
+          - url: http://dashboard:3002
+
+    vibrail-web:
+      loadBalancer:
+        servers:
+          - url: http://web:3000

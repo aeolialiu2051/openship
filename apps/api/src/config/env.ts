@@ -559,11 +559,17 @@ if (!env.CLOUD_MODE) {
   }
 }
 
-/**
- * Trusted origins for CORS + Better Auth. Runtime-target URLs are
- * hardcoded clean origins from `@repo/core` (no trailing slashes,
- * always http(s)) so we just dedupe them — no normalization needed.
- */
+/** Trusted origins for CORS + Better Auth. Runtime endpoint URLs may include
+ * path mounts (/dashboard, /api/proxy), but origin checks must never include
+ * those paths. */
+const trustedOrigin = (value: string): string => {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return value.replace(/\/+$/, "");
+  }
+};
+
 const extraTrustedOrigins = (env.VIBRAIL_EXTRA_TRUSTED_ORIGINS ?? "")
   .split(",")
   .map((o) => o.trim())
@@ -571,13 +577,13 @@ const extraTrustedOrigins = (env.VIBRAIL_EXTRA_TRUSTED_ORIGINS ?? "")
 
 export const trustedOrigins = [
   ...new Set([
-    runtimeTarget.dashboard,
-    runtimeTarget.api,
+    trustedOrigin(runtimeTarget.dashboard),
+    trustedOrigin(runtimeTarget.api),
     // Public serving (vibrail up --public-url): the browser's origin is the
     // operator's public URL, so it must be trusted for CORS, the origin guard,
     // and Better Auth's login CSRF check — otherwise remote login is rejected.
-    ...(env.VIBRAIL_PUBLIC_URL ? [env.VIBRAIL_PUBLIC_URL.replace(/\/+$/, "")] : []),
-    ...extraTrustedOrigins,
+    ...(env.VIBRAIL_PUBLIC_URL ? [trustedOrigin(env.VIBRAIL_PUBLIC_URL)] : []),
+    ...extraTrustedOrigins.map(trustedOrigin),
     ...(env.NODE_ENV === "production" ? [] : [LOCAL_WEB_URL, ...dashboardRuntimeOrigins]),
   ]),
 ];

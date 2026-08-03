@@ -183,6 +183,10 @@ export async function getInstanceReachability(): Promise<InstanceReachability> {
  *  MCP loginPage/consentPage + invite/OIDC links — so on desktop these point at
  *  the real dashboard port, not the dead static one. */
 export function resolveDashboardPublicUrl(): string {
+  // Hosted Vibrail shares its origin with the marketing site, so the runtime
+  // target carries the required /dashboard mount. VIBRAIL_PUBLIC_URL remains
+  // the origin used for clean root-level API/OAuth endpoints.
+  if (env.CLOUD_MODE) return runtimeTarget.dashboard;
   return publicUrl() ?? localDashboardUrl;
 }
 

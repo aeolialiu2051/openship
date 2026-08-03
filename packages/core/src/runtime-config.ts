@@ -28,11 +28,10 @@ export const LOCAL_WEB_URL = localhost(DEFAULT_PORT.web);
 export const LOCAL_DASHBOARD_URL = localhost(DEFAULT_PORT.dashboard);
 export const LOCAL_API_URL = localhost(DEFAULT_PORT.api);
 
-// The production cloud endpoints. HOST_DOMAIN changes the shared hosted origin
-// without a source edit (a bare hostname is served over HTTPS; a full URL keeps
-// its explicit scheme). The VIBRAIL_CLOUD_* variables remain the highest-
-// priority per-endpoint overrides, which is useful when API and dashboard use
-// different origins or when local development needs HTTP ports.
+// The production cloud endpoints. HOST_DOMAIN selects the shared public origin;
+// the hosted dashboard lives beneath /dashboard while the API keeps the clean
+// root-level /api/proxy contract. VIBRAIL_CLOUD_* remain the highest-priority
+// per-endpoint overrides for local development and custom installations.
 const envUrl = (key: string): string | undefined => {
   const v = typeof process !== "undefined" ? process.env?.[key] : undefined;
   return v && v.trim() ? v.trim() : undefined;
@@ -48,12 +47,12 @@ const hostedOrigin = (() => {
 })();
 
 export const CLOUD_DASHBOARD_URL =
-  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? hostedOrigin;
+  (envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? `${hostedOrigin}/dashboard`).replace(/\/+$/, "");
 // Hosted Vibrail serves the dashboard and API on one public origin. General
 // API routes pass through the dashboard's Next.js catch-all proxy; callers
 // append their normal `/api/...` paths to this base.
 export const CLOUD_API_URL =
-  envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`;
+  (envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`).replace(/\/+$/, "");
 
 /**
  * THE runtime-target table. Keyed by id — the id IS the key, no

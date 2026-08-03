@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 // without booting the real env module (and its INTERNAL_TOKEN guard). vi.hoisted
 // lets the hoisted vi.mock factory reference these mutable objects.
 const { mockEnv, mockRuntimeTarget } = vi.hoisted(() => ({
-  mockEnv: { VIBRAIL_PUBLIC_URL: undefined as string | undefined },
+  mockEnv: { VIBRAIL_PUBLIC_URL: undefined as string | undefined, CLOUD_MODE: false },
   mockRuntimeTarget: { api: "http://localhost:4000", dashboard: "http://localhost:3001" },
 }));
 vi.mock("../../src/config/env", () => ({
@@ -25,6 +25,7 @@ import {
 
 afterEach(() => {
   mockEnv.VIBRAIL_PUBLIC_URL = undefined;
+  mockEnv.CLOUD_MODE = false;
 });
 
 describe("public-url resolver — no VIBRAIL_PUBLIC_URL (cloud / dev)", () => {
@@ -32,6 +33,13 @@ describe("public-url resolver — no VIBRAIL_PUBLIC_URL (cloud / dev)", () => {
     expect(resolveApiPublicUrl()).toBe("http://localhost:4000");
     expect(resolveDashboardPublicUrl()).toBe("http://localhost:3001");
     expect(sharedWebhookUrl()).toBe("http://localhost:4000/api/webhooks/github");
+  });
+
+  it("uses the runtime Dashboard path in hosted Cloud mode", () => {
+    mockEnv.CLOUD_MODE = true;
+    mockRuntimeTarget.dashboard = "https://vibrail.example/dashboard";
+    expect(resolveDashboardPublicUrl()).toBe("https://vibrail.example/dashboard");
+    mockRuntimeTarget.dashboard = "http://localhost:3001";
   });
 });
 

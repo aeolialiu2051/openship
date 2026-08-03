@@ -65,7 +65,7 @@ describe("cli smoke", { timeout: 40_000 }, () => {
     const { stdout, code } = await runCli(["login", "--help"]);
     expect(code).toBe(0);
     expect(stdout).toContain("https://vibrail.warpgateapi.com/api/proxy");
-    expect(stdout).toContain("https://vibrail.warpgateapi.com");
+    expect(stdout).toContain("https://vibrail.warpgateapi.com/dashboard");
     expect(stdout).not.toContain("http://localhost:4000");
     expect(stdout).not.toContain("http://localhost:3001");
   });
@@ -78,7 +78,7 @@ describe("cli smoke", { timeout: 40_000 }, () => {
     });
     expect(code).toBe(0);
     expect(stdout).toContain("https://next.vibrail.example/api/proxy");
-    expect(stdout).toContain("https://next.vibrail.example");
+    expect(stdout).toContain("https://next.vibrail.example/dashboard");
   });
 
   it("exits non-zero on an unknown command", async () => {

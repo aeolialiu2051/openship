@@ -88,7 +88,7 @@ For the official hosted service, confirm both values:
 
 ```text
 apiUrl:       https://vibrail.warpgateapi.com/api/proxy
-dashboardUrl: https://vibrail.warpgateapi.com
+dashboardUrl: https://vibrail.warpgateapi.com/dashboard
 ```
 
 Then verify health, capabilities, and authentication:
@@ -106,7 +106,7 @@ If login is missing, expired, or points to the wrong instance, run:
 vibrail login \
   --context vibrail \
   --api-url https://vibrail.warpgateapi.com/api/proxy \
-  --dashboard-url https://vibrail.warpgateapi.com
+  --dashboard-url https://vibrail.warpgateapi.com/dashboard
 ```
 
 The CLI opens a Vibrail browser authorization URL. The user approves access there; after login, verify again with `vibrail status` and `vibrail --json project list`.

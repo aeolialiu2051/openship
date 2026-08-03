@@ -22,6 +22,18 @@ function originOf(raw: string): string | undefined {
   }
 }
 
+/** Preserve an http(s) URL's pathname while removing query/hash/trailing slash. */
+function baseUrlOf(raw: string): string | undefined {
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return undefined;
+    const pathname = u.pathname === "/" ? "" : u.pathname.replace(/\/+$/, "");
+    return `${u.protocol}//${u.host}${pathname}`;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Find the runtime target whose dashboard or api origin matches the URL. */
 function resolveTarget(rawUrl?: string): Target {
   const origin = rawUrl ? originOf(rawUrl) : undefined;
@@ -166,11 +178,11 @@ export function getWebSocketApiBaseUrl() {
 }
 
 export function getCloudDashboardUrl(rawUrl?: string) {
-  return originOf(rawUrl ?? "") ?? cloudPartner(currentTarget()).dashboard;
+  return baseUrlOf(rawUrl ?? "") ?? cloudPartner(currentTarget()).dashboard;
 }
 
 export function getCloudApiOrigin(rawUrl?: string) {
-  return originOf(rawUrl ?? "") ?? cloudPartner(currentTarget()).api;
+  return baseUrlOf(rawUrl ?? "") ?? cloudPartner(currentTarget()).api;
 }
 
 /**

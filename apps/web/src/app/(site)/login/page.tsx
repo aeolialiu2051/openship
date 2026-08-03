@@ -1,10 +1,8 @@
+import { CLOUD_DASHBOARD_URL } from "@repo/core";
+import { redirect } from "next/navigation";
 
-"use client";
-import { useEffect } from "react";
+export const dynamic = "force-dynamic";
 
 export default function LoginRedirect() {
-  useEffect(() => {
-    window.location.href = "https://vibrail.warpgateapi.com/login";
-  }, []);
-  return null;
+  redirect(`${CLOUD_DASHBOARD_URL.replace(/\/+$/, "")}/login`);
 }
