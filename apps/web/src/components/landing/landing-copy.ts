@@ -27,7 +27,7 @@ export const landingCopy = {
     },
     prompt: {
       eyebrow: "Prompt-driven deploys",
-      title: ["Describe the outcome.", "Vibrail ships the system."],
+      title: ["Describe it", "Vibrail ships it"],
       description: "Give the agent a repository and the result you want. It plans the infrastructure, builds the release, provisions dependencies, and returns a live service.",
       ariaLabel: "Mock prompt deployment interface",
       agentTitle: "Deployment Agent",
@@ -54,7 +54,7 @@ export const landingCopy = {
     },
     cli: {
       eyebrow: "CLI deploys",
-      title: ["One command.", "The same production path."],
+      title: ["One command", "Production ready"],
       description: "Prefer the terminal? The CLI uses the same build, release, routing, health-check, and rollback pipeline as the deployment agent.",
       ariaLabel: "Vibrail CLI deployment example",
       tabs: ["Deploy", "Observe", "Rollback"],
@@ -75,7 +75,7 @@ export const landingCopy = {
     ],
     platform: {
       eyebrow: "Core platform",
-      title: ["Everything between", "commit and production."],
+      title: ["From commit", "to production"],
       description: "A focused deployment layer that keeps the hard infrastructure work visible, repeatable and under your control.",
       features: [
         ["Deploy in one command", "Vibrail detects the stack, builds an immutable release, ships it over SSH, and brings it online with zero-downtime routing."],
@@ -87,7 +87,7 @@ export const landingCopy = {
     },
     workflow: {
       eyebrow: "How it works",
-      title: ["A short path from", "source to service."],
+      title: ["Source to service", "One clear path"],
       description: "No builds running on production. No persistent Vibrail control-plane daemon on the target. Just immutable releases moving through a clear pipeline.",
       steps: [
         ["Connect", "Link a repository and choose Vibrail Cloud or a VPS. Vibrail detects the framework, package manager and runtime."],
@@ -95,7 +95,7 @@ export const landingCopy = {
         ["Ship & operate", "Stream the release over SSH, route traffic, watch health, and roll back from the same control plane."],
       ],
       infraEyebrow: "One topology, your choice of infrastructure",
-      infraTitle: ["Managed cloud.", "Your own VPS."],
+      infraTitle: ["Cloud or VPS", "Same workflow"],
       infraDescription: "Choose managed Vibrail Cloud or connect a Linux VPS over SSH. The deployment workflow stays the same as your infrastructure grows.",
       explore: "Explore the architecture",
       controlPlane: "control plane",
@@ -105,7 +105,7 @@ export const landingCopy = {
     },
     operations: {
       eyebrow: "Operations included",
-      title: ["The essentials are", "already in the room."],
+      title: ["Production essentials", "Built in"],
       description: "Vibrail keeps deployment, networking and day-two operations together so your team spends less time stitching tools together.",
       capabilities: [
         ["Domains & SSL", "Automatic certificates and traffic routing."],
@@ -118,7 +118,7 @@ export const landingCopy = {
     },
     cta: {
       eyebrow: "Ready when your code is.",
-      title: "Ship the next version.",
+      title: "Ship the next version",
       dashboard: "Open dashboard",
       connect: "Connect a VPS",
     },
@@ -164,7 +164,7 @@ export const landingCopy = {
     },
     prompt: {
       eyebrow: "Prompt 驱动部署",
-      title: ["描述你想要的结果。", "Vibrail 负责交付系统。"],
+      title: ["描述结果", "Vibrail 来交付"],
       description: "告诉 agent 代码仓库和目标结果。它会规划基础设施、构建版本、配置依赖，并返回一个可访问的线上服务。",
       ariaLabel: "Prompt 部署模拟界面",
       agentTitle: "部署 Agent",
@@ -191,7 +191,7 @@ export const landingCopy = {
     },
     cli: {
       eyebrow: "CLI 部署",
-      title: ["一条命令。", "同一条生产交付路径。"],
+      title: ["一条命令", "直达生产"],
       description: "习惯使用终端？CLI 与部署 agent 共享同一套构建、发布、路由、健康检查和回滚流程。",
       ariaLabel: "Vibrail CLI 部署示例",
       tabs: ["部署", "观测", "回滚"],
@@ -212,7 +212,7 @@ export const landingCopy = {
     ],
     platform: {
       eyebrow: "核心平台",
-      title: ["覆盖从代码提交", "到生产环境的一切。"],
+      title: ["从代码提交", "到生产环境"],
       description: "专注的部署层，让复杂的基础设施工作清晰可见、可重复执行，并始终由你掌控。",
       features: [
         ["一条命令完成部署", "Vibrail 自动识别技术栈、构建不可变版本、通过 SSH 传输，并以零停机方式上线。"],
@@ -224,7 +224,7 @@ export const landingCopy = {
     },
     workflow: {
       eyebrow: "工作方式",
-      title: ["从源代码到线上服务，", "只需一条清晰路径。"],
+      title: ["从源码", "到服务"],
       description: "生产服务器不执行构建，目标 VPS 不运行常驻的 Vibrail 控制平面进程，只有不可变版本沿着明确流程完成交付。",
       steps: [
         ["连接", "关联代码仓库并选择 Vibrail Cloud 或 VPS。Vibrail 会识别框架、包管理器和运行时。"],
@@ -232,7 +232,7 @@ export const landingCopy = {
         ["发布与运维", "通过 SSH 传输版本、路由流量、检查健康状态，并从同一控制平面执行回滚。"],
       ],
       infraEyebrow: "同一套拓扑，自由选择基础设施",
-      infraTitle: ["使用托管 Cloud。", "或连接你的 VPS。"],
+      infraTitle: ["Cloud 或 VPS", "流程不变"],
       infraDescription: "选择托管的 Vibrail Cloud，或通过 SSH 连接 Linux VPS。随着基础设施扩展，部署工作流始终保持一致。",
       explore: "查看架构",
       controlPlane: "控制平面",
@@ -242,7 +242,7 @@ export const landingCopy = {
     },
     operations: {
       eyebrow: "内置运维能力",
-      title: ["生产环境所需能力，", "已经准备就绪。"],
+      title: ["生产能力", "全部内置"],
       description: "Vibrail 将部署、网络和持续运维集中在一起，让团队无需再花时间拼接不同工具。",
       capabilities: [
         ["域名与 SSL", "自动签发证书并配置流量路由。"],
@@ -255,7 +255,7 @@ export const landingCopy = {
     },
     cta: {
       eyebrow: "代码准备好，Vibrail 就准备好。",
-      title: "发布下一个版本。",
+      title: "发布下一个版本",
       dashboard: "打开控制台",
       connect: "连接 VPS",
     },
