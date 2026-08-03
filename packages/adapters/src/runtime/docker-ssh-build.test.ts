@@ -13,7 +13,10 @@ describe("DockerRuntime SSH builds", () => {
       start,
     }));
     const runtime = Object.create(DockerRuntime.prototype) as DockerRuntime;
-    Object.defineProperty(runtime, "_docker", { value: { createContainer } });
+    Object.defineProperties(runtime, {
+      _docker: { value: { createContainer } },
+      transport: { value: { kind: "socket" } },
+    });
 
     await runtime.deploy({
       deploymentId: "deployment-runtime-banner",
@@ -28,11 +31,7 @@ describe("DockerRuntime SSH builds", () => {
 
     expect(createContainer).toHaveBeenCalledOnce();
     expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
-      Cmd: [
-        "sh",
-        "-c",
-        expect.stringContaining("[vibrail] Application starting on port 8000"),
-      ],
+      Cmd: ["sh", "-c", expect.stringContaining("[vibrail] Application starting on port 8000")],
     });
     expect(createContainer.mock.calls[0]?.[0]).toMatchObject({
       Cmd: ["sh", "-c", expect.stringContaining("uvicorn app:api")],

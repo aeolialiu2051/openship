@@ -2169,6 +2169,95 @@ export class DockerRuntime implements RuntimeAdapter {
 
   // ── Deploy lifecycle ───────────────────────────────────────────────────
 
+  /**
+   * Create a single-app workload on an SSH-hosted Docker daemon through the
+   * bounded command channel. Some production sshd/Docker combinations accept
+   * a dockerode create request without ever returning its response. Builds,
+   * compose services, and edge containers already use this CLI path for the
+   * same reason; keep single-app deployment on that reliable transport too.
+   */
+  private async deployRemoteContainer(input: {
+    config: DeployConfig;
+    containerName: string;
+    imageRef: string;
+    env: string[];
+    cmd?: string[];
+    restartPolicy: { Name: string; MaximumRetryCount: number };
+    log: LogCallback;
+  }): Promise<DeploymentResult> {
+    const { config, containerName, imageRef, env, cmd, restartPolicy, log } = input;
+    const executor = this.connectionOptions?.executor;
+    if (!executor) throw new Error("Remote Docker deployment requires an SSH executor.");
+
+    const args: string[] = ["run", "-d", "--name", sq(containerName)];
+    const envFile = `/tmp/vibrail-env-${config.deploymentId.replace(/[^A-Za-z0-9_.-]/g, "-")}`;
+
+    for (const [key, value] of Object.entries({
+      ...this.labels({ deploymentId: config.deploymentId, projectId: config.projectId }),
+      ...(config.traefik ? buildTraefikLabels(config.traefik) : {}),
+    })) {
+      args.push("--label", sq(`${key}=${value}`));
+    }
+
+    if (config.traefik) {
+      args.push("--network", sq(config.traefik.network));
+      for (const port of new Set(config.traefik.routes.map((route) => route.port))) {
+        args.push("--expose", sq(String(port)));
+      }
+    } else {
+      const publishedPort = config.hostPort
+        ? `127.0.0.1:${config.hostPort}:${config.port}`
+        : `127.0.0.1::${config.port}`;
+      args.push("--publish", sq(publishedPort));
+    }
+
+    for (const mount of config.bindMounts ?? []) {
+      args.push("--volume", sq(`${mount.source}:${mount.target}${mount.readOnly ? ":ro" : ""}`));
+    }
+
+    const restart =
+      restartPolicy.Name === "on-failure" && restartPolicy.MaximumRetryCount > 0
+        ? `${restartPolicy.Name}:${restartPolicy.MaximumRetryCount}`
+        : restartPolicy.Name;
+    args.push("--restart", sq(restart));
+    args.push("--memory", sq(`${config.resources.memoryMb}m`));
+    args.push("--cpu-shares", sq(String(Math.round(config.resources.cpuCores * 1024))));
+    args.push("--env-file", sq(envFile));
+    args.push(sq(imageRef));
+    if (cmd) args.push(...cmd.map(sq));
+
+    try {
+      await executor.writeFile(envFile, `${env.join("\n")}\n`);
+      await executor.exec(`chmod 600 ${sq(envFile)}`);
+
+      let containerId: string;
+      try {
+        containerId = (await this.remoteDockerExec(args.join(" "), { timeout: 2 * 60_000 })).trim();
+      } catch (error) {
+        await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
+        throw error;
+      }
+      if (!containerId) {
+        await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
+        throw new Error("Remote Docker run returned no container ID.");
+      }
+
+      log({
+        timestamp: new Date().toISOString(),
+        message: `Container ${containerId.slice(0, 12)} started.\n`,
+        level: "info",
+      });
+
+      return {
+        deploymentId: config.deploymentId,
+        containerId,
+        status: "running",
+      };
+    } finally {
+      await executor.rm(envFile).catch(() => {});
+    }
+  }
+
   async deploy(config: DeployConfig, onLog?: LogCallback): Promise<DeploymentResult> {
     const log = onLog ?? (() => {});
     const imageRef = config.imageRef;
@@ -2204,6 +2293,18 @@ export class DockerRuntime implements RuntimeAdapter {
       message: `Creating container ${containerName} from ${imageRef}...\n`,
       level: "info",
     });
+
+    if (this.usesRemoteDockerCli()) {
+      return this.deployRemoteContainer({
+        config,
+        containerName,
+        imageRef,
+        env,
+        cmd,
+        restartPolicy,
+        log,
+      });
+    }
 
     const traefikLabels = config.traefik ? buildTraefikLabels(config.traefik) : {};
     const exposedPorts = Object.fromEntries(
@@ -2463,8 +2564,7 @@ export class DockerRuntime implements RuntimeAdapter {
         const row = JSON.parse(line) as { ID?: string; State?: string };
         if (!row.ID) continue;
         const serviceName = await this.remoteDockerExec(
-          `inspect --format ${sq('{{index .Config.Labels "vibrail.service"}}')}` +
-            ` ${sq(row.ID)}`,
+          `inspect --format ${sq('{{index .Config.Labels "vibrail.service"}}')}` + ` ${sq(row.ID)}`,
         ).catch(() => "");
         result.push({
           containerId: row.ID,
@@ -3717,8 +3817,7 @@ export class DockerRuntime implements RuntimeAdapter {
         for (const id of ids) {
           try {
             const owner = await this.remoteDockerExec(
-              `inspect --format ${sq('{{index .Config.Labels "vibrail.project"}}')}` +
-                ` ${sq(id)}`,
+              `inspect --format ${sq('{{index .Config.Labels "vibrail.project"}}')}` + ` ${sq(id)}`,
             );
             if (!owner) continue;
             if (owner === config.projectId) {
