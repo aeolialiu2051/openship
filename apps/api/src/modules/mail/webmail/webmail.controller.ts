@@ -124,7 +124,11 @@ export async function startDeployAsProjectHandler(c: Context) {
  *   }
  */
 export async function startExternalDeployAsProjectHandler(c: Context) {
-  if (env.CLOUD_MODE) return c.json({ error: "Not available" }, 404);
+  // Cloud control planes are allowed to deploy the webmail UI to an
+  // organization-owned server. The service layer verifies that the selected
+  // server belongs to the caller's organization. Keep the feature hidden when
+  // user-owned servers are disabled, matching the other webmail endpoints.
+  if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
   const ctx = getRequestContext(c);
   const body = await c.req.json().catch(() => ({} as Record<string, unknown>));
@@ -154,6 +158,10 @@ export async function startExternalDeployAsProjectHandler(c: Context) {
     return c.json({ error: "target.deployTarget must be \"server\", \"cloud\", or \"local\"" }, 400);
   if (dt === "server" && !targetBody?.serverId)
     return c.json({ error: "target.serverId is required for a server target" }, 400);
+  // A hosted control plane has no local runtime target, and managed cloud app
+  // hosting is not available yet. Only user-owned servers are valid there.
+  if (env.CLOUD_MODE && dt !== "server")
+    return c.json({ error: "Cloud control planes require a server target" }, 400);
 
   let internalPort: number | undefined;
   if (body.internalPort !== undefined && body.internalPort !== null) {
