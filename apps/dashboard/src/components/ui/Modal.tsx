@@ -19,6 +19,7 @@ interface ModalProps {
   footer?: ReactNode;
   zIndex?: number; // Support custom z-index for modal layering
   overflow?: 'hidden' | 'auto';
+  isTop?: boolean;
 }
 
 export function Modal({
@@ -35,7 +36,8 @@ export function Modal({
   closable = true,
   footer = null,
   zIndex = 10000,
-  overflow = 'auto'
+  overflow = 'auto',
+  isTop = true,
 }: ModalProps) {
   const [isVisible, setIsVisible] = useState(false);
   // Portal target only exists after mount (SSR has no document).
@@ -55,6 +57,23 @@ export function Modal({
       setIsVisible(false);
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !closable || !isTop) return;
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      onClose();
+    };
+
+    // Capture at window level so a top global modal consumes Escape before
+    // dialogs underneath it (for example, Add Server opened from a selector).
+    window.addEventListener('keydown', handleEscape, true);
+    return () => window.removeEventListener('keydown', handleEscape, true);
+  }, [closable, isOpen, isTop, onClose]);
 
   if (!isOpen || !mounted) return null;
 
@@ -127,4 +146,3 @@ export function Modal({
     document.body,
   );
 }
-

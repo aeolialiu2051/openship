@@ -86,13 +86,18 @@ export function AdoptMailModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={close} title={t.emails.adopt.title}>
+    <Modal isOpen={isOpen} onClose={close} title={t.emails.adopt.title} maxWidth="wide">
       <div className="space-y-4">
         <p className="text-sm text-muted-foreground">
           {t.emails.adopt.intro}
         </p>
 
-        <ServerSelector value={server?.id ?? null} onSelect={pickServer} compact />
+        <ServerSelector
+          value={server?.id ?? null}
+          onSelect={pickServer}
+          compact
+          dropdownInline
+        />
 
         <button
           type="button"

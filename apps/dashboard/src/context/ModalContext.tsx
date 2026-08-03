@@ -291,6 +291,7 @@ const ModalRenderer: React.FC<ModalRendererProps> = memo(({ instance = { config:
       closable={config.closable !== false}
       zIndex={zIndex}
       overflow={config.overflow || 'auto'}
+      isTop={isTop}
     >
       {modalContent}
     </Modal>

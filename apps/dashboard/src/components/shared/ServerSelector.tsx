@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { BlurIp } from "@/components/BlurIp";
 import { useAddServerModal } from "@/components/servers/ServerModal";
 import {
@@ -37,6 +37,8 @@ export interface ServerSelectorProps {
   compact?: boolean;
   /** Open the dropdown upward (for selectors pinned near the bottom of a modal). */
   dropUp?: boolean;
+  /** Keep options in document flow so scrollable modal containers do not clip them. */
+  dropdownInline?: boolean;
   /**
    * Pre-select the first server on load even when there are several (nothing
    * chosen yet). A lone server always auto-selects; this extends that to the
@@ -68,6 +70,7 @@ export default function ServerSelector({
   disabled = false,
   compact = false,
   dropUp = false,
+  dropdownInline = false,
   autoSelectFirst = false,
 }: ServerSelectorProps) {
   const showAddServer = useAddServerModal();
@@ -77,6 +80,24 @@ export default function ServerSelector({
   const [servers, setServers] = useState<ServerOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeWhenFocusLeaves = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && !dropdownRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", closeWhenFocusLeaves, true);
+    document.addEventListener("focusin", closeWhenFocusLeaves);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenFocusLeaves, true);
+      document.removeEventListener("focusin", closeWhenFocusLeaves);
+    };
+  }, [open]);
 
   const fetchServers = useCallback(async (preferredId?: string) => {
     try {
@@ -212,7 +233,17 @@ export default function ServerSelector({
           {label}
         </label>
       )}
-      <div className="relative">
+      <div
+        ref={dropdownRef}
+        className="relative"
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && open) {
+            event.preventDefault();
+            event.stopPropagation();
+            setOpen(false);
+          }
+        }}
+      >
         <button
           type="button"
           onClick={() => !disabled && setOpen(!open)}
@@ -248,8 +279,8 @@ export default function ServerSelector({
 
         {open && (
           <div
-            className={`absolute z-50 start-0 end-0 max-h-64 overflow-auto rounded-xl border border-border bg-popover shadow-lg ${
-              dropUp ? "bottom-full mb-1.5" : "mt-1.5"
+            className={`${dropdownInline ? "relative" : "absolute start-0 end-0 z-50"} max-h-64 overflow-auto rounded-xl border border-border bg-popover shadow-lg ${
+              dropdownInline ? "mt-1.5" : dropUp ? "bottom-full mb-1.5" : "mt-1.5"
             }`}
           >
             {servers.map((s) => (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Mail,
   Play,
@@ -77,6 +77,7 @@ function DomainSelector({
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const [open, setOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const showAddDomain = useAddDomainModal();
 
   const fetchDomains = useCallback(async () => {
@@ -106,6 +107,24 @@ function DomainSelector({
   useEffect(() => {
     void fetchDomains();
   }, [fetchDomains]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const closeWhenFocusLeaves = (event: Event) => {
+      const target = event.target;
+      if (target instanceof Node && !dropdownRef.current?.contains(target)) {
+        setOpen(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", closeWhenFocusLeaves, true);
+    document.addEventListener("focusin", closeWhenFocusLeaves);
+    return () => {
+      document.removeEventListener("pointerdown", closeWhenFocusLeaves, true);
+      document.removeEventListener("focusin", closeWhenFocusLeaves);
+    };
+  }, [open]);
 
   const selected = domains.find((item) => item.domain === value) ?? null;
   const isConnected = (item: DomainSettingsView) =>
@@ -139,7 +158,17 @@ function DomainSelector({
   }
 
   return (
-    <div className="relative">
+    <div
+      ref={dropdownRef}
+      className="relative"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          event.preventDefault();
+          event.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
       <button
         type="button"
         onClick={() => !disabled && setOpen((current) => !current)}
