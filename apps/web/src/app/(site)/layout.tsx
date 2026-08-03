@@ -3,10 +3,10 @@ import "../globals.css";
 
 const SITE_URL = "https://vibrail.warpgateapi.com";
 const SITE_NAME = "Vibrail";
-const TITLE_DEFAULT = "Vibrail - Open Source, Self-Hostable Deployment Platform";
+const TITLE_DEFAULT = "Vibrail — Ship Software on Your Infrastructure";
 const TITLE_TEMPLATE = "%s - Vibrail";
 const DESCRIPTION =
-  "Deploy anything, own everything. Self-hostable, AI-powered deployment platform with free SSL, unlimited domains, instant rollbacks, and CLI/MCP support. Open source and free forever.";
+  "Deployment infrastructure that turns human- and agent-created code into reliable services on Vibrail Cloud or Linux VPS environments, with immutable releases, automatic routing, live operations, and instant rollback.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -21,8 +21,9 @@ export const metadata: Metadata = {
   keywords: [
     "deployment platform",
     "self-hosted",
-    "open source",
-    "AI deployments",
+    "deployment control plane",
+    "vibe coding",
+    "agentic deployment",
     "Vercel alternative",
     "Heroku alternative",
     "Netlify alternative",
@@ -36,13 +37,11 @@ export const metadata: Metadata = {
     "docker deploy",
     "self host",
     "VPS deploy",
-    "Apache 2.0",
-    "open source PaaS",
     "developer tools",
   ],
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
-  publisher: "Oblien LLC",
+  publisher: SITE_NAME,
   formatDetection: {
     email: false,
     address: false,
@@ -73,9 +72,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Vibrail - Deploy Anything. Own Everything.",
+    title: "Vibrail — Ship Software on Your Infrastructure",
     description:
-      "Open source, self-hostable deployment platform with AI-powered builds and instant rollbacks.",
+      "Deploy to Vibrail Cloud or Linux VPS infrastructure with immutable releases, managed routing, and instant rollbacks.",
     creator: "@vibrail",
     site: "@vibrail",
   },
@@ -92,11 +91,6 @@ export const metadata: Metadata = {
   },
   alternates: {
     canonical: "/",
-    types: {
-      "application/rss+xml": [
-        { url: "/resources/rss.xml", title: "Vibrail Resources" },
-      ],
-    },
   },
   // verification: {
   //   google: "<google-site-verification-token>",
@@ -113,24 +107,17 @@ export const viewport: Viewport = {
     { media: "(prefers-color-scheme: light)", color: "#0F0F0F" },
     { media: "(prefers-color-scheme: dark)", color: "#0F0F0F" },
   ],
-  // Light-only marketing site. The one dark surface (webmail landing) opts in
-  // via `color-scheme: dark` on `body:has(.mail-home)` in globals.css, which
-  // overrides this document default for that subtree. Declaring "light" here
-  // stops the browser from painting a dark canvas/scrollbars under a dark OS.
-  colorScheme: "light",
+  colorScheme: "dark",
 };
 
 const organizationLd = {
   "@context": "https://schema.org",
   "@type": "Organization",
   name: SITE_NAME,
-  legalName: "Oblien LLC",
   url: SITE_URL,
   logo: `${SITE_URL}/android-chrome-512x512.png`,
   description: DESCRIPTION,
-  foundingDate: "2024",
   sameAs: [
-    "https://github.com/aeolialiu2051/vibrail",
     "https://x.com/vibrailio",
     "https://discord.gg/Q9eWNCeXjg",
   ],
@@ -150,14 +137,6 @@ const websiteLd = {
   name: SITE_NAME,
   url: SITE_URL,
   publisher: { "@type": "Organization", name: SITE_NAME, url: SITE_URL },
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: `${SITE_URL}/docs?q={search_term_string}`,
-    },
-    "query-input": "required name=search_term_string",
-  },
   inLanguage: "en-US",
 };
 
@@ -166,12 +145,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link
-          rel="preconnect"
-          href="https://cdn.oblien.com"
-          crossOrigin="anonymous"
-        />
-        <link rel="dns-prefetch" href="https://cdn.oblien.com" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationLd) }}
