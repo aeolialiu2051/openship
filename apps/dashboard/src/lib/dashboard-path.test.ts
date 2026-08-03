@@ -40,5 +40,8 @@ describe("dashboard path helpers", () => {
     expect(mountedPaths.withDashboardBasePath("/dashboard/projects/project-1/services")).toBe(
       "/dashboard/projects/project-1/services",
     );
+    expect(mountedPaths.withDashboardBasePath("/suspended?site=app.example.com")).toBe(
+      "/dashboard/suspended?site=app.example.com",
+    );
   });
 });

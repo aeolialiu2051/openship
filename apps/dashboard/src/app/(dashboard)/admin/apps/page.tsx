@@ -19,6 +19,7 @@ import {
   type AdminPage,
 } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
+import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { Modal } from "@/components/ui/Modal";
 import {
   AdminError,
@@ -62,7 +63,7 @@ function deploymentTone(status: string | null) {
 function applicationUrl(row: AdminApplicationRow) {
   if (row.moderationStatus === "suspended") {
     const site = row.primaryDomain || row.latestDeploymentUrl || row.name;
-    return `/suspended?site=${encodeURIComponent(site)}`;
+    return withDashboardBasePath(`/suspended?site=${encodeURIComponent(site)}`);
   }
   if (row.primaryDomain) return `https://${row.primaryDomain}`;
   if (row.latestDeploymentUrl) {
