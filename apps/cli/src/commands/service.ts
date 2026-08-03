@@ -359,8 +359,9 @@ function mapComposeService(name: string, def: unknown, baseDir: string): Record<
 }
 
 const syncCmd = stackCommand("sync")
-  .description("Sync a stack's services from a docker-compose file (services not in the file are removed)")
+  .description("Sync services from a docker-compose file (add/update by default)")
   .argument("<compose-file>", "Path to docker-compose.yml / compose.yaml")
+  .option("--replace", "Also remove services not present in this compose file")
   .option("-y, --yes", "Skip the confirmation prompt")
   .action(async (composeFile: string, opts) => {
     requireAuth();
@@ -405,12 +406,14 @@ const syncCmd = stackCommand("sync")
       const projectId = await resolveProject(opts.project);
       info(
         `  Syncing ${services.length} service(s): ${services.map((s) => s.name).join(", ")}\n` +
-          "  Services in the stack but not in this file will be removed.",
+          (opts.replace
+            ? "  Replace mode: services missing from this file will be removed."
+            : "  Existing services missing from this file will be preserved."),
       );
       await confirmOrExit(opts.yes, "Proceed with the sync?");
       const res = await apiRequest<{ services: unknown[] }>(
         `/projects/${projectId}/services/sync`,
-        { method: "POST", body: JSON.stringify({ services }) },
+        { method: "POST", body: JSON.stringify({ services, replace: opts.replace === true }) },
       );
       if (isJsonMode()) {
         printJson(res.services);

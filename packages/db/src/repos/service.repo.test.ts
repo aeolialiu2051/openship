@@ -42,6 +42,30 @@ describe("service repo compose reconciliation", () => {
     expect(reconciled?.driftSpec).toBeNull();
   });
 
+  it("preserves omitted services unless replacement is explicit", async () => {
+    await repo.syncFromCompose("project-1", [
+      { name: "app", image: "example/app:latest" },
+      { name: "postgres", image: "postgres:18-alpine" },
+      { name: "redis", image: "redis:8-alpine" },
+    ]);
+
+    await repo.syncFromCompose("project-1", [{ name: "app", image: "example/app:v2" }]);
+    expect((await repo.listByProject("project-1")).map((service) => service.name).sort()).toEqual([
+      "app",
+      "postgres",
+      "redis",
+    ]);
+
+    await repo.syncFromCompose(
+      "project-1",
+      [{ name: "app", image: "example/app:v2" }],
+      { removeMissing: true },
+    );
+    expect((await repo.listByProject("project-1")).map((service) => service.name)).toEqual([
+      "app",
+    ]);
+  });
+
   it("keeps operator edits and records later upstream compose env drift", async () => {
     await repo.syncFromCompose("project-1", [{ name: "app", environment: { LOG_LEVEL: "info" } }]);
     const imported = await repo.findByName("project-1", "app");

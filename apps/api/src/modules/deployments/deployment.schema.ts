@@ -136,6 +136,12 @@ export const BuildAccessBody = Type.Object({
       description: "Compose / multi-service definitions (services mode).",
     }),
   ),
+  replaceServices: Type.Optional(
+    Type.Boolean({
+      description:
+        "Declare services as a complete Compose snapshot. Only then may missing service rows be removed.",
+    }),
+  ),
   serviceIds: Type.Optional(
     Type.Array(Type.String(), {
       description:

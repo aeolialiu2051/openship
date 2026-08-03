@@ -138,6 +138,15 @@ vibrail config validate
 
 Fix invalid configuration only when the correct value can be inferred from the repository. Keep `vibrail.json` minimal because it overrides auto-detection.
 
+For a repository containing a Compose file, treat these scan postconditions as mandatory:
+
+- `framework` is `docker-compose`.
+- `projectType` is `services`.
+- The detected service names exactly match the Compose file.
+- The exposed application port matches the container port declared by Compose.
+
+If any condition fails, stop before `projects/ensure`. Do not compensate by creating an App Catalog project or by manually reducing the stack to one service.
+
 If the application cannot run as written, make only the smallest necessary deployment-readiness fix and test it in proportion to risk. If a secret, domain, paid resource, external database, or deployment target decision is missing, stop and ask instead of inventing a value.
 
 ## Choose and verify the deployment target
@@ -287,7 +296,11 @@ To update an existing folder-upload project:
 vibrail deploy --watch --project <project-id> --name <project-name>
 ```
 
-This path is currently suitable for Vibrail Cloud or for an existing project whose stored deployment target is already correct. Do not use it for a new selected-server deployment until the CLI supports target flags.
+For a selected connected server, add `--server-id <server-id>` or `--server <server-id>`. The CLI binds the upload session before transferring source.
+
+After `projects/ensure`, inspect the returned project before deploying. A normal source deployment must report `isApp: false`. If it reports `isApp: true`, stop; do not proceed until the project classification is corrected.
+
+For Compose projects, list services immediately after the first deploy and compare the exact names with the source file. Do not accept success when only the public application service exists but its database, cache, queue, or worker peers are missing.
 
 After deployment finishes, validate that `STAGE_DIR` is the temporary directory created for this workflow, then remove only that directory. Never remove the source directory.
 
@@ -311,6 +324,25 @@ If deployment fails:
 4. Determine whether the cause is source code, dependency installation, configuration, missing environment variables, listening address/port, Docker/Compose configuration, server reachability/capacity, or routing.
 5. Apply only safe in-scope fixes and rerun the complete deployment.
 6. Do not hide partial Compose failures. Retry only failed services with `--service-ids` when preserving successful stateful services is appropriate.
+
+Do not send a partial `services` array as if it were the complete stack. Partial deploys must use `--service-ids`; a complete folder scan may set `replaceServices: true`. `vibrail service sync` is additive by default. Use `--replace` only after proving the parsed Compose file contains the complete intended service set and confirming the before/after service names.
+
+If a project was deleted, discard its project ID. A later `projects/ensure` call must create or return a live, readable project; if the returned ID cannot immediately be fetched, stop instead of retrying deployment against it.
+
+### Secrets and persistent services
+
+- Configure every required Compose variable before the first container start.
+- Keep one shared value for credentials used by multiple services. Project secrets may satisfy `${KEY}` placeholders; service secrets are only for intentional per-service overrides.
+- Verify no runtime environment value is the literal text `${KEY}` and no required value is empty.
+- Do not rotate a PostgreSQL/MySQL/Redis credential merely by changing container environment on an initialized volume. Either update the credential inside the datastore or, with explicit approval that its data may be replaced, initialize a new empty volume.
+- Do not delete or recreate a persistent volume as an automatic retry step.
+
+### Health and routing retries
+
+- Treat a health-check failure as diagnostic evidence, not automatic proof that the service is down. Compare the check command with the image's available tools and confirm logs/connectivity before disabling it.
+- Preserve application health checks. Disable datastore checks only when the imported check is incompatible and runtime logs independently confirm readiness.
+- When containers are healthy but the route has 404, a default certificate, or unresolved DNS, retry routing without rebuilding the stack. Do not create a new project or full deployment merely to wait for DNS propagation.
+- Verify the managed hostname includes the project's route key, the domain row belongs to the exposed service, and the route target uses the container port declared by Compose.
 
 Do not invent a deployment ID, success state, target, or public URL after a failure.
 

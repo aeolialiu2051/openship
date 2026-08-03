@@ -209,6 +209,7 @@ export async function deployFolder(opts: {
       // a services project (persisted rows + services-mode preflight). Absent for
       // single-app folders, so their path is unchanged.
       ...(scan.services && scan.services.length > 0 ? { services: scan.services } : {}),
+      ...(scan.services && scan.services.length > 0 ? { replaceServices: true } : {}),
       // Scope a redeploy to a subset of services (others carry forward untouched).
       ...(opts.serviceIds && opts.serviceIds.length > 0 ? { serviceIds: opts.serviceIds } : {}),
     }),

@@ -120,9 +120,11 @@ You don't normally sync by hand — on every deploy (and on every push, for GitH
 automatically. From the terminal you can also force a sync from a specific file:
 
 ```bash
-# Rebuild the stack's service rows from a compose file.
-# Services in the stack but NOT in the file are removed — you'll be asked to confirm.
+# Add or update service rows from a compose file. Omitted rows are preserved.
 vibrail service sync --project my-app ./docker-compose.yml
+
+# Replace the complete stack. Services absent from the file are removed.
+vibrail service sync --project my-app ./docker-compose.yml --replace
 ```
 
 <Callout title="Sync needs Docker Compose v2" type="warn">

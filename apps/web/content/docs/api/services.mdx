@@ -132,9 +132,9 @@ curl -X PATCH https://your-host/api/projects/proj_123/services/svc_456 \
 
 ## Sync from docker-compose
 
-Reads the project's `docker-compose` file and reconciles the service table to match it — adding, updating,
-and flagging services. Where your edits diverge from the compose file, the affected services are marked as
-**drifted** so you can resolve them explicitly (see below).
+Adds or updates services parsed from a `docker-compose` file. Existing services omitted from the request
+are preserved unless the body explicitly includes `replace: true`. Where repository changes diverge from
+stored edits, the affected services are marked as **drifted** so you can resolve them explicitly.
 
 ```
 POST /api/projects/:id/services/sync
@@ -142,6 +142,7 @@ POST /api/projects/:id/services/sync
 
 ```bash
 vibrail service sync -p my-stack docker-compose.yml
+vibrail service sync -p my-stack docker-compose.yml --replace # complete-stack replacement
 ```
 
 ## Resolve compose drift

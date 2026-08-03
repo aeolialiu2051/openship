@@ -202,6 +202,7 @@ export async function syncFromCompose(c: Context) {
   const ctx = getRequestContext(c);
   const projectId = param(c, "id");
   const body = await c.req.json<{
+    replace?: boolean;
     services: Array<{
       name: string;
       image?: string;
@@ -230,7 +231,9 @@ export async function syncFromCompose(c: Context) {
   }
 
   try {
-    const services = await serviceService.syncComposeServices(ctx, projectId, body.services);
+    const services = await serviceService.syncComposeServices(ctx, projectId, body.services, {
+      removeMissing: body.replace === true,
+    });
     return c.json({ success: true, services });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to sync services";

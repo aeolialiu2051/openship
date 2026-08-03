@@ -831,7 +831,9 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       // (projectId, name)). Filter to compose-kind before handing it off.
       const composeOnly = snapshot.composeServices?.filter((s) => serviceKind(s) === "compose");
       if (composeOnly?.length) {
-        await repos.service.syncFromCompose(project.id, composeOnly);
+        await repos.service.syncFromCompose(project.id, composeOnly, {
+          removeMissing: snapshot.composeServicesAuthoritative === true,
+        });
       }
 
       // Clone-on-server for compose: open one repo-pinned relay for the whole

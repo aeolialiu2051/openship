@@ -742,10 +742,11 @@ export async function syncComposeServices(
     customDomain?: string;
     domainType?: "free" | "custom";
   }[],
+  options: { removeMissing?: boolean } = {},
 ) {
   const project = await repos.project.findById(projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
-  return repos.service.syncFromCompose(projectId, parsed);
+  return repos.service.syncFromCompose(projectId, parsed, options);
 }
 
 // ─── Service Deployments (per-deployment state) ──────────────────────────────

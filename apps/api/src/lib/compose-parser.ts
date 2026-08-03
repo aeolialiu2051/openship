@@ -464,7 +464,7 @@ function findClosingQuote(value: string, quote: '"' | "'"): number {
   return -1;
 }
 
-function interpolateComposeString(
+export function interpolateComposeString(
   input: string,
   env: Record<string, string>,
   requiredInterpolation: ComposeRequiredInterpolationMode = "error",

@@ -40,6 +40,7 @@ import {
   type SystemManager,
 } from "@repo/adapters";
 import { decryptEnvMap, encrypt } from "../../../lib/encryption";
+import { resolveComposeRuntimeEnvironment } from "./runtime-environment";
 import { resolveServerHost } from "../../../lib/server-target";
 import { resolveRootExecutor } from "../../../lib/vibrail-server-store";
 import { containerIdForService } from "../../services/service-container";
@@ -869,12 +870,12 @@ export async function deployComposeServices(
     // Service values intentionally win so the compose UI can override globals per service.
     // Then resolve `{{publicUrl:<service>}}` placeholders to the assigned public URLs.
     const mergedEnv: Record<string, string> = resolvePublicUrlPlaceholders(
-      {
-        ...decryptedProjectEnv,
-        ...depEnv,
-        ...((svc.environment as Record<string, string>) ?? {}),
-        ...decryptedServiceEnv,
-      },
+      resolveComposeRuntimeEnvironment({
+        project: decryptedProjectEnv,
+        deployment: depEnv,
+        compose: (svc.environment as Record<string, string>) ?? {},
+        service: decryptedServiceEnv,
+      }),
       (name, port) => publicUrlByService.get(port !== undefined ? `${name}:${port}` : name),
     );
 

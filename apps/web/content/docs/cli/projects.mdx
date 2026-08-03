@@ -245,7 +245,7 @@ Because services live under a project, each subcommand below requires `-p, --pro
 | `service get -p <stack> <service>` | Show one service's configuration. |
 | `service create -p <stack> <name>` | Add a service to a stack. |
 | `service delete -p <stack> <service>` (alias `rm`) | Remove a service (tears down its container). |
-| `service sync -p <stack> <compose-file>` | Sync services from a docker-compose file. |
+| `service sync -p <stack> <compose-file> [--replace]` | Add/update Compose services; `--replace` also removes omitted services. |
 | `service start -p <stack> <service>` | Start a service's container. |
 | `service stop -p <stack> <service>` | Stop a service's container. |
 | `service restart -p <stack> <service>` | Restart a service's container. |

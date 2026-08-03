@@ -35,7 +35,13 @@ beforeEach(() => {
       };
     }
     if (path === "/projects/folder/scan/session_1") {
-      return { success: true, name: "demo", stack: "node", startCommand: "npm start", port: 3000 };
+      return {
+        success: true,
+        name: "demo",
+        stack: "docker-compose",
+        projectType: "services",
+        services: [{ name: "web", image: "nginx:alpine", ports: ["80"] }],
+      };
     }
     if (path === "/projects/ensure") return { success: true, project_id: "proj_1" };
     if (path === "/deployments/build/access") {
@@ -72,6 +78,7 @@ describe("deployFolder server binding", () => {
         deployTarget: "server",
         serverId: "srv_1",
         runtimeMode: "docker",
+        replaceServices: true,
       }),
     );
   });

@@ -217,6 +217,8 @@ export interface DeploymentConfigSnapshot {
    * same pipeline, discriminated by `kind`. See `DeployableService`.
    */
   composeServices?: DeployableService[];
+  /** True only when composeServices came from a complete source scan. */
+  composeServicesAuthoritative?: boolean;
   /** ONE-TIME migration image handover: serviceName → an already-present image
    *  ref. Set only on the migration's first deploy so mapped services deploy from
    *  their transferred/running image (no build, no pull); a later Redeploy has no
@@ -930,6 +932,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     runtimeMode,
     serviceDeploymentMode,
     services,
+    replaceServices,
     serviceIds,
     refreshServiceIds,
     handoverImages,
@@ -1049,6 +1052,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   }
   if (requestedServiceMode === "services" && effectiveServices?.length) {
     snapshot.composeServices = effectiveServices;
+    snapshot.composeServicesAuthoritative = replaceServices === true;
     // Persist compose services to the canonical service table NOW, at
     // deploy-request time — not only deep inside the compose pipeline. A build
     // that FAILS before the pipeline's own sync (clone/prepare error, image
@@ -1061,7 +1065,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     const composeOnly = effectiveServices.filter((s) => serviceKind(s) === "compose");
     if (composeOnly.length) {
       await repos.service
-        .syncFromCompose(project.id, composeOnly)
+        .syncFromCompose(project.id, composeOnly, { removeMissing: replaceServices === true })
         .catch((err) =>
           console.warn(
             `[requestBuildAccess] failed to persist compose services: ${safeErrorMessage(err)}`,

@@ -527,7 +527,11 @@ export function createServiceRepo(db: Database) {
      * compose's YAML doesn't carry an enabled flag, so re-syncing a row
      * the user disabled in the dashboard must keep it disabled.
      */
-    async syncFromCompose(projectId: string, parsed: ParsedComposeService[]) {
+    async syncFromCompose(
+      projectId: string,
+      parsed: ParsedComposeService[],
+      options: { removeMissing?: boolean } = {},
+    ) {
       // Defensive filter - even though every caller should already strip
       // non-compose entries before reaching here, an explicit kind="monorepo"
       // would otherwise insert a ghost compose row with the same name as the
@@ -589,12 +593,14 @@ export function createServiceRepo(db: Database) {
         }
       }
 
-      // Remove stale compose services (not in the incoming compose YAML).
-      // Monorepo sub-apps live in a different kind and were filtered out
-      // above; they survive untouched.
-      for (const ex of composeExisting) {
-        if (!incomingNames.has(ex.name)) {
-          await this.remove(ex.id);
+      // A caller may explicitly declare this payload authoritative and remove
+      // stale compose services. Additive is the safe default because scoped
+      // deploys commonly carry only one service. Monorepo rows are untouched.
+      if (options.removeMissing === true) {
+        for (const ex of composeExisting) {
+          if (!incomingNames.has(ex.name)) {
+            await this.remove(ex.id);
+          }
         }
       }
 

@@ -294,6 +294,9 @@ function buildProductionProjectInput(
   organizationId: string,
 ): Omit<NewProject, "id"> {
   const source = resolveProjectSource(data);
+  if (data.isApp === true && !data.appTemplateId?.trim()) {
+    throw new ValidationError("Catalog apps require appTemplateId");
+  }
 
   return {
     organizationId,
@@ -337,7 +340,7 @@ function buildProductionProjectInput(
     // Edge→app upstream addressing. Omitted → schema default "auto" (loopback-
     // port). The wizard seeds this from the user's route-strategy default.
     routeStrategy: data.routeStrategy ?? undefined,
-    isApp: data.isApp ?? false,
+    isApp: data.isApp === true,
     appTemplateId: data.appTemplateId ?? null,
     // Every server workload is containerized, including projects without a
     // repository Dockerfile (the runtime generates one from detected commands).
@@ -753,6 +756,12 @@ export async function ensureProject(
       }
     }
     if (data.hasBuild !== undefined) update.hasBuild = data.hasBuild;
+    // Older headless/import flows could create an impossible classification:
+    // isApp=true without a catalog template. A normal folder upload must repair
+    // that legacy state so the project returns to the Projects page.
+    if (data.gitProvider === "upload" && project.isApp && !project.appTemplateId) {
+      update.isApp = false;
+    }
     // Project ensure is shared by dashboard, MCP and CLI. Pin the invariant at
     // this boundary so headless callers cannot inherit the control plane's bare
     // runtime by omission.
@@ -963,6 +972,13 @@ export async function updateProject(
   if (data.rollbackWindow !== undefined) {
     update.rollbackWindow =
       data.rollbackWindow === null ? null : normalizeRollbackWindow(data.rollbackWindow);
+  }
+
+  const nextIsApp = update.isApp === undefined ? p.isApp : update.isApp === true;
+  const nextTemplateId =
+    update.appTemplateId === undefined ? p.appTemplateId : String(update.appTemplateId || "").trim();
+  if (nextIsApp && !nextTemplateId) {
+    throw new ValidationError("Catalog apps require appTemplateId");
   }
 
   // The body is type-cast, not runtime-validated (see PROJECT_UPDATE_KEYS note),
