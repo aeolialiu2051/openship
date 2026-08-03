@@ -1,4 +1,5 @@
 import { createHash, randomBytes } from "node:crypto";
+import { resolveDashboardPageUrl } from "@repo/core";
 
 export const CLI_LOGIN_FLOW = "cli-login";
 const DEFAULT_TIMEOUT_MS = 5 * 60_000;
@@ -22,7 +23,7 @@ export function createBrowserLoginRequest(
   const state = randomBytes(24).toString("base64url");
   const codeVerifier = randomBytes(32).toString("base64url");
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-  const url = new URL("/authorize", `${trimBaseUrl(dashboardUrl)}/`);
+  const url = new URL(resolveDashboardPageUrl(dashboardUrl, "/authorize"));
   url.searchParams.set("app", "Vibrail CLI");
   if (machine) url.searchParams.set("machine", machine.slice(0, 80));
   url.searchParams.set("state", state);

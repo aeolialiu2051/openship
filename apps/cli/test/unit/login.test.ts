@@ -7,10 +7,13 @@ import {
 
 describe("browser login", () => {
   it("builds a PKCE authorization URL", () => {
-    const request = createBrowserLoginRequest("https://vibrail.example.com/", "dev machine");
+    const request = createBrowserLoginRequest(
+      "https://vibrail.example.com/dashboard/",
+      "dev machine",
+    );
     const url = new URL(request.authorizeUrl);
 
-    expect(url.origin + url.pathname).toBe("https://vibrail.example.com/authorize");
+    expect(url.origin + url.pathname).toBe("https://vibrail.example.com/dashboard/authorize");
     expect(url.searchParams.get("flow")).toBe(CLI_LOGIN_FLOW);
     expect(url.searchParams.get("machine")).toBe("dev machine");
     expect(url.searchParams.get("state")).toBe(request.state);

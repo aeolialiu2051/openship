@@ -1,5 +1,9 @@
 import { repos, type Project, type Deployment } from "@repo/db";
-import { isServiceSuccessStatus, isServiceFailureStatus } from "@repo/core";
+import {
+  isServiceSuccessStatus,
+  isServiceFailureStatus,
+  resolveDashboardPageUrl,
+} from "@repo/core";
 import { runtimeTarget } from "../../config";
 import { buildBackgroundContext } from "../../lib/request-context";
 import { createCheckRun, updateCheckRun } from "../github/github.service";
@@ -29,15 +33,21 @@ export async function preCreateServiceDeployments(
     targetServiceIds?: string[];
     forceAll: boolean;
   },
-): Promise<Map<string, { id: string | null; serviceId: string; serviceName: string; targeted: boolean }>> {
+): Promise<
+  Map<string, { id: string | null; serviceId: string; serviceName: string; targeted: boolean }>
+> {
   const services = await repos.service.listByProject(projectId).catch(() => []);
   const enabled = services.filter((s) => s.enabled);
-  const map = new Map<string, { id: string | null; serviceId: string; serviceName: string; targeted: boolean }>();
+  const map = new Map<
+    string,
+    { id: string | null; serviceId: string; serviceName: string; targeted: boolean }
+  >();
   if (enabled.length === 0) return map;
 
-  const targetSet = opts.targetServiceIds && opts.targetServiceIds.length > 0
-    ? new Set(opts.targetServiceIds)
-    : null;
+  const targetSet =
+    opts.targetServiceIds && opts.targetServiceIds.length > 0
+      ? new Set(opts.targetServiceIds)
+      : null;
 
   // Compute (targeted? per service) up front so the caller can drive
   // per-service Checks events even before the compose pipeline runs.
@@ -113,7 +123,7 @@ export async function emitServiceCheckRun(opts: {
       name: `build:${serviceName}`,
       headSha: dep.commitSha,
       status: "in_progress",
-      detailsUrl: `${runtimeTarget.dashboard.replace(/\/$/, "")}/build/${dep.id}`,
+      detailsUrl: resolveDashboardPageUrl(runtimeTarget.dashboard, `/build/${dep.id}`),
     });
     if (result?.id) {
       await repos.serviceDeployment
@@ -142,8 +152,11 @@ export async function emitServiceCheckRun(opts: {
       headSha: dep.commitSha,
       status: "completed",
       conclusion,
-      detailsUrl: `${runtimeTarget.dashboard.replace(/\/$/, "")}/build/${dep.id}`,
-      output: output ?? { title: "Skipped — no changes", summary: "Files under this service's root were unchanged." },
+      detailsUrl: resolveDashboardPageUrl(runtimeTarget.dashboard, `/build/${dep.id}`),
+      output: output ?? {
+        title: "Skipped — no changes",
+        summary: "Files under this service's root were unchanged.",
+      },
     });
     if (result?.id) {
       await repos.serviceDeployment
@@ -186,7 +199,10 @@ export async function emitInitialServiceChecks(
         serviceName: entry.serviceName,
         phase: "complete",
         conclusion: "neutral",
-        output: { title: "Skipped — no changes", summary: "Files under this service's root were unchanged." },
+        output: {
+          title: "Skipped — no changes",
+          summary: "Files under this service's root were unchanged.",
+        },
       }).catch(() => {});
     }
   }

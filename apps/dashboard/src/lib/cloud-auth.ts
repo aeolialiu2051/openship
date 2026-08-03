@@ -1,4 +1,5 @@
 import { getCloudApiOrigin, getCloudDashboardUrl } from "@/lib/api/urls";
+import { resolveDashboardPageUrl } from "@repo/core";
 
 export const DESKTOP_CLOUD_FLOW = "desktop-cloud";
 export const CLI_LOGIN_FLOW = "cli-login";
@@ -30,7 +31,7 @@ export function buildDesktopAuthorizeUrl(options: {
   if (options.state) params.set("state", options.state);
   if (options.codeChallenge) params.set("code_challenge", options.codeChallenge);
 
-  return `${baseUrl}/authorize?${params.toString()}`;
+  return resolveDashboardPageUrl(baseUrl, `/authorize?${params.toString()}`);
 }
 
 export function getCloudConnectHandoffUrl(

@@ -28,12 +28,10 @@ import type { Context } from "hono";
 import { auth } from "../../lib/auth";
 import { setSessionCookie } from "../../lib/session-cookie";
 import { localDashboardUrl } from "../../config/env";
-import { alignLoopbackOrigin } from "@repo/core";
+import { alignLoopbackOrigin, resolveDashboardPageUrl } from "@repo/core";
 import { repos } from "@repo/db";
 
-export function mergeCanonicalInstanceUser<
-  T extends { role?: string; autoProvisioned?: boolean },
->(
+export function mergeCanonicalInstanceUser<T extends { role?: string; autoProvisioned?: boolean }>(
   sessionUser: T,
   databaseUser: { role: string; autoProvisioned: boolean },
 ): T & { role: string; autoProvisioned: boolean } {
@@ -54,7 +52,7 @@ function desktopResultPage(title: string, message: string, success = false): str
   <div style="font-size:48px;margin-bottom:16px">${success ? "✓" : "⚠"}</div>
   <h2 style="margin:0 0 8px">${title}</h2>
   <p style="color:#888;margin:0 0 24px">${message}</p>
-  ${success ? '<p style="color:#555;font-size:14px">This tab can be safely closed.</p>' : ''}
+  ${success ? '<p style="color:#555;font-size:14px">This tab can be safely closed.</p>' : ""}
 </div>
 </body></html>`;
 }
@@ -162,7 +160,7 @@ export async function desktopLogin(c: Context) {
   const { zeroAuthAllowed } = await import("../../middleware/zero-auth-guard");
   const gate = await zeroAuthAllowed(c);
   if (!gate.ok) {
-    return c.redirect(`${dashboardUrl}/login`);
+    return c.redirect(resolveDashboardPageUrl(dashboardUrl, "/login"));
   }
 
   const { ensureLocalUser } = await import("../../lib/local-user");
@@ -195,7 +193,9 @@ export async function desktopLogin(c: Context) {
 export async function cloudCallback(c: Context) {
   const code = c.req.query("code");
   if (!code) {
-    return c.html(desktopResultPage("Missing authentication code", "Please return to Vibrail and try again."));
+    return c.html(
+      desktopResultPage("Missing authentication code", "Please return to Vibrail and try again."),
+    );
   }
 
   const state = c.req.query("state");
@@ -214,7 +214,12 @@ export async function cloudCallback(c: Context) {
     if (!state) {
       const data = await exchangeCodeWithCloud(code);
       if (!data) {
-        return c.html(desktopResultPage("Authentication failed", "Could not verify with Vibrail Cloud. Please return to Vibrail and try again."));
+        return c.html(
+          desktopResultPage(
+            "Authentication failed",
+            "Could not verify with Vibrail Cloud. Please return to Vibrail and try again.",
+          ),
+        );
       }
 
       const mirroredUserId = await mirrorCloudUser(data.user);
@@ -233,13 +238,23 @@ export async function cloudCallback(c: Context) {
 
     const validated = validateDesktopState(state);
     if (!validated) {
-      return c.html(desktopResultPage("Invalid or expired session", "The authorization request has expired. Please return to Vibrail and try again."));
+      return c.html(
+        desktopResultPage(
+          "Invalid or expired session",
+          "The authorization request has expired. Please return to Vibrail and try again.",
+        ),
+      );
     }
 
     const data = await exchangeCodeWithCloud(code, validated.codeVerifier);
     if (!data) {
       failDesktopAuth(validated.nonce);
-      return c.html(desktopResultPage("Authentication failed", "Could not verify with Vibrail Cloud. Please return to Vibrail and try again."));
+      return c.html(
+        desktopResultPage(
+          "Authentication failed",
+          "Could not verify with Vibrail Cloud. Please return to Vibrail and try again.",
+        ),
+      );
     }
 
     // Always mirror the cloud user for record-keeping
@@ -261,7 +276,9 @@ export async function cloudCallback(c: Context) {
     // up the session via /desktop-auth-poll.
     resolveDesktopAuth(validated.nonce, session.token, session.expiresAt);
 
-    return c.html(desktopResultPage("Signed in to Vibrail", "You can return to the Vibrail app now.", true));
+    return c.html(
+      desktopResultPage("Signed in to Vibrail", "You can return to the Vibrail app now.", true),
+    );
   } catch (err) {
     // Signal failure to the polling loop so Electron doesn't hang
     try {
@@ -272,7 +289,12 @@ export async function cloudCallback(c: Context) {
       // best-effort
     }
     console.error("[cloud-callback] error:", err);
-    return c.html(desktopResultPage("Authentication failed", "Something went wrong. Please return to Vibrail and try again."));
+    return c.html(
+      desktopResultPage(
+        "Authentication failed",
+        "Something went wrong. Please return to Vibrail and try again.",
+      ),
+    );
   }
 }
 
@@ -295,9 +317,12 @@ export async function desktopAuthStart(c: Context) {
   const state = body?.state;
   const codeVerifier = body?.code_verifier;
   if (
-    !nonce || typeof nonce !== "string" ||
-    !state || typeof state !== "string" ||
-    !codeVerifier || typeof codeVerifier !== "string"
+    !nonce ||
+    typeof nonce !== "string" ||
+    !state ||
+    typeof state !== "string" ||
+    !codeVerifier ||
+    typeof codeVerifier !== "string"
   ) {
     return c.json({ error: "missing nonce, state, or code_verifier" }, 400);
   }

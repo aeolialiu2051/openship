@@ -14,6 +14,7 @@ import {
   PLANS,
   CREDIT_PACKS,
   isPlaceholderPriceId,
+  resolveDashboardPageUrl,
   safeErrorMessage,
   type PlanTierId,
 } from "@repo/core";
@@ -187,15 +188,17 @@ export async function createCheckoutSession(
         metadata: { organizationId, planTierId, interval },
       },
       line_items: [{ price: stripePriceId, quantity: 1 }],
-      success_url: `${runtimeTarget.dashboard}/billing/overview?checkout=success`,
-      cancel_url: `${runtimeTarget.dashboard}/billing/plans?checkout=cancelled`,
+      success_url: resolveDashboardPageUrl(
+        runtimeTarget.dashboard,
+        "/billing/overview?checkout=success",
+      ),
+      cancel_url: resolveDashboardPageUrl(
+        runtimeTarget.dashboard,
+        "/billing/plans?checkout=cancelled",
+      ),
     },
     {
-      idempotencyKey: flowKey(
-        "checkout-sub",
-        organizationId,
-        `${planTierId}-${interval}`,
-      ),
+      idempotencyKey: flowKey("checkout-sub", organizationId, `${planTierId}-${interval}`),
     },
   );
 
@@ -226,11 +229,7 @@ export async function createTopupCheckoutSession(
   const email = ctx.user.email;
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
   if (!pack) {
-    throw new AppError(
-      `Unknown top-up pack: ${packId}`,
-      404,
-      "BILLING_PACK_NOT_FOUND",
-    );
+    throw new AppError(`Unknown top-up pack: ${packId}`, 404, "BILLING_PACK_NOT_FOUND");
   }
   if (!pack.stripePriceId || isPlaceholderPriceId(pack.stripePriceId)) {
     throw new AppError(
@@ -252,8 +251,14 @@ export async function createTopupCheckoutSession(
         metadata: { organizationId, packId },
       },
       line_items: [{ price: pack.stripePriceId, quantity: 1 }],
-      success_url: `${runtimeTarget.dashboard}/billing/overview?topup=success`,
-      cancel_url: `${runtimeTarget.dashboard}/billing/overview?topup=cancelled`,
+      success_url: resolveDashboardPageUrl(
+        runtimeTarget.dashboard,
+        "/billing/overview?topup=success",
+      ),
+      cancel_url: resolveDashboardPageUrl(
+        runtimeTarget.dashboard,
+        "/billing/overview?topup=cancelled",
+      ),
     },
     { idempotencyKey: flowKey("checkout-topup", organizationId, packId) },
   );
@@ -275,9 +280,7 @@ export async function createTopupCheckoutSession(
  * Orgs without a Stripe customer row haven't ever started a checkout —
  * the portal would 404, so reject up-front with a friendlier error.
  */
-export async function createPortalSession(
-  organizationId: string,
-): Promise<{ portalUrl: string }> {
+export async function createPortalSession(organizationId: string): Promise<{ portalUrl: string }> {
   await assertBillingEnabled();
   const customer = await billingRepository.getCustomerByOrg(organizationId);
   if (!customer) {
@@ -291,7 +294,7 @@ export async function createPortalSession(
   const session = await stripe().billingPortal.sessions.create(
     {
       customer: customer.stripeCustomerId,
-      return_url: `${runtimeTarget.dashboard}/billing/overview`,
+      return_url: resolveDashboardPageUrl(runtimeTarget.dashboard, "/billing/overview"),
     },
     { idempotencyKey: flowKey("portal", organizationId, "session") },
   );
@@ -323,22 +326,14 @@ export async function cancelSubscription(
     .limit(1);
 
   if (!sub || sub.status === "canceled") {
-    throw new AppError(
-      "No active subscription to cancel",
-      404,
-      "BILLING_SUBSCRIPTION_NOT_FOUND",
-    );
+    throw new AppError("No active subscription to cancel", 404, "BILLING_SUBSCRIPTION_NOT_FOUND");
   }
 
   const updated = await stripe().subscriptions.update(
     sub.stripeSubscriptionId,
     { cancel_at_period_end: true },
     {
-      idempotencyKey: flowKey(
-        "sub-cancel-at-period-end",
-        organizationId,
-        sub.stripeSubscriptionId,
-      ),
+      idempotencyKey: flowKey("sub-cancel-at-period-end", organizationId, sub.stripeSubscriptionId),
     },
   );
 
@@ -355,10 +350,7 @@ export async function cancelSubscription(
       cancelAtPeriodEnd: true,
     })
     .catch((err) =>
-      console.warn(
-        "[billing] local mirror of cancel-at-period-end failed:",
-        safeErrorMessage(err),
-      ),
+      console.warn("[billing] local mirror of cancel-at-period-end failed:", safeErrorMessage(err)),
     );
 
   return { cancelAt: sub.currentPeriodEnd };

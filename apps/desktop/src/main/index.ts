@@ -14,7 +14,17 @@
  *         └─ API (remote server, reached via HTTP)
  */
 
-import { app, BrowserWindow, shell, ipcMain, net, dialog, globalShortcut, screen, nativeTheme } from "electron";
+import {
+  app,
+  BrowserWindow,
+  shell,
+  ipcMain,
+  net,
+  dialog,
+  globalShortcut,
+  screen,
+  nativeTheme,
+} from "electron";
 import { join } from "node:path";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { randomBytes, createHash } from "node:crypto";
@@ -22,12 +32,9 @@ import { hostname } from "node:os";
 import {
   CLOUD_API_URL as DEFAULT_CLOUD_API_URL,
   CLOUD_DASHBOARD_URL as DEFAULT_CLOUD_DASHBOARD_URL,
+  resolveDashboardPageUrl,
 } from "@repo/core";
-import {
-  type SystemSettings,
-  type TunnelConfig,
-  buildSetupPayload,
-} from "@repo/onboarding";
+import { type SystemSettings, type TunnelConfig, buildSetupPayload } from "@repo/onboarding";
 import {
   getLocalApiUrl,
   getLocalDashboardUrl,
@@ -35,12 +42,7 @@ import {
   stopLocalServices,
   stopLocalServicesAndWait,
 } from "./services";
-import {
-  checkForUpdate,
-  downloadUpdate,
-  installUpdate,
-  type UpdateInfo,
-} from "./updater";
+import { checkForUpdate, downloadUpdate, installUpdate, type UpdateInfo } from "./updater";
 import { closeUpdateWindow, openUpdateWindow } from "./update-window";
 
 // ─── Persistent config ───────────────────────────────────────────────────────
@@ -281,7 +283,11 @@ function createWindow() {
   mainWindow.webContents.on("did-navigate", (_e, url) => {
     const u = new URL(url);
     // desktop-login redirects to dashboard root - mark onboarding complete
-    if (!store.get("onboardingComplete") && u.pathname === "/" && u.origin === getLocalDashboardUrl()) {
+    if (
+      !store.get("onboardingComplete") &&
+      u.pathname === "/" &&
+      u.origin === getLocalDashboardUrl()
+    ) {
       store.set("onboardingComplete", true);
       store.set("apiUrl", getLocalApiUrl());
       store.set("dashboardUrl", getLocalDashboardUrl());
@@ -330,8 +336,7 @@ function showLoading() {
  * `VIBRAIL_ENABLE_ONBOARDING=1` (or `true`) to bring the onboarding wizard back.
  */
 const ONBOARDING_ENABLED =
-  process.env.VIBRAIL_ENABLE_ONBOARDING === "1" ||
-  process.env.VIBRAIL_ENABLE_ONBOARDING === "true";
+  process.env.VIBRAIL_ENABLE_ONBOARDING === "1" || process.env.VIBRAIL_ENABLE_ONBOARDING === "true";
 
 /** Decide the first real view once services are up: onboarding vs dashboard. */
 function routeInitialView() {
@@ -501,10 +506,7 @@ async function runUpdate(): Promise<boolean> {
     return true;
   } catch (err) {
     mainWindow?.setProgressBar(-1);
-    mainWindow?.webContents.send(
-      "update:error",
-      err instanceof Error ? err.message : String(err),
-    );
+    mainWindow?.webContents.send("update:error", err instanceof Error ? err.message : String(err));
     return false;
   }
 }
@@ -589,7 +591,7 @@ ipcMain.handle(
       mainWindow.loadURL(`${apiUrl}/api/auth/desktop-login`);
     }
     return true;
-  }
+  },
 );
 
 /**
@@ -643,7 +645,10 @@ ipcMain.handle("onboarding:cloud-auth", async () => {
   // it redirects to login first, then back to authorize after auth.
   const callbackUrl = `${getLocalApiUrl()}/api/auth/cloud-callback`;
   const machine = hostname();
-  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
+  const cloudAuthUrl = resolveDashboardPageUrl(
+    CLOUD_DASHBOARD_URL,
+    `/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`,
+  );
   shell.openExternal(cloudAuthUrl);
 
   return { ok: true, cloudAuthUrl, nonce };
@@ -745,7 +750,10 @@ ipcMain.handle("cloud:connect", async () => {
 
   const callbackUrl = `${getLocalApiUrl()}/api/auth/cloud-callback`;
   const machine = hostname();
-  const cloudAuthUrl = `${CLOUD_DASHBOARD_URL}/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`;
+  const cloudAuthUrl = resolveDashboardPageUrl(
+    CLOUD_DASHBOARD_URL,
+    `/authorize?callback=${encodeURIComponent(callbackUrl)}&app=${encodeURIComponent("Vibrail Desktop")}&machine=${encodeURIComponent(machine)}&state=${encodeURIComponent(state)}&code_challenge=${encodeURIComponent(codeChallenge)}&flow=desktop-cloud`,
+  );
   shell.openExternal(cloudAuthUrl);
 
   return { ok: true, cloudAuthUrl, nonce };
@@ -832,33 +840,30 @@ ipcMain.handle("system:get-settings", async () => {
   return store.get("system") ?? {};
 });
 
-ipcMain.handle(
-  "system:update-settings",
-  async (_event, settings: Partial<SystemSettings>) => {
-    // Update local ConfigStore
-    const current = store.get("system") ?? {};
-    store.set("system", { ...current, ...settings });
+ipcMain.handle("system:update-settings", async (_event, settings: Partial<SystemSettings>) => {
+  // Update local ConfigStore
+  const current = store.get("system") ?? {};
+  store.set("system", { ...current, ...settings });
 
-    // Also push to API so both stores stay in sync
-    const apiUrl = getLocalApiUrl();
-    if (apiUrl) {
-      try {
-        await net.fetch(`${apiUrl}/api/system/setup`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Internal-Token": internalToken,
-          },
-          body: JSON.stringify(settings),
-          signal: AbortSignal.timeout(5000),
-        });
-      } catch {
-        // Non-blocking - local copy is saved either way
-      }
+  // Also push to API so both stores stay in sync
+  const apiUrl = getLocalApiUrl();
+  if (apiUrl) {
+    try {
+      await net.fetch(`${apiUrl}/api/system/setup`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Internal-Token": internalToken,
+        },
+        body: JSON.stringify(settings),
+        signal: AbortSignal.timeout(5000),
+      });
+    } catch {
+      // Non-blocking - local copy is saved either way
     }
-    return true;
   }
-);
+  return true;
+});
 
 // ─── IPC: Reset (for settings → re-onboard) ─────────────────────────────────
 

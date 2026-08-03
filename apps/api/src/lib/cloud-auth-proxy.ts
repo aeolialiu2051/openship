@@ -15,7 +15,7 @@ import { db, schema, repos, eq } from "@repo/db";
 import { encrypt } from "./encryption";
 import { provisionUser } from "./provision-user";
 import { cloudRuntimeTarget, env } from "../config/env";
-import { safeErrorMessage } from "@repo/core";
+import { resolveDashboardPageUrl, safeErrorMessage } from "@repo/core";
 
 export interface CloudUser {
   id: string;
@@ -133,11 +133,8 @@ export async function mintSession(opts: {
       : randomUUID();
   const token = randomBytes(32).toString("hex");
   const now = new Date();
-  const expiresAt = new Date(
-    now.getTime() + (opts.ttlSeconds ?? 60 * 60 * 24 * 30) * 1000,
-  );
-  const defaultUserAgent =
-    opts.purpose === "linked-instance" ? "vibrail-local-link" : null;
+  const expiresAt = new Date(now.getTime() + (opts.ttlSeconds ?? 60 * 60 * 24 * 30) * 1000);
+  const defaultUserAgent = opts.purpose === "linked-instance" ? "vibrail-local-link" : null;
 
   await db.insert(schema.session).values({
     id,
@@ -146,8 +143,7 @@ export async function mintSession(opts: {
     expiresAt,
     ipAddress: opts.ipAddress ?? null,
     userAgent: opts.userAgent ?? defaultUserAgent,
-    activeOrganizationId:
-      opts.activeOrganizationId ?? `org_${opts.userId}`,
+    activeOrganizationId: opts.activeOrganizationId ?? `org_${opts.userId}`,
     createdAt: now,
     updatedAt: now,
   });
@@ -246,9 +242,7 @@ async function exchangeHandoffCode(
       console.warn(`[handoff] PKCE: code_verifier required but not provided`);
       return null;
     }
-    const computed = createHash("sha256")
-      .update(codeVerifier)
-      .digest("base64url");
+    const computed = createHash("sha256").update(codeVerifier).digest("base64url");
     if (computed !== row.codeChallenge) {
       console.warn(`[handoff] PKCE mismatch`);
       return null;
@@ -288,17 +282,11 @@ async function exchangeCodeWithCloud(
     // Network error (DNS, ECONNREFUSED, timeout). The cloud SaaS is
     // unreachable from this host. Log so the operator can see WHY the
     // connect popup says "Connection Failed".
-    console.error(
-      `[cloud-auth] exchange-code fetch failed: ${url} — ${
-        safeErrorMessage(err)
-      }`,
-    );
+    console.error(`[cloud-auth] exchange-code fetch failed: ${url} — ${safeErrorMessage(err)}`);
     return null;
   }
   if (!res.ok) {
-    console.error(
-      `[cloud-auth] exchange-code returned ${res.status} from ${url}`,
-    );
+    console.error(`[cloud-auth] exchange-code returned ${res.status} from ${url}`);
     return null;
   }
   // Defensive parse: cloud returning HTML (404 page / captive portal /
@@ -317,11 +305,7 @@ async function exchangeCodeWithCloud(
     };
     return data ?? null;
   } catch (err) {
-    console.error(
-      `[cloud-auth] exchange-code JSON parse failed: ${
-        safeErrorMessage(err)
-      }`,
-    );
+    console.error(`[cloud-auth] exchange-code JSON parse failed: ${safeErrorMessage(err)}`);
     return null;
   }
 }
@@ -333,9 +317,16 @@ async function exchangeCodeWithCloud(
  * After the system browser completes /cloud-callback, the session token
  * is stored against that nonce. Electron polls to pick it up.
  */
-let pendingNonce: { value: string; state: string; codeVerifier: string; connectUserId?: string; registeredAt: number } | null = null;
+let pendingNonce: {
+  value: string;
+  state: string;
+  codeVerifier: string;
+  connectUserId?: string;
+  registeredAt: number;
+} | null = null;
 let resolvedAuth: { nonce: string; claimCode: string } | null = null;
-let pendingClaim: { code: string; token: string; expiresAt: number; createdAt: number } | null = null;
+let pendingClaim: { code: string; token: string; expiresAt: number; createdAt: number } | null =
+  null;
 /** Nonce value preserved after validateDesktopState consumes pendingNonce, used by pollDesktopAuth */
 let activeNonce: string | null = null;
 let activeNonceCreatedAt = 0;
@@ -344,7 +335,12 @@ let failedNonce: string | null = null;
 
 const NONCE_TTL = 5 * 60 * 1000; // 5 minutes
 
-function registerDesktopNonce(nonce: string, state: string, codeVerifier: string, connectUserId?: string): void {
+function registerDesktopNonce(
+  nonce: string,
+  state: string,
+  codeVerifier: string,
+  connectUserId?: string,
+): void {
   console.log(`[desktop-auth] register nonce=${nonce.slice(0, 8)}… state=${state.slice(0, 8)}…`);
   pendingNonce = { value: nonce, state, codeVerifier, connectUserId, registeredAt: Date.now() };
   resolvedAuth = null;
@@ -365,7 +361,9 @@ function resolveDesktopAuth(nonce: string, token: string, expiresAt: Date): void
   const claimCode = randomBytes(16).toString("hex");
   resolvedAuth = { nonce, claimCode };
   pendingClaim = { code: claimCode, token, expiresAt: expiresAt.getTime(), createdAt: Date.now() };
-  console.log(`[desktop-auth] resolved nonce=${nonce.slice(0, 8)}… claimCode=${claimCode.slice(0, 8)}…`);
+  console.log(
+    `[desktop-auth] resolved nonce=${nonce.slice(0, 8)}… claimCode=${claimCode.slice(0, 8)}…`,
+  );
 }
 
 /**
@@ -375,7 +373,9 @@ function resolveDesktopAuth(nonce: string, token: string, expiresAt: Date): void
  * Returns the code_verifier and nonce if state matches, null otherwise.
  * Consumes the nonce atomically - prevents replay attacks.
  */
-function validateDesktopState(state: string): { codeVerifier: string; nonce: string; connectUserId?: string } | null {
+function validateDesktopState(
+  state: string,
+): { codeVerifier: string; nonce: string; connectUserId?: string } | null {
   if (!pendingNonce) {
     console.log(`[desktop-auth] validateState: no pendingNonce`);
     return null;
@@ -395,7 +395,11 @@ function validateDesktopState(state: string): { codeVerifier: string; nonce: str
     pendingNonce = null;
     return null;
   }
-  const result = { codeVerifier: pendingNonce.codeVerifier, nonce: pendingNonce.value, connectUserId: pendingNonce.connectUserId };
+  const result = {
+    codeVerifier: pendingNonce.codeVerifier,
+    nonce: pendingNonce.value,
+    connectUserId: pendingNonce.connectUserId,
+  };
   pendingNonce = null; // consume - one-time use
   return result;
 }
@@ -406,7 +410,10 @@ function failDesktopAuth(nonce: string): void {
   activeNonce = null;
 }
 
-function pollDesktopAuth(nonce: string): { status: "pending" | "resolved" | "expired"; claimCode?: string } {
+function pollDesktopAuth(nonce: string): {
+  status: "pending" | "resolved" | "expired";
+  claimCode?: string;
+} {
   if (resolvedAuth && resolvedAuth.nonce === nonce) {
     const result = { status: "resolved" as const, claimCode: resolvedAuth.claimCode };
     console.log(`[desktop-auth] poll → resolved nonce=${nonce.slice(0, 8)}…`);
@@ -440,7 +447,9 @@ function pollDesktopAuth(nonce: string): { status: "pending" | "resolved" | "exp
 
 function exchangeDesktopClaim(code: string): { token: string; expiresAt: Date } | null {
   if (!pendingClaim || pendingClaim.code !== code) {
-    console.log(`[desktop-auth] claim failed: ${!pendingClaim ? 'no pendingClaim' : 'code mismatch'}`);
+    console.log(
+      `[desktop-auth] claim failed: ${!pendingClaim ? "no pendingClaim" : "code mismatch"}`,
+    );
     return null;
   }
   if (Date.now() - pendingClaim.createdAt > 60_000) {
@@ -581,7 +590,7 @@ export async function buildAuthHandoff(opts: {
   loginFlow?: string;
 }): Promise<{ kind: "login"; url: string } | { kind: "handoff"; url: string }> {
   if (!opts.session) {
-    const loginUrl = new URL("login", `${opts.dashboardOrigin.replace(/\/+$/, "")}/`);
+    const loginUrl = new URL(resolveDashboardPageUrl(opts.dashboardOrigin, "/login"));
     loginUrl.searchParams.set("callback", opts.redirect.toString());
     if (opts.loginFlow) loginUrl.searchParams.set("flow", opts.loginFlow);
     if (opts.state) loginUrl.searchParams.set("state", opts.state);

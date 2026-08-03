@@ -1,17 +1,11 @@
+import { and, asc, count, desc, eq, gte, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  ilike,
-  isNull,
-  or,
-  sql,
-  type SQL,
-} from "drizzle-orm";
-import { ForbiddenError, NotFoundError, ValidationError, safeErrorMessage } from "@repo/core";
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+  resolveDashboardPageUrl,
+  safeErrorMessage,
+} from "@repo/core";
 import { db, repos, schema } from "@repo/db";
 import { DockerRuntime } from "@repo/adapters";
 import { resolveDeploymentRuntime } from "../../lib/deployment-runtime";
@@ -45,9 +39,7 @@ function safePage(value: number): number {
 }
 
 function safePerPage(value: number): number {
-  return Number.isFinite(value)
-    ? Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(value)))
-    : 50;
+  return Number.isFinite(value) ? Math.max(1, Math.min(MAX_PAGE_SIZE, Math.floor(value))) : 50;
 }
 
 function normalizeListOptions(opts: AdminListOptions) {
@@ -101,9 +93,7 @@ function normalizeOverviewOptions(opts: AdminOverviewOptions = {}): {
   const rangeDays = TREND_RANGE_DAYS.includes(opts.rangeDays as AdminTrendRangeDays)
     ? (opts.rangeDays as AdminTrendRangeDays)
     : 14;
-  const granularity = TREND_GRANULARITIES.includes(
-    opts.granularity as AdminTrendGranularity,
-  )
+  const granularity = TREND_GRANULARITIES.includes(opts.granularity as AdminTrendGranularity)
     ? (opts.granularity as AdminTrendGranularity)
     : "day";
   return { rangeDays, granularity };
@@ -123,7 +113,11 @@ function trendBucketKeys(
   if (granularity === "hour") {
     const endHour = new Date(Date.UTC(current.year, current.month - 1, current.day, current.hour));
     const result: string[] = [];
-    for (let cursor = firstCalendarDay.getTime(); cursor <= endHour.getTime(); cursor += 60 * 60 * 1000) {
+    for (
+      let cursor = firstCalendarDay.getTime();
+      cursor <= endHour.getTime();
+      cursor += 60 * 60 * 1000
+    ) {
       result.push(new Date(cursor).toISOString().slice(0, 13) + ":00");
     }
     return result;
@@ -346,9 +340,7 @@ export async function getOverview(opts: AdminOverviewOptions = {}) {
   };
 }
 
-export async function listUsers(
-  opts: AdminListOptions & { role?: string; verified?: boolean },
-) {
+export async function listUsers(opts: AdminListOptions & { role?: string; verified?: boolean }) {
   const { page, perPage, offset, search } = normalizeListOptions(opts);
   const filters: SQL[] = [];
   if (search) {
@@ -622,7 +614,7 @@ async function suspendedRouteOptions(
     routes: domains
       .filter((domain) => domain.verified && domain.status === "active")
       .map((domain) => {
-        const redirect = new URL("suspended", `${dashboard.replace(/\/+$/, "")}/`);
+        const redirect = new URL(resolveDashboardPageUrl(dashboard, "/suspended"));
         redirect.searchParams.set("site", domain.hostname);
         return { hostname: domain.hostname, redirectUrl: redirect.toString() };
       }),
@@ -833,7 +825,10 @@ export async function listAccessLogs(opts: AdminListOptions & { path?: string })
       })
       .from(schema.userAccessLog)
       .leftJoin(schema.user, eq(schema.userAccessLog.userId, schema.user.id))
-      .leftJoin(schema.organization, eq(schema.userAccessLog.organizationId, schema.organization.id))
+      .leftJoin(
+        schema.organization,
+        eq(schema.userAccessLog.organizationId, schema.organization.id),
+      )
       .where(where)
       .orderBy(desc(schema.userAccessLog.createdAt))
       .limit(perPage)
@@ -842,7 +837,10 @@ export async function listAccessLogs(opts: AdminListOptions & { path?: string })
       .select({ value: count() })
       .from(schema.userAccessLog)
       .leftJoin(schema.user, eq(schema.userAccessLog.userId, schema.user.id))
-      .leftJoin(schema.organization, eq(schema.userAccessLog.organizationId, schema.organization.id))
+      .leftJoin(
+        schema.organization,
+        eq(schema.userAccessLog.organizationId, schema.organization.id),
+      )
       .where(where),
   ]);
 

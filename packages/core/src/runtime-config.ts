@@ -46,13 +46,15 @@ const hostedOrigin = (() => {
     : `https://${withoutTrailingSlash}`;
 })();
 
-export const CLOUD_DASHBOARD_URL =
-  (envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? `${hostedOrigin}/dashboard`).replace(/\/+$/, "");
+export const CLOUD_DASHBOARD_URL = (
+  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? `${hostedOrigin}/dashboard`
+).replace(/\/+$/, "");
 // Hosted Vibrail serves the dashboard and API on one public origin. General
 // API routes pass through the dashboard's Next.js catch-all proxy; callers
 // append their normal `/api/...` paths to this base.
-export const CLOUD_API_URL =
-  (envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`).replace(/\/+$/, "");
+export const CLOUD_API_URL = (
+  envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`
+).replace(/\/+$/, "");
 
 /**
  * THE runtime-target table. Keyed by id — the id IS the key, no
@@ -134,6 +136,37 @@ export const dashboardRuntimeOrigins = Object.values(DASHBOARD_RUNTIME_TARGETS).
 );
 
 export const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/**
+ * Resolve a page inside a dashboard base URL without dropping its mount path.
+ *
+ * The WHATWG URL constructor treats a leading-slash path as origin-relative,
+ * so `new URL("/authorize", "https://host/dashboard")` silently becomes
+ * `https://host/authorize`. Hosted Vibrail mounts the dashboard below
+ * `/dashboard`, while self-hosted dashboards normally live at `/`; this helper
+ * keeps both layouts working and also tolerates callers that already included
+ * the dashboard mount in `pagePath`.
+ */
+export function resolveDashboardPageUrl(dashboardBaseUrl: string, pagePath = "/"): string {
+  const base = new URL(dashboardBaseUrl);
+  const mountPath = base.pathname === "/" ? "" : base.pathname.replace(/\/+$/, "");
+  let relativePath = pagePath;
+
+  if (
+    mountPath &&
+    (relativePath === mountPath ||
+      relativePath.startsWith(`${mountPath}/`) ||
+      relativePath.startsWith(`${mountPath}?`) ||
+      relativePath.startsWith(`${mountPath}#`))
+  ) {
+    relativePath = relativePath.slice(mountPath.length) || "/";
+  }
+
+  base.pathname = mountPath ? `${mountPath}/` : "/";
+  base.search = "";
+  base.hash = "";
+  return new URL(relativePath.replace(/^\/+/, ""), base).toString();
+}
 
 /**
  * Align a loopback origin with the loopback host of a reference origin.

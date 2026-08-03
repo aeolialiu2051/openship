@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { CLOUD_DASHBOARD_URL, LOCAL_API_URL } from "@repo/core";
+import { CLOUD_DASHBOARD_URL, LOCAL_API_URL, resolveDashboardPageUrl } from "@repo/core";
 import { waitForApi } from "@repo/onboarding";
 import { getApiUrl, getDashboardUrl } from "../lib/config";
 
@@ -14,7 +14,7 @@ export const openCommand = new Command("open")
     const base: string = opts.cloud
       ? CLOUD_DASHBOARD_URL
       : opts.dashboardUrl || getDashboardUrl(opts.context);
-    const target = opts.path ? new URL(opts.path, base).toString() : base;
+    const target = opts.path ? resolveDashboardPageUrl(base, opts.path) : base;
 
     // For a local dashboard, warn (don't block) if the API isn't up yet, so we
     // don't silently open a dead page. Cloud is assumed reachable.

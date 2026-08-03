@@ -18,6 +18,7 @@
  */
 
 import type { Context } from "hono";
+import { resolveDashboardPageUrl } from "@repo/core";
 import { getRequestContext } from "../../lib/request-context";
 import { auth } from "../../lib/auth";
 import { issueNamespaceToken } from "../../lib/vibrail-cloud";
@@ -40,10 +41,7 @@ import {
 } from "./cloud-analytics.service";
 import { revokeCloudSession } from "./cloud-session.service";
 import { syncCloudEdgeProxy, deleteCloudEdgeProxy } from "./cloud-edge-proxy.service";
-import {
-  createCloudPage,
-  dispatchCloudPageAction,
-} from "./cloud-pages.service";
+import { createCloudPage, dispatchCloudPageAction } from "./cloud-pages.service";
 import { sendCloudInvitation } from "./cloud-invitations.service";
 import {
   ingestSubgraph,
@@ -74,7 +72,10 @@ import {
 function oblienErrorResponse(c: Context, err: unknown, fallback: string) {
   const message = err instanceof Error ? err.message : fallback;
   const status =
-    typeof err === "object" && err !== null && "status" in err && typeof (err as { status?: unknown }).status === "number"
+    typeof err === "object" &&
+    err !== null &&
+    "status" in err &&
+    typeof (err as { status?: unknown }).status === "number"
       ? (err as { status: number }).status
       : 500;
   const code =
@@ -206,7 +207,10 @@ export async function account(c: Context) {
 export async function desktopHandoff(c: Context) {
   const codeChallenge = c.req.query("code_challenge");
   if (!codeChallenge || !/^[A-Za-z0-9_-]{40,128}$/.test(codeChallenge)) {
-    return c.json({ error: "code_challenge query parameter is required", code: "MISSING_CODE_CHALLENGE" }, 400);
+    return c.json(
+      { error: "code_challenge query parameter is required", code: "MISSING_CODE_CHALLENGE" },
+      400,
+    );
   }
   const validation = validateDesktopRedirect(c.req.query("redirect"));
   if (!validation.ok) return c.json({ error: validation.error }, validation.status);
@@ -248,7 +252,10 @@ export async function connectHandoff(c: Context) {
   const isDevice = c.req.query("mode") === "device";
   const codeChallenge = c.req.query("code_challenge");
   if (!codeChallenge || !/^[A-Za-z0-9_-]{40,128}$/.test(codeChallenge)) {
-    return c.json({ error: "code_challenge query parameter is required", code: "MISSING_CODE_CHALLENGE" }, 400);
+    return c.json(
+      { error: "code_challenge query parameter is required", code: "MISSING_CODE_CHALLENGE" },
+      400,
+    );
   }
   const state = c.req.query("state");
   if (!state || typeof state !== "string" || state.length === 0 || state.length > 256) {
@@ -261,8 +268,7 @@ export async function connectHandoff(c: Context) {
   // /api/cloud/connect-authorize below, which is where the code mint
   // actually happens.
   const consentUrl = new URL(
-    "cloud-authorize",
-    `${cloudRuntimeTarget.dashboard.replace(/\/+$/, "")}/`,
+    resolveDashboardPageUrl(cloudRuntimeTarget.dashboard, "/cloud-authorize"),
   );
   consentUrl.searchParams.set("state", state);
   consentUrl.searchParams.set("code_challenge", codeChallenge);
@@ -299,7 +305,12 @@ export async function connectHandoff(c: Context) {
 export async function connectAuthorize(c: Context) {
   let body: { redirect?: string; state?: string; codeChallenge?: string; mode?: string };
   try {
-    body = await c.req.json<{ redirect?: string; state?: string; codeChallenge?: string; mode?: string }>();
+    body = await c.req.json<{
+      redirect?: string;
+      state?: string;
+      codeChallenge?: string;
+      mode?: string;
+    }>();
   } catch {
     return c.json({ error: "Invalid JSON body", code: "INVALID_BODY" }, 400);
   }
@@ -307,10 +318,7 @@ export async function connectAuthorize(c: Context) {
   const isDevice = body.mode === "device";
   const codeChallenge = body.codeChallenge;
   if (!codeChallenge || !/^[A-Za-z0-9_-]{40,128}$/.test(codeChallenge)) {
-    return c.json(
-      { error: "codeChallenge is required", code: "MISSING_CODE_CHALLENGE" },
-      400,
-    );
+    return c.json({ error: "codeChallenge is required", code: "MISSING_CODE_CHALLENGE" }, 400);
   }
   // `redirect` is the delivery channel ONLY for the browser flow, where it MUST
   // be validated (open-redirect/SSRF). The device/poll flow delivers the code via
@@ -351,8 +359,7 @@ export async function connectAuthorize(c: Context) {
     const linked = await mintSession({
       purpose: "linked-instance",
       userId: session.user.id,
-      activeOrganizationId:
-        session.session.activeOrganizationId ?? `org_${session.user.id}`,
+      activeOrganizationId: session.session.activeOrganizationId ?? `org_${session.user.id}`,
       ipAddress: c.get("clientIp") ?? null,
       userAgent: c.req.header("user-agent") ?? null,
     });
@@ -379,10 +386,7 @@ export async function connectAuthorize(c: Context) {
     return c.json({ callbackUrl: callbackUrl.toString() });
   } catch (err) {
     console.error("[connect-authorize] mint failed:", err);
-    return c.json(
-      { error: "Failed to mint handoff code", code: "MINT_FAILED" },
-      500,
-    );
+    return c.json({ error: "Failed to mint handoff code", code: "MINT_FAILED" }, 500);
   }
 }
 
@@ -449,7 +453,10 @@ export async function syncEdgeProxy(c: Context) {
     return c.json({ error: "slug and target are required" }, 400);
   }
   try {
-    const result = await syncCloudEdgeProxy(ctx.organizationId, { slug: body.slug, target: body.target });
+    const result = await syncCloudEdgeProxy(ctx.organizationId, {
+      slug: body.slug,
+      target: body.target,
+    });
     if (!result.ok) return c.json({ error: result.error }, result.status);
     return c.json({ ok: true, hostname: result.hostname });
   } catch (err) {
@@ -660,10 +667,7 @@ export async function ingestSubgraphHandler(c: Context) {
     return c.json({ ok: true, ...result });
   } catch (err) {
     if (err instanceof IngestTargetNotEmptyError) {
-      return c.json(
-        { error: err.message, code: err.code, projectCount: err.projectCount },
-        409,
-      );
+      return c.json({ error: err.message, code: err.code, projectCount: err.projectCount }, 409);
     }
     if (err instanceof IngestValidationError) {
       return c.json({ error: err.message, code: err.code }, 400);
@@ -680,7 +684,8 @@ export async function ingestSubgraphHandler(c: Context) {
       if (nameTaken) {
         return c.json(
           {
-            error: "A project with this name already exists on Vibrail Cloud. Rename this project and retry.",
+            error:
+              "A project with this name already exists on Vibrail Cloud. Rename this project and retry.",
             code: "SLUG_TAKEN",
             table: err.table,
           },
@@ -690,10 +695,7 @@ export async function ingestSubgraphHandler(c: Context) {
       // Duplicate-PK on the subgraph restore — the operator is re-submitting an
       // already-transferred project. Typed 409 so the dashboard can offer a
       // clean "already transferred" remediation instead of an opaque 500.
-      return c.json(
-        { error: err.message, code: err.code, table: err.table },
-        409,
-      );
+      return c.json({ error: err.message, code: err.code, table: err.table }, 409);
     }
     return oblienErrorResponse(c, err, "Subgraph ingest failed");
   }
@@ -711,7 +713,7 @@ export async function teardownProjectHandler(c: Context) {
   const ctx = getRequestContext(c);
   const body = await c.req
     .json<{ projectId?: string }>()
-    .catch(() => ({} as { projectId?: string }));
+    .catch(() => ({}) as { projectId?: string });
   if (!body.projectId) {
     return c.json({ error: "projectId is required" }, 400);
   }
@@ -739,8 +741,11 @@ export async function exportSubgraphHandler(c: Context) {
   const ctx = getRequestContext(c);
   const body = await c.req
     .json<{ scope?: SubgraphScope }>()
-    .catch(() => ({} as { scope?: SubgraphScope }));
-  const scope: SubgraphScope = body.scope ?? { kind: "organization", organizationId: ctx.organizationId };
+    .catch(() => ({}) as { scope?: SubgraphScope });
+  const scope: SubgraphScope = body.scope ?? {
+    kind: "organization",
+    organizationId: ctx.organizationId,
+  };
 
   if (scope.kind === "instance") {
     return c.json(
@@ -932,10 +937,7 @@ export async function githubOauthBridge(c: Context) {
       );
     case "failed":
       console.error("[github oauth-bridge] failed:", result.error);
-      return c.html(
-        renderCallbackHtml("OAuth start failed", result.error),
-        500,
-      );
+      return c.html(renderCallbackHtml("OAuth start failed", result.error), 500);
   }
 }
 
