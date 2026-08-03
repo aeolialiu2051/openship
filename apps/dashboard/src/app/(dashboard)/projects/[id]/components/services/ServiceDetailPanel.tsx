@@ -16,6 +16,7 @@ import {
 } from "@/lib/api/services";
 import { deployApi } from "@/lib/api/deploy";
 import { formatBytes } from "@/lib/formatBytes";
+import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
 import {
   Play,
@@ -157,7 +158,11 @@ export function ServiceDetailPanel({
     // off the projects route (server level) where that URL shape doesn't apply.
     if (deepLink && typeof window !== "undefined") {
       const scrollY = window.scrollY;
-      window.history.replaceState({}, "", `/projects/${projectId}/services/${service.id}/${tab}`);
+      window.history.replaceState(
+        {},
+        "",
+        withDashboardBasePath(`/projects/${projectId}/services/${service.id}/${tab}`),
+      );
       requestAnimationFrame(() => window.scrollTo(0, scrollY));
     }
   };

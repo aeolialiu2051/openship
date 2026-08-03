@@ -2,6 +2,7 @@
 
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { generateIcon } from "@/utils/icons";
+import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { useEffect } from "react";
 
 export const ProjectsBottomNavigation = () => {
@@ -23,7 +24,11 @@ export const ProjectsBottomNavigation = () => {
 
     const handleTabChange = (tabId: string) => {
         setActiveTab(tabId);
-        window.history.replaceState({}, '', `/projects/${projectData.id}/${tabId}`);
+        window.history.replaceState(
+            {},
+            '',
+            withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+        );
     };
 
     if(!projectData.id || !projectData.activeDeploymentId) {

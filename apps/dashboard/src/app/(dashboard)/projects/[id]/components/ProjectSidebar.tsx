@@ -8,6 +8,7 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import { AppLogo } from "@/components/AppLogo";
 import { DomainSwitcher } from "@/components/routing/DomainSwitcher";
 import { formatDate } from "@/utils/date";
+import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
 import {
   LayoutDashboard,
@@ -105,7 +106,11 @@ export const ProjectSidebar = () => {
   const handleTabChange = (tabId: string) => {
     const scrollY = window.scrollY;
     setActiveTab(tabId);
-    window.history.replaceState({}, "", `/projects/${projectData.id}/${tabId}`);
+    window.history.replaceState(
+      {},
+      "",
+      withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+    );
     requestAnimationFrame(() => window.scrollTo(0, scrollY));
   };
 
@@ -260,7 +265,11 @@ export const ProjectMobileTabs = () => {
   const handleTabChange = (tabId: string) => {
     const scrollY = window.scrollY;
     setActiveTab(tabId);
-    window.history.replaceState({}, "", `/projects/${projectData.id}/${tabId}`);
+    window.history.replaceState(
+      {},
+      "",
+      withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+    );
     requestAnimationFrame(() => window.scrollTo(0, scrollY));
   };
 

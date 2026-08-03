@@ -21,6 +21,7 @@ import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
+import { withDashboardBasePath } from "@/lib/dashboard-path";
 
 import {
   SettingsSidebar,
@@ -111,7 +112,7 @@ function SettingsPageInner() {
     if (searchParams.get("cloud") === "connected") {
       refresh();
       showToast(t.settings.page.cloudConnectedToast, "success", t.settings.common.toast.cloud);
-      window.history.replaceState({}, "", "/settings?tab=cloud");
+      window.history.replaceState({}, "", withDashboardBasePath("/settings?tab=cloud"));
     }
   }, [searchParams, showToast, refresh, t]);
 
