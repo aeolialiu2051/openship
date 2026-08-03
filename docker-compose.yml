@@ -30,10 +30,9 @@
 # The API + dashboard bind fixed internal ports via PORT (the API honors PORT
 # regardless of VIBRAIL_TARGET); a reverse proxy maps the public domains to
 # them. postgres/redis are internal-only. The API auto-migrates Postgres on boot.
-# The hosted path-routing contract and a Traefik file-provider example live at
-# docker/traefik-vibrail-saas.yml:
-#   /dashboard/* → dashboard, /api/proxy/* (+ OAuth/MCP/WS) → dashboard,
-#   everything else → web.
+# The hosted reverse proxy must route /dashboard plus the root API/OAuth/MCP/WS
+# paths to dashboard; all remaining paths go to web. Production owns that edge
+# configuration outside this application stack.
 #
 # REMOTE ACCESS: reaching this from another machine (LAN IP or a reverse proxy)
 # requires VIBRAIL_PUBLIC_URL in .env — else the dashboard loads but login is
