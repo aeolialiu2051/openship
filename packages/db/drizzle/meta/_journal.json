@@ -561,6 +561,13 @@
       "when": 1893456000003,
       "tag": "0079_vibrail_managed_domain",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "7",
+      "when": 1893456000004,
+      "tag": "0080_instance_runtime_config",
+      "breakpoints": true
     }
   ]
 }

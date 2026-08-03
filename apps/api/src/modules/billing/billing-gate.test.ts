@@ -1,5 +1,13 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { AppError } from "@repo/core";
+
+vi.mock("../../lib/runtime-config", () => ({
+  getRuntimeConfig: async () => ({
+    BILLING_ENABLED: false,
+    BILLING_TOPUPS_ENABLED: false,
+  }),
+}));
+
 import { assertBillingEnabled, assertTopupsEnabled } from "./billing.service";
 
 /**
@@ -13,10 +21,10 @@ import { assertBillingEnabled, assertTopupsEnabled } from "./billing.service";
  * shipped-today behavior: mutations fail closed with a typed 403.
  */
 describe("billing feature gate (default = disabled)", () => {
-  it("assertBillingEnabled throws BILLING_NOT_ENABLED (403) when the master switch is off", () => {
+  it("assertBillingEnabled throws BILLING_NOT_ENABLED (403) when the master switch is off", async () => {
     let thrown: unknown;
     try {
-      assertBillingEnabled();
+      await assertBillingEnabled();
     } catch (err) {
       thrown = err;
     }
@@ -26,10 +34,10 @@ describe("billing feature gate (default = disabled)", () => {
     expect(e.statusCode).toBe(403);
   });
 
-  it("assertTopupsEnabled throws (403) while billing is disabled", () => {
+  it("assertTopupsEnabled throws (403) while billing is disabled", async () => {
     let thrown: unknown;
     try {
-      assertTopupsEnabled();
+      await assertTopupsEnabled();
     } catch (err) {
       thrown = err;
     }

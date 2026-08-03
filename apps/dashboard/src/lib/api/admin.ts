@@ -123,6 +123,21 @@ export interface AdminPage<T> {
   perPage: number;
 }
 
+export type AdminRuntimeConfig = {
+  BILLING_ENABLED: boolean;
+  BILLING_TOPUPS_ENABLED: boolean;
+  CLOUD_MAX_PROJECTS_PER_USER: number;
+  CLOUD_SESSION_PINNING: "off" | "warn" | "strict";
+  NOTIFY_WEBHOOK_ALLOW_INTERNAL: boolean;
+  VIBRAIL_CLOUDFLARE_PROXY: boolean;
+};
+
+export interface AdminRuntimeConfigState {
+  values: AdminRuntimeConfig;
+  overrides: Partial<AdminRuntimeConfig>;
+  environmentDefaults: AdminRuntimeConfig;
+}
+
 function params(input: Record<string, string | number | boolean | undefined>) {
   return Object.fromEntries(
     Object.entries(input).filter(([, value]) => value !== undefined && value !== ""),
@@ -192,5 +207,20 @@ export const adminApi = {
     return api.get<AdminPage<AdminActivityLogRow>>("admin/activity-logs", {
       params: params(input),
     });
+  },
+
+  async runtimeConfig(): Promise<AdminRuntimeConfigState> {
+    const response = await api.get<{ data: AdminRuntimeConfigState }>("admin/runtime-config");
+    return response.data;
+  },
+
+  async updateRuntimeConfig(
+    patch: Partial<{ [K in keyof AdminRuntimeConfig]: AdminRuntimeConfig[K] | null }>,
+  ): Promise<AdminRuntimeConfigState> {
+    const response = await api.patch<{ data: AdminRuntimeConfigState }>(
+      "admin/runtime-config",
+      patch,
+    );
+    return response.data;
   },
 };

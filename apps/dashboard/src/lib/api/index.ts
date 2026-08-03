@@ -108,6 +108,8 @@ export type {
   AdminPage,
   AdminTrendRangeDays,
   AdminTrendGranularity,
+  AdminRuntimeConfig,
+  AdminRuntimeConfigState,
 } from "./admin";
 export type {
   BuildMode,

@@ -12,6 +12,7 @@ export function adminCopy(locale: Locale) {
     applications: zh ? "用户应用" : "User apps",
     accessLogs: zh ? "访问日志" : "Access logs",
     activityLogs: zh ? "活动日志" : "Activity logs",
+    runtimeConfig: zh ? "运行配置" : "Runtime config",
     search: zh ? "搜索用户、路径、IP…" : "Search users, paths, IPs…",
     all: zh ? "全部" : "All",
     admin: zh ? "管理员" : "Admin",

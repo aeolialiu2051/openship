@@ -28,5 +28,21 @@ r.public("post", "/apps/:id/suspend", instanceAdminRoute, authMiddleware, requir
 r.public("post", "/apps/:id/resume", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.resumeApplication);
 r.public("get", "/access-logs", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.accessLogs);
 r.public("get", "/activity-logs", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.activityLogs);
+r.public(
+  "get",
+  "/runtime-config",
+  instanceAdminRoute,
+  authMiddleware,
+  requireInstanceAdmin,
+  controller.runtimeConfig,
+);
+r.public(
+  "patch",
+  "/runtime-config",
+  { ...instanceAdminRoute, rateLimit: "write-authed" },
+  authMiddleware,
+  requireInstanceAdmin,
+  controller.updateRuntimeConfig,
+);
 
 export const adminRoutes = r.hono;

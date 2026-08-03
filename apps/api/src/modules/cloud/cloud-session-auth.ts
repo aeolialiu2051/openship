@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 import { db, schema, eq } from "@repo/db";
-import { env } from "../../config/env";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 
 /**
  * SaaS cloud-session auth.
@@ -18,6 +18,7 @@ import { env } from "../../config/env";
  * available as options.
  */
 export async function cloudSessionAuth(c: Context, next: Next) {
+  const { CLOUD_SESSION_PINNING: pinningMode } = await getRuntimeConfig();
   const header = c.req.header("authorization");
   if (!header?.startsWith("Bearer ")) {
     return c.json({ error: "Unauthorized" }, 401);
@@ -47,7 +48,7 @@ export async function cloudSessionAuth(c: Context, next: Next) {
   // packages/db/src/schema/auth.ts — session.ipAddress + .userAgent).
   // Null on either side means "no fingerprint recorded" — we don't
   // gate on what we don't have.
-  if (env.CLOUD_SESSION_PINNING !== "off") {
+  if (pinningMode !== "off") {
     const incomingIp = c.var.clientIp ?? "";
     const incomingUa = (c.req.header("user-agent") || "").trim();
     const storedIp = row.ipAddress ?? "";
@@ -64,9 +65,9 @@ export async function cloudSessionAuth(c: Context, next: Next) {
         .filter(Boolean)
         .join(" ");
       console.warn(
-        `[cloud-session-auth] fingerprint mismatch userId=${row.userId} sessionId=${row.id} ${reason} (mode=${env.CLOUD_SESSION_PINNING})`,
+        `[cloud-session-auth] fingerprint mismatch userId=${row.userId} sessionId=${row.id} ${reason} (mode=${pinningMode})`,
       );
-      if (env.CLOUD_SESSION_PINNING === "strict") {
+      if (pinningMode === "strict") {
         return c.json(
           {
             error: "Session does not match recorded device fingerprint",

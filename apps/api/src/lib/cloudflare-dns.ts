@@ -5,6 +5,7 @@ import { env } from "../config/env";
 import { decrypt } from "./encryption";
 import { isNonPublicHost, resolveEdgeTargetHost } from "./edge-target";
 import { resolveRecords } from "./dns-resolver";
+import { getRuntimeConfig } from "./runtime-config";
 
 interface CloudflareRecord {
   id: string;
@@ -180,13 +181,14 @@ async function resolveCredentials(
   organizationId: string,
 ): Promise<CloudflareCredentials | null> {
   if (isVibrailManagedHostname(hostname)) {
+    const runtimeConfig = await getRuntimeConfig();
     const apiToken = env.VIBRAIL_CLOUDFLARE_API_TOKEN;
     const zoneId = env.VIBRAIL_CLOUDFLARE_ZONE_ID;
     if (!apiToken || !zoneId) throw new Error("Vibrail Cloudflare DNS is not configured");
     return {
       apiToken,
       zoneId,
-      proxied: env.VIBRAIL_CLOUDFLARE_PROXY,
+      proxied: runtimeConfig.VIBRAIL_CLOUDFLARE_PROXY,
       source: "vibrail",
     };
   }

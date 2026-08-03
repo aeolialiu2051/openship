@@ -18,11 +18,12 @@ import {
   type PlanTierId,
 } from "@repo/core";
 import { db, schema, eq, asc, desc } from "@repo/db";
-import { runtimeTarget, env } from "../../config/env";
+import { runtimeTarget } from "../../config/env";
 import type { RequestContext } from "../../lib/request-context";
 import { stripe } from "../../lib/stripe-client";
 import { handleStripeEvent as handleStripeWebhook } from "./billing.webhooks";
 import * as billingRepository from "./billing.repository";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 
 /* ---------- Feature gate (master switch, cloud-owned) ---------- */
 
@@ -35,8 +36,8 @@ import * as billingRepository from "./billing.repository";
  * usage, plans) deliberately do NOT call this — the dashboard still renders the
  * "coming soon" surface and live usage/capacity while billing is disabled.
  */
-export function assertBillingEnabled(): void {
-  if (!env.BILLING_ENABLED) {
+export async function assertBillingEnabled(): Promise<void> {
+  if (!(await getRuntimeConfig()).BILLING_ENABLED) {
     throw new AppError(
       "Billing is not enabled yet. It's coming soon to Vibrail Cloud.",
       403,
@@ -46,9 +47,9 @@ export function assertBillingEnabled(): void {
 }
 
 /** Top-ups gate — requires the master billing switch AND the top-ups sub-switch. */
-export function assertTopupsEnabled(): void {
-  assertBillingEnabled();
-  if (!env.BILLING_TOPUPS_ENABLED) {
+export async function assertTopupsEnabled(): Promise<void> {
+  await assertBillingEnabled();
+  if (!(await getRuntimeConfig()).BILLING_TOPUPS_ENABLED) {
     throw new AppError(
       "One-time credit top-ups are not available yet.",
       403,
@@ -146,7 +147,7 @@ export async function createCheckoutSession(
   planTierId: PlanTierId,
   interval: "monthly" | "annual",
 ): Promise<{ checkoutUrl: string }> {
-  assertBillingEnabled();
+  await assertBillingEnabled();
   const organizationId = ctx.organizationId;
   const email = ctx.user.email;
   const plan = PLANS[planTierId];
@@ -220,7 +221,7 @@ export async function createTopupCheckoutSession(
   ctx: RequestContext,
   packId: string,
 ): Promise<{ checkoutUrl: string }> {
-  assertTopupsEnabled();
+  await assertTopupsEnabled();
   const organizationId = ctx.organizationId;
   const email = ctx.user.email;
   const pack = CREDIT_PACKS.find((p) => p.id === packId);
@@ -277,7 +278,7 @@ export async function createTopupCheckoutSession(
 export async function createPortalSession(
   organizationId: string,
 ): Promise<{ portalUrl: string }> {
-  assertBillingEnabled();
+  await assertBillingEnabled();
   const customer = await billingRepository.getCustomerByOrg(organizationId);
   if (!customer) {
     throw new AppError(
@@ -313,7 +314,7 @@ export async function createPortalSession(
 export async function cancelSubscription(
   organizationId: string,
 ): Promise<{ cancelAt: Date | null }> {
-  assertBillingEnabled();
+  await assertBillingEnabled();
   const [sub] = await db
     .select()
     .from(schema.billingSubscription)

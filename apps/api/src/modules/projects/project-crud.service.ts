@@ -686,8 +686,9 @@ async function findProjectByAppSlug(
  * can't bypass it.
  */
 async function assertProjectQuota(organizationId: string): Promise<void> {
+  const { getRuntimeConfig } = await import("../../lib/runtime-config");
   const cap = env.CLOUD_MODE
-    ? env.CLOUD_MAX_PROJECTS_PER_USER
+    ? (await getRuntimeConfig()).CLOUD_MAX_PROJECTS_PER_USER
     : SYSTEM.PROJECTS.MAX_PER_USER;
   const { total } = await repos.projectGroup.listByOrganization(organizationId, {
     page: 1,

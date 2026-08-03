@@ -138,6 +138,17 @@ export const instanceSettings = pgTable("instance_settings", {
   /** From header, e.g. "Vibrail <no-reply@example.com>". Falls back to smtpUser. */
   smtpFrom: text("smtp_from"),
 
+  // ── Runtime configuration overrides ───────────────────────────────────────
+  //
+  // A deliberately small allowlist of non-secret policy values that instance
+  // admins may change without restarting or redeploying the control plane.
+  // Environment variables remain the fallback and continue to own bootstrap,
+  // networking, credentials, and every other startup-sensitive setting.
+  runtimeConfig: jsonb("runtime_config")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default({}),
+
   // ── Timestamps ─────────────────────────────────────────────────────────────
 
   createdAt: timestamp("created_at").notNull().defaultNow(),

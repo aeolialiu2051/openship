@@ -22,6 +22,11 @@ import { findCategory } from "./notification-categories";
 import { env } from "../config/env";
 import { safeFetch } from "./safe-fetch";
 import { safeErrorMessage } from "@repo/core";
+import { getRuntimeConfig } from "./runtime-config";
+
+async function allowPrivateWebhookTargets(): Promise<boolean> {
+  return !env.CLOUD_MODE && (await getRuntimeConfig()).NOTIFY_WEBHOOK_ALLOW_INTERNAL;
+}
 
 /* ─── Render helpers ─────────────────────────────────────────────────────── */
 
@@ -234,7 +239,7 @@ async function sendWebhook(
   // so a 3xx is non-2xx → thrown). Multi-tenant (CLOUD_MODE) always rejects
   // internal targets; a single-tenant box can opt into its own LAN with
   // NOTIFY_WEBHOOK_ALLOW_INTERNAL.
-  const allowPrivate = !env.CLOUD_MODE && env.NOTIFY_WEBHOOK_ALLOW_INTERNAL;
+  const allowPrivate = await allowPrivateWebhookTargets();
   const res = await safeFetch(config.url, {
     method: "POST",
     headers,
@@ -281,7 +286,7 @@ async function sendDiscord(
   // SSRF-safe: pin the resolved IP and never follow a redirect, like the other
   // webhook workers. Discord's host is fixed so this is defense-in-depth, but it
   // removes the last raw-fetch redirect-follower on the delivery path.
-  const allowPrivate = !env.CLOUD_MODE && env.NOTIFY_WEBHOOK_ALLOW_INTERNAL;
+  const allowPrivate = await allowPrivateWebhookTargets();
   const res = await safeFetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -313,7 +318,7 @@ async function sendSlack(
 
   // SSRF-safe: the Slack (or compatible) webhook URL is user-configured, so pin
   // the resolved IP just like the generic webhook path.
-  const allowPrivate = !env.CLOUD_MODE && env.NOTIFY_WEBHOOK_ALLOW_INTERNAL;
+  const allowPrivate = await allowPrivateWebhookTargets();
   const res = await safeFetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -369,7 +374,7 @@ async function sendMSTeams(
   // 302-redirect the server-side POST into the internal network / metadata IP.
   // So pin the resolved IP and never follow a redirect (maxRedirects defaults to
   // 0 → a 3xx is non-2xx → thrown), exactly like the Slack/webhook workers.
-  const allowPrivate = !env.CLOUD_MODE && env.NOTIFY_WEBHOOK_ALLOW_INTERNAL;
+  const allowPrivate = await allowPrivateWebhookTargets();
   const res = await safeFetch(webhookUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },

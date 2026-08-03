@@ -21,7 +21,7 @@ import {
   type CreditPackDefinition,
 } from "@repo/core";
 import { getQuotaState } from "./billing-oblien-quota";
-import { env } from "../../config/env";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 
 const {
   billingCustomer,
@@ -130,6 +130,7 @@ export interface UpsertSubscriptionInput {
  * pure read-aggregator over two sources.
  */
 export async function getBillingState(orgId: string): Promise<BillingState> {
+  const runtimeConfig = await getRuntimeConfig();
   const [org] = await db
     .select({
       planTierId: organization.planTierId,
@@ -214,13 +215,16 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
     overQuota,
     buildTimeMinutes,
     billing: {
-      enabled: env.BILLING_ENABLED,
-      status: env.BILLING_ENABLED ? "live" : "coming_soon",
+      enabled: runtimeConfig.BILLING_ENABLED,
+      status: runtimeConfig.BILLING_ENABLED ? "live" : "coming_soon",
     },
     topups: {
       // Top-ups need the master switch AND the sub-switch.
-      available: env.BILLING_ENABLED && env.BILLING_TOPUPS_ENABLED,
-      status: env.BILLING_ENABLED && env.BILLING_TOPUPS_ENABLED ? "available" : "coming_soon",
+      available: runtimeConfig.BILLING_ENABLED && runtimeConfig.BILLING_TOPUPS_ENABLED,
+      status:
+        runtimeConfig.BILLING_ENABLED && runtimeConfig.BILLING_TOPUPS_ENABLED
+          ? "available"
+          : "coming_soon",
     },
   };
 }

@@ -3,6 +3,7 @@ import { audit, auditContextFrom } from "../../lib/audit";
 import { param } from "../../lib/controller-helpers";
 import { getRequestContext } from "../../lib/request-context";
 import * as service from "./admin.service";
+import * as runtimeConfigService from "../../lib/runtime-config";
 
 function pageParams(c: Context) {
   return {
@@ -24,8 +25,7 @@ export async function overview(c: Context) {
 
 export async function users(c: Context) {
   const verifiedRaw = c.req.query("verified");
-  const verified =
-    verifiedRaw === "true" ? true : verifiedRaw === "false" ? false : undefined;
+  const verified = verifiedRaw === "true" ? true : verifiedRaw === "false" ? false : undefined;
   return c.json(
     await service.listUsers({
       ...pageParams(c),
@@ -96,4 +96,23 @@ export async function activityLogs(c: Context) {
       actorUserId: c.req.query("actorUserId") || undefined,
     }),
   );
+}
+
+export async function runtimeConfig(c: Context) {
+  return c.json({ data: await runtimeConfigService.getRuntimeConfigState() });
+}
+
+export async function updateRuntimeConfig(c: Context) {
+  const ctx = getRequestContext(c);
+  const body = await c.req.json<Record<string, unknown>>().catch(() => ({}));
+  const before = await runtimeConfigService.getRuntimeConfigState();
+  const data = await runtimeConfigService.updateRuntimeConfig(body);
+  await audit.record(auditContextFrom(c, ctx.organizationId, ctx.userId), {
+    eventType: "admin.runtime_config.updated",
+    resourceType: "instance-settings",
+    resourceId: "runtime-config",
+    before: before.overrides,
+    after: data.overrides,
+  });
+  return c.json({ data });
 }
