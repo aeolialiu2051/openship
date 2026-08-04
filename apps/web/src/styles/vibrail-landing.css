@@ -21,6 +21,13 @@ body:has(.vr-site) {
 .vr-site *, .vr-site *::before, .vr-site *::after { box-sizing: border-box; }
 .vr-site a { color: inherit; text-decoration: none; }
 
+.vr-dashboard-transition { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 15px; font-weight: 620; animation: vr-transition-in .16s ease-out both; }
+.vr-dashboard-transition-dark { color: #f4f5f7; background: #090b0f; }
+.vr-dashboard-transition-light { color: #172033; background: #f5f7fb; }
+.vr-dashboard-transition img { width: 30px; height: 30px; object-fit: contain; }
+.vr-dashboard-transition i { width: 17px; height: 17px; margin-left: 5px; border: 2px solid rgba(145,157,180,.28); border-top-color: #7e9fff; border-radius: 50%; animation: vr-transition-spin .75s linear infinite; }
+.vr-dashboard-transition-light i { border-color: rgba(58,72,98,.18); border-top-color: #5879d7; }
+
 .vr-nav-shell { position: absolute; z-index: 50; top: 0; left: 0; width: 100%; padding: 18px 28px; }
 .vr-nav { width: min(1180px, 100%); margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 28px; }
 .vr-brand { display: inline-flex; align-items: center; gap: 10px; width: fit-content; color: #fff; font-size: 16px; font-weight: 650; letter-spacing: -.025em; }
@@ -49,9 +56,9 @@ body:has(.vr-site) {
 .vr-orb-two { width: 380px; height: 280px; right: 8%; top: 320px; background: #8c4fff; }
 .vr-hero-copy { width: min(880px,100%); text-align: center; }
 .vr-eyebrow { width: fit-content; margin: 0 auto 26px; padding: 7px 11px; display: flex; align-items: center; gap: 7px; border: 1px solid rgba(116,153,255,.25); border-radius: 99px; color: #9db8ff; background: rgba(81,118,220,.08); font-size: 12px; letter-spacing: .025em; }
-.vr-hero h1 { margin: 0; font-size: clamp(3.25rem,7vw,6.25rem); line-height: .99; letter-spacing: -.065em; font-weight: 590; text-wrap: balance; }
+.vr-hero h1 { margin: 0; font-size: clamp(3rem,6vw,5.5rem); line-height: 1; letter-spacing: -.06em; font-weight: 590; text-wrap: balance; }
 .vr-hero h1 span { display: block; background: linear-gradient(100deg,#6b9cff 8%,#a579ff 58%,#e08dff); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.vr-hero-copy > p { width: min(660px,100%); margin: 28px auto 0; color: #9da4b1; font-size: clamp(16px,2vw,19px); line-height: 1.7; text-wrap: balance; }
+.vr-hero-copy > p { width: min(660px,100%); margin: 28px auto 0; color: #9da4b1; font-size: clamp(15px,1.5vw,18px); line-height: 1.68; text-wrap: balance; }
 .vr-hero-actions { margin-top: 34px; display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
 .vr-button { min-height: 46px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; border: 1px solid transparent; border-radius: 10px; padding: 0 19px; font-size: 14px; font-weight: 650; transition: transform .2s, border-color .2s, background .2s; }
 .vr-button:hover { transform: translateY(-2px); }
@@ -161,14 +168,14 @@ body:has(.vr-site) {
 .vr-section { width: min(1180px,calc(100% - 48px)); margin: 0 auto; padding: 76px 0; }
 .vr-section-heading { margin-bottom: 34px; display: grid; grid-template-columns: 1.35fr .65fr; align-items: end; gap: 64px; }
 .vr-section-heading > div > span, .vr-infra-copy > span { display: block; margin-bottom: 16px; color: #789fff; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .14em; }
-.vr-section-heading h2 { margin: 0; color: #f1f3f6; font-size: clamp(1.95rem,3.7vw,3.4rem); line-height: 1.03; letter-spacing: -.05em; font-weight: 550; }
+.vr-section-heading h2 { margin: 0; color: #f1f3f6; font-size: clamp(1.85rem,3.25vw,3rem); line-height: 1.05; letter-spacing: -.05em; font-weight: 550; }
 .vr-section-heading > p { margin: 0 0 6px; color: #7f8793; font-size: 15px; line-height: 1.75; }
 .vr-feature-grid { display: grid; grid-template-columns: repeat(2,1fr); border-top: 1px solid var(--vr-line); border-left: 1px solid var(--vr-line); }
 .vr-feature-card { position: relative; min-height: 380px; padding: 32px; overflow: hidden; border-right: 1px solid var(--vr-line); border-bottom: 1px solid var(--vr-line); background: linear-gradient(150deg,rgba(255,255,255,.028),transparent 62%); }
 .vr-feature-card::after { content: ""; position: absolute; inset: auto -10% -55% 25%; height: 70%; border-radius: 50%; background: radial-gradient(circle,rgba(78,101,225,.13),transparent 70%); }
 .vr-card-number { position: absolute; top: 30px; right: 34px; color: #3f4652; font: 11px ui-monospace,SFMono-Regular,Menlo,monospace; }
 .vr-card-icon { width: 39px; height: 39px; display: grid; place-items: center; border: 1px solid rgba(116,151,255,.18); border-radius: 9px; color: #87a7ff; background: rgba(77,106,204,.08); }
-.vr-feature-card h3 { margin: 31px 0 12px; font-size: 23px; letter-spacing: -.03em; font-weight: 540; }
+.vr-feature-card h3 { margin: 31px 0 12px; font-size: 21px; letter-spacing: -.03em; font-weight: 540; }
 .vr-feature-card > p { width: min(430px,100%); margin: 0; color: #7d8591; font-size: 14px; line-height: 1.75; }
 .vr-card-visual { position: absolute; z-index: 1; left: 32px; right: 32px; bottom: 28px; height: 82px; border: 1px solid var(--vr-line-soft); border-radius: 10px; background: rgba(7,9,13,.72); }
 .vr-card-visual-terminal { padding: 20px; display: flex; flex-direction: column; justify-content: center; gap: 11px; font: 11px ui-monospace,SFMono-Regular,Menlo,monospace; }
@@ -198,7 +205,7 @@ body:has(.vr-site) {
 .vr-flow-line i { position: absolute; width: 7px; height: 7px; border-radius: 50%; background: #5b7ce0; box-shadow: 0 0 0 4px var(--vr-bg); }
 .vr-infra-panel { min-height: 420px; margin-top: 38px; display: grid; grid-template-columns: .85fr 1.15fr; overflow: hidden; border: 1px solid var(--vr-line); border-radius: 20px; color: var(--vr-text); background: #0b0e13; }
 .vr-infra-copy { padding: 54px 50px; }
-.vr-infra-copy h3 { margin: 0; font-size: clamp(1.75rem,3.2vw,2.8rem); line-height: 1.04; letter-spacing: -.05em; font-weight: 540; }
+.vr-infra-copy h3 { margin: 0; font-size: clamp(1.75rem,3vw,2.55rem); line-height: 1.05; letter-spacing: -.05em; font-weight: 540; }
 .vr-infra-copy p { margin: 22px 0 27px; color: #858d99; font-size: 14px; line-height: 1.75; }
 .vr-infra-copy a { display: inline-flex; align-items: center; gap: 8px; color: #9bb5ff; font-size: 13px; }
 .vr-infra-map { position: relative; min-height: 400px; overflow: hidden; background: radial-gradient(circle at center,rgba(86,109,225,.2),transparent 43%),linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px); background-size: auto,38px 38px,38px 38px; }
@@ -224,7 +231,7 @@ body:has(.vr-site) {
 
 .vr-final-cta { width: min(1180px,calc(100% - 48px)); margin: 0 auto; padding: 44px 0; display: flex; align-items: center; justify-content: space-between; gap: 40px; border-top: 1px solid var(--vr-line); }
 .vr-final-cta span { color: #79818e; font-size: 12px; text-transform: uppercase; letter-spacing: .11em; }
-.vr-final-cta h2 { margin: 8px 0 0; font-size: clamp(1.8rem,3.2vw,3rem); letter-spacing: -.05em; font-weight: 540; }
+.vr-final-cta h2 { margin: 8px 0 0; font-size: clamp(1.75rem,3vw,2.7rem); letter-spacing: -.05em; font-weight: 540; }
 .vr-final-cta > div:last-child { display: flex; gap: 10px; flex-wrap: wrap; }
 
 .vr-footer { width: min(1180px,calc(100% - 48px)); margin: 0 auto; border-top: 1px solid var(--vr-line); }
@@ -409,8 +416,10 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
   .vr-nav-shell { padding: 15px 16px; }
   .vr-language-menu { width: 172px; }
   .vr-hero { padding: 120px 16px 26px; }
-  .vr-hero h1 { font-size: clamp(2.75rem,11vw,3.6rem); }
-  .vr-hero-copy > p { font-size: 15px; }
+  .vr-eyebrow { margin-bottom: 21px; font-size: 11px; }
+  .vr-hero h1 { font-size: clamp(2.2rem,9vw,2.8rem); line-height: 1.03; letter-spacing: -.05em; }
+  .vr-hero-copy > p { margin-top: 23px; font-size: 14px; line-height: 1.65; }
+  .vr-hero-meta { font-size: 11px; }
   .vr-hero-actions { flex-direction: column; align-items: stretch; padding: 0 18px; }
   .vr-hero-meta { gap: 10px 14px; }
   .vr-console-wrap { width: 100%; margin-top: 50px; }
@@ -433,14 +442,20 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
   .vr-result-grid { grid-template-columns: 1fr 1fr; }
   .vr-prompt-composer { left: 16px; right: 16px; bottom: 20px; }
   .vr-section { width: calc(100% - 32px); padding: 60px 0; }
+  .vr-section-heading h2 { font-size: clamp(1.6rem,6.8vw,1.9rem); line-height: 1.08; }
+  .vr-section-heading > p { font-size: 14px; line-height: 1.65; }
   .vr-feature-grid { grid-template-columns: 1fr; }
   .vr-feature-card { min-height: 370px; padding: 28px; }
+  .vr-feature-card h3 { margin-top: 25px; font-size: 19px; }
+  .vr-feature-card > p { font-size: 13px; line-height: 1.7; }
   .vr-card-visual { left: 28px; right: 28px; }
   .vr-architecture { padding: 60px 16px; }
+  .vr-flow h3 { font-size: 18px; }
   .vr-infra-copy { padding: 48px 28px; }
+  .vr-infra-copy h3 { font-size: clamp(1.6rem,6.8vw,1.9rem); line-height: 1.08; }
   .vr-infra-map { min-height: 320px; }
   .vr-capability-grid { grid-template-columns: 1fr; }.vr-capability-grid article:nth-child(odd){border-right:0}
-  .vr-final-cta { width: calc(100% - 32px); padding: 42px 0; flex-direction: column; align-items: flex-start; }.vr-final-cta > div:last-child{width:100%}.vr-final-cta .vr-button{flex:1}
+  .vr-final-cta { width: calc(100% - 32px); padding: 42px 0; flex-direction: column; align-items: flex-start; }.vr-final-cta h2{font-size:clamp(1.5rem,6.4vw,1.8rem);line-height:1.1}.vr-final-cta > div:last-child{width:100%}.vr-final-cta .vr-button{flex:1}
   .vr-footer { width: calc(100% - 32px); }.vr-footer-links{grid-template-columns:repeat(2,1fr)}
   .vr-footer-bottom { padding: 20px 0; flex-direction: column; align-items: flex-start; }
   .vr-footer-legal { justify-content: flex-start; }
@@ -462,3 +477,6 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
   @keyframes vr-drift-b { to { transform: translate(-45px,-25px) scale(.92); } }
   @keyframes vr-pulse { 50% { opacity:.35; box-shadow:0 0 4px var(--vr-green); } }
 }
+
+@keyframes vr-transition-in { from { opacity: 0; } }
+@keyframes vr-transition-spin { to { transform: rotate(360deg); } }

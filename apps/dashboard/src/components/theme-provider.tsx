@@ -5,6 +5,22 @@ import { createContext, useContext, useEffect, useState, useCallback } from "rea
 type Theme = "light" | "dim" | "dark" | "system";
 type ResolvedTheme = "light" | "dim" | "dark";
 
+const LANDING_THEME_STORAGE_KEY = "vibrail-landing-theme";
+const THEME_COOKIE = "vibrail-theme";
+
+function readThemeCookie(): Theme | null {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${THEME_COOKIE}=([^;]+)`));
+  const value = match ? decodeURIComponent(match[1]) : null;
+  return value === "light" || value === "dim" || value === "dark" || value === "system"
+    ? value
+    : null;
+}
+
+function writeThemeCookie(theme: Theme) {
+  const secure = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+}
+
 interface ThemeContextValue {
   theme: Theme;
   resolvedTheme: ResolvedTheme;
@@ -50,7 +66,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // web product stays light-first. (The desktop window is a native app — users
   // expect it to respect their macOS/Windows appearance.)
   useEffect(() => {
-    const stored = localStorage.getItem("theme") as Theme | null;
+    const stored = readThemeCookie() ?? (
+      localStorage.getItem("theme") ?? localStorage.getItem(LANDING_THEME_STORAGE_KEY)
+    ) as Theme | null;
     const isDesktop = !!(window as { desktop?: { isDesktop?: boolean } }).desktop?.isDesktop;
     const t: Theme =
       stored === "light" || stored === "dim" || stored === "dark" || stored === "system"
@@ -61,6 +79,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     const resolved = resolveTheme(t);
     setThemeState(t);
     setResolved(resolved);
+    writeThemeCookie(t);
+    localStorage.setItem(LANDING_THEME_STORAGE_KEY, resolved === "light" ? "light" : "dark");
     applyTheme(resolved);
   }, []);
 
@@ -71,6 +91,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     function onChange() {
       const r = resolveTheme("system");
       setResolved(r);
+      localStorage.setItem(LANDING_THEME_STORAGE_KEY, r === "light" ? "light" : "dark");
       applyTheme(r);
     }
     mq.addEventListener("change", onChange);
@@ -82,6 +103,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(t);
     setResolved(resolved);
     localStorage.setItem("theme", t);
+    localStorage.setItem(LANDING_THEME_STORAGE_KEY, resolved === "light" ? "light" : "dark");
+    writeThemeCookie(t);
     applyTheme(resolved);
   }, []);
 
@@ -104,7 +127,8 @@ export function ThemeScript() {
   const script = `
     (function(){
       try {
-        var t = localStorage.getItem('theme');
+        var m = document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=([^;]+)/);
+        var t = m ? decodeURIComponent(m[1]) : (localStorage.getItem('theme') || localStorage.getItem('${LANDING_THEME_STORAGE_KEY}'));
         // window.desktop is injected by the Electron preload before this runs.
         var isDesktop = !!(window.desktop && window.desktop.isDesktop);
         var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -118,6 +142,7 @@ export function ThemeScript() {
         // No stored pref: desktop follows the OS (dark → dim), web stays light-first.
         else resolved = (isDesktop && sysDark) ? 'dim' : 'light';
         document.documentElement.setAttribute('data-theme', resolved);
+        localStorage.setItem('${LANDING_THEME_STORAGE_KEY}', resolved === 'light' ? 'light' : 'dark');
       } catch (e) {
         document.documentElement.setAttribute('data-theme', 'light');
       }

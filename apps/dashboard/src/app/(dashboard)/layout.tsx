@@ -175,6 +175,13 @@ export default async function DashboardLayout({ children }: { children: React.Re
       machineName={deploymentInfo.machineName}
       hostDomain={deploymentInfo.hostDomain}
     >
+      {deploymentInfo.supportEmail ? (
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__VIBRAIL_SUPPORT_EMAIL__=${JSON.stringify(deploymentInfo.supportEmail)}`,
+          }}
+        />
+      ) : null}
       <NavigationProgress />
       <div className="flex flex-col h-dvh">
         {/* Update + platform-status surface — full app width, ABOVE the sidebar.

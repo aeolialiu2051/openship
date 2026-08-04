@@ -16,7 +16,6 @@ import {
 } from "@/i18n";
 import { loadDictionary } from "@/i18n/dictionaries";
 import { getSupportEmail } from "@/lib/support-email";
-import { getDeploymentInfoOrNull } from "@/lib/server/session";
 
 /** Resolve the request locale server-side: explicit cookie first, then the
  *  browser's Accept-Language, else the default. Keeps SSR and first paint in
@@ -78,8 +77,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // (a module-load constant that can't read a runtime env) targets it. Read
   // per-request thanks to `force-dynamic` above.
   const localApiOrigin = process.env.VIBRAIL_LOCAL_API_URL;
-  const deploymentInfo = await getDeploymentInfoOrNull();
-  const supportEmail = deploymentInfo?.supportEmail || getSupportEmail();
+  // Keep the root shell independent from the API so Next can stream the route
+  // loading UI immediately. Dashboard/auth layouts resolve deployment info in
+  // their own Suspense segment; blocking the root here previously produced a
+  // blank document while the same health request was made again below.
+  const supportEmail = getSupportEmail();
 
   const locale = await resolveRequestLocale();
   const dir = getUiDirection(locale);

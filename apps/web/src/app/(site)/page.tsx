@@ -2,6 +2,7 @@ import { VibrailLanding } from "@/components/landing/vibrail-landing";
 import { cookies } from "next/headers";
 import { LANDING_LOCALE_COOKIE, parseLandingLocale } from "@/lib/landing-locale";
 import { getSupportEmail } from "@/lib/support-email";
+import { CLOUD_DASHBOARD_URL, resolveDashboardPageUrl } from "@repo/core";
 
 const SITE_URL = "https://vibrail.warpgateapi.com";
 
@@ -21,11 +22,16 @@ export default async function HomePage() {
   const cookieStore = await cookies();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
   const supportEmail = getSupportEmail();
+  const dashboardLoginUrl = resolveDashboardPageUrl(CLOUD_DASHBOARD_URL, "/login");
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(softwareLd) }} />
-      <VibrailLanding initialLocale={initialLocale} supportEmail={supportEmail} />
+      <VibrailLanding
+        initialLocale={initialLocale}
+        supportEmail={supportEmail}
+        dashboardLoginUrl={dashboardLoginUrl}
+      />
     </>
   );
 }

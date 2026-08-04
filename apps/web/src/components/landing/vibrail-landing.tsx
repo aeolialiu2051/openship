@@ -26,6 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Footer } from "./footer";
+import { DashboardLink } from "./dashboard-link";
 import { landingCopy, type LandingLocale } from "./landing-copy";
 import { Navbar } from "./navbar";
 import { useLandingPreferences } from "./use-landing-preferences";
@@ -39,9 +40,11 @@ const capabilityIcons = [Globe2, Database, KeyRound, CircleGauge, GitBranch, Shi
 export function VibrailLanding({
   initialLocale,
   supportEmail,
+  dashboardLoginUrl,
 }: {
   initialLocale?: LandingLocale;
   supportEmail: string | null;
+  dashboardLoginUrl: string;
 }) {
   const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
   const copy = landingCopy[locale];
@@ -69,9 +72,9 @@ export function VibrailLanding({
             </h1>
             <p>{copy.hero.description}</p>
             <div className="vr-hero-actions">
-              <Link href="/login" className="vr-button vr-button-primary">
+              <DashboardLink href={dashboardLoginUrl} theme={theme} className="vr-button vr-button-primary">
                 {copy.hero.primary} <ArrowRight size={17} />
-              </Link>
+              </DashboardLink>
               <a href={DOCS_URL} className="vr-button vr-button-secondary">
                 {copy.hero.secondary} <ChevronRight size={17} />
               </a>
@@ -273,12 +276,12 @@ export function VibrailLanding({
             <h2>{copy.cta.title}</h2>
           </div>
           <div>
-            <Link href="/login" className="vr-button vr-button-primary">{copy.cta.dashboard} <ArrowRight size={17} /></Link>
+            <DashboardLink href={dashboardLoginUrl} theme={theme} className="vr-button vr-button-primary">{copy.cta.dashboard} <ArrowRight size={17} /></DashboardLink>
             <a href={DOCS_URL} className="vr-button vr-button-secondary">{copy.cta.secondary}</a>
           </div>
         </section>
       </main>
-      <Footer copy={copy.footer} supportEmail={supportEmail} />
+      <Footer copy={copy.footer} supportEmail={supportEmail} dashboardLoginUrl={dashboardLoginUrl} theme={theme} />
     </div>
   );
 }

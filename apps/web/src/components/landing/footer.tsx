@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { Mail } from "lucide-react";
-import { landingCopy, type LandingCopy } from "./landing-copy";
+import { landingCopy, type LandingCopy, type LandingTheme } from "./landing-copy";
+import { DashboardLink } from "./dashboard-link";
 
 type FooterProps = {
   copy?: LandingCopy["footer"];
   supportEmail?: string | null;
+  dashboardLoginUrl?: string;
+  theme?: LandingTheme;
 };
 
-export function Footer({ copy = landingCopy.en.footer, supportEmail }: FooterProps = {}) {
+export function Footer({ copy = landingCopy.en.footer, supportEmail, dashboardLoginUrl = "/login", theme = "dark" }: FooterProps = {}) {
   return (
     <footer className="vr-footer">
       <div className="vr-footer-main">
@@ -33,7 +36,7 @@ export function Footer({ copy = landingCopy.en.footer, supportEmail }: FooterPro
           </div>
           <div>
             <span>{copy.deploy}</span>
-            <Link href="/login">{copy.cloud}</Link>
+            <DashboardLink href={dashboardLoginUrl} theme={theme}>{copy.cloud}</DashboardLink>
             <a href="https://docs.vibrail.warpgateapi.com/#/docs/deploy/server">{copy.connectVps}</a>
             <a href="https://docs.vibrail.warpgateapi.com/#/docs/quickstart">{copy.quickstart}</a>
           </div>
