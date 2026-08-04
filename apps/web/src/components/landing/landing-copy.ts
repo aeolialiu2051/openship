@@ -10,7 +10,6 @@ export const landingCopy = {
       workflow: "Workflow",
       operations: "Operations",
       docs: "Docs",
-      dashboard: "Open dashboard",
       languageMenuLabel: "Select language",
       languageLabel: "Switch to Chinese",
       themeLightLabel: "Use light theme",
@@ -21,8 +20,8 @@ export const landingCopy = {
       title: "Ship software at the speed",
       accent: "your ideas arrive.",
       description: "Your vibe-coded app, live and secure. On Vibrail Cloud or any Linux VPS — zero infrastructure overhead.",
-      primary: "Deploy your first app",
-      secondary: "Read the docs",
+      primary: "Get started",
+      secondary: "Docs",
       meta: ["Vibrail Cloud or your VPS", "Remote deploys over SSH", "Zero-downtime releases"],
     },
     prompt: {
@@ -119,8 +118,8 @@ export const landingCopy = {
     cta: {
       eyebrow: "Ready when your code is.",
       title: "Ship the next version",
-      dashboard: "Open dashboard",
-      connect: "Connect a VPS",
+      dashboard: "Dashboard",
+      secondary: "Docs",
     },
     footer: {
       homeLabel: "Vibrail home",
@@ -147,7 +146,6 @@ export const landingCopy = {
       workflow: "工作流",
       operations: "运维",
       docs: "文档",
-      dashboard: "打开控制台",
       languageMenuLabel: "选择语言",
       languageLabel: "切换到英文",
       themeLightLabel: "使用浅色主题",
@@ -158,8 +156,8 @@ export const landingCopy = {
       title: "软件交付",
       accent: "不再辜负灵感",
       description: "你的 vibe-coded 应用，即刻上线，安全无忧。部署到 Vibrail Cloud 或任意 Linux VPS - 零运维负担。",
-      primary: "部署第一个应用",
-      secondary: "阅读文档",
+      primary: "开始使用",
+      secondary: "文档",
       meta: ["Vibrail Cloud 或你的 VPS", "通过 SSH 远程部署", "零停机发布"],
     },
     prompt: {
@@ -256,8 +254,8 @@ export const landingCopy = {
     cta: {
       eyebrow: "代码准备好，Vibrail 就准备好。",
       title: "发布下一个版本",
-      dashboard: "打开控制台",
-      connect: "连接 VPS",
+      dashboard: "控制台",
+      secondary: "文档",
     },
     footer: {
       homeLabel: "Vibrail 首页",

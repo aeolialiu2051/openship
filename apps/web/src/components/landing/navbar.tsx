@@ -112,9 +112,6 @@ export function Navbar({
               {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           )}
-          <Link href="/login" className="vr-nav-cta">
-            {copy.dashboard} <ArrowUpRight size={15} />
-          </Link>
         </div>
       </div>
     </header>

@@ -268,7 +268,7 @@ export function VibrailLanding() {
           </div>
           <div>
             <Link href="/login" className="vr-button vr-button-primary">{copy.cta.dashboard} <ArrowRight size={17} /></Link>
-            <a href={DOCS_URL} className="vr-button vr-button-secondary">{copy.cta.connect}</a>
+            <a href={DOCS_URL} className="vr-button vr-button-secondary">{copy.cta.secondary}</a>
           </div>
         </section>
       </main>

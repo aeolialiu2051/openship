@@ -40,7 +40,6 @@ body:has(.vr-site) {
 .vr-language-menu button:hover,.vr-language-menu button:focus-visible { color: #fff; background: rgba(255,255,255,.07); outline: 0; }
 .vr-language-menu button[aria-checked="true"] { color: #fff; }
 .vr-language-menu svg { flex: 0 0 auto; color: #aebdff; }
-.vr-nav-cta { display: inline-flex; align-items: center; gap: 7px; padding: 10px 15px; border-radius: 9px; background: #f3f5f7; color: #0b0d11 !important; font-size: 13px; font-weight: 650; box-shadow: 0 8px 24px rgba(0,0,0,.24); }
 
 .vr-hero { position: relative; min-height: 570px; padding: 118px 24px 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; isolation: isolate; }
 .vr-hero::before { content: ""; position: absolute; inset: 0; z-index: -3; background: radial-gradient(70% 60% at 50% -8%, rgba(83,116,210,.24), transparent 64%), linear-gradient(180deg,#0d1016 0%,#090b0f 85%); }
@@ -278,7 +277,6 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
 .vr-theme-light .vr-language-menu button:hover,.vr-theme-light .vr-language-menu button:focus-visible { color: #172033; background: rgba(46,66,105,.06); }
 .vr-theme-light .vr-language-menu button[aria-checked="true"] { color: #172033; }
 .vr-theme-light .vr-language-menu svg { color: #5273c8; }
-.vr-theme-light .vr-nav-cta { color: #fff !important; background: #172033; box-shadow: 0 8px 24px rgba(47,58,84,.16); }
 .vr-theme-light .vr-hero::before { background: radial-gradient(70% 60% at 50% -8%,rgba(97,132,230,.2),transparent 64%),linear-gradient(180deg,#f0f4fc 0%,#f5f7fb 88%); }
 .vr-theme-light .vr-hero-grid { opacity: .55; background-image: linear-gradient(rgba(36,53,88,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(36,53,88,.065) 1px,transparent 1px); }
 .vr-theme-light .vr-orb { opacity: .12; }
@@ -383,7 +381,6 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
 @media (max-width: 680px) {
   .vr-nav-shell { padding: 15px 16px; }
   .vr-language-menu { width: 172px; }
-  .vr-nav-cta { padding: 9px 11px; font-size: 11px; }
   .vr-hero { padding: 120px 16px 26px; }
   .vr-hero h1 { font-size: clamp(2.75rem,11vw,3.6rem); }
   .vr-hero-copy > p { font-size: 15px; }
