@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { ReactNode } from "react";
-import { Check, Copy, ExternalLink, Eye, EyeOff, KeyRound, Loader2 } from "lucide-react";
+import { Check, Copy, ExternalLink, Eye, EyeOff, KeyRound } from "lucide-react";
 import { projectsApi } from "@/lib/api/projects";
 import { useI18n } from "@/components/i18n-provider";
 
@@ -14,8 +14,10 @@ interface LoginCredentials {
 
 /** Optional human-login card for ordinary source projects; Catalog apps use template outputs. */
 export function LoginCredentialsCard({ projectId }: { projectId: string }) {
-  const [login, setLogin] = useState<LoginCredentials | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [resolvedLogin, setResolvedLogin] = useState<{
+    projectId: string;
+    login: LoginCredentials | null;
+  } | null>(null);
   const { t } = useI18n();
   const labels = t.projects.loginCredentials;
 
@@ -24,21 +26,22 @@ export function LoginCredentialsCard({ projectId }: { projectId: string }) {
     projectsApi
       .getLogin(projectId)
       .then((result) => {
-        if (!cancelled) setLogin(result.data);
+        if (!cancelled) setResolvedLogin({ projectId, login: result.data });
       })
       .catch(() => {
         // Read-only project members and projects without a card see nothing.
-        if (!cancelled) setLogin(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResolvedLogin({ projectId, login: null });
       });
     return () => {
       cancelled = true;
     };
   }, [projectId]);
 
-  if (!loading && !login) return null;
+  // Stay hidden until this project's request has confirmed that login details
+  // exist. Matching the project ID also prevents stale details flashing while
+  // navigating between projects.
+  const login = resolvedLogin?.projectId === projectId ? resolvedLogin.login : null;
+  if (!login) return null;
 
   return (
     <div className="rounded-2xl border border-border/50 bg-card p-5">
@@ -47,42 +50,36 @@ export function LoginCredentialsCard({ projectId }: { projectId: string }) {
         <h3 className="text-sm font-semibold text-foreground">{labels.title}</h3>
       </div>
       <p className="mb-4 text-xs leading-relaxed text-muted-foreground">{labels.description}</p>
-      {loading ? (
-        <div className="flex h-24 items-center justify-center text-muted-foreground">
-          <Loader2 className="size-4 animate-spin" />
-        </div>
-      ) : login ? (
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <CredentialRow
+          label={labels.homepage}
+          value={login.url}
+          copyLabel={labels.copy}
+          action={
+            <a
+              href={login.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label={labels.open}
+              title={labels.open}
+            >
+              <ExternalLink className="size-3.5" />
+            </a>
+          }
+        />
+        <CredentialRow label={labels.username} value={login.username} copyLabel={labels.copy} />
+        <div className="md:col-span-2">
           <CredentialRow
-            label={labels.homepage}
-            value={login.url}
+            label={labels.password}
+            value={login.password}
+            secret
             copyLabel={labels.copy}
-            action={
-              <a
-                href={login.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                aria-label={labels.open}
-                title={labels.open}
-              >
-                <ExternalLink className="size-3.5" />
-              </a>
-            }
+            revealLabel={labels.reveal}
+            hideLabel={labels.hide}
           />
-          <CredentialRow label={labels.username} value={login.username} copyLabel={labels.copy} />
-          <div className="md:col-span-2">
-            <CredentialRow
-              label={labels.password}
-              value={login.password}
-              secret
-              copyLabel={labels.copy}
-              revealLabel={labels.reveal}
-              hideLabel={labels.hide}
-            />
-          </div>
         </div>
-      ) : null}
+      </div>
     </div>
   );
 }
