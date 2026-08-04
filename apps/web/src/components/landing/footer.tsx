@@ -1,7 +1,13 @@
 import Link from "next/link";
+import { Mail } from "lucide-react";
 import { landingCopy, type LandingCopy } from "./landing-copy";
 
-export function Footer({ copy = landingCopy.en.footer }: { copy?: LandingCopy["footer"] } = {}) {
+type FooterProps = {
+  copy?: LandingCopy["footer"];
+  supportEmail?: string | null;
+};
+
+export function Footer({ copy = landingCopy.en.footer, supportEmail }: FooterProps = {}) {
   return (
     <footer className="vr-footer">
       <div className="vr-footer-main">
@@ -35,6 +41,16 @@ export function Footer({ copy = landingCopy.en.footer }: { copy?: LandingCopy["f
       </div>
       <div className="vr-footer-bottom">
         <span>© {new Date().getFullYear()} Vibrail.</span>
+        <div className="vr-footer-legal">
+          {supportEmail && (
+            <a href={`mailto:${supportEmail}`}>
+              <Mail size={14} aria-hidden="true" />
+              <span>{supportEmail}</span>
+            </a>
+          )}
+          <Link href="/privacy">{copy.privacy}</Link>
+          <Link href="/terms">{copy.terms}</Link>
+        </div>
       </div>
     </footer>
   );

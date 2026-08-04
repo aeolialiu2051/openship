@@ -26,7 +26,7 @@ import {
   Zap,
 } from "lucide-react";
 import { Footer } from "./footer";
-import { landingCopy } from "./landing-copy";
+import { landingCopy, type LandingLocale } from "./landing-copy";
 import { Navbar } from "./navbar";
 import { useLandingPreferences } from "./use-landing-preferences";
 
@@ -36,8 +36,14 @@ const featureIcons = [Zap, Network, RotateCcw, Bot] as const;
 const featureVisuals = ["terminal", "nodes", "releases", "surfaces"] as const;
 const capabilityIcons = [Globe2, Database, KeyRound, CircleGauge, GitBranch, ShieldCheck] as const;
 
-export function VibrailLanding() {
-  const { locale, setLocale, theme, setTheme } = useLandingPreferences();
+export function VibrailLanding({
+  initialLocale,
+  supportEmail,
+}: {
+  initialLocale?: LandingLocale;
+  supportEmail: string | null;
+}) {
+  const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
   const copy = landingCopy[locale];
 
   return (
@@ -272,7 +278,7 @@ export function VibrailLanding() {
           </div>
         </section>
       </main>
-      <Footer copy={copy.footer} />
+      <Footer copy={copy.footer} supportEmail={supportEmail} />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { Footer } from "./footer";
-import { landingCopy } from "./landing-copy";
+import { landingCopy, type LandingLocale } from "./landing-copy";
 import { Navbar } from "./navbar";
 import { useLandingPreferences } from "./use-landing-preferences";
 
@@ -24,8 +24,8 @@ const notFoundCopy = {
   },
 } as const;
 
-export function VibrailNotFound() {
-  const { locale, setLocale, theme, setTheme } = useLandingPreferences();
+export function VibrailNotFound({ initialLocale }: { initialLocale?: LandingLocale }) {
+  const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
   const landing = landingCopy[locale];
   const copy = notFoundCopy[locale];
 

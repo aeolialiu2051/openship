@@ -136,6 +136,8 @@ export const landingCopy = {
       cloud: "Vibrail Cloud",
       connectVps: "Connect a VPS",
       quickstart: "Quickstart",
+      privacy: "Privacy Policy",
+      terms: "Terms of Service",
     },
   },
   zh: {
@@ -272,6 +274,8 @@ export const landingCopy = {
       cloud: "Vibrail Cloud",
       connectVps: "连接 VPS",
       quickstart: "快速开始",
+      privacy: "隐私政策",
+      terms: "服务条款",
     },
   },
 } as const;
