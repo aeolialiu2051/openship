@@ -26,7 +26,7 @@ export async function exportInstance(opts: { passphrase?: string }): Promise<Dat
     const rows = dump.tables[spec.sqlName];
     if (!rows) continue;
     for (const row of rows) {
-      const id = row.id;
+      const id = row[spec.idField];
       if (typeof id !== "string") continue;
       const entry = extractPlaintext(spec, id, row[spec.column]);
       if (entry) entries.push(entry);

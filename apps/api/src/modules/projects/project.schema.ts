@@ -349,6 +349,22 @@ export const MergeEnvVarsBody = Type.Object({
   }),
 });
 
+/** Optional username/password card shown on the project Overview. */
+export const SetProjectLoginBody = Type.Object(
+  {
+    url: Type.String({ minLength: 1, maxLength: 2000 }),
+    username: Type.String({ minLength: 1, maxLength: 256 }),
+    /** Omit when generatePassword=true. Prefer generation so plaintext never reaches the CLI. */
+    password: Type.Optional(Type.String({ minLength: 8, maxLength: 10000 })),
+    generatePassword: Type.Optional(Type.Boolean({ default: false })),
+    /** Service name or id that consumes the optional env vars. */
+    service: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+    usernameEnvKey: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+    passwordEnvKey: Type.Optional(Type.String({ minLength: 1, maxLength: 256 })),
+  },
+  { additionalProperties: false },
+);
+
 export const UpdateResourcesBody = Type.Object({
   production: Type.Optional(
     Type.Object({
@@ -378,4 +394,5 @@ export type TUpdateProjectBody = Static<typeof UpdateProjectBody> & {
 };
 export type TCreateProjectEnvironmentBody = Static<typeof CreateProjectEnvironmentBody>;
 export type TMergeEnvVarsBody = Static<typeof MergeEnvVarsBody>;
+export type TSetProjectLoginBody = Static<typeof SetProjectLoginBody>;
 export type TUpdateResourcesBody = Static<typeof UpdateResourcesBody>;

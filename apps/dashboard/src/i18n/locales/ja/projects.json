@@ -100,6 +100,17 @@
     "cleanupFailedTitle": "クリーンアップに失敗しました",
     "alreadyDeleted": "プロジェクトはすでに削除されています"
   },
+  "loginCredentials": {
+    "title": "Project login",
+    "description": "Open the project homepage and sign in with these credentials.",
+    "homepage": "Project homepage",
+    "username": "Username",
+    "password": "Password",
+    "open": "Open project homepage",
+    "copy": "Copy",
+    "reveal": "Reveal",
+    "hide": "Hide"
+  },
   "sidebar": {
     "project": "プロジェクト",
     "untitledProject": "無題のプロジェクト",

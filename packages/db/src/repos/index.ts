@@ -32,6 +32,7 @@ export {
   type EnvVar,
   type NewEnvVar,
 } from "./project.repo";
+export { createProjectLoginRepo, type ProjectLogin } from "./project-login.repo";
 export {
   createDeploymentRepo,
   type Deployment,
@@ -230,6 +231,7 @@ import { createGitInstallationRepo } from "./git-installation.repo";
 import { createGithubInstallStateRepo } from "./github-install-state.repo";
 import { createProjectGroupRepo } from "./project-group.repo";
 import { createProjectRepo } from "./project.repo";
+import { createProjectLoginRepo } from "./project-login.repo";
 import { createDeploymentRepo } from "./deployment.repo";
 import { createDomainRepo } from "./domain.repo";
 import { createDomainSettingsRepo } from "./domain-settings.repo";
@@ -302,6 +304,7 @@ export const repos = {
   githubInstallState: createGithubInstallStateRepo(db),
   projectGroup: createProjectGroupRepo(db),
   project: createProjectRepo(db),
+  projectLogin: createProjectLoginRepo(db),
   deployment: createDeploymentRepo(db),
   domain: createDomainRepo(db),
   domainSettings: createDomainSettingsRepo(db),

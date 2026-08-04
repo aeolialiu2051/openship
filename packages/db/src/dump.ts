@@ -303,6 +303,16 @@ const TABLES: ReadonlyArray<TableSpec> = [
     hasOrganizationId: false,
   },
   {
+    sqlName: "project_login",
+    table: schema.projectLogin,
+    scopes: [
+      { in: "instance", via: "all-rows" },
+      { in: "organization", via: "fk", column: "projectId" },
+      { in: "project", via: "fk", column: "projectId" },
+    ],
+    hasOrganizationId: false,
+  },
+  {
     sqlName: "deployment",
     table: schema.deployment,
     scopes: [
@@ -517,6 +527,7 @@ export const ENCRYPTED_COLUMNS: ReadonlyArray<EncryptedColumnSpec> = [
   { table: "incoming_webhook", column: "hmacSecretEncrypted" },
   { table: "domain_settings", column: "cloudflareApiTokenEncrypted" },
   { table: "env_var", column: "value" },
+  { table: "project_login", column: "passwordEncrypted" },
   { table: "backup_destination", column: "accessKeyIdEnc" },
   { table: "backup_destination", column: "secretAccessKeyEnc" },
   { table: "backup_destination", column: "sftpPasswordEnc" },

@@ -28,6 +28,7 @@ import {
   UpdateProjectBody,
   CreateProjectEnvironmentBody,
   MergeEnvVarsBody,
+  SetProjectLoginBody,
   UpdateResourcesBody,
 } from "./project.schema";
 
@@ -151,6 +152,36 @@ r.patch(
   },
   cloudProjectProxy,
   ctrl.update,
+);
+
+/* ─── Optional human login card ─────────────────────────────────────────── */
+r.get(
+  "/:id/login",
+  {
+    tag: "project:write",
+    mcp: { description: "Get the project's optional homepage + login username/password." },
+  },
+  cloudProjectProxy,
+  ctrl.getLogin,
+);
+r.put(
+  "/:id/login",
+  {
+    tag: "project:write",
+    mcp: {
+      description:
+        "Set the optional login card for a non-App Catalog project. Catalog apps use template connection outputs. Use generatePassword with service/passwordEnvKey to generate and inject a password without a plaintext temp file.",
+      body: SetProjectLoginBody,
+    },
+  },
+  cloudProjectProxy,
+  ctrl.setLogin,
+);
+r.delete(
+  "/:id/login",
+  { tag: "project:write", mcp: { description: "Remove the optional project login card." } },
+  cloudProjectProxy,
+  ctrl.removeLogin,
 );
 r.delete("/:id", { tag: "project:admin" }, cloudProjectProxy, ctrl.remove);
 r.get("/:id/info", { tag: "project:read", mcp: { description: "Get a project's detailed info (runtime, build, source)." } }, cloudProjectProxy, ctrl.getInfo);

@@ -100,6 +100,17 @@
     "cleanupFailedTitle": "Bereinigung fehlgeschlagen",
     "alreadyDeleted": "Projekt bereits gelöscht"
   },
+  "loginCredentials": {
+    "title": "Project login",
+    "description": "Open the project homepage and sign in with these credentials.",
+    "homepage": "Project homepage",
+    "username": "Username",
+    "password": "Password",
+    "open": "Open project homepage",
+    "copy": "Copy",
+    "reveal": "Reveal",
+    "hide": "Hide"
+  },
   "sidebar": {
     "project": "Projekt",
     "untitledProject": "Unbenanntes Projekt",

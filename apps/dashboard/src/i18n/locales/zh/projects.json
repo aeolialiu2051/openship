@@ -102,6 +102,17 @@
     "cleanupFailedTitle": "清理失败",
     "alreadyDeleted": "项目已删除"
   },
+  "loginCredentials": {
+    "title": "项目登录",
+    "description": "打开项目首页，并使用以下凭据登录。",
+    "homepage": "项目首页",
+    "username": "用户名",
+    "password": "密码",
+    "open": "打开项目首页",
+    "copy": "复制",
+    "reveal": "显示",
+    "hide": "隐藏"
+  },
   "sidebar": {
     "project": "项目",
     "untitledProject": "未命名项目",

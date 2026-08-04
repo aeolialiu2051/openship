@@ -100,6 +100,17 @@
     "cleanupFailedTitle": "فشل التنظيف",
     "alreadyDeleted": "تم حذف المشروع بالفعل"
   },
+  "loginCredentials": {
+    "title": "Project login",
+    "description": "Open the project homepage and sign in with these credentials.",
+    "homepage": "Project homepage",
+    "username": "Username",
+    "password": "Password",
+    "open": "Open project homepage",
+    "copy": "Copy",
+    "reveal": "Reveal",
+    "hide": "Hide"
+  },
   "sidebar": {
     "project": "المشروع",
     "untitledProject": "مشروع بلا عنوان",

@@ -20,6 +20,7 @@ import { permission } from "../../lib/permission";
 import { audit, auditContextFrom } from "../../lib/audit";
 import * as projectService from "./project.service";
 import * as projectTeardown from "./project-teardown";
+import * as projectLogin from "./project-login.service";
 import { getRouteStrategy } from "../settings/settings.service";
 import { checkProjectPorts } from "./port-check.service";
 import { checkProjectOutput } from "./output-check.service";
@@ -29,6 +30,7 @@ import type {
   TCreateProjectEnvironmentBody,
   TUpdateProjectBody,
   TMergeEnvVarsBody,
+  TSetProjectLoginBody,
   TUpdateResourcesBody,
 } from "./project.schema";
 import { stat } from "node:fs/promises";
@@ -731,6 +733,49 @@ export async function mergeEnvVars(c: Context) {
     },
   });
   return c.json(result);
+}
+
+// ─── Optional human login card ─────────────────────────────────────────────
+
+export async function getLogin(c: Context) {
+  const ctx = getRequestContext(c);
+  const id = param(c, "id");
+  c.header("Cache-Control", "no-store");
+  return c.json({ data: await projectLogin.getProjectLogin(ctx, id) });
+}
+
+export async function setLogin(c: Context) {
+  const ctx = getRequestContext(c);
+  const id = param(c, "id");
+  const body = await c.req.json<TSetProjectLoginBody>();
+  const result = await projectLogin.setProjectLogin(ctx, id, body);
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
+    eventType: "project.updated",
+    resourceType: "project",
+    resourceId: id,
+    after: {
+      action: "login.set",
+      url: body.url,
+      username: body.username,
+      generatedPassword: body.generatePassword === true,
+      usernameEnvKey: body.usernameEnvKey,
+      passwordEnvKey: body.passwordEnvKey,
+    },
+  });
+  return c.json({ data: result });
+}
+
+export async function removeLogin(c: Context) {
+  const ctx = getRequestContext(c);
+  const id = param(c, "id");
+  await projectLogin.removeProjectLogin(ctx, id);
+  audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
+    eventType: "project.updated",
+    resourceType: "project",
+    resourceId: id,
+    after: { action: "login.remove" },
+  });
+  return c.json({ data: { removed: true } });
 }
 
 // ─── Resources ───────────────────────────────────────────────────────────────

@@ -51,6 +51,8 @@ sleep mode, cloud transfer, and logs. Alias: `vibrail projects`.
 | `project delete <id>` (alias `rm`) | Delete a project and tear down all its resources. |
 | `project env get <id>` | List environment variables (secret values are masked). |
 | `project env set <id>` | Merge env vars — upsert `KEY=VALUE` pairs and/or delete keys. |
+| `project login set <id>` | Configure the optional homepage + username/password card for a non-App Catalog project. |
+| `project login clear <id>` | Remove the login card without deleting application env vars. |
 | `project git link <id>` | Link a GitHub repository to a project. |
 | `project git branch <id> <branch>` | Set the deploy branch. |
 | `project git auto-deploy <id>` | Enable or disable push-to-deploy. |
@@ -124,6 +126,27 @@ vibrail project env set proj_123 \
 | `--set <KEY=VALUE>` | Pair to upsert. Repeatable. |
 | `--unset <key>` | Key to delete. Repeatable. |
 | `--secret` | Mark every `--set` value as a secret. |
+
+### login
+
+Use this only for a human-facing application login. The card shows the exact project homepage/login URL,
+username, and password on Overview. API tokens, JWT secrets, database credentials, and encryption keys stay
+in secret environment variables instead.
+
+This command is only available for ordinary source projects. App Catalog projects use the connection outputs defined by their templates. Generate the password server-side and inject it into the service without a plaintext temporary file:
+
+```bash
+vibrail project login set proj_123 \
+  --url https://app.example.com/admin \
+  --username admin \
+  --generate-password \
+  --service web \
+  --username-env ADMIN_USERNAME \
+  --password-env ADMIN_PASSWORD
+```
+
+Omit `--username-env` for a fixed username. If `--generate-password` is omitted, the CLI prompts for the
+password without echoing it. Remove only the Overview card with `vibrail project login clear proj_123`.
 
 ### git
 

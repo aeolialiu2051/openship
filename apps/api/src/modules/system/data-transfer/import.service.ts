@@ -61,10 +61,18 @@ function assertValidEnvelope(file: DataTransferFile): void {
 }
 
 /** Distinct secret tables → their drizzle table + pk column. */
-function secretTables(): Map<string, { table: SecretColumn["table"]; pk: SecretColumn["pk"] }> {
-  const out = new Map<string, { table: SecretColumn["table"]; pk: SecretColumn["pk"] }>();
+function secretTables(): Map<
+  string,
+  { table: SecretColumn["table"]; pk: SecretColumn["pk"]; idField: string }
+> {
+  const out = new Map<
+    string,
+    { table: SecretColumn["table"]; pk: SecretColumn["pk"]; idField: string }
+  >();
   for (const spec of SECRET_COLUMNS) {
-    if (!out.has(spec.sqlName)) out.set(spec.sqlName, { table: spec.table, pk: spec.pk });
+    if (!out.has(spec.sqlName)) {
+      out.set(spec.sqlName, { table: spec.table, pk: spec.pk, idField: spec.idField });
+    }
   }
   return out;
 }
@@ -72,9 +80,9 @@ function secretTables(): Map<string, { table: SecretColumn["table"]; pk: SecretC
 /** merge only: which ids in each secret table are NEW (didn't already exist). */
 async function computeNewIds(file: DataTransferFile): Promise<Map<string, Set<string>>> {
   const result = new Map<string, Set<string>>();
-  for (const [sqlName, { table, pk }] of secretTables()) {
+  for (const [sqlName, { table, pk, idField }] of secretTables()) {
     const dumpIds = (file.dump.tables[sqlName] ?? [])
-      .map((r) => r.id)
+      .map((r) => r[idField])
       .filter((v): v is string => typeof v === "string");
     if (dumpIds.length === 0) {
       result.set(sqlName, new Set());
@@ -84,7 +92,7 @@ async function computeNewIds(file: DataTransferFile): Promise<Map<string, Set<st
       .select()
       .from(table)
       .where(inArray(pk, dumpIds))) as Array<Record<string, unknown>>;
-    const existingSet = new Set(existing.map((r) => r.id as string));
+    const existingSet = new Set(existing.map((r) => r[idField] as string));
     result.set(sqlName, new Set(dumpIds.filter((id) => !existingSet.has(id))));
   }
   return result;

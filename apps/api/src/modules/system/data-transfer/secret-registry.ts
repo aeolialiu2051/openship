@@ -21,13 +21,17 @@ export interface SecretColumn {
   sqlName: string;
   table: AnyTable;
   pk: AnyColumn;
+  idField: string;
   column: string;
   scheme: SecretScheme;
   secretPaths?: string[];
 }
 
 /** table.column → { drizzle table, scheme }. Keys mirror ENCRYPTED_COLUMNS. */
-const SCHEME_BY_KEY: Record<string, { table: AnyTable; scheme: SecretScheme }> = {
+const SCHEME_BY_KEY: Record<
+  string,
+  { table: AnyTable; scheme: SecretScheme; pk?: AnyColumn; idField?: string }
+> = {
   "user_settings.cloudSessionToken": { table: schema.userSettings, scheme: "scalar" },
   "user_settings.cloneTokenEncrypted": { table: schema.userSettings, scheme: "scalar" },
   "project.cloneTokenEncrypted": { table: schema.project, scheme: "scalar" },
@@ -41,6 +45,12 @@ const SCHEME_BY_KEY: Record<string, { table: AnyTable; scheme: SecretScheme }> =
     scheme: "scalar",
   },
   "env_var.value": { table: schema.envVar, scheme: "scalar" },
+  "project_login.passwordEncrypted": {
+    table: schema.projectLogin,
+    scheme: "scalar",
+    pk: schema.projectLogin.projectId,
+    idField: "projectId",
+  },
   "backup_destination.accessKeyIdEnc": { table: schema.backupDestination, scheme: "enc1" },
   "backup_destination.secretAccessKeyEnc": { table: schema.backupDestination, scheme: "enc1" },
   "backup_destination.sftpPasswordEnc": { table: schema.backupDestination, scheme: "enc1" },
@@ -63,7 +73,8 @@ export const SECRET_COLUMNS: readonly SecretColumn[] = ENCRYPTED_COLUMNS.map((sp
   return {
     sqlName: spec.table,
     table: meta.table,
-    pk: (meta.table as unknown as { id: AnyColumn }).id,
+    pk: meta.pk ?? (meta.table as unknown as { id: AnyColumn }).id,
+    idField: meta.idField ?? "id",
     column: spec.column,
     scheme: meta.scheme,
     secretPaths: spec.secretPaths ? [...spec.secretPaths] : undefined,

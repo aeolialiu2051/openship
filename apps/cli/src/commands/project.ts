@@ -53,6 +53,22 @@ function printProject(project: Record<string, unknown>): void {
 
 const ENVIRONMENTS = ["production", "preview", "development"];
 
+/** Prompt for a password without echoing it. */
+async function promptHidden(query: string): Promise<string> {
+  const rl = createInterface({ input, output });
+  const iface = rl as unknown as { _writeToOutput: (s: string) => void };
+  let muted = false;
+  iface._writeToOutput = (s: string) => {
+    if (!muted || /[\r\n]/.test(s)) output.write(s);
+  };
+  const pending = rl.question(query);
+  muted = true;
+  const answer = await pending;
+  rl.close();
+  output.write("\n");
+  return answer;
+}
+
 // ─── list ────────────────────────────────────────────────────────────────────
 // GET /api/projects → { data, total, page, perPage } (project.routes.ts:46)
 const listCmd = new Command("list")
@@ -253,6 +269,58 @@ envCmd
       ok(
         `\n  Updated env (${opts.environment}): ${upserts.length} upserted, ${deletes.length} deleted\n`,
       );
+    }),
+  );
+
+// ─── login card ─────────────────────────────────────────────────────────────
+const loginCmd = new Command("login").description(
+  "Manage the optional homepage + human login card for non-Catalog projects",
+);
+
+loginCmd
+  .command("set")
+  .description("Configure a non-Catalog project's login card and optionally inject credentials")
+  .argument("<id>", "Project ID")
+  .requiredOption("--url <url>", "Full project homepage/login URL, including any path")
+  .requiredOption("--username <username>", "Login username")
+  .option("--generate-password", "Generate the password server-side (recommended)")
+  .option("--service <service>", "Service name or id that consumes the login env vars")
+  .option("--username-env <key>", "Service environment variable for the username")
+  .option("--password-env <key>", "Service secret environment variable for the password")
+  .action(
+    action(async (id: string, opts) => {
+      let password: string | undefined;
+      if (!opts.generatePassword) {
+        password = await promptHidden("  Login password: ");
+        if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+      }
+      const { data } = await apiRequest<{
+        data: { configured: true; generatedPassword: boolean };
+      }>(`/projects/${encodeURIComponent(id)}/login`, {
+        method: "PUT",
+        body: JSON.stringify({
+          url: opts.url,
+          username: opts.username,
+          ...(password ? { password } : {}),
+          generatePassword: Boolean(opts.generatePassword),
+          ...(opts.service ? { service: opts.service } : {}),
+          ...(opts.usernameEnv ? { usernameEnvKey: opts.usernameEnv } : {}),
+          ...(opts.passwordEnv ? { passwordEnvKey: opts.passwordEnv } : {}),
+        }),
+      });
+      if (isJsonMode()) printJson(data);
+      else ok("  Project login configured. Open Overview to reveal the password.");
+    }),
+  );
+
+loginCmd
+  .command("clear")
+  .description("Remove the login card without deleting the app's environment variables")
+  .argument("<id>", "Project ID")
+  .action(
+    action(async (id: string) => {
+      await apiRequest(`/projects/${encodeURIComponent(id)}/login`, { method: "DELETE" });
+      ok("  Project login card removed.");
     }),
   );
 
@@ -599,6 +667,7 @@ projectCommand.addCommand(getCmd);
 projectCommand.addCommand(createCmd);
 projectCommand.addCommand(deleteCmd);
 projectCommand.addCommand(envCmd);
+projectCommand.addCommand(loginCmd);
 projectCommand.addCommand(gitCmd);
 projectCommand.addCommand(connectCmd);
 projectCommand.addCommand(enableCmd);

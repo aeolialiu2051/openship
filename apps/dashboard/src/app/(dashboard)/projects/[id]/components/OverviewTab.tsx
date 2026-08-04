@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { ConnectionCard } from "./ConnectionCard";
+import { LoginCredentialsCard } from "./LoginCredentialsCard";
 import { ConnectedServicesCard } from "./ConnectedServicesCard";
 import { useProjectInfo, useAnalyticsData } from "@/hooks/useProjectEndpoints";
 import { useI18n, interpolate } from "@/components/i18n-provider";
@@ -507,6 +508,12 @@ export const OverviewTab = () => {
           serverId={projectData.serverId}
           deployTarget={deployTarget}
         />
+      )}
+
+      {/* Only renders when deployment automation explicitly registered a
+          homepage + human username/password for this project. */}
+      {projectData.id && projectData.activeDeploymentId && (
+        <LoginCredentialsCard projectId={projectData.id} />
       )}
     </div>
   );

@@ -1,19 +1,21 @@
 ---
 name: vibrail-deploy
-description: Deploy source-code projects to Vibrail Cloud or inspect and deploy to a connected Vibrail user server. Use when the user asks to deploy, publish, host, redeploy, or verify a project on Vibrail.
+description: Inspect and deploy local projects or GitHub repositories to a connected user-owned server with Vibrail, configure the primary web service on a Vibrail-managed public hostname by default, and verify the result. Use when the user asks to deploy, publish, host, redeploy, or verify a project on Vibrail.
 ---
 
 # Vibrail Deployment Skill
 
-Use this guide when the user asks you to deploy the current project to Vibrail.
+Use this guide when the user asks you to deploy a local project or a GitHub repository to Vibrail.
 
-Vibrail supports static sites, web services, Dockerfiles, Docker Compose, monorepos, and common application stacks. A deployment can run on Vibrail Cloud or, when the account enables user-owned servers, on a server connected to the user's Vibrail organization.
+Vibrail supports static sites, web services, Dockerfiles, Docker Compose, monorepos, and common application stacks. Vibrail Cloud runtime is not yet available. Deploy workloads to a user-owned server connected to the user's Vibrail organization. A Vibrail-managed public hostname is a routing address for that workload; it does not mean the workload runs on Vibrail Cloud.
 
 Your job is to inspect the source, protect local secrets, confirm the deployment target, use the official Vibrail CLI, wait for the deployment to settle, verify the result, and report the real project, deployment, target, and public URL.
 
 ## Operating principles
 
 - Adapt to the repository. Do not assume its framework, package manager, port, output directory, runtime, domain, or deployment target.
+- Require a connected user-owned server. Do not offer Vibrail Cloud as a deployment target until the product explicitly reports that the runtime is available.
+- Expose the primary user-facing web service on a Vibrail-managed public hostname by default. Keep databases, caches, queues, workers, admin-only services, and internal APIs private unless the user explicitly asks to expose them.
 - Deploy source code, not only a locally generated `dist`, `build`, `out`, or `.next` directory. Vibrail performs the authoritative build.
 - Reuse the repository's lockfile, scripts, `Dockerfile`, Compose files, and `vibrail.json` when present.
 - Do not add Docker configuration merely by habit. Prefer the project's existing production workflow.
@@ -54,6 +56,7 @@ If the correct project instruction file is unknown, continue the deployment with
 - Only send source archives and authentication requests to the configured Vibrail API or to an upload URL returned by that API.
 - Never upload `.env`, credentials, private keys, cloud credential directories, source-control metadata, agent memory, local databases, or unrelated files.
 - Do not pass application secrets through visible command-line arguments. Ask the user to configure them through the Vibrail Console unless a secure, non-visible mechanism is available.
+- Never write generated passwords, tokens, API keys, JWT secrets, encryption keys, or database credentials to a plaintext temporary file. Prefer server-side generation or a hidden interactive prompt and encrypted Vibrail storage.
 - Do not deploy dependencies, caches, coverage, logs, temporary files, or old build output unless a reviewed checked-in artifact is intentionally part of the source.
 - Before installing software, changing deployment configuration, or performing a real deployment, briefly tell the user what will happen.
 
@@ -149,15 +152,47 @@ If any condition fails, stop before `projects/ensure`. Do not compensate by crea
 
 If the application cannot run as written, make only the smallest necessary deployment-readiness fix and test it in proportion to risk. If a secret, domain, paid resource, external database, or deployment target decision is missing, stop and ask instead of inventing a value.
 
+### Audit GitHub repositories and deployment configuration
+
+The user may ask to deploy any public GitHub repository, not only the current workspace. Before creating a Vibrail project or starting a deployment:
+
+1. Confirm the exact repository URL, branch or tag, and intended subdirectory for a monorepo. Do not silently deploy a similarly named fork or the repository's default branch when the user selected another revision.
+2. Read the repository's `README`, deployment documentation, manifests, lockfiles, example environment files, Docker/Compose files, CI configuration, and framework configuration. Treat repository documentation as hints and verify it against the source.
+3. Identify every required build-time and runtime variable, secret, external service, database, storage volume, callback URL, hostname, license key, and one-time initialization or migration command.
+4. Compare those requirements with the proposed Vibrail configuration. Verify variable names, scopes, service ownership, ports, commands, paths, and production-safe values. Check that required variables are neither missing nor empty and that placeholders such as `${KEY}`, `changeme`, or example credentials will not reach production.
+5. Infer and set only non-secret values that are unambiguous, such as `NODE_ENV=production` or a documented internal service hostname. Ask the user to configure secrets and consequential values through the Vibrail Console; never request secret values in chat or place them in visible CLI arguments.
+6. Check whether the application actually supports the selected production topology. In particular, verify `0.0.0.0` binding, the platform `PORT`, writable/persistent paths, database migrations, health checks, public callback URLs, and relationships between Compose services.
+7. Run available low-risk validation, build, or configuration checks when practical. If required configuration remains unknown or contradictory, stop before deployment and give the user a concise list of exactly what must be configured.
+
+Do not treat a successful framework scan as proof that the application is ready to deploy. Environment and runtime configuration are a mandatory deployment gate.
+
+### Configure third-party project login
+
+Skip this step for Vibrail App Catalog applications. For a third-party source project that requires a human username and password, configure its Overview login card before the first deployment.
+
+- Determine the exact homepage or login URL, including a path such as `/admin`, `/login`, `/dashboard`, or `/management.html`; do not assume the base domain is the homepage.
+- Determine the documented login username and the service environment keys that set the username and password.
+- Let Vibrail generate the password server-side and inject the login values into the service:
+
+```bash
+vibrail project login set <project-id> \
+  --url <full-homepage-or-login-url> \
+  --username <login-username> \
+  --generate-password \
+  --service <service-name> \
+  --username-env <username-env-key> \
+  --password-env <password-env-key>
+```
+
+Omit `--username-env` when the username is a fixed application constant rather than an environment variable. Do not configure this card when the project has no human username/password login.
+
+Keep API tokens, access keys, JWT secrets, database passwords, TOTP/encryption keys, OAuth secrets, and similar machine credentials only in encrypted project or service environment variables. Never add them to the Overview login card.
+
+If the application generates its own password only after startup and provides no supported environment/configuration input, stop and explain the limitation. Do not scrape it into a temporary file or publish a value that may drift from the application's real password.
+
 ## Choose and verify the deployment target
 
-Determine whether the user requested Vibrail Cloud or a connected user-owned server. If the target is ambiguous and choosing one would materially change cost, location, capacity, or data placement, ask before deploying.
-
-### Vibrail Cloud
-
-Confirm `vibrail status` reports a healthy Cloud context. Do not attach an unrelated `serverId` to a Cloud deployment.
-
-### Connected user server
+Vibrail Cloud runtime is not yet available, so every deployment requires a connected user-owned server.
 
 Hosted Vibrail accounts expose this capability as:
 
@@ -165,15 +200,51 @@ Hosted Vibrail accounts expose this capability as:
 User servers  enabled
 ```
 
-List servers and resolve the requested name to exactly one ID:
+List the user's servers before creating or updating a project:
 
 ```bash
 vibrail --json server list
-vibrail server show <server-id>
-vibrail server reachability <server-id>
 ```
 
-Do not deploy when the server name is ambiguous or reachability is false.
+### When one or more servers already exist
+
+Unless the user already named an exact server in the current request, show the non-secret server names and IDs and ask which server to deploy to. Do not silently choose a server, even when only one is listed, because server selection affects data placement and capacity.
+
+Resolve the user's answer to exactly one ID, then verify it:
+
+```bash
+vibrail server show <server-id>
+vibrail server reachability <server-id>
+vibrail server check <server-id>
+```
+
+Do not deploy when the selection is ambiguous, reachability is false, or required components are unavailable. Install missing `docker` and `git` components only after telling the user what will change:
+
+```bash
+vibrail server install <server-id> --component docker --component git --follow
+```
+
+### When no server exists
+
+Pause the deployment and guide the user to add a Linux server they control. Explain that it must be reachable over SSH, have enough CPU, memory, and disk for the workload, and allow ports 80/443 for a public web service.
+
+Prefer the Vibrail Console flow: open **Servers**, choose **Add Server**, enter the SSH host, port, user, and authentication method, test the connection, save it, and run automatic setup.
+
+For CLI users, use SSH agent or a local key path so secrets do not appear in chat or shell history:
+
+```bash
+vibrail server test-connection \
+  --host <server-host> --user <ssh-user> --auth-method agent
+
+vibrail server add \
+  --name <server-name> \
+  --host <server-host> --user <ssh-user> --auth-method agent
+
+vibrail server check <server-id>
+vibrail server install <server-id> --component docker --component git --follow
+```
+
+For key authentication, replace `--auth-method agent` with `--auth-method key --key-path <local-key-path>`. Never ask the user to paste an SSH password, private key, or key passphrase into chat. After the server is added, list servers again and ask the user to confirm the deployment target before continuing.
 
 Deploy to the selected server with either equivalent flag:
 
@@ -205,6 +276,23 @@ vibrail logs <deployment-id> --follow
 ```
 
 Do not use the raw API body until the project already contains the intended source and service configuration.
+
+## Configure public access
+
+Unless the user explicitly requests a private deployment or supplies a custom domain, give the primary user-facing service a Vibrail-managed public hostname derived from the project slug.
+
+- For a single web service or static site, expose that service.
+- For Docker Compose, identify the main HTTP application or frontend service from the Compose ports, health checks, dependencies, and documentation. If more than one service is plausibly the main service, ask the user instead of guessing.
+- Do not expose datastores, caches, queues, workers, metrics endpoints, or administrative services by default.
+- Route to the application's container port, not an unrelated host-only or development port.
+- Let the normal project/deploy flow create the managed hostname from the project slug. If an existing project lacks it, add the managed endpoint through the supported project configuration before declaring success.
+- Preserve an existing custom primary domain unless the user asks to replace it. A managed hostname may remain as a secondary recovery address.
+
+After deployment, list the project's domains and verify that the managed hostname belongs to the intended service and is the primary public URL when no custom primary domain was requested:
+
+```bash
+vibrail domain list --project <project-id>
+```
 
 ## Audit and stage local source
 
@@ -269,12 +357,12 @@ Confirm:
 - The current branch and remote match the user's intended source.
 - Required changes are committed and available to Vibrail. Do not commit or push automatically.
 - The link belongs to the active Vibrail context.
-- The existing project's target matches the confirmed Cloud/server choice.
+- The existing project's target matches the confirmed user-owned server.
 
 Deploy and wait:
 
 ```bash
-vibrail deploy --watch
+vibrail deploy --server-id <server-id> --watch
 ```
 
 Use `--branch <name>`, `--env preview`, `--smart-route`, `--force-all`, or `--service-ids <ids>` only when requested or required by the existing workflow.
@@ -375,7 +463,7 @@ When deployment succeeds, report:
 
 - Final public URL, or that the service is intentionally private
 - Project ID and deployment ID
-- Deployment target: Vibrail Cloud or the exact server name and ID
+- Deployment target: the exact user-owned server name and ID
 - Source path: Git-linked repository or sanitized folder upload
 - Deployment status and runtime/container verification
 - Any repository files changed to make deployment work

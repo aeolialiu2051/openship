@@ -372,6 +372,12 @@ export const projectsApi = {
       }>;
     }>(endpoints.projects.env(id)),
 
+  /** Optional project homepage + human login credentials. Requires project write access. */
+  getLogin: (id: string | number) =>
+    api.get<{ data: { url: string; username: string; password: string } | null }>(
+      endpoints.projects.login(id),
+    ),
+
   /** Get git settings */
   getGit: (id: string | number) => api.get<any>(endpoints.projects.git(id)),
 
