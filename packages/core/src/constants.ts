@@ -138,7 +138,10 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
       max_disk_gb: 10,
     },
     features: [
+      "Up to 5 active projects",
       "1 workspace",
+      "Git push auto-deploy",
+      "1 custom domain with automatic SSL",
       "Community support",
     ],
     popular: false,
@@ -163,7 +166,11 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
       max_disk_gb: 100,
     },
     features: [
-      "Up to 10 workspaces",
+      "Unlimited projects",
+      "10 workspaces",
+      "Git push auto-deploy",
+      "Scheduled backups and one-click rollback",
+      "Unlimited custom domains with automatic SSL",
       "Email support",
     ],
     popular: true,

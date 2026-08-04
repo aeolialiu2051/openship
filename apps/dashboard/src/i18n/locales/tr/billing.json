@@ -74,7 +74,38 @@
     "currentPlan": "Mevcut plan",
     "contactSales": "Satış ekibiyle iletişime geçin",
     "freeForever": "Sonsuza kadar ücretsiz",
-    "upgrade": "Yükselt"
+    "upgrade": "Yükselt",
+    "limitedOffer": "Sınırlı süreli teklif",
+    "upgradeToPro": "Pro'ya yükselt",
+    "period": {
+      "monthly": "/ay",
+      "annual": "/yıl"
+    },
+    "cards": {
+      "free": {
+        "description": "Kişisel projeler ve Vibrail'i ilk kez kullananlar için.",
+        "includedTitle": "Dahil olan özellikler",
+        "features": [
+          "En fazla 5 aktif proje",
+          "1 çalışma alanı",
+          "Git Push ile otomatik dağıtım",
+          "Otomatik SSL ile 1 özel alan adı",
+          "Topluluk desteği"
+        ]
+      },
+      "pro": {
+        "description": "Daha fazla proje ve üretim ortamı yöneten geliştiriciler için.",
+        "includedTitle": "Free'deki her şeye ek olarak:",
+        "features": [
+          "Sınırsız proje",
+          "10 çalışma alanı",
+          "Git Push ile otomatik dağıtım",
+          "Zamanlanmış yedeklemeler ve tek tıkla geri alma",
+          "Otomatik SSL ile sınırsız özel alan adı",
+          "E-posta desteği"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "Kredi paketleri yüklenemedi",

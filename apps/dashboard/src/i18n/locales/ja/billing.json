@@ -69,11 +69,43 @@
   },
   "pricing": {
     "custom": "カスタム",
+    "comingSoon": "近日公開",
     "mostPopular": "一番人気",
     "currentPlan": "現在のプラン",
     "contactSales": "営業に問い合わせる",
     "freeForever": "永久無料",
-    "upgrade": "アップグレード"
+    "upgrade": "アップグレード",
+    "limitedOffer": "期間限定オファー",
+    "upgradeToPro": "Pro にアップグレード",
+    "period": {
+      "monthly": "/月",
+      "annual": "/年"
+    },
+    "cards": {
+      "free": {
+        "description": "個人プロジェクトや Vibrail を初めて使う方に最適です。",
+        "includedTitle": "含まれる機能",
+        "features": [
+          "アクティブプロジェクト最大5件",
+          "ワークスペース1件",
+          "Git Push 自動デプロイ",
+          "カスタムドメイン1件と自動SSL",
+          "コミュニティサポート"
+        ]
+      },
+      "pro": {
+        "description": "より多くのプロジェクトや本番環境を管理する開発者向けです。",
+        "includedTitle": "Free の全機能に加えて：",
+        "features": [
+          "プロジェクト数無制限",
+          "ワークスペース10件",
+          "Git Push 自動デプロイ",
+          "定期バックアップとワンクリックロールバック",
+          "カスタムドメインと自動SSLが無制限",
+          "メールサポート"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "追加購入パックの読み込みに失敗しました",

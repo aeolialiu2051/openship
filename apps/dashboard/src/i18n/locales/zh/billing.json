@@ -69,11 +69,43 @@
   },
   "pricing": {
     "custom": "定制",
+    "comingSoon": "即将推出",
     "mostPopular": "最受欢迎",
     "currentPlan": "当前套餐",
     "contactSales": "联系销售",
     "freeForever": "永久免费",
-    "upgrade": "升级"
+    "upgrade": "升级",
+    "limitedOffer": "限时活动",
+    "upgradeToPro": "升级到 Pro",
+    "period": {
+      "monthly": "/月付",
+      "annual": "/年付"
+    },
+    "cards": {
+      "free": {
+        "description": "适合个人项目和初次使用 Vibrail 的用户。",
+        "includedTitle": "包含功能",
+        "features": [
+          "最多 5 个活跃项目",
+          "1 个工作区",
+          "Git Push 自动部署",
+          "1 个自定义域名与自动 SSL",
+          "社区支持"
+        ]
+      },
+      "pro": {
+        "description": "适合需要管理更多项目和生产环境的开发者。",
+        "includedTitle": "包含免费版所有功能，以及：",
+        "features": [
+          "不限项目",
+          "10 个工作区",
+          "Git Push 自动部署",
+          "定时备份与一键回滚",
+          "无限自定义域名与自动 SSL",
+          "邮件支持"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "加载充值包失败",

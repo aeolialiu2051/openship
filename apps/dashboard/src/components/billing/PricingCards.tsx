@@ -33,9 +33,11 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
   onSelectPlan,
   subscribingPlan,
 }) => {
-  const { t, locale } = useI18n();
-  const zh = locale === "zh";
-  const visiblePlans = plans.filter((plan) => plan.id === "free" || plan.id === "pro");
+  const { t } = useI18n();
+  const visiblePlans = plans.filter(
+    (plan): plan is ApiPlan & { id: "free" | "pro" } =>
+      plan.id === "free" || plan.id === "pro",
+  );
 
   return (
     <div className="grid w-full gap-5 md:grid-cols-2">
@@ -47,16 +49,7 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
         const hasPromotion = promotionalPrice !== null && promotionalPrice !== undefined;
         const price = hasPromotion ? promotionalPrice : originalPrice;
         const isSubscribing = subscribingPlan === plan.id;
-        const description = isPro
-          ? zh
-            ? "适合需要管理更多项目和生产环境的开发者。"
-            : "For developers managing more projects and production workloads."
-          : zh
-            ? "适合个人项目和初次使用 Vibrail 的用户。"
-            : "For personal projects and people getting started with Vibrail.";
-        const features = isPro
-          ? [zh ? "最多 10 个工作区" : "Up to 10 workspaces", zh ? "包含 Free 的全部功能" : "Everything in Free", zh ? "邮件支持" : "Email support"]
-          : [zh ? "1 个工作区" : "1 workspace", zh ? "核心部署与项目管理功能" : "Core deployment and project management", zh ? "社区支持" : "Community support"];
+        const copy = t.billing.pricing.cards[plan.id];
 
         return (
           <article
@@ -69,7 +62,7 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
           >
             {isPro && hasPromotion && (
               <span className="absolute end-7 top-8 rounded-full bg-[linear-gradient(135deg,#417bea,#7954e8)] px-3 py-1 text-[11px] font-semibold text-white shadow-sm sm:end-9">
-                {zh ? "限时活动" : "Limited offer"}
+                {t.billing.pricing.limitedOffer}
               </span>
             )}
 
@@ -78,7 +71,7 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
               {isPro && <Sparkles className="size-4 text-[#6170ea]" />}
             </div>
             <p className="mt-2 min-h-10 pe-16 text-[13px] leading-5 text-muted-foreground sm:pe-20">
-              {description}
+              {copy.description}
             </p>
 
             <div className="mt-6 flex items-baseline gap-2">
@@ -87,7 +80,7 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
               </span>
               {price !== 0 && price !== null && (
                 <span className="text-sm text-muted-foreground">
-                  {interval === "annual" ? (zh ? "/年付" : "/year") : (zh ? "/月付" : "/month")}
+                  {t.billing.pricing.period[interval]}
                 </span>
               )}
             </div>
@@ -113,18 +106,16 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
                   disabled={!!subscribingPlan || price === null}
                   className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[linear-gradient(135deg,#417bea,#7954e8)] text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(79,103,234,0.95)] transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {isSubscribing ? <Loader2 className="size-4 animate-spin" /> : <>{zh ? "升级到 Pro" : "Upgrade to Pro"}<ArrowUpRight className="size-3.5" /></>}
+                  {isSubscribing ? <Loader2 className="size-4 animate-spin" /> : <>{t.billing.pricing.upgradeToPro}<ArrowUpRight className="size-3.5" /></>}
                 </button>
               )}
             </div>
 
             <p className={`mt-9 text-xs font-medium ${isPro ? "text-[#6670e9]" : "text-muted-foreground"}`}>
-              {isPro
-                ? zh ? "包含免费版所有功能，以及：" : "Everything in Free, plus:"
-                : zh ? "包含功能" : "Included features"}
+              {copy.includedTitle}
             </p>
             <ul className="mt-5 space-y-4">
-              {features.map((feature) => (
+              {copy.features.map((feature) => (
                 <li key={feature} className="flex items-start gap-3 text-[13px] text-foreground/80">
                   <Check className={`mt-0.5 size-3.5 shrink-0 ${isPro ? "text-[#6170ea]" : "text-muted-foreground"}`} strokeWidth={2} />
                   <span>{feature}</span>

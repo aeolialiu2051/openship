@@ -69,11 +69,43 @@
   },
   "pricing": {
     "custom": "Personalizado",
+    "comingSoon": "Em breve",
     "mostPopular": "Mais popular",
     "currentPlan": "Plano atual",
     "contactSales": "Falar com vendas",
     "freeForever": "Grátis para sempre",
-    "upgrade": "Fazer upgrade"
+    "upgrade": "Fazer upgrade",
+    "limitedOffer": "Oferta por tempo limitado",
+    "upgradeToPro": "Fazer upgrade para Pro",
+    "period": {
+      "monthly": "/mês",
+      "annual": "/ano"
+    },
+    "cards": {
+      "free": {
+        "description": "Para projetos pessoais e para quem está começando com o Vibrail.",
+        "includedTitle": "Recursos incluídos",
+        "features": [
+          "Até 5 projetos ativos",
+          "1 workspace",
+          "Deploy automático com Git Push",
+          "1 domínio personalizado com SSL automático",
+          "Suporte da comunidade"
+        ]
+      },
+      "pro": {
+        "description": "Para desenvolvedores que gerenciam mais projetos e ambientes de produção.",
+        "includedTitle": "Tudo do Free, mais:",
+        "features": [
+          "Projetos ilimitados",
+          "10 workspaces",
+          "Deploy automático com Git Push",
+          "Backups agendados e rollback com um clique",
+          "Domínios personalizados ilimitados com SSL automático",
+          "Suporte por e-mail"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "Falha ao carregar os pacotes de recarga",

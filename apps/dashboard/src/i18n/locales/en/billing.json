@@ -74,7 +74,38 @@
     "currentPlan": "Current plan",
     "contactSales": "Contact sales",
     "freeForever": "Free forever",
-    "upgrade": "Upgrade"
+    "upgrade": "Upgrade",
+    "limitedOffer": "Limited offer",
+    "upgradeToPro": "Upgrade to Pro",
+    "period": {
+      "monthly": "/month",
+      "annual": "/year"
+    },
+    "cards": {
+      "free": {
+        "description": "For personal projects and people getting started with Vibrail.",
+        "includedTitle": "Included features",
+        "features": [
+          "Up to 5 active projects",
+          "1 workspace",
+          "Git push auto-deploy",
+          "1 custom domain with automatic SSL",
+          "Community support"
+        ]
+      },
+      "pro": {
+        "description": "For developers managing more projects and production workloads.",
+        "includedTitle": "Everything in Free, plus:",
+        "features": [
+          "Unlimited projects",
+          "10 workspaces",
+          "Git push auto-deploy",
+          "Scheduled backups and one-click rollback",
+          "Unlimited custom domains with automatic SSL",
+          "Email support"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "Failed to load top-up packs",

@@ -74,7 +74,38 @@
     "contactSales": "Contacter le service commercial",
     "freeForever": "Gratuit à vie",
     "upgrade": "Passer à la version supérieure",
-    "comingSoon": "Bientôt disponible"
+    "comingSoon": "Bientôt disponible",
+    "limitedOffer": "Offre à durée limitée",
+    "upgradeToPro": "Passer à Pro",
+    "period": {
+      "monthly": "/mois",
+      "annual": "/an"
+    },
+    "cards": {
+      "free": {
+        "description": "Pour les projets personnels et les nouveaux utilisateurs de Vibrail.",
+        "includedTitle": "Fonctionnalités incluses",
+        "features": [
+          "Jusqu’à 5 projets actifs",
+          "1 espace de travail",
+          "Déploiement automatique via Git Push",
+          "1 domaine personnalisé avec SSL automatique",
+          "Support communautaire"
+        ]
+      },
+      "pro": {
+        "description": "Pour les développeurs qui gèrent davantage de projets et des environnements de production.",
+        "includedTitle": "Toutes les fonctionnalités Free, plus :",
+        "features": [
+          "Projets illimités",
+          "10 espaces de travail",
+          "Déploiement automatique via Git Push",
+          "Sauvegardes planifiées et retour arrière en un clic",
+          "Domaines personnalisés illimités avec SSL automatique",
+          "Support par e-mail"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "Échec du chargement des packs de recharge",

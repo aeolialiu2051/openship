@@ -69,11 +69,43 @@
   },
   "pricing": {
     "custom": "Individuell",
+    "comingSoon": "Demnächst verfügbar",
     "mostPopular": "Am beliebtesten",
     "currentPlan": "Aktueller Tarif",
     "contactSales": "Vertrieb kontaktieren",
     "freeForever": "Für immer kostenlos",
-    "upgrade": "Upgrade"
+    "upgrade": "Upgrade",
+    "limitedOffer": "Zeitlich begrenztes Angebot",
+    "upgradeToPro": "Auf Pro upgraden",
+    "period": {
+      "monthly": "/Monat",
+      "annual": "/Jahr"
+    },
+    "cards": {
+      "free": {
+        "description": "Für persönliche Projekte und den Einstieg in Vibrail.",
+        "includedTitle": "Enthaltene Funktionen",
+        "features": [
+          "Bis zu 5 aktive Projekte",
+          "1 Workspace",
+          "Automatische Bereitstellung per Git Push",
+          "1 eigene Domain mit automatischem SSL",
+          "Community-Support"
+        ]
+      },
+      "pro": {
+        "description": "Für Entwickler, die mehr Projekte und Produktivumgebungen verwalten.",
+        "includedTitle": "Alles aus Free, plus:",
+        "features": [
+          "Unbegrenzte Projekte",
+          "10 Workspaces",
+          "Automatische Bereitstellung per Git Push",
+          "Geplante Backups und Rollback mit einem Klick",
+          "Unbegrenzte eigene Domains mit automatischem SSL",
+          "E-Mail-Support"
+        ]
+      }
+    }
   },
   "topups": {
     "loadError": "Aufladepakete konnten nicht geladen werden",
