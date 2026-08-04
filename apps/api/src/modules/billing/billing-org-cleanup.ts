@@ -100,7 +100,7 @@ export async function getOrgBillingState(
   let openInvoiceAmountCents = 0;
   const org = await repos.organization.findById(organizationId);
   if (org?.stripeCustomerId) {
-    const invoices = await stripe().invoices.list({
+    const invoices = await (await stripe()).invoices.list({
       customer: org.stripeCustomerId,
       status: "open",
       limit: 100,
@@ -215,7 +215,7 @@ export async function teardownBillingForOrg(
 
   for (const sub of subs) {
     try {
-      await stripe().subscriptions.cancel(
+      await (await stripe()).subscriptions.cancel(
         sub.stripeSubscriptionId,
         // No proration — Stripe defaults to refunding unused time
         // which is the wrong default for "we deleted the org, the
@@ -273,7 +273,7 @@ export async function teardownBillingForOrg(
   // GDPR erasure flows.
   if (process.env.BILLING_TEARDOWN_DELETE_CUSTOMER === "true" && org?.stripeCustomerId) {
     try {
-      await stripe().customers.del(org.stripeCustomerId, {
+      await (await stripe()).customers.del(org.stripeCustomerId, {
         idempotencyKey: teardownKey(organizationId, "customer"),
       });
       result.customerDeleted = true;

@@ -186,6 +186,13 @@ const envSchema = z.object({
   /* ---------- Stripe (Cloud only) ---------- */
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  /** Public Pro price in USD, not a Stripe Price object id. */
+  STRIPE_PRICE_PRO_MONTHLY: z.coerce.number().positive().default(5),
+  STRIPE_PRICE_PRO_ANNUAL: z.coerce.number().positive().default(50),
+  /** Optional limited-time Pro monthly price in USD. Empty/0 disables it. */
+  STRIPE_PRICE_PRO_PROMOTIONAL: z.coerce.number().min(0).default(0),
+  /** Optional limited-time Pro annual price in USD. Empty/0 disables it. */
+  STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL: z.coerce.number().min(0).default(0),
 
   /* ---------- GitHub App ---------- */
   GITHUB_APP_ID: z.string().optional(),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Crown, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { adminApi, getApiErrorMessage, type AdminPage, type AdminUserRow } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
 import { adminCopy } from "../_components/admin-copy";
@@ -28,6 +28,7 @@ export default function AdminUsersPage() {
   const [role, setRole] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -44,6 +45,47 @@ export default function AdminUsersPage() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const updatePlan = async (row: AdminUserRow, planTierId: "free" | "pro") => {
+    const targetUserId = row.id;
+    const confirmed = window.confirm(
+      planTierId === "pro"
+        ? zh
+          ? `确认将 ${row.name || row.email} 提升为 PRO 用户吗？套餐额度会立即更新。`
+          : `Promote ${row.name || row.email} to PRO? The plan quota will update immediately.`
+        : zh
+          ? `确认将 ${row.name || row.email} 降级为 FREE 用户吗？套餐额度会立即降低。`
+          : `Downgrade ${row.name || row.email} to FREE? The plan quota will be reduced immediately.`,
+    );
+    if (!confirmed) return;
+
+    setUpdatingUserId(targetUserId);
+    setError(null);
+    try {
+      await adminApi.updateUserPlan(targetUserId, planTierId);
+      setResult((current) =>
+        current
+          ? {
+              ...current,
+              data: current.data.map((row) =>
+                row.id === targetUserId ? { ...row, planTierId } : row,
+              ),
+            }
+          : current,
+      );
+    } catch (err) {
+      setError(
+        getApiErrorMessage(
+          err,
+          planTierId === "pro"
+            ? zh ? "升级 PRO 失败" : "Failed to promote user to Pro"
+            : zh ? "降级 FREE 失败" : "Failed to downgrade user to Free",
+        ),
+      );
+    } finally {
+      setUpdatingUserId(null);
+    }
+  };
 
   return (
     <div className="space-y-4">
@@ -87,11 +129,12 @@ export default function AdminUsersPage() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border/50 bg-card">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1050px] text-left text-sm">
+            <table className="w-full min-w-[1160px] text-left text-sm">
               <thead className="border-b border-border/50 bg-muted/20 text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 font-medium">{zh ? "用户" : "User"}</th>
                   <th className="px-4 py-3 font-medium">{zh ? "状态" : "Status"}</th>
+                  <th className="px-4 py-3 font-medium">{zh ? "套餐" : "Plan"}</th>
                   <th className="px-4 py-3 font-medium">{zh ? "资源" : "Resources"}</th>
                   <th className="px-4 py-3 font-medium">{zh ? "活跃会话" : "Sessions"}</th>
                   <th className="px-4 py-3 font-medium">{zh ? "最近访问" : "Last seen"}</th>
@@ -128,6 +171,25 @@ export default function AdminUsersPage() {
                         )}
                         {row.emailVerified ? copy.verified : copy.unverified}
                       </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${row.planTierId === "free" ? "bg-foreground/[0.06] text-muted-foreground" : "bg-primary/10 text-primary"}`}>
+                        {row.planTierId !== "free" && <Crown className="size-3.5" />}
+                        {row.planTierId === "free" ? "FREE" : "PRO"}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={updatingUserId !== null}
+                        onClick={() =>
+                          void updatePlan(row, row.planTierId === "free" ? "pro" : "free")
+                        }
+                        className="mt-2 flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
+                      >
+                        {updatingUserId === row.id && <Loader2 className="size-3.5 animate-spin" />}
+                        {row.planTierId === "free"
+                          ? zh ? "提升为 PRO" : "Promote to PRO"
+                          : zh ? "降级为 FREE" : "Downgrade to FREE"}
+                      </button>
                     </td>
                     <td className="px-4 py-4 text-xs text-muted-foreground">
                       <p>{row.organizationCount} {zh ? "组织" : "orgs"}</p>

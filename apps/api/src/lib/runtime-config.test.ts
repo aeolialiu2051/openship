@@ -23,13 +23,19 @@ describe("runtime configuration", () => {
   it("inherits environment defaults until an admin override is saved", async () => {
     const initial = await getRuntimeConfigState();
     expect(initial.overrides).toEqual({});
-    expect(initial.values.BILLING_ENABLED).toBe(initial.environmentDefaults.BILLING_ENABLED);
+    expect(initial.values.STRIPE_PRICE_PRO_MONTHLY).toBe(
+      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY,
+    );
 
     const updated = await updateRuntimeConfig({
-      BILLING_ENABLED: !initial.environmentDefaults.BILLING_ENABLED,
+      STRIPE_PRICE_PRO_MONTHLY: initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
     });
-    expect(updated.values.BILLING_ENABLED).toBe(!initial.environmentDefaults.BILLING_ENABLED);
-    expect(updated.overrides.BILLING_ENABLED).toBe(!initial.environmentDefaults.BILLING_ENABLED);
+    expect(updated.values.STRIPE_PRICE_PRO_MONTHLY).toBe(
+      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
+    );
+    expect(updated.overrides.STRIPE_PRICE_PRO_MONTHLY).toBe(
+      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
+    );
   });
 
   it("removes an override when the admin restores environment inheritance", async () => {
@@ -45,5 +51,20 @@ describe("runtime configuration", () => {
     await expect(
       updateRuntimeConfig({ DATABASE_URL: "nope" } as never),
     ).rejects.toMatchObject({ statusCode: 400, code: "INVALID_RUNTIME_CONFIG" });
+  });
+
+  it("keeps billing feature flags environment-only", async () => {
+    await expect(
+      updateRuntimeConfig({ BILLING_ENABLED: true } as never),
+    ).rejects.toMatchObject({ statusCode: 400, code: "INVALID_RUNTIME_CONFIG" });
+  });
+
+  it("masks saved Stripe secrets and keeps them when a masked value is resubmitted", async () => {
+    const saved = await updateRuntimeConfig({ STRIPE_SECRET_KEY: "sk_test_secret" });
+    expect(saved.values.STRIPE_SECRET_KEY).toBe("••••••••");
+    expect(String(store.runtimeConfig.STRIPE_SECRET_KEY)).not.toContain("sk_test_secret");
+
+    await updateRuntimeConfig({ STRIPE_SECRET_KEY: "••••••••" });
+    expect(String(store.runtimeConfig.STRIPE_SECRET_KEY)).not.toContain("sk_test_secret");
   });
 });

@@ -55,7 +55,7 @@ export function BillingTabBar() {
             }`}
           >
             <Icon className="size-4" />
-            {t.billing.tabs[tab.key]}
+            {tab.key === "overview" ? t.billing.tabs.plans : t.billing.tabs[tab.key]}
             {active && (
               <span className="absolute bottom-0 start-0 end-0 h-0.5 rounded-full bg-primary" />
             )}

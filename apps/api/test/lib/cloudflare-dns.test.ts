@@ -9,6 +9,7 @@ const dbMocks = vi.hoisted(() => ({
   markVerified: vi.fn(),
   updateSsl: vi.fn(),
   clearDnsManaged: vi.fn(),
+  getInstanceSettings: vi.fn(async () => null),
 }));
 
 vi.mock("../../src/config/env", () => ({
@@ -32,6 +33,7 @@ vi.mock("../../src/lib/encryption", () => ({
 
 vi.mock("@repo/db", () => ({
   repos: {
+    instanceSettings: { get: dbMocks.getInstanceSettings },
     domainSettings: { list: dbMocks.listSettings },
     domain: {
       findByHostname: dbMocks.findDomain,

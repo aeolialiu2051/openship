@@ -110,7 +110,7 @@ async function getOrCreateStripeCustomerId(
   const existing = await billingRepository.getCustomerByOrg(organizationId);
   if (existing) return existing.stripeCustomerId;
 
-  const customer = await stripe().customers.create(
+  const customer = await (await stripe()).customers.create(
     {
       email,
       metadata: { organizationId },
@@ -152,33 +152,29 @@ export async function createCheckoutSession(
   const organizationId = ctx.organizationId;
   const email = ctx.user.email;
   const plan = PLANS[planTierId];
-  const stripePriceId = plan.stripePriceId[interval];
+  const runtimeConfig = await getRuntimeConfig();
+  const amountDollars =
+    planTierId === "pro"
+      ? interval === "annual"
+        ? runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL > 0
+          ? runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL
+          : runtimeConfig.STRIPE_PRICE_PRO_ANNUAL
+        : runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL > 0
+          ? runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL
+          : runtimeConfig.STRIPE_PRICE_PRO_MONTHLY
+      : null;
 
-  if (!stripePriceId || plan.price[interval] === null) {
+  if (amountDollars === null) {
     throw new AppError(
-      `Plan ${planTierId} (${interval}) has no Stripe price configured`,
+      `Plan ${planTierId} (${interval}) is not purchasable`,
       400,
       "BILLING_PLAN_NOT_PURCHASABLE",
     );
   }
 
-  // Boot-time validation can't catch every misconfiguration (e.g. an
-  // operator wrote a real key for pro but left team on the placeholder
-  // default). Mirror the topup-side check at the point of use — same
-  // shape, same error code — so checkout fails closed with a user-
-  // facing 503 instead of fanning out a literal "price_..._placeholder"
-  // string to Stripe.
-  if (isPlaceholderPriceId(stripePriceId)) {
-    throw new AppError(
-      "Billing is not configured for this plan tier",
-      503,
-      "BILLING_NOT_CONFIGURED",
-    );
-  }
-
   const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
-  const session = await stripe().checkout.sessions.create(
+  const session = await (await stripe()).checkout.sessions.create(
     {
       mode: "subscription",
       customer: customerId,
@@ -187,7 +183,17 @@ export async function createCheckoutSession(
       subscription_data: {
         metadata: { organizationId, planTierId, interval },
       },
-      line_items: [{ price: stripePriceId, quantity: 1 }],
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            unit_amount: Math.round(amountDollars * 100),
+            recurring: { interval: interval === "annual" ? "year" : "month" },
+            product_data: { name: `${plan.name} plan` },
+          },
+          quantity: 1,
+        },
+      ],
       success_url: resolveDashboardPageUrl(
         runtimeTarget.dashboard,
         "/billing/overview?checkout=success",
@@ -241,7 +247,7 @@ export async function createTopupCheckoutSession(
 
   const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
-  const session = await stripe().checkout.sessions.create(
+  const session = await (await stripe()).checkout.sessions.create(
     {
       mode: "payment",
       customer: customerId,
@@ -291,7 +297,7 @@ export async function createPortalSession(organizationId: string): Promise<{ por
     );
   }
 
-  const session = await stripe().billingPortal.sessions.create(
+  const session = await (await stripe()).billingPortal.sessions.create(
     {
       customer: customer.stripeCustomerId,
       return_url: resolveDashboardPageUrl(runtimeTarget.dashboard, "/billing/overview"),
@@ -329,7 +335,7 @@ export async function cancelSubscription(
     throw new AppError("No active subscription to cancel", 404, "BILLING_SUBSCRIPTION_NOT_FOUND");
   }
 
-  const updated = await stripe().subscriptions.update(
+  const updated = await (await stripe()).subscriptions.update(
     sub.stripeSubscriptionId,
     { cancel_at_period_end: true },
     {

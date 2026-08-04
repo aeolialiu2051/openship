@@ -29,27 +29,61 @@ const ITEMS: Array<{
   group: "commercial" | "security" | "network";
   title: [string, string];
   description: [string, string];
-  kind: "boolean" | "number" | "pinning";
+  kind: "boolean" | "number" | "pinning" | "secret" | "price" | "optionalPrice";
 }> = [
   {
-    key: "BILLING_ENABLED",
+    key: "STRIPE_SECRET_KEY",
     group: "commercial",
-    title: ["启用订阅计费", "Enable subscription billing"],
+    title: ["Stripe 密钥", "Stripe secret key"],
     description: [
-      "立即开放 Stripe 订阅入口；Stripe 密钥和价格仍由部署环境提供。",
-      "Open Stripe subscription flows immediately; Stripe credentials and prices remain deployment-level secrets.",
+      "用于创建 Stripe 客户、结账会话和订阅。保存后会加密存储。",
+      "Used to create Stripe customers, checkout sessions, and subscriptions. Encrypted at rest.",
     ],
-    kind: "boolean",
+    kind: "secret",
   },
   {
-    key: "BILLING_TOPUPS_ENABLED",
+    key: "STRIPE_WEBHOOK_SECRET",
     group: "commercial",
-    title: ["启用额度充值", "Enable credit top-ups"],
+    title: ["Stripe Webhook 密钥", "Stripe webhook secret"],
     description: [
-      "开放一次性额度包购买；只有订阅计费同时开启时才生效。",
-      "Allow one-time credit pack purchases; effective only while subscription billing is enabled.",
+      "用于验证 Stripe Webhook 签名。保存后会加密存储。",
+      "Used to verify Stripe webhook signatures. Encrypted at rest.",
     ],
-    kind: "boolean",
+    kind: "secret",
+  },
+  {
+    key: "STRIPE_PRICE_PRO_MONTHLY",
+    group: "commercial",
+    title: ["Pro 月付价格", "Pro monthly price"],
+    description: ["美元金额，例如 5。", "Price in USD, for example 5."],
+    kind: "price",
+  },
+  {
+    key: "STRIPE_PRICE_PRO_ANNUAL",
+    group: "commercial",
+    title: ["Pro 年付价格", "Pro annual price"],
+    description: ["美元金额，例如 50。", "Price in USD, for example 50."],
+    kind: "price",
+  },
+  {
+    key: "STRIPE_PRICE_PRO_PROMOTIONAL",
+    group: "commercial",
+    title: ["Pro 限时活动价格", "Pro promotional price"],
+    description: [
+      "可选的月付美元活动价。留空时不显示活动标签和原价删除线。",
+      "Optional promotional monthly price in USD. Leave blank to hide the offer label and crossed-out price.",
+    ],
+    kind: "optionalPrice",
+  },
+  {
+    key: "STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL",
+    group: "commercial",
+    title: ["Pro 年付限时活动价格", "Pro annual promotional price"],
+    description: [
+      "可选的年付美元活动价。留空时年付选项不显示活动标签和原价删除线。",
+      "Optional annual promotional price in USD. Leave blank to hide the offer label and crossed-out annual price.",
+    ],
+    kind: "optionalPrice",
   },
   {
     key: "CLOUD_MAX_PROJECTS_PER_USER",
@@ -201,8 +235,8 @@ export default function AdminRuntimeConfigPage() {
           </div>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
             {zh
-              ? "这些策略会在保存后立即用于新请求和后台任务。清除覆盖值后会重新继承部署环境中的默认值。"
-              : "These policies apply to new requests and background jobs immediately. Clear an override to inherit the deployment environment again."}
+            ? "这些配置会在保存后立即用于新请求。清除覆盖值后会重新继承部署环境中的默认值。BILLING_ENABLED 和 BILLING_TOPUPS_ENABLED 仅通过环境变量配置。"
+            : "These settings apply to new requests immediately. Clear an override to inherit the deployment environment again. BILLING_ENABLED and BILLING_TOPUPS_ENABLED are environment-only."}
           </p>
         </div>
         <button
@@ -226,8 +260,8 @@ export default function AdminRuntimeConfigPage() {
         <ShieldAlert className="mt-0.5 size-4 shrink-0" />
         <p>
           {zh
-            ? "密钥、数据库、Redis、端口、域名和认证启动参数不会出现在这里；修改它们仍需通过安全的部署环境并重启服务。"
-            : "Secrets, databases, Redis, ports, domains, and authentication bootstrap values stay deployment-managed and still require a service restart."}
+            ? "Stripe 密钥会加密保存且只以掩码显示；留空或保持掩码不会覆盖现有密钥。数据库、Redis、端口、域名和认证启动参数仍由部署环境管理。"
+            : "Stripe secrets are encrypted and only shown as masks; blank or masked values do not replace an existing secret. Databases, Redis, ports, domains, and auth bootstrap settings remain deployment-managed."}
         </p>
       </div>
 
@@ -247,7 +281,7 @@ export default function AdminRuntimeConfigPage() {
               return (
                 <div
                   key={item.key}
-                  className="grid gap-4 px-5 py-5 lg:grid-cols-[1fr_280px] lg:items-center"
+                  className="grid gap-4 px-5 py-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-center"
                 >
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -273,7 +307,7 @@ export default function AdminRuntimeConfigPage() {
                       {item.description[zh ? 0 : 1]}
                     </p>
                   </div>
-                  <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3 lg:grid-cols-[148px_88px]">
+                  <div className="grid grid-cols-[minmax(0,1fr)_88px] items-center gap-3">
                     <div className="flex min-w-0 justify-end">
                       {item.kind === "boolean" && (
                         <Switch
@@ -348,6 +382,56 @@ export default function AdminRuntimeConfigPage() {
                             <option value="strict">{zh ? "严格拒绝" : "Strict"}</option>
                           </select>
                           <ChevronDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                        </div>
+                      )}
+                      {item.kind === "secret" && (
+                        <input
+                          type="password"
+                          autoComplete="new-password"
+                          value={values[item.key] as string}
+                          placeholder={zh ? "输入密钥" : "Enter secret"}
+                          aria-label={item.title[zh ? 0 : 1]}
+                          onChange={(event) => setValue(item.key, event.target.value)}
+                          className="h-10 w-full rounded-xl border border-border/60 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                        />
+                      )}
+                      {item.kind === "price" && (
+                        <div className="relative w-full">
+                          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={values[item.key] as number}
+                            aria-label={item.title[zh ? 0 : 1]}
+                            onChange={(event) => {
+                              const next = Number(event.target.value);
+                              if (Number.isFinite(next) && next > 0) setValue(item.key, next);
+                            }}
+                            className="h-10 w-full rounded-xl border border-border/60 bg-background/70 ps-7 pe-3 text-sm font-medium tabular-nums text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                          />
+                        </div>
+                      )}
+                      {item.kind === "optionalPrice" && (
+                        <div className="relative w-full">
+                          <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={(values[item.key] as number) > 0 ? (values[item.key] as number) : ""}
+                            placeholder={zh ? "留空则关闭" : "Blank disables offer"}
+                            aria-label={item.title[zh ? 0 : 1]}
+                            onChange={(event) => {
+                              if (event.target.value === "") {
+                                setValue(item.key, 0);
+                                return;
+                              }
+                              const next = Number(event.target.value);
+                              if (Number.isFinite(next) && next > 0) setValue(item.key, next);
+                            }}
+                            className="h-10 w-full rounded-xl border border-border/60 bg-background/70 ps-7 pe-3 text-sm font-medium tabular-nums text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                          />
                         </div>
                       )}
                     </div>

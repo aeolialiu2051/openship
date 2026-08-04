@@ -52,7 +52,7 @@ import {
   type PlanTierId,
 } from "@repo/core";
 import { db, schema, repos, eq, sql, hashStringToInt } from "@repo/db";
-import { env } from "../../config/env";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 import { sendMail } from "../../lib/mail";
 import { resolveOrgOwner } from "../../lib/org-actor";
 import { stripe } from "../../lib/stripe-client";
@@ -155,14 +155,15 @@ export async function handleStripeEvent(
   rawBody: string,
   signature?: string,
 ): Promise<void> {
-  if (!env.STRIPE_WEBHOOK_SECRET || !signature) {
+  const runtimeConfig = await getRuntimeConfig();
+  if (!runtimeConfig.STRIPE_WEBHOOK_SECRET || !signature) {
     throw new Error("Webhook signature verification failed");
   }
 
-  const event = stripe().webhooks.constructEvent(
+  const event = (await stripe()).webhooks.constructEvent(
     rawBody,
     signature,
-    env.STRIPE_WEBHOOK_SECRET,
+    runtimeConfig.STRIPE_WEBHOOK_SECRET,
   );
 
   // pg_try_advisory_xact_lock serializes processing across replicas
@@ -362,7 +363,7 @@ async function handleCheckoutSessionCompleted(
 
     // Pull the fresh subscription so we have authoritative period dates +
     // price_id (the session object's expansions vary by API version).
-    const sub = await stripe().subscriptions.retrieve(stripeSubscriptionId);
+    const sub = await (await stripe()).subscriptions.retrieve(stripeSubscriptionId);
 
     // Customer mapping table — keeps subsequent webhooks attributable when
     // they only carry customer_id (no metadata).
@@ -644,7 +645,7 @@ async function handleInvoicePaid(invoice: Stripe.Invoice): Promise<void> {
 
   // Pull the live subscription to get the new period boundaries (the invoice
   // close usually advances current_period_*).
-  const sub = await stripe().subscriptions.retrieve(stripeSubscriptionId);
+  const sub = await (await stripe()).subscriptions.retrieve(stripeSubscriptionId);
   const planTierId = localSub.planTierId as PlanTierId;
 
   await upsertSubscription({
@@ -748,6 +749,10 @@ function resolveIntervalFromSub(sub: Stripe.Subscription): "monthly" | "annual" 
 }
 
 function resolvePlanFromPriceId(sub: Stripe.Subscription): PlanTierId {
+  const metadataTier = sub.metadata?.planTierId;
+  if (metadataTier === "pro" || metadataTier === "team" || metadataTier === "enterprise") {
+    return metadataTier;
+  }
   const priceId = resolvePriceIdFromSub(sub);
   for (const tier of ["pro", "team", "enterprise"] as const) {
     const plan = PLANS[tier];

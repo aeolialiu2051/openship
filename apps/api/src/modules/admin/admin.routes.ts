@@ -23,6 +23,14 @@ const instanceAdminRoute = {
 
 r.public("get", "/overview", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.overview);
 r.public("get", "/users", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.users);
+r.public(
+  "patch",
+  "/users/:id/plan",
+  { ...instanceAdminRoute, rateLimit: "write-authed" },
+  authMiddleware,
+  requireInstanceAdmin,
+  controller.updateUserPlan,
+);
 r.public("get", "/apps", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.applications);
 r.public("post", "/apps/:id/suspend", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.suspendApplication);
 r.public("post", "/apps/:id/resume", instanceAdminRoute, authMiddleware, requireInstanceAdmin, controller.resumeApplication);

@@ -35,6 +35,23 @@ export async function users(c: Context) {
   );
 }
 
+export async function updateUserPlan(c: Context) {
+  const ctx = getRequestContext(c);
+  const userId = param(c, "id");
+  const body: { planTierId?: "free" | "pro" } = await c.req
+    .json<{ planTierId?: "free" | "pro" }>()
+    .catch(() => ({}));
+  const result = await service.updateUserPlan(userId, body.planTierId as "free" | "pro");
+  await audit.record(auditContextFrom(c, result.organizationId, ctx.userId), {
+    eventType: `admin.user.plan_changed_to_${result.planTierId}`,
+    resourceType: "user",
+    resourceId: userId,
+    before: { planTierId: result.previousPlan },
+    after: { planTierId: result.planTierId },
+  });
+  return c.json({ data: result });
+}
+
 export async function applications(c: Context) {
   return c.json(
     await service.listApplications({

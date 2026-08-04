@@ -25,6 +25,7 @@ import {
 import * as billingService from "./billing.service";
 import * as billingRepository from "./billing.repository";
 import { getNamespaceUsage } from "./billing-oblien-quota";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 
 /* ---------- Plans (public) ---------- */
 
@@ -34,6 +35,7 @@ import { getNamespaceUsage } from "./billing-oblien-quota";
  * are returned as-is — the client is responsible for formatting.
  */
 export async function listPlans(c: Context) {
+  const runtimeConfig = await getRuntimeConfig();
   const plans = PLAN_IDS.map((id) => {
     const p = PLANS[id];
     return {
@@ -41,7 +43,26 @@ export async function listPlans(c: Context) {
       name: p.name,
       description: p.description,
       popular: p.popular,
-      price: p.price, // { monthly: cents|null, annual: cents|null }
+      price:
+        id === "pro"
+          ? {
+              monthly: Math.round(runtimeConfig.STRIPE_PRICE_PRO_MONTHLY * 100),
+              annual: Math.round(runtimeConfig.STRIPE_PRICE_PRO_ANNUAL * 100),
+            }
+          : p.price,
+      promotionalPrice:
+        id === "pro"
+          ? {
+              monthly:
+                runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL > 0
+                  ? Math.round(runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL * 100)
+                  : null,
+              annual:
+                runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL > 0
+                  ? Math.round(runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL * 100)
+                  : null,
+            }
+          : { monthly: null, annual: null },
       monthlyCredits: p.monthlyCredits,
       oblienLimits: p.oblienLimits,
       features: p.features,

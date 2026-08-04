@@ -7,10 +7,6 @@ import BillingTabSkeleton from "./BillingTabSkeleton";
 
 export type BillingTab = "overview" | "usage" | "plans" | "topups" | "payment" | "invoices";
 
-const BillingOverview = dynamic(
-  () => import("@/components/billing/BillingOverview").then((mod) => mod.BillingOverview),
-  { loading: BillingTabSkeleton },
-);
 const BillingUsage = dynamic(
   () => import("@/components/billing/BillingUsage").then((mod) => mod.BillingUsage),
   { loading: BillingTabSkeleton },
@@ -35,7 +31,7 @@ const InvoicesPanel = dynamic(
 export function BillingTabContent({ tab, state }: { tab: BillingTab; state: BillingState }) {
   switch (tab) {
     case "overview":
-      return <BillingOverview state={state} />;
+      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} />;
     case "usage":
       return <BillingUsage state={state} />;
     case "plans":

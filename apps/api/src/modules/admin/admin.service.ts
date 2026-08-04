@@ -14,6 +14,7 @@ import { sendMail } from "../../lib/mail";
 import { resolveDashboardPublicUrl } from "../../lib/public-url";
 import { getSupportEmail } from "../../lib/support-email";
 import { resolveTraefikManualConfig } from "../../lib/traefik-routing";
+import { setQuotaForTier } from "../billing/billing-oblien-quota";
 
 const MAX_PAGE_SIZE = 200;
 const TREND_RANGE_DAYS = [7, 14, 30] as const;
@@ -374,6 +375,16 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
         autoProvisioned: schema.user.autoProvisioned,
         createdAt: schema.user.createdAt,
         updatedAt: schema.user.updatedAt,
+        planTierId: sql<string>`coalesce(
+          (select o.plan_tier_id from ${schema.organization} o
+           where o.id = ('org_' || ${outerUserId}) limit 1),
+          (select o.plan_tier_id
+           from ${schema.organization} o
+           join ${schema.member} m on m.organization_id = o.id
+           where m.user_id = ${outerUserId} and m.role = 'owner' and o.is_team = false
+           order by o.created_at asc limit 1),
+          'free'
+        )`,
         organizationCount: sql<number>`(
           select count(*)::int from ${schema.member} m where m.user_id = ${outerUserId}
         )`,
@@ -423,6 +434,41 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
     page,
     perPage,
   };
+}
+
+export async function updateUserPlan(userId: string, planTierId: "free" | "pro") {
+  if (planTierId !== "free" && planTierId !== "pro") {
+    throw new ValidationError("Plan must be free or pro");
+  }
+  const [target] = await db
+    .select({
+      organizationId: schema.organization.id,
+      previousPlan: schema.organization.planTierId,
+    })
+    .from(schema.organization)
+    .innerJoin(schema.member, eq(schema.member.organizationId, schema.organization.id))
+    .where(
+      and(
+        eq(schema.member.userId, userId),
+        eq(schema.member.role, "owner"),
+        eq(schema.organization.isTeam, false),
+      ),
+    )
+    .orderBy(
+      sql`case when ${schema.organization.id} = ${`org_${userId}`} then 0 else 1 end`,
+      asc(schema.organization.createdAt),
+    )
+    .limit(1);
+
+  if (!target) throw new NotFoundError("Personal workspace for user", userId);
+
+  await setQuotaForTier(target.organizationId, planTierId);
+  await db
+    .update(schema.organization)
+    .set({ planTierId, subscriptionStatus: "active" })
+    .where(eq(schema.organization.id, target.organizationId));
+
+  return { ...target, planTierId };
 }
 
 export async function listApplications(

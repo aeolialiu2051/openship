@@ -6,12 +6,22 @@ import { api } from "@/lib/api/client";
 import { useI18n } from "@/components/i18n-provider";
 
 export function OpenStripePortalButton({ label }: { label?: string }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const buttonLabel = label ?? t.billing.portal.openButton;
 
   async function openPortal() {
+    const portalWindow = window.open("about:blank", "_blank");
+    if (!portalWindow) {
+      setError(
+        locale === "zh"
+          ? "浏览器阻止了新窗口，请允许弹出窗口后重试"
+          : "Your browser blocked the new window. Allow pop-ups and try again.",
+      );
+      return;
+    }
+    portalWindow.opener = null;
     setPending(true);
     setError(null);
     try {
@@ -24,8 +34,10 @@ export function OpenStripePortalButton({ label }: { label?: string }) {
       if (!portalUrl) {
         throw new Error(t.billing.portal.errorMissingUrl);
       }
-      window.location.href = portalUrl;
+      portalWindow.location.href = portalUrl;
+      setPending(false);
     } catch (err) {
+      portalWindow.close();
       setError(err instanceof Error ? err.message : t.billing.portal.errorOpenFailed);
       setPending(false);
     }

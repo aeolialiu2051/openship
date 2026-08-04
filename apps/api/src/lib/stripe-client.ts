@@ -29,7 +29,7 @@
  */
 
 import Stripe from "stripe";
-import { env } from "../config/env";
+import { getRuntimeConfig } from "./runtime-config";
 
 /**
  * Pinned Stripe API version. Cast to match the SDK's
@@ -41,23 +41,26 @@ import { env } from "../config/env";
 export const STRIPE_API_VERSION = "2024-12-18.acacia" as unknown as Stripe.LatestApiVersion;
 
 let _stripe: Stripe | null = null;
+let _stripeSecret = "";
 
 /**
  * Return the process-wide Stripe client. Throws when STRIPE_SECRET_KEY
  * is not configured — the only legitimate callers are CLOUD_MODE
  * billing paths, which require the secret by definition.
  */
-export function stripe(): Stripe {
-  if (_stripe) return _stripe;
-
-  if (!env.STRIPE_SECRET_KEY) {
+export async function stripe(): Promise<Stripe> {
+  const { STRIPE_SECRET_KEY: secretKey } = await getRuntimeConfig();
+  if (!secretKey) {
     throw new Error("Stripe is not configured (STRIPE_SECRET_KEY missing)");
   }
 
-  _stripe = new Stripe(env.STRIPE_SECRET_KEY, {
+  if (_stripe && _stripeSecret === secretKey) return _stripe;
+
+  _stripe = new Stripe(secretKey, {
     apiVersion: STRIPE_API_VERSION,
     typescript: true,
   });
+  _stripeSecret = secretKey;
   return _stripe;
 }
 
@@ -68,4 +71,5 @@ export function stripe(): Stripe {
  */
 export function __resetStripeClientForTests(): void {
   _stripe = null;
+  _stripeSecret = "";
 }

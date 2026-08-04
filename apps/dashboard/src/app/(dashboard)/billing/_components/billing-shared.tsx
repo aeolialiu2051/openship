@@ -3,12 +3,9 @@
 import Link from "next/link";
 import {
   ArrowUpRight,
-  BarChart3,
   Building2,
-  Coins,
   CreditCard,
   Crown,
-  LayoutDashboard,
   Receipt,
   Sparkles,
   Zap,
@@ -38,10 +35,7 @@ export const BILLING_TABS: Array<{
   href: string;
   icon: LucideIcon;
 }> = [
-  { key: "overview", label: "Overview", href: "/billing/overview", icon: LayoutDashboard },
-  { key: "usage", label: "Usage", href: "/billing/usage", icon: BarChart3 },
-  { key: "plans", label: "Plans", href: "/billing/plans", icon: Crown },
-  { key: "topups", label: "Top-ups", href: "/billing/topups", icon: Coins },
+  { key: "overview", label: "Plans", href: "/billing/overview", icon: Crown },
   { key: "payment", label: "Payment Method", href: "/billing/payment", icon: CreditCard },
   { key: "invoices", label: "Invoices", href: "/billing/invoices", icon: Receipt },
 ];

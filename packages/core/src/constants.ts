@@ -109,6 +109,11 @@ export interface CreditPackDefinition {
   sortOrder: number;
 }
 
+function envDollarPrice(name: string, fallback: number): number {
+  const dollars = Number(process.env[name] ?? fallback);
+  return Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : fallback * 100;
+}
+
 export const PLANS: Record<PlanTierId, PlanDefinition> = {
   free: {
     id: "free",
@@ -143,11 +148,13 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
     id: "pro",
     name: "Pro",
     description: "For solo builders shipping production workloads",
-    price: { monthly: null, annual: null }, // coming soon — pricing not published
-    stripePriceId: {
-      monthly: process.env.STRIPE_PRICE_PRO_MONTHLY ?? "price_pro_monthly_placeholder",
-      annual: process.env.STRIPE_PRICE_PRO_ANNUAL ?? "price_pro_annual_placeholder",
+    price: {
+      monthly: envDollarPrice("STRIPE_PRICE_PRO_MONTHLY", 5),
+      annual: envDollarPrice("STRIPE_PRICE_PRO_ANNUAL", 50),
     },
+    // Pro uses inline Stripe price_data so operators configure simple USD
+    // amounts instead of pre-creating Stripe Price objects.
+    stripePriceId: { monthly: null, annual: null },
     monthlyCredits: 10_000_000, // 10,000 credits/mo (placeholder — tune before launch)
     oblienLimits: {
       max_workspaces: 10,

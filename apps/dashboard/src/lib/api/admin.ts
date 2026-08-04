@@ -44,6 +44,7 @@ export interface AdminUserRow {
   autoProvisioned: boolean;
   createdAt: string;
   updatedAt: string;
+  planTierId: "free" | "pro" | string;
   organizationCount: number;
   projectCount: number;
   deploymentCount: number;
@@ -124,12 +125,16 @@ export interface AdminPage<T> {
 }
 
 export type AdminRuntimeConfig = {
-  BILLING_ENABLED: boolean;
-  BILLING_TOPUPS_ENABLED: boolean;
   CLOUD_MAX_PROJECTS_PER_USER: number;
   CLOUD_SESSION_PINNING: "off" | "warn" | "strict";
   NOTIFY_WEBHOOK_ALLOW_INTERNAL: boolean;
   VIBRAIL_CLOUDFLARE_PROXY: boolean;
+  STRIPE_SECRET_KEY: string;
+  STRIPE_WEBHOOK_SECRET: string;
+  STRIPE_PRICE_PRO_MONTHLY: number;
+  STRIPE_PRICE_PRO_ANNUAL: number;
+  STRIPE_PRICE_PRO_PROMOTIONAL: number;
+  STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL: number;
 };
 
 export interface AdminRuntimeConfigState {
@@ -164,6 +169,13 @@ export const adminApi = {
     verified?: boolean;
   } = {}) {
     return api.get<AdminPage<AdminUserRow>>("admin/users", { params: params(input) });
+  },
+
+  updateUserPlan(userId: string, planTierId: "free" | "pro") {
+    return api.patch<{ data: { organizationId: string; planTierId: "free" | "pro" } }>(
+      `admin/users/${userId}/plan`,
+      { planTierId },
+    );
   },
 
   applications(input: {

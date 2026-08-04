@@ -140,10 +140,8 @@ export const instanceSettings = pgTable("instance_settings", {
 
   // ── Runtime configuration overrides ───────────────────────────────────────
   //
-  // A deliberately small allowlist of non-secret policy values that instance
-  // admins may change without restarting or redeploying the control plane.
-  // Environment variables remain the fallback and continue to own bootstrap,
-  // networking, credentials, and every other startup-sensitive setting.
+  // A deliberately small allowlist of runtime values instance admins may
+  // change without restarting. Secret values are encrypted before storage.
   runtimeConfig: jsonb("runtime_config")
     .$type<Record<string, unknown>>()
     .notNull()
