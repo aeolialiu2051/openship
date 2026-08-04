@@ -33,6 +33,7 @@ import { authClient, signOut } from "@/lib/auth-client";
 import { useTheme } from "@/components/theme-provider";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { Logo } from "@/components/logo";
+import { PlanBadge } from "@/components/plan-badge";
 import { useAuth } from "@/context/AuthContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
@@ -170,6 +171,7 @@ export function Sidebar({
   const displayEmail = user?.email || (isDesktop ? "Desktop" : "");
   const cloudBadge = cloudConnected ? cloudUser : null;
   const displayInitial = displayName?.[0] ?? displayEmail?.[0] ?? "?";
+  const isPro = user?.planTierId === "pro";
   const isSaaS = !selfHosted || cloudConnected;
   const navSections = getNavSections(isSaaS, selfHosted, userServers, user?.role === "admin");
   const pathname = usePathname();
@@ -408,9 +410,12 @@ export function Sidebar({
           <div className="flex h-16 shrink-0 items-center justify-between border-b border-border/50 px-4">
             <div className="flex min-w-0 items-center gap-2.5">
               <Logo size={26} className="shrink-0" />
-              <span className="truncate text-base font-semibold tracking-tight text-foreground">
-                {t.brand}
-              </span>
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="truncate text-base font-semibold tracking-tight text-foreground">
+                  {t.brand}
+                </span>
+                {isPro && <PlanBadge planTierId="pro" compact />}
+              </div>
             </div>
             <button
               type="button"
@@ -505,9 +510,12 @@ export function Sidebar({
           <div className="flex items-center gap-2.5 min-w-0">
             <Logo size={26} className="shrink-0" />
             {!collapsed && (
-              <span className="text-base font-semibold tracking-tight text-foreground truncate">
-                {t.brand}
-              </span>
+              <div className="flex min-w-0 items-center gap-1">
+                <span className="truncate text-base font-semibold tracking-tight text-foreground">
+                  {t.brand}
+                </span>
+                {isPro && <PlanBadge planTierId="pro" compact />}
+              </div>
             )}
           </div>
 
