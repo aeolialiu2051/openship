@@ -138,9 +138,9 @@ Backups get a real home, and a batch of delete/login/database reliability fixes.
   projects and services back up there.
 
 ### Cloud
-- **Per-user project cap** — Vibrail Cloud enforces a hard cap on projects per
-  user (env `CLOUD_MAX_PROJECTS_PER_USER`, default 2), at both create and
-  folder-upload/ensure. Self-hosted is unmetered.
+- **Per-user project cap** — Free users are limited by
+  `CLOUD_MAX_PROJECTS_PER_USER` (default 5) for both Cloud and self-hosted
+  project creation, including folder-upload/ensure. Pro users are unlimited.
 
 ### Reliability & polish
 - **Deletes never get stuck** — project deletion shows a real **Deleting** state,

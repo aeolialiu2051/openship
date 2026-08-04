@@ -116,12 +116,11 @@ const envSchema = z.object({
    */
   BILLING_TOPUPS_ENABLED: envBool("false"),
   /**
-   * Vibrail Cloud only: hard cap on projects per user (a cloud org maps 1:1
-   * to its owning SaaS user, so per-org == per-user here). Enforced at project
-   * create + ensure. Self-hosted ignores this and uses the high
-   * SYSTEM.PROJECTS.MAX_PER_USER safety cap instead. Default 2 for now.
+   * Free-tier hard cap on projects per user. Enforced at project create +
+   * ensure for both Vibrail Cloud and self-hosted projects. Pro and higher
+   * tiers are unlimited. Default 5.
    */
-  CLOUD_MAX_PROJECTS_PER_USER: z.coerce.number().int().min(1).default(2),
+  CLOUD_MAX_PROJECTS_PER_USER: z.coerce.number().int().min(1).default(5),
   /**
    * Deployment mode - determines the runtime + infrastructure combination:
    *   - "docker"  (default) → Docker runtime + Traefik routing/SSL (self-hosted)

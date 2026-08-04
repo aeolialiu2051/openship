@@ -9,7 +9,6 @@ import {
   ConflictError,
   ForbiddenError,
   ValidationError,
-  SYSTEM,
   safeErrorMessage,
   compareSemver,
   isReleaseProvider,
@@ -49,6 +48,7 @@ import { applyProjectRouting } from "../domains/routing-apply.service";
 import { syncProjectManagedEdge } from "./project-runtime.service";
 import { normalizeStoredPublicEndpoints, publicEndpointHostname } from "../../lib/public-endpoints";
 import { assertFreeEndpointsAllowed } from "../../lib/free-domain-guard";
+import { assertProjectQuota } from "./project-quota";
 import type {
   TCreateProjectBody,
   TCreateProjectEnvironmentBody,
@@ -676,28 +676,6 @@ async function findProjectByAppSlug(
 }
 
 // ─── Ensure project (create or return existing) ─────────────────────────────
-
-/**
- * Enforce the project cap before creating one. On Vibrail Cloud (CLOUD_MODE) a
- * cloud org maps 1:1 to its owning SaaS user, so this per-org count IS the
- * per-user cap (env CLOUD_MAX_PROJECTS_PER_USER, default 2). Self-hosted is not
- * metered — it uses the high SYSTEM.PROJECTS.MAX_PER_USER safety cap. Called
- * from BOTH createProject and ensureProject so the folder-upload/ensure path
- * can't bypass it.
- */
-async function assertProjectQuota(organizationId: string): Promise<void> {
-  const { getRuntimeConfig } = await import("../../lib/runtime-config");
-  const cap = env.CLOUD_MODE
-    ? (await getRuntimeConfig()).CLOUD_MAX_PROJECTS_PER_USER
-    : SYSTEM.PROJECTS.MAX_PER_USER;
-  const { total } = await repos.projectGroup.listByOrganization(organizationId, {
-    page: 1,
-    perPage: 1,
-  });
-  if (total >= cap) {
-    throw new ValidationError(`Project limit reached (${cap})`);
-  }
-}
 
 export async function ensureProject(
   data: EnsureProjectBody,

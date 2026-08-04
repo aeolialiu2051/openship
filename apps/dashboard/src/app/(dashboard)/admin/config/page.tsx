@@ -88,10 +88,10 @@ const ITEMS: Array<{
   {
     key: "CLOUD_MAX_PROJECTS_PER_USER",
     group: "commercial",
-    title: ["每位云用户的项目上限", "Cloud projects per user"],
+    title: ["Free 用户项目上限", "Free projects per user"],
     description: [
-      "创建或确保项目时即时应用的新上限，不影响已有项目。",
-      "Apply the new cap to project creation immediately without removing existing projects.",
+      "对 Cloud 和 self-hosted 项目的创建或确保操作即时生效；Pro 用户不受限制。",
+      "Applies immediately to Cloud and self-hosted project creation; Pro users are unlimited.",
     ],
     kind: "number",
   },
