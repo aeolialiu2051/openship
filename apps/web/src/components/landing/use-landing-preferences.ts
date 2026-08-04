@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { LANDING_LOCALE_COOKIE } from "@/lib/landing-locale";
+import { LANDING_LOCALE_COOKIE, LANDING_LOCALE_STORAGE_KEY } from "@/lib/landing-locale";
 import type { LandingLocale, LandingTheme } from "./landing-copy";
 
-const LOCALE_STORAGE_KEY = LANDING_LOCALE_COOKIE;
+const LOCALE_STORAGE_KEY = LANDING_LOCALE_STORAGE_KEY;
 const THEME_STORAGE_KEY = "vibrail-landing-theme";
 
 export function useLandingPreferences(initialLocale?: LandingLocale) {
