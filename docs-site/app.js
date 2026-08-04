@@ -429,7 +429,7 @@ const pagesZh = {
       ['REST API', '使用 Bearer Token 调用项目与部署接口。', '/docs/api'],
       ['MCP', '让 Codex、Claude、Cursor 等 AI 客户端安全操作 Vibrail。', '/docs/mcp'],
       ['常见问题', '查看部署、域名、鉴权和运行时问题。', '/docs/faq'],
-    ])}`,
+    ])}<h2 id="acknowledgements">致谢</h2><p>Vibrail 基于 <a href="https://github.com/oblien/openship" target="_blank" rel="noreferrer">openship</a> 开发。感谢原作者和贡献者为这一开源项目所做的贡献。</p>`,
   },
   '/docs/quickstart': {
     nav: 'docs',
@@ -661,7 +661,7 @@ const pagesEn = {
       ['REST API', 'Use bearer tokens to integrate with projects and deployments.', '/docs/api'],
       ['MCP', 'Give AI clients scoped access to Vibrail.', '/docs/mcp'],
       ['FAQ', 'Find answers for deployment, networking, and authentication.', '/docs/faq'],
-    ])}`,
+    ])}<h2 id="acknowledgements">Acknowledgements</h2><p>Vibrail is based on <a href="https://github.com/oblien/openship" target="_blank" rel="noreferrer">openship</a>. We are grateful to the original authors and contributors for their work on the open-source project.</p>`,
   },
   '/docs/quickstart': {
     nav: 'docs',
