@@ -307,15 +307,10 @@ export async function createTeamOrg(c: Context) {
     .slice(0, 50) || `team-${generateId("org").slice(4, 12)}`;
   const slug = body.slug?.trim() || slugFromName;
 
-  const created = await auth.api
-    .createOrganization({
-      body: { name, slug },
-      headers: c.req.raw.headers,
-    })
-    .catch((err: unknown) => {
-      console.error("[create-team-org] Better Auth createOrganization failed:", err);
-      return null;
-    });
+  const created = await auth.api.createOrganization({
+    body: { name, slug },
+    headers: c.req.raw.headers,
+  });
 
   // Better Auth's response shape varies slightly across versions —
   // pull the id defensively.

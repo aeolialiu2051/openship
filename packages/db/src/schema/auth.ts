@@ -26,7 +26,10 @@ export const session = pgTable("session", {
   userId: text("user_id")
     .notNull()
     .references(() => user.id, { onDelete: "cascade" }),
-  activeOrganizationId: text("active_organization_id").notNull(),
+  // Better Auth temporarily clears this value when deleting the active
+  // organization, then our post-delete flow switches the user back to their
+  // personal workspace. It must therefore be nullable during that transition.
+  activeOrganizationId: text("active_organization_id"),
 });
 
 export const account = pgTable("account", {

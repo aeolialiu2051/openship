@@ -10,7 +10,9 @@
     "create": "Create",
     "toastTitle": "Organization",
     "switchFailed": "Failed to switch",
-    "createFailed": "Failed to create"
+    "createFailed": "Failed to create",
+    "freeLimitReached": "Free users can only create one workspace.",
+    "proLimitReached": "Pro users can create up to 10 workspaces."
   },
   "sidebar": {
     "workspaceFallback": "Workspace",

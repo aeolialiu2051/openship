@@ -21,6 +21,7 @@ import {
   api,
   ApiError,
   getApiErrorMessage,
+  getApiErrorCode,
   isNetworkError,
   permissionsApi,
   type PickerGrant,
@@ -222,7 +223,14 @@ export function TeamTab() {
         window.location.reload();
       }
     } catch (err) {
-      showToast(getApiErrorMessage(err, t.settings.team.toast.createFailed), "error", t.settings.common.toast.team);
+      const code = getApiErrorCode(err);
+      const message =
+        code === "FREE_ORGANIZATION_LIMIT_REACHED"
+          ? t.settings.team.toast.freeWorkspaceLimit
+          : code === "PRO_ORGANIZATION_LIMIT_REACHED"
+            ? t.settings.team.toast.proWorkspaceLimit
+            : getApiErrorMessage(err, t.settings.team.toast.createFailed);
+      showToast(message, "error", t.settings.common.toast.team);
     } finally {
       setCreatingTeam(false);
     }

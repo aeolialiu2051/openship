@@ -10,7 +10,9 @@
     "create": "创建",
     "toastTitle": "组织",
     "switchFailed": "切换失败",
-    "createFailed": "创建失败"
+    "createFailed": "创建失败",
+    "freeLimitReached": "Free 用户只能创建一个工作区。",
+    "proLimitReached": "Pro 用户最多可以创建 10 个工作区。"
   },
   "sidebar": {
     "workspaceFallback": "工作区",

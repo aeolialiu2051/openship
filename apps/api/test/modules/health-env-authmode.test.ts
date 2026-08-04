@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // GET /health/env is what the dashboard reads to decide which login flow to
 // render ("none" → zero-auth, "local" → Better Auth login). The non-desktop
@@ -31,6 +31,8 @@ vi.mock("@repo/db", () => ({
   },
 }));
 
+import { env } from "../../src/config/env";
+
 async function getEnv() {
   const { Hono } = await import("hono");
   const { healthRoutes } = await import("../../src/modules/health/health.routes");
@@ -50,8 +52,13 @@ async function getEnv() {
 
 afterEach(() => {
   getThrows = false;
+  (env as { CLOUD_MODE: boolean }).CLOUD_MODE = false;
   delete settings.authMode;
   delete settings.teamMode;
+});
+
+beforeEach(() => {
+  (env as { CLOUD_MODE: boolean }).CLOUD_MODE = false;
 });
 
 describe("GET /health/env authMode", () => {
@@ -80,6 +87,15 @@ describe("GET /health/env authMode", () => {
     // "login required" is the safe default.
     getThrows = true;
     expect((await getEnv()).body.authMode).toBe("local");
+  });
+
+  it("forces local auth on SaaS even when settings contain none", async () => {
+    (env as { CLOUD_MODE: boolean }).CLOUD_MODE = true;
+    settings.authMode = "none";
+
+    const { body } = await getEnv();
+    expect(body.selfHosted).toBe(false);
+    expect(body.authMode).toBe("local");
   });
 
   it("still reports the other instanceSettings fields", async () => {

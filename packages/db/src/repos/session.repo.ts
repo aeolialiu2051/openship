@@ -86,8 +86,7 @@ export function createSessionRepo(db: Database) {
      * carry a stale pointer and downstream code that trusts it (e.g.
      * permission.resolveRequestScopeOrg) breaks in surprising ways.
      *
-     * The session table's `active_organization_id` column is NOT NULL,
-     * so we re-point at the user's deterministic personal org
+     * Re-point at the user's deterministic personal org
      * (`org_${userId}`) — guaranteed to exist for every identity (see
      * provisionUser + the session.create.before hook in lib/auth.ts).
      *

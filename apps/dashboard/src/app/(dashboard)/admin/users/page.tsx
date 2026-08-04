@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, Crown, Loader2, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { adminApi, getApiErrorMessage, type AdminPage, type AdminUserRow } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
+import { PlanBadge } from "@/components/plan-badge";
 import { adminCopy } from "../_components/admin-copy";
 import {
   AdminError,
@@ -173,10 +174,7 @@ export default function AdminUsersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <div className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${row.planTierId === "free" ? "bg-foreground/[0.06] text-muted-foreground" : "bg-primary/10 text-primary"}`}>
-                        {row.planTierId !== "free" && <Crown className="size-3.5" />}
-                        {row.planTierId === "free" ? "FREE" : "PRO"}
-                      </div>
+                      <PlanBadge planTierId={row.planTierId} />
                       <button
                         type="button"
                         disabled={updatingUserId !== null}

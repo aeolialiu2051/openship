@@ -29,6 +29,12 @@ let cached: string | null = null;
  *   - any other mode      → "local" (require login on a fresh self-hosted install)
  */
 export async function getAuthMode(): Promise<"none" | "cloud" | "local"> {
+  // Vibrail SaaS always uses its own Better Auth login. Historical
+  // instance_settings rows can contain desktop/self-hosted values such as
+  // "none"; those must never disable authentication on the multi-tenant
+  // control plane.
+  if (env.CLOUD_MODE) return "local";
+
   if (cached !== null) return cached as "none" | "cloud" | "local";
 
   // Zero-auth ("none") is a desktop-only convenience. A CLI-managed instance

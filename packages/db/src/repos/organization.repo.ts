@@ -12,9 +12,9 @@
  * plugin's invariants and audit hooks stay correct.
  */
 
-import { eq, inArray } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../client";
-import { organization } from "../schema/organization";
+import { member, organization } from "../schema/organization";
 
 export type Organization = typeof organization.$inferSelect;
 
@@ -40,6 +40,31 @@ export function createOrganizationRepo(db: Database) {
         .select()
         .from(organization)
         .where(inArray(organization.id, ids));
+    },
+
+    /**
+     * Resolve the personal workspace that carries a user's account plan.
+     * Prefer the deterministic `org_<userId>` row, then fall back to the
+     * user's oldest owned non-team workspace for legacy installations.
+     */
+    async findPersonalByUserId(userId: string): Promise<Organization | null> {
+      const [row] = await db
+        .select({ organization })
+        .from(organization)
+        .innerJoin(member, eq(member.organizationId, organization.id))
+        .where(
+          and(
+            eq(member.userId, userId),
+            eq(member.role, "owner"),
+            eq(organization.isTeam, false),
+          ),
+        )
+        .orderBy(
+          sql`case when ${organization.id} = ${`org_${userId}`} then 0 else 1 end`,
+          asc(organization.createdAt),
+        )
+        .limit(1);
+      return row?.organization ?? null;
     },
 
     /**

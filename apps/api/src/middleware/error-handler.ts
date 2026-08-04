@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { ZodError } from "zod";
 import { AppError } from "@repo/core";
+import { APIError } from "better-auth/api";
 
 /**
  * Translate a thrown error to a structured JSON response.
@@ -35,6 +36,18 @@ export function handleApiError(err: unknown, c: Context) {
     return c.json(
       { error: message, code },
       statusCode as 400 | 401 | 403 | 404 | 409 | 500,
+    );
+  }
+
+  // Better Auth normally serializes APIError inside its own route handler.
+  // Internal calls such as permissions/create-team-org throw the same error
+  // through Hono, so preserve its status and machine-readable code instead of
+  // collapsing a useful quota error into a generic 500.
+  if (err instanceof APIError) {
+    const message = err.body?.message ?? err.message;
+    return c.json(
+      { error: message, message, code: err.body?.code },
+      err.statusCode as 400 | 401 | 403 | 404 | 409 | 429 | 500,
     );
   }
 

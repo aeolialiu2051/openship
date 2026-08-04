@@ -20,6 +20,7 @@ export type AuthUser = {
   emailVerified: boolean;
   image?: string | null;
   role?: string;
+  planTierId?: "free" | "pro" | string;
 };
 
 type AuthState = {

@@ -11,6 +11,7 @@
 import { describe, test, expect } from "vitest";
 import { Hono } from "hono";
 import { handleApiError } from "@/middleware/error-handler";
+import { APIError } from "better-auth/api";
 
 function makeApp() {
   const app = new Hono();
@@ -45,5 +46,24 @@ describe("handleApiError — malformed JSON body", () => {
     });
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: { ok: true } });
+  });
+
+  test("preserves Better Auth status and business error code", async () => {
+    const app = new Hono();
+    app.onError(handleApiError);
+    app.get("/quota", () => {
+      throw new APIError("FORBIDDEN", {
+        code: "FREE_ORGANIZATION_LIMIT_REACHED",
+        message: "Free users can only create one workspace",
+      });
+    });
+
+    const res = await app.request("/quota");
+    expect(res.status).toBe(403);
+    expect(await res.json()).toEqual({
+      error: "Free users can only create one workspace",
+      message: "Free users can only create one workspace",
+      code: "FREE_ORGANIZATION_LIMIT_REACHED",
+    });
   });
 });

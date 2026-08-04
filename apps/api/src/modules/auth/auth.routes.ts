@@ -21,8 +21,11 @@ import * as ctrl from "./auth.controller";
 
 export const authRoutes = new Hono();
 
+// Override Better Auth's session response on every deploy mode so the
+// dashboard receives canonical instance fields plus the user's account plan.
+authRoutes.get("/get-session", ctrl.getSession);
+
 if (env.DEPLOY_MODE === "desktop") {
-  authRoutes.get("/get-session", ctrl.getSession);
   authRoutes.get("/desktop-login", ctrl.desktopLogin);
   authRoutes.get("/cloud-callback", ctrl.cloudCallback);
   authRoutes.post("/desktop-auth-start", internalAuth, ctrl.desktopAuthStart);

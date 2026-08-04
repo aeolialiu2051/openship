@@ -28,6 +28,7 @@ import { memberAudit } from "../modules/audit/member-emitter";
 import { getOrgBillingState, teardownBillingForOrg } from "../modules/billing/billing-org-cleanup";
 import { provisionUser } from "./provision-user";
 import { resolveDashboardPageUrl, safeErrorMessage } from "@repo/core";
+import { getOrganizationQuota } from "./organization-quota";
 
 /**
  * Better Auth organization-plugin access control config.
@@ -460,7 +461,19 @@ export const auth = betterAuth({
      */
     organization({
       allowUserToCreateOrganization: true,
-      organizationLimit: 10, // per-user cap on org creation
+      organizationLimit: async (user) => {
+        const quota = await getOrganizationQuota(user.id);
+        if (!quota.reached) return false;
+
+        throw new APIError("FORBIDDEN", {
+          code: quota.paid
+            ? "PRO_ORGANIZATION_LIMIT_REACHED"
+            : "FREE_ORGANIZATION_LIMIT_REACHED",
+          message: quota.paid
+            ? "Pro users can create up to 10 workspaces"
+            : "Free users can only create one workspace",
+        });
+      },
       membershipLimit: 100, // per-org cap on member count
       creatorRole: "owner",
       invitationExpiresIn: 60 * 60 * 24 * 7, // 7 days

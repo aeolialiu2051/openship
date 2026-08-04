@@ -39,7 +39,7 @@ const orgClient = (authClient as unknown as {
   organization: {
     list: () => Promise<{ data?: Org[] }>;
     setActive: (opts: { organizationId: string }) => Promise<{ error?: { message?: string } }>;
-    create: (opts: { name: string; slug: string }) => Promise<{ data?: Org; error?: { message?: string } }>;
+    create: (opts: { name: string; slug: string }) => Promise<{ data?: Org; error?: { message?: string; code?: string } }>;
     getFullOrganization: () => Promise<{ data?: { id: string } | null }>;
   };
 }).organization;
@@ -120,8 +120,14 @@ export function AccountSwitcher() {
       const slug = newName.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
       const res = await orgClient.create({ name: newName.trim(), slug });
       if (res.error || !res.data) {
+        const limitMessage =
+          res.error?.code === "FREE_ORGANIZATION_LIMIT_REACHED"
+            ? t.chrome.accountSwitcher.freeLimitReached
+            : res.error?.code === "PRO_ORGANIZATION_LIMIT_REACHED"
+              ? t.chrome.accountSwitcher.proLimitReached
+              : undefined;
         showToast(
-          res.error?.message ?? t.chrome.accountSwitcher.createFailed,
+          limitMessage ?? res.error?.message ?? t.chrome.accountSwitcher.createFailed,
           "error",
           t.chrome.accountSwitcher.toastTitle,
         );

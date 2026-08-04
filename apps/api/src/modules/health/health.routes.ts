@@ -95,7 +95,9 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     try {
       const { repos } = await import("@repo/db");
       const settings = await repos.instanceSettings.get();
-      authMode = settings?.authMode ?? "local";
+      // SaaS must never inherit a historical zero-auth/desktop value from the
+      // shared instance_settings row. CLOUD_MODE always requires Better Auth.
+      authMode = env.CLOUD_MODE ? "local" : settings?.authMode ?? "local";
       teamMode = settings?.teamMode ?? "single_user";
       migrationTargetUrl = settings?.migrationTargetUrl ?? null;
       migrationInProgress = settings?.migrationInProgress ?? false;

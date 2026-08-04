@@ -363,6 +363,8 @@
       "teamNameRequired": "团队名称为必填项",
       "teamCreated": "团队 \"{name}\" 已创建 —— 正在切换…",
       "createFailed": "创建团队失败",
+      "freeWorkspaceLimit": "Free 用户只能创建一个工作区。",
+      "proWorkspaceLimit": "Pro 用户最多可以创建 10 个工作区。",
       "loadFailed": "加载团队失败",
       "updateRoleFailed": "更新角色失败",
       "removeFailed": "移除失败",

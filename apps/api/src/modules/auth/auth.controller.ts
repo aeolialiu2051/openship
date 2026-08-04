@@ -80,6 +80,9 @@ export async function getSession(c: Context) {
       // promotions and revocations visible to the dashboard immediately.
       const databaseUser = await repos.user.findById(realSession.user.id);
       if (!databaseUser) return c.json({ error: "Unauthorized" }, 401);
+      const personalOrganization = await repos.organization.findPersonalByUserId(
+        realSession.user.id,
+      );
 
       // activeOrganizationId is NOT NULL at the schema level — set by
       // the session.create.before hook in lib/auth.ts and by the
@@ -87,7 +90,10 @@ export async function getSession(c: Context) {
       // backfill needed; the migration handled any legacy rows.
       return c.json({
         ...realSession,
-        user: mergeCanonicalInstanceUser(realSession.user, databaseUser),
+        user: {
+          ...mergeCanonicalInstanceUser(realSession.user, databaseUser),
+          planTierId: personalOrganization?.planTierId ?? "free",
+        },
       });
     }
   } catch {
@@ -129,6 +135,8 @@ export async function getSession(c: Context) {
     user: {
       ...user,
       image: null,
+      planTierId:
+        (await repos.organization.findPersonalByUserId(user.id))?.planTierId ?? "free",
       createdAt: now,
       updatedAt: now,
     },

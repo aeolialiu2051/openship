@@ -303,8 +303,8 @@ export function InviteMemberModal({
 
   return (
     <div
-      className={`flex flex-col max-h-[85vh] transition-[width,max-width] duration-300 ${
-        restricted ? "w-[92vw] max-w-[1040px]" : "w-[min(92vw,560px)]"
+      className={`flex w-[92vw] flex-col max-h-[85vh] transition-[max-width] duration-300 ${
+        restricted ? "max-w-[1040px]" : "max-w-[560px]"
       }`}
     >
       <div className="p-6 border-b border-border/50">
