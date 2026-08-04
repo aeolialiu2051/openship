@@ -460,7 +460,7 @@ export function Sidebar({
           <div className="shrink-0 border-t border-border/50 p-3">
             <Link
               href="/library"
-              className="flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 px-3 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20"
+              className="flex min-h-11 items-center justify-center gap-2.5 rounded-xl bg-[linear-gradient(135deg,#417bea,#7954e8)] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(79,103,234,0.95)] transition-opacity hover:opacity-90"
             >
               <Plus className="size-4" strokeWidth={2.5} />
               {label("new-project")}
@@ -600,11 +600,10 @@ export function Sidebar({
           <Link
             href="/library"
             title={collapsed ? label("new-project") : undefined}
-            className={`relative flex items-center justify-center gap-2.5 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all overflow-hidden ${"bg-gradient-to-r from-violet-500/90 via-primary/90 to-blue-500/90 text-white shadow-sm shadow-primary/20 hover:shadow-md hover:shadow-primary/30 hover:brightness-110 dark:from-amber-400/90! dark:via-orange-500/90! dark:to-rose-500/90! dark:shadow-orange-500/20 dark:hover:shadow-orange-500/30 dim:from-[hsl(86_84%_74%)]! dim:via-[hsl(82_80%_64%)]! dim:to-[hsl(74_74%_54%)]! dim:text-[#0c1206]! dim:shadow-lime-400/25 dim:hover:shadow-lime-400/40"}`}
+            className="flex items-center justify-center gap-2.5 rounded-xl bg-[linear-gradient(135deg,#417bea,#7954e8)] px-3 py-2.5 text-sm font-semibold text-white shadow-[0_8px_24px_-12px_rgba(79,103,234,0.95)] transition-opacity hover:opacity-90"
           >
-            <span className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.15),transparent_70%)]" />
-            <Plus className="relative size-4" strokeWidth={2.5} />
-            {!collapsed && <span className="relative">{label("new-project")}</span>}
+            <Plus className="size-4" strokeWidth={2.5} />
+            {!collapsed && <span>{label("new-project")}</span>}
           </Link>
         </div>
 
