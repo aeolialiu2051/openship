@@ -161,7 +161,7 @@ export default function NewAppPage() {
                 label: ap.support,
                 icon: <LifeBuoy className="size-4" />,
                 onClick: () =>
-                  window.open("https://github.com/aeolialiu2051/vibrail/issues", "_blank", "noopener,noreferrer"),
+                  window.open("https://vibrail.warpgateapi.com/issues", "_blank", "noopener,noreferrer"),
               },
             ]}
           />

@@ -867,7 +867,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.reportIssue,
       icon: <Bug className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://github.com/aeolialiu2051/vibrail/deployments/issues/new", "_blank");
+        window.open("https://vibrail.warpgateapi.com/issues/new", "_blank");
       },
     },
     {
