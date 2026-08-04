@@ -41,6 +41,16 @@ export default function UpdatesBlock({ projectCount, loading }: UpdatesBlockProp
     void load();
   }, [load]);
 
+  // Applying an update is asynchronous: the API returns when the deployment
+  // starts, while the cached update row is settled by the deployment lifecycle.
+  // Poll only while an item is in flight so the card disappears promptly on
+  // success (or becomes retryable after failure/cancellation).
+  useEffect(() => {
+    if (!items?.some((item) => item.latestInProgress)) return;
+    const timer = window.setInterval(() => void load(), 3_000);
+    return () => window.clearInterval(timer);
+  }, [items, load]);
+
   async function apply(item: UpdateStatusItem) {
     setApplying((prev) => new Set(prev).add(item.projectId));
     try {
@@ -52,6 +62,11 @@ export default function UpdatesBlock({ projectCount, loading }: UpdatesBlockProp
             i.projectId === item.projectId ? { ...i, latestInProgress: true } : i,
           ) ?? null,
       );
+      setApplying((prev) => {
+        const next = new Set(prev);
+        next.delete(item.projectId);
+        return next;
+      });
     } catch {
       toast("error", c.failed);
       setApplying((prev) => {

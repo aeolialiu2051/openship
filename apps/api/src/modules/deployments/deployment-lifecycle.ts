@@ -204,6 +204,10 @@ export async function onFailure(
     errorMessage,
   });
 
+  // Applying an update marks the cached drift row as in-progress. A terminal
+  // failure must release that flag so the dashboard offers the update again.
+  await repos.updateStatus.markNotInProgress(project.id).catch(() => {});
+
   // Notify — dispatch to every subscribed channel (per-user prefs +
   // org defaults). Fire-and-forget: the dispatcher fans out across
   // email/webhook/in-app/slack based on each member's subscriptions.
@@ -250,7 +254,7 @@ export async function onCancelled(
   ctx: LifecycleContext,
   durationMs?: number,
 ): Promise<void> {
-  const { runtime, dep, buildSessionId, persistLogs, provisioned } = ctx;
+  const { runtime, project, dep, buildSessionId, persistLogs, provisioned } = ctx;
 
   if (runtime && provisioned.imageRef) {
     try {
@@ -292,6 +296,10 @@ export async function onCancelled(
   await repos.deployment.updateStatus(dep.id, "cancelled");
   await repos.deployment.finishBuildSession(buildSessionId, "cancelled", durationMs ?? 0, persistLogs());
   sessionManager.updateStatus(dep.id, "cancelled");
+
+  // The live release did not change, so keep the cached "behind" result but
+  // make it actionable again instead of leaving a permanent spinner.
+  await repos.updateStatus.markNotInProgress(project.id).catch(() => {});
 
   notification.emit({
     organizationId: dep.organizationId,
@@ -338,6 +346,12 @@ export async function onSuccess(
   });
 
   await repos.project.setActiveDeployment(project.id, dep.id);
+
+  // update_status is a cache of drift against the former active deployment.
+  // Once the new release becomes active that row is stale by definition. Drop
+  // it immediately; the next scheduled/manual scan will repopulate an accurate
+  // up-to-date row, while cached "updates available" readers stop alerting now.
+  await repos.updateStatus.deleteByProject(project.id).catch(() => {});
 
   // A newer release makes a prior held keep/reject decision moot — mark it
   // superseded so no stale deployment reads as "Action Required". Best-effort.

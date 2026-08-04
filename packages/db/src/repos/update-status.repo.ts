@@ -59,6 +59,14 @@ export function createUpdateStatusRepo(db: Database) {
       });
     },
 
+    /** A failed/cancelled update is no longer in flight and may be retried. */
+    async markNotInProgress(projectId: string): Promise<void> {
+      await db
+        .update(updateStatus)
+        .set({ latestInProgress: false, updatedAt: new Date() })
+        .where(eq(updateStatus.projectId, projectId));
+    },
+
     async deleteByProject(projectId: string): Promise<void> {
       await db.delete(updateStatus).where(eq(updateStatus.projectId, projectId));
     },
