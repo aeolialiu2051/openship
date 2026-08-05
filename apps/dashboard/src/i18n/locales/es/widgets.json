@@ -76,6 +76,17 @@
       "addServer": "Añadir servidor",
       "selectServer": "Selecciona un servidor…",
       "addNewServer": "Añadir nuevo servidor…"
+    },
+    "domainSelector": {
+      "loadingDomains": "Cargando dominios…",
+      "prefixPlaceholder": "Prefijo opcional",
+      "selectDomain": "Selecciona un dominio…",
+      "noDomains": "No hay dominios configurados",
+      "loadFailed": "No se pudieron cargar los dominios",
+      "connected": "Conectado",
+      "needsAttention": "Requiere atención",
+      "notInDomainList": "No está en la lista de dominios",
+      "addNewDomain": "Añadir nuevo dominio…"
     }
   },
   "backup": {

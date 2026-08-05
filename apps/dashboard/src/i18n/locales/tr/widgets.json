@@ -72,6 +72,17 @@
       "addServer": "Sunucu Ekle",
       "selectServer": "Bir sunucu seçin…",
       "addNewServer": "Yeni sunucu ekle…"
+    },
+    "domainSelector": {
+      "loadingDomains": "Alan adları yükleniyor…",
+      "prefixPlaceholder": "İsteğe bağlı ön ek",
+      "selectDomain": "Bir alan adı seçin…",
+      "noDomains": "Yapılandırılmış alan adı yok",
+      "loadFailed": "Alan adları yüklenemedi",
+      "connected": "Bağlı",
+      "needsAttention": "İşlem gerekiyor",
+      "notInDomainList": "Alan adı listesinde değil",
+      "addNewDomain": "Yeni alan adı ekle…"
     }
   },
   "backup": {

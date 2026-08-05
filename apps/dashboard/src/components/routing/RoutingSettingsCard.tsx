@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { Globe, Shield, Server, X, Copy, Check, Info, Eye, EyeOff, Link2, Hash } from "lucide-react";
+import DomainSelector from "@/components/shared/DomainSelector";
 import { domainsApi } from "@/lib/api";
 import { usePlatform } from "@/context/PlatformContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
@@ -93,7 +94,6 @@ export function RoutingSettingsCard({
     baseDomain,
   ));
   const lastEmittedDomain = useRef<string | null>(null);
-  const [draftCustomDomain, setDraftCustomDomain] = useState(customDomain);
   const [draftPort, setDraftPort] = useState(exposedPort ?? "");
   const [draftTargetPath, setDraftTargetPath] = useState(targetPath ?? "/");
 
@@ -104,10 +104,6 @@ export function RoutingSettingsCard({
     }
     setDraftDomain(managedDomainForEditing(domain, "free", routeKey, baseDomain));
   }, [domain, routeKey, baseDomain]);
-
-  useEffect(() => {
-    setDraftCustomDomain(customDomain);
-  }, [customDomain]);
 
   useEffect(() => {
     setDraftPort(exposedPort ?? "");
@@ -130,7 +126,7 @@ export function RoutingSettingsCard({
     [ports],
   );
 
-  const previewHostname = domainType === "custom" ? draftCustomDomain : "";
+  const previewHostname = domainType === "custom" ? customDomain : "";
   const normalizedDraftDomain = routeKey
     ? managedDomainFromEditing(draftDomain, "free", routeKey, baseDomain)
     : normalizeSubdomain(draftDomain);
@@ -176,10 +172,6 @@ export function RoutingSettingsCard({
     const next = normalizedDraftDomain;
     lastEmittedDomain.current = next;
     void onDomainChange(next);
-  };
-
-  const commitCustomDomain = () => {
-    void onCustomDomainChange(draftCustomDomain.toLowerCase());
   };
 
   const commitPort = () => {
@@ -331,35 +323,14 @@ export function RoutingSettingsCard({
           ) : (
             <div className="space-y-2">
               <div className="flex items-end gap-2">
-                <div className="min-w-0 flex-1 flex items-center gap-2">
-                  <div className="flex-1 flex items-center rounded-2xl border border-border/50 bg-background/60 overflow-hidden h-11">
-                  <input
-                    value={saveMode === "explicit" ? draftCustomDomain : customDomain}
-                    onChange={(event) => {
-                      const next = event.target.value.toLowerCase();
-                      if (saveMode === "explicit") {
-                        setDraftCustomDomain(next);
-                      } else {
-                        void onCustomDomainChange(next);
-                      }
-                    }}
-                    onBlur={() => {
-                      if (saveMode === "explicit" && draftCustomDomain !== customDomain) commitCustomDomain();
-                    }}
-                    placeholder="app.example.com"
-                    className="flex-1 h-full px-3.5 text-sm bg-transparent outline-none text-foreground placeholder:text-muted-foreground/40"
-                  />
-                </div>
-                {saveMode === "explicit" && draftCustomDomain !== customDomain && (
-                  <button
-                    type="button"
-                    onClick={commitCustomDomain}
+                <div className="min-w-0 flex-1">
+                  <DomainSelector
+                    value={customDomain}
+                    onSelect={(value) => void onCustomDomainChange(value.toLowerCase())}
                     disabled={disabled}
-                    className="px-3 py-2 rounded-xl text-[12px] font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
-                  >
-                    {w.save}
-                  </button>
-                )}
+                    compact
+                    dropdownInline
+                  />
                 </div>
                 {portInline && portInlineField}
                 {portInline && actionSlot}

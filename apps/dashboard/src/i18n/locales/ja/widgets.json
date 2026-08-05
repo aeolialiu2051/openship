@@ -76,6 +76,17 @@
       "addServer": "サーバーを追加",
       "selectServer": "サーバーを選択…",
       "addNewServer": "新しいサーバーを追加…"
+    },
+    "domainSelector": {
+      "loadingDomains": "ドメインを読み込み中…",
+      "prefixPlaceholder": "任意のプレフィックス",
+      "selectDomain": "ドメインを選択…",
+      "noDomains": "ドメインが設定されていません",
+      "loadFailed": "ドメインを読み込めませんでした",
+      "connected": "接続済み",
+      "needsAttention": "確認が必要",
+      "notInDomainList": "ドメイン一覧にありません",
+      "addNewDomain": "新しいドメインを追加…"
     }
   },
   "backup": {

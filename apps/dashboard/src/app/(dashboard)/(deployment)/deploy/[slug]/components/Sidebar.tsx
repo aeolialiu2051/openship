@@ -16,12 +16,19 @@ import {
   usesServiceDeployment,
   type BuildStrategy,
 } from "@/context/deployment/types";
+import { findCustomDomainProjectConflict } from "@/context/deployment/custom-domain-entitlement";
 import { useCloud } from "@/context/CloudContext";
 import { canUseCloudConnection, usePlatform } from "@/context/PlatformContext";
 import { useModal } from "@/context/ModalContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
-import { projectsApi, githubApi, getApiErrorMessage } from "@/lib/api";
+import {
+  projectsApi,
+  githubApi,
+  domainsApi,
+  getApiErrorMessage,
+  type CustomDomainProjectQuota,
+} from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 
@@ -201,6 +208,48 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   // build vs PAT vs existing GitHub credential). Vibrail Cloud has its own
   // connect-account flow, local builds don't need a remote credential.
   const cloneGate = useCloneStrategyGate();
+  // Preload the entitlement while the user reviews the deploy form. The old
+  // path learned about this only after ensure/buildAccess had started, so a
+  // known Free-plan rejection arrived several seconds after clicking Deploy.
+  const customDomainQuotaRef = useRef<CustomDomainProjectQuota | null>(null);
+  const customDomainQuotaRequestRef = useRef<Promise<CustomDomainProjectQuota | null> | null>(null);
+  const loadCustomDomainQuota = useCallback(() => {
+    if (customDomainQuotaRef.current) {
+      return Promise.resolve(customDomainQuotaRef.current);
+    }
+    if (customDomainQuotaRequestRef.current) {
+      return customDomainQuotaRequestRef.current;
+    }
+    const request = domainsApi.quota()
+      .then((response) => {
+        customDomainQuotaRef.current = response.data;
+        return response.data;
+      })
+      .catch(() => null)
+      .finally(() => {
+        customDomainQuotaRequestRef.current = null;
+      });
+    customDomainQuotaRequestRef.current = request;
+    return request;
+  }, []);
+
+  React.useEffect(() => {
+    void loadCustomDomainQuota();
+  }, [loadCustomDomainQuota]);
+
+  const customDomainLimitBlocksDeploy = useCallback(async () => {
+    const quota = customDomainQuotaRef.current ?? await loadCustomDomainQuota();
+    const claimedByAnotherProject = findCustomDomainProjectConflict(config, quota);
+    if (!claimedByAnotherProject) return false;
+    showToast(
+      interpolate(t.projectSettings.domains.add.projectLimitDescription, {
+        project: claimedByAnotherProject.projectName,
+      }),
+      "error",
+      t.projectSettings.domains.add.projectLimitTitle,
+    );
+    return true;
+  }, [config, loadCustomDomainQuota, showToast, t]);
 
   // A branch change invalidates every repository-derived setting, not just the
   // branch label. Keep the current config visible until the new scan succeeds.
@@ -312,6 +361,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
       return;
     }
 
+    // Fast client-side entitlement guard. The backend remains authoritative,
+    // but a quota already fetched while rendering can reject this click before
+    // project ensure, deployment creation, clone preflight, or any build work.
+    if (await customDomainLimitBlocksDeploy()) return;
+
     if (config.deployTarget === "cloud") {
       if (!(await requireCloud("cloud-deploy-target"))) return;
     }
@@ -408,7 +462,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     }
 
     await continueDeploy(buildStrategyOverride ? { buildStrategy: buildStrategyOverride } : undefined);
-  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.noPublicRoute, config.publicEndpoints, config.services, continueDeploy, hideModal, hostDomain, isServices, requireCloud, selfHosted, showModal, t]);
+  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.noPublicRoute, config.publicEndpoints, config.services, continueDeploy, customDomainLimitBlocksDeploy, hideModal, hostDomain, isServices, requireCloud, selfHosted, showModal, t]);
 
   // Edit mode (opened from the project Runtime page with ?mode=config): the
   // finish button SAVES the config to the project and returns — no deploy, no

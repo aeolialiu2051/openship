@@ -76,6 +76,17 @@
       "addServer": "添加服务器",
       "selectServer": "选择服务器……",
       "addNewServer": "添加新服务器……"
+    },
+    "domainSelector": {
+      "loadingDomains": "正在加载域名……",
+      "prefixPlaceholder": "可选前缀",
+      "selectDomain": "选择域名……",
+      "noDomains": "尚未配置域名",
+      "loadFailed": "无法加载域名",
+      "connected": "已连接",
+      "needsAttention": "需要处理",
+      "notInDomainList": "不在域名列表中",
+      "addNewDomain": "添加新域名……"
     }
   },
   "backup": {

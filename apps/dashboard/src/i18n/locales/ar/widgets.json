@@ -76,6 +76,17 @@
       "addServer": "إضافة خادم",
       "selectServer": "اختر خادمًا…",
       "addNewServer": "إضافة خادم جديد…"
+    },
+    "domainSelector": {
+      "loadingDomains": "جارٍ تحميل النطاقات…",
+      "prefixPlaceholder": "بادئة اختيارية",
+      "selectDomain": "اختر نطاقًا…",
+      "noDomains": "لا توجد نطاقات مهيأة",
+      "loadFailed": "تعذّر تحميل النطاقات",
+      "connected": "متصل",
+      "needsAttention": "يحتاج إلى معالجة",
+      "notInDomainList": "غير موجود في قائمة النطاقات",
+      "addNewDomain": "إضافة نطاق جديد…"
     }
   },
   "backup": {

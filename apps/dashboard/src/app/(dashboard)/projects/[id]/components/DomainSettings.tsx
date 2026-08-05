@@ -43,6 +43,7 @@ import { useCloud } from "@/context/CloudContext";
 import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
+import DomainSelector from "@/components/shared/DomainSelector";
 import { openTriggeredBuild } from "@/lib/deploy-nav";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import {
@@ -1621,23 +1622,21 @@ export const DomainSettings = () => {
                     ? t.projectSettings.domains.add.domainName
                     : t.projectSettings.domains.add.subdomain}
                 </label>
-                <div className="flex items-center overflow-hidden rounded-xl border border-border bg-background transition-colors focus-within:border-primary/40">
-                  <input
-                    placeholder={
-                      newDomainType === "custom"
-                        ? t.projectSettings.domains.add.customPlaceholder
-                        : projectLabel || t.projectSettings.domains.add.defaultAppName
-                    }
-                    value={newDomain}
-                    onChange={(e) => setNewDomain(e.target.value)}
-                    className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
-                  />
-                  {newDomainType === "free" && (
+                {newDomainType === "custom" ? (
+                  <DomainSelector value={newDomain} onSelect={setNewDomain} />
+                ) : (
+                  <div className="flex items-center overflow-hidden rounded-xl border border-border bg-background transition-colors focus-within:border-primary/40">
+                    <input
+                      placeholder={projectLabel || t.projectSettings.domains.add.defaultAppName}
+                      value={newDomain}
+                      onChange={(e) => setNewDomain(e.target.value)}
+                      className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
+                    />
                     <span className="shrink-0 pe-4 text-sm text-muted-foreground">
                       {projectRouteKey ? `-${projectRouteKey}` : ""}.{baseDomain}
                     </span>
-                  )}
-                </div>
+                  </div>
+                )}
                 {newDomainHasWww && (
                   <p className="text-xs text-danger">{t.projectSettings.domains.add.noWww}</p>
                 )}
@@ -1964,21 +1963,25 @@ export const DomainSettings = () => {
                 ))}
               </div>
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <div className="flex flex-1 items-center overflow-hidden rounded-xl border border-border/50 bg-background">
-                  <input
-                    value={addRouteDraft.domain}
-                    onChange={(e) => setAddRouteDraft((d) => ({ ...d, domain: e.target.value }))}
-                    placeholder={
-                      addRouteDraft.domainType === "custom"
-                        ? t.projectSettings.domains.addRoute.customPlaceholder
-                        : projectLabel || t.projectSettings.domains.addRoute.defaultServiceName
-                    }
-                    className="flex-1 bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
-                  />
-                  {addRouteDraft.domainType === "free" && (
-                    <span className="shrink-0 pe-3 text-sm text-muted-foreground">
-                      {projectRouteKey ? `-${projectRouteKey}` : ""}.{baseDomain}
-                    </span>
+                <div className="min-w-0 flex-1">
+                  {addRouteDraft.domainType === "custom" ? (
+                    <DomainSelector
+                      value={addRouteDraft.domain}
+                      onSelect={(domain) => setAddRouteDraft((draft) => ({ ...draft, domain }))}
+                      compact
+                    />
+                  ) : (
+                    <div className="flex items-center overflow-hidden rounded-xl border border-border/50 bg-background">
+                      <input
+                        value={addRouteDraft.domain}
+                        onChange={(e) => setAddRouteDraft((d) => ({ ...d, domain: e.target.value }))}
+                        placeholder={projectLabel || t.projectSettings.domains.addRoute.defaultServiceName}
+                        className="flex-1 bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
+                      />
+                      <span className="shrink-0 pe-3 text-sm text-muted-foreground">
+                        {projectRouteKey ? `-${projectRouteKey}` : ""}.{baseDomain}
+                      </span>
+                    </div>
                   )}
                 </div>
                 <div className="flex items-center gap-2">

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import {
   Loader2,
@@ -26,7 +26,15 @@ import {
   type AppSettingField,
   type AppEndpoint,
 } from "@repo/core";
-import { appsApi, deployApi, servicesApi, projectsApi } from "@/lib/api";
+import {
+  appsApi,
+  deployApi,
+  domainsApi,
+  servicesApi,
+  projectsApi,
+  getLocalizedCustomDomainProjectLimitError,
+  type CustomDomainProjectQuota,
+} from "@/lib/api";
 import { connectionsApi } from "@/lib/api/connections";
 import { getApiErrorMessage } from "@/lib/api/client";
 import {
@@ -124,6 +132,27 @@ export default function AppInstallPage() {
   // default the install to a port-only (no-domain) deploy instead of letting
   // preflight hard-fail. Forced true on SaaS/native (CloudContext).
   const { connected: cloudConnected, requireCloud } = useCloud();
+  const customDomainQuotaRef = useRef<CustomDomainProjectQuota | null>(null);
+  const customDomainQuotaRequestRef = useRef<Promise<CustomDomainProjectQuota | null> | null>(null);
+  const loadCustomDomainQuota = useCallback(() => {
+    if (customDomainQuotaRef.current) return Promise.resolve(customDomainQuotaRef.current);
+    if (customDomainQuotaRequestRef.current) return customDomainQuotaRequestRef.current;
+    const request = domainsApi.quota()
+      .then((response) => {
+        customDomainQuotaRef.current = response.data;
+        return response.data;
+      })
+      .catch(() => null)
+      .finally(() => {
+        customDomainQuotaRequestRef.current = null;
+      });
+    customDomainQuotaRequestRef.current = request;
+    return request;
+  }, []);
+
+  useEffect(() => {
+    void loadCustomDomainQuota();
+  }, [loadCustomDomainQuota]);
 
   const appId = String(params?.appId ?? "");
   // Reopening a draft app passes its existing project id — adopt it instead of
@@ -489,6 +518,26 @@ export default function AppInstallPage() {
       showToast(w.customRequired, "error");
       return;
     }
+    const usesCustomDomain = httpStates.some(
+      (s) => s.mode === "domain" && s.ep.domainType === "custom" && Boolean(s.ep.customDomain.trim()),
+    );
+    if (usesCustomDomain) {
+      const quota = customDomainQuotaRef.current ?? await loadCustomDomainQuota();
+      const currentProjectId = adoptedProjectId ?? projectId;
+      const claimedByAnotherProject = quota?.limit === 1
+        ? quota.claimedProjects.find((project) => project.projectId !== currentProjectId)
+        : null;
+      if (claimedByAnotherProject) {
+        showToast(
+          interpolate(t.projectSettings.domains.add.projectLimitDescription, {
+            project: claimedByAnotherProject.projectName,
+          }),
+          "error",
+          t.projectSettings.domains.add.projectLimitTitle,
+        );
+        return;
+      }
+    }
     // Free subdomains route through Vibrail Cloud. If it isn't connected,
     // requireCloud pops the same connect modal the deploy wizard uses and
     // returns false — bail so the user connects first, then re-clicks Install.
@@ -570,7 +619,11 @@ export default function AppInstallPage() {
       // Strip the server's "Pre-deploy checks failed:" prefix for a cleaner
       // message. Nothing deployed yet → toast + stay on the form; a deploy that
       // already started keeps the log-bearing error card (with build details).
-      const msg = getApiErrorMessage(err, w.installFailed).replace(
+      const limitError = getLocalizedCustomDomainProjectLimitError(
+        err,
+        t.projectSettings.domains.add,
+      );
+      const msg = limitError?.message ?? getApiErrorMessage(err, w.installFailed).replace(
         /^Pre-deploy checks failed:\s*/i,
         "",
       );
@@ -578,7 +631,7 @@ export default function AppInstallPage() {
         setErrorMsg(msg);
         setPhase("error");
       } else {
-        showToast(msg, "error");
+        showToast(msg, "error", limitError?.title);
       }
     } finally {
       setBusy(false);

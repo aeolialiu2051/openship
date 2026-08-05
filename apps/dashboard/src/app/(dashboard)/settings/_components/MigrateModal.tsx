@@ -17,6 +17,7 @@
 
 import { useEffect, useState } from "react";
 import { BlurIp } from "@/components/BlurIp";
+import DomainSelector from "@/components/shared/DomainSelector";
 import {
   Cloud,
   Loader2,
@@ -481,15 +482,14 @@ function ServerForm({
             </span>
           </div>
         ) : (
-          <input
+          <DomainSelector
             value={customHost}
-            onChange={(e) => {
-              setCustomHost(e.target.value.toLowerCase());
+            onSelect={(domain) => {
+              setCustomHost(domain.toLowerCase());
               setPreflight(null);
             }}
-            placeholder={t.settings.migrate.server.customHostPlaceholder}
             disabled={submitting}
-            className="w-full px-3 py-2 bg-muted/30 border border-border/50 rounded-xl text-sm text-foreground font-mono"
+            compact
           />
         )}
       </div>
