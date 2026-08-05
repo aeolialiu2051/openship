@@ -59,6 +59,79 @@ export const useModal = () => {
   return context;
 };
 
+/** Consistent app-styled replacements for native alert/confirm dialogs. */
+export function useDialog() {
+  const { showModal, hideModal } = useModal();
+
+  const confirm = useCallback(
+    (message: string, options: { title?: string; confirmLabel?: string; cancelLabel?: string; danger?: boolean } = {}) =>
+      new Promise<boolean>((resolve) => {
+        let settled = false;
+        const finish = (value: boolean) => {
+          if (settled) return;
+          settled = true;
+          resolve(value);
+        };
+        const id = showModal({
+          title: options.title,
+          message,
+          showCloseButton: false,
+          onClose: () => finish(false),
+          buttons: [
+            {
+              label: options.cancelLabel ?? "Cancel",
+              variant: "secondary",
+              onClick: () => {
+                finish(false);
+                hideModal(id);
+              },
+            },
+            {
+              label: options.confirmLabel ?? "Confirm",
+              variant: options.danger ? "danger" : "primary",
+              onClick: () => {
+                finish(true);
+                hideModal(id);
+              },
+            },
+          ],
+        });
+      }),
+    [hideModal, showModal],
+  );
+
+  const alert = useCallback(
+    (message: string, options: { title?: string; buttonLabel?: string } = {}) =>
+      new Promise<void>((resolve) => {
+        let settled = false;
+        const finish = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+        const id = showModal({
+          title: options.title,
+          message,
+          showCloseButton: false,
+          onClose: finish,
+          buttons: [
+            {
+              label: options.buttonLabel ?? "OK",
+              variant: "primary",
+              onClick: () => {
+                finish();
+                hideModal(id);
+              },
+            },
+          ],
+        });
+      }),
+    [hideModal, showModal],
+  );
+
+  return { confirm, alert };
+}
+
 interface ModalProviderProps {
   children: ReactNode;
 }

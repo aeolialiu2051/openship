@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cloudApi } from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { useI18n } from "@/components/i18n-provider";
@@ -28,11 +29,12 @@ export function CloudConnection() {
     refresh,
   } = useCloud();
   const { showToast } = useToast();
+  const { confirm } = useDialog();
   const isDesktop = deployMode === "desktop";
   const [disconnecting, setDisconnecting] = useState(false);
 
   async function handleDisconnect() {
-    if (!confirm(t.settings.cloud.confirmDisconnect)) return;
+    if (!(await confirm(t.settings.cloud.confirmDisconnect))) return;
     try {
       setDisconnecting(true);
       await cloudApi.disconnect();

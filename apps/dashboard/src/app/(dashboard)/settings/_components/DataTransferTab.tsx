@@ -19,6 +19,7 @@ import { SettingsSection } from "./SettingsSection";
 import { Modal } from "@/components/ui/Modal";
 import { useSession, authClient } from "@/lib/auth-client";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import {
   dataTransferApi,
@@ -173,6 +174,7 @@ function ExportCard({ onToast }: { onToast: Toast }) {
 /* ── Import ──────────────────────────────────────────────────────── */
 
 function ImportCard({ onToast }: { onToast: Toast }) {
+  const { confirm } = useDialog();
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
 
@@ -257,7 +259,7 @@ function ImportModal({
   const handleImport = async () => {
     if (!file) return;
     if (mode === "wipe") {
-      const ok = window.confirm(t.settings.dataTransfer.import.confirmWipe);
+      const ok = await confirm(t.settings.dataTransfer.import.confirmWipe);
       if (!ok) return;
     }
     setBusy(true);

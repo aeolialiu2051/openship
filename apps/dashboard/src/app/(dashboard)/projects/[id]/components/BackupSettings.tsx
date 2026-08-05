@@ -31,6 +31,7 @@ import {
 import { PolicyEditor } from "@/components/backup/PolicyEditor";
 import { BackupRunCard } from "@/components/backup/BackupRunCard";
 import { RestoreWizard } from "@/components/backup/RestoreWizard";
+import { useDialog } from "@/context/ModalContext";
 
 const ICON_TONES = {
   primary: "bg-primary/10 text-primary",
@@ -77,6 +78,7 @@ function SectionCard({
 }
 
 export function BackupSettings(): React.JSX.Element {
+  const { alert } = useDialog();
   const { projectData, servicesData } = useProjectSettings();
   const { t } = useI18n();
   const projectId = String(projectData.id);
@@ -124,7 +126,7 @@ export function BackupSettings(): React.JSX.Element {
         setActiveRunId(res.data.runId);
         await reload();
       } catch (err) {
-        window.alert(getApiErrorMessage(err, t.projectSettings.backup.toast.runFailed));
+        await alert(getApiErrorMessage(err, t.projectSettings.backup.toast.runFailed));
       }
     },
     [reload, t],
@@ -431,7 +433,7 @@ export function BackupSettings(): React.JSX.Element {
                             });
                             await reload();
                           } catch (err) {
-                            window.alert(getApiErrorMessage(err, t.projectSettings.backup.toast.toggleProtectionFailed));
+                            await alert(getApiErrorMessage(err, t.projectSettings.backup.toast.toggleProtectionFailed));
                           }
                         }}
                         title={isProtected ? t.projectSettings.backup.recent.allowPrune : t.projectSettings.backup.recent.protectFrom}

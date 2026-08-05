@@ -19,6 +19,7 @@ import { getSiteUrl } from "@/utils/siteUrl";
 import { deployApi, getApiErrorMessage } from "@/lib/api";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { invalidateProjectsHomeCache } from "@/hooks/useProjectsHome";
 import { getRollbackAvailability } from "../rollback-availability";
 
@@ -70,6 +71,7 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
 }) => {
   const { t } = useI18n();
   const { showToast } = useToast();
+  const { confirm, alert } = useDialog();
   const [isOpen, setIsOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(
     deployment.deletionOperationStatus === "queued" ||
@@ -176,13 +178,13 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     e.stopPropagation();
     setIsOpen(false);
     if (!canRollback) return;
-    const ok = window.confirm(t.deployments.menu.confirmRollback);
+    const ok = await confirm(t.deployments.menu.confirmRollback);
     if (!ok) return;
     try {
       await deployApi.rollback(deployment.id);
       onStatusChange?.();
     } catch (err) {
-      window.alert(getApiErrorMessage(err, t.deployments.menu.rollbackFailed));
+      await alert(getApiErrorMessage(err, t.deployments.menu.rollbackFailed));
     }
   };
 
@@ -191,13 +193,13 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     setIsOpen(false);
     if (!canRedeployCommit) return;
     const shortHash = deployment.commit.hash;
-    const ok = window.confirm(interpolate(t.deployments.menu.confirmRedeploy, { hash: shortHash }));
+    const ok = await confirm(interpolate(t.deployments.menu.confirmRedeploy, { hash: shortHash }));
     if (!ok) return;
     try {
       await deployApi.redeploy(deployment.id, { useExistingCommit: true });
       onStatusChange?.();
     } catch (err) {
-      window.alert(getApiErrorMessage(err, t.deployments.menu.redeployFailed));
+      await alert(getApiErrorMessage(err, t.deployments.menu.redeployFailed));
     }
   };
 
@@ -208,7 +210,7 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
       await deployApi.pin(deployment.id, !deployment.pinned);
       onStatusChange?.();
     } catch (err) {
-      window.alert(
+      await alert(
         getApiErrorMessage(
           err,
           deployment.pinned ? t.deployments.menu.unpinFailed : t.deployments.menu.pinFailed,
@@ -221,7 +223,7 @@ export const DeploymentMenu: React.FC<DeploymentMenuProps> = ({
     e.stopPropagation();
     setIsOpen(false);
     if (isDeleting) return;
-    if (!window.confirm(t.deployments.menu.confirmDelete)) return;
+    if (!(await confirm(t.deployments.menu.confirmDelete))) return;
     setIsDeleting(true);
     try {
       await deployApi.deleteDeployment(deployment.id);

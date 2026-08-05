@@ -12,6 +12,7 @@ import {
 } from "@/lib/api";
 import { Modal } from "@/components/ui/Modal";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { useDialog } from "@/context/ModalContext";
 
 interface Props {
   projectId: string;
@@ -53,6 +54,7 @@ export function PolicyEditor({
   onSaved,
 }: Props): React.JSX.Element {
   const { t } = useI18n();
+  const { confirm, alert } = useDialog();
   const w = t.widgets.backup.policyEditor;
   const CRON_PRESETS = [
     { label: w.presetHourly, value: "7 * * * *" },
@@ -113,11 +115,11 @@ export function PolicyEditor({
 
   const submit = async () => {
     if (!destinationId) {
-      window.alert(w.selectDestinationAlert);
+      await alert(w.selectDestinationAlert);
       return;
     }
     if (method === "custom" && !customCommand.trim()) {
-      window.alert(w.customCommandRequired);
+      await alert(w.customCommandRequired);
       return;
     }
     setBusy(true);
@@ -140,20 +142,20 @@ export function PolicyEditor({
       else await backupsApi.createPolicy(projectId, payload);
       onSaved();
     } catch (err) {
-      window.alert(getApiErrorMessage(err, w.failedSave));
+      await alert(getApiErrorMessage(err, w.failedSave));
     } finally {
       setBusy(false);
     }
   };
 
   const rotateToken = async () => {
-    if (!existing || !window.confirm(w.rotateConfirm)) return;
+    if (!existing || !(await confirm(w.rotateConfirm))) return;
     setBusy(true);
     try {
       await backupsApi.updatePolicy(existing.id, { rotateWebhookToken: true });
       onSaved();
     } catch (err) {
-      window.alert(getApiErrorMessage(err, w.failedRotate));
+      await alert(getApiErrorMessage(err, w.failedRotate));
     } finally {
       setBusy(false);
     }

@@ -14,6 +14,7 @@ import { servicesApi } from "@/lib/api/services";
 import { jobsApi } from "@/lib/api/jobs";
 import { getApiErrorMessage } from "@/lib/api/client";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { WebhookDeliveries } from "./WebhookDeliveries";
@@ -22,6 +23,7 @@ export function IncomingWebhooks() {
   const { t } = useI18n();
   const c = t.projects.incomingWebhooks;
   const { showToast } = useToast();
+  const { confirm } = useDialog();
   const { projectData } = useProjectSettings();
   const projectId = projectData.id;
   const isCloud = projectData.deployTarget === "cloud";
@@ -47,7 +49,7 @@ export function IncomingWebhooks() {
   }, [refresh]);
 
   const remove = async (hook: IncomingWebhook) => {
-    if (!window.confirm(interpolate(c.deleteConfirm, { name: hook.name }))) return;
+    if (!(await confirm(interpolate(c.deleteConfirm, { name: hook.name })))) return;
     try {
       await incomingWebhooksApi.remove(projectId, hook.id);
       setHooks((prev) => prev.filter((h) => h.id !== hook.id));

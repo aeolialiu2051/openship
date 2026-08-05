@@ -6,6 +6,7 @@ import { adminApi, getApiErrorMessage, type AdminPage, type AdminUserRow } from 
 import { useI18n } from "@/components/i18n-provider";
 import { PlanBadge } from "@/components/plan-badge";
 import { adminCopy } from "../_components/admin-copy";
+import { useDialog } from "@/context/ModalContext";
 import {
   AdminError,
   AdminLoading,
@@ -20,6 +21,7 @@ const PER_PAGE = 25;
 
 export default function AdminUsersPage() {
   const { locale } = useI18n();
+  const { confirm } = useDialog();
   const copy = adminCopy(locale);
   const zh = locale === "zh";
   const [result, setResult] = useState<AdminPage<AdminUserRow> | null>(null);
@@ -82,7 +84,7 @@ export default function AdminUsersPage() {
     const confirmed =
       planTierId === "pro"
         ? true
-        : window.confirm(
+        : await confirm(
             zh
               ? `确认将 ${row.name || row.email} 降级为 FREE 用户吗？套餐额度会立即降低。`
               : `Downgrade ${row.name || row.email} to FREE? The plan quota will be reduced immediately.`,

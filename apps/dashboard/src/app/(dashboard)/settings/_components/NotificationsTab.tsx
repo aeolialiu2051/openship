@@ -24,6 +24,7 @@ import { AppLogo } from "@/components/AppLogo";
 import { PillSwitcher } from "@/components/ui/PillSwitcher";
 import { systemApi } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { SettingsSection } from "./SettingsSection";
 import { Toggle } from "@/components/project-settings/ServerSideSwitch";
 import {
@@ -274,12 +275,13 @@ function ChannelsCard({
   onChange: () => Promise<void>;
 }) {
   const { showToast } = useToast();
+  const { confirm } = useDialog();
   const { t } = useI18n();
   const [showForm, setShowForm] = useState(false);
   const [testing, setTesting] = useState<string | null>(null);
 
   const handleDelete = async (id: string) => {
-    if (!confirm(t.settings.notifications.channels.confirmDelete)) return;
+    if (!(await confirm(t.settings.notifications.channels.confirmDelete))) return;
     try {
       await notificationsApi.deleteChannel(id);
       showToast(

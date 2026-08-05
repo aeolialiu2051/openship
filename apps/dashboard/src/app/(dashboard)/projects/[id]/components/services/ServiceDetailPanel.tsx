@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { usePlatform } from "@/context/PlatformContext";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import {
   serviceKind,
   serviceUsesDeployPipeline,
@@ -126,6 +127,7 @@ export function ServiceDetailPanel({
 }: ServiceDetailPanelProps) {
   const { baseDomain } = usePlatform();
   const { showToast } = useToast();
+  const { alert } = useDialog();
   const { t } = useI18n();
   const { resolvedTheme } = useTheme();
   const router = useRouter();
@@ -298,7 +300,7 @@ export function ServiceDetailPanel({
       const res = await backupsApi.runNow(backupPolicy.id);
       setActiveBackupRunId(res.data.runId);
     } catch (err) {
-      window.alert(getApiErrorMessage(err, t.projectDetail.services.detail.toast.backupRunFailed));
+      await alert(getApiErrorMessage(err, t.projectDetail.services.detail.toast.backupRunFailed));
     }
   };
 

@@ -12,6 +12,7 @@ import { JobRunLogsModal } from "@/components/jobs/JobRunLogs";
 import { formatTime as fmtTime, formatDuration as fmtDur, statusTone, statusIcon } from "@/components/jobs/jobFormat";
 import { usePlatform } from "@/context/PlatformContext";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 type Tab = "overview" | "runs";
@@ -25,6 +26,7 @@ export default function JobDetailPage() {
   const key = decodeURIComponent(String(params.key));
   const { selfHosted } = usePlatform();
   const { showToast } = useToast();
+  const { confirm } = useDialog();
 
   const [job, setJob] = useState<JobView | null>(null);
   const [runs, setRuns] = useState<JobRunSummary[]>([]);
@@ -82,7 +84,7 @@ export default function JobDetailPage() {
   };
 
   const handleDelete = async () => {
-    if (!job || busy || !window.confirm(j.delete.confirm)) return;
+    if (!job || busy || !(await confirm(j.delete.confirm))) return;
     setBusy(true);
     try {
       await jobsApi.remove(job.key);

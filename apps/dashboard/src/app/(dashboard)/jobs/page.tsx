@@ -14,6 +14,7 @@ import { JobsEmptyState } from "@/components/jobs/JobsEmptyState";
 import { formatTime, formatDuration, statusTone, statusIcon } from "@/components/jobs/jobFormat";
 import { usePlatform } from "@/context/PlatformContext";
 import { useToast } from "@/context/ToastContext";
+import { useDialog } from "@/context/ModalContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { useJobsOverview } from "@/hooks/useJobsOverview";
 
@@ -41,6 +42,7 @@ export default function JobsPage() {
   const j = t.jobs;
   const { selfHosted } = usePlatform();
   const { showToast } = useToast();
+  const { confirm } = useDialog();
   const router = useRouter();
 
   const jobsQuery = useJobsOverview(selfHosted);
@@ -117,7 +119,7 @@ export default function JobsPage() {
   };
 
   const handleDelete = async (job: JobView) => {
-    if (busyKey || !window.confirm(j.delete.confirm)) return;
+    if (busyKey || !(await confirm(j.delete.confirm))) return;
     setBusyKey(job.key);
     try {
       await jobsApi.remove(job.key);

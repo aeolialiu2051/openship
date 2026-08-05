@@ -5,6 +5,7 @@ import { X, AlertTriangle, CheckCircle2, XCircle, Loader2, Activity, Shield } fr
 import { backupsApi, getApiErrorMessage, type BackupRun, type BackupRestore } from "@/lib/api";
 import { useRestoreRunStream } from "@/hooks/useRestoreRunStream";
 import { useI18n, interpolate } from "@/components/i18n-provider";
+import { useDialog } from "@/context/ModalContext";
 
 interface Props {
   sourceRun: BackupRun;
@@ -17,6 +18,7 @@ type WizardStep = "review" | "preparing" | "prepared" | "applying" | "done";
 export function RestoreWizard({ sourceRun, serviceName, onClose }: Props): React.JSX.Element {
   const { t } = useI18n();
   const m = t.misc.restoreWizard;
+  const { alert } = useDialog();
   const [step, setStep] = useState<WizardStep>("review");
   const [restoreId, setRestoreId] = useState<string | null>(null);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
@@ -60,7 +62,7 @@ export function RestoreWizard({ sourceRun, serviceName, onClose }: Props): React
       setConfirmationToken(res.data.confirmationToken);
       setStep("preparing");
     } catch (err) {
-      window.alert(getApiErrorMessage(err, m.startFailed));
+      await alert(getApiErrorMessage(err, m.startFailed));
     } finally {
       setBusy(false);
     }
@@ -69,7 +71,7 @@ export function RestoreWizard({ sourceRun, serviceName, onClose }: Props): React
   const applyRestore = async () => {
     if (!restoreId || !confirmationToken) return;
     if (typed !== (serviceName ?? sourceRun.serviceId ?? "")) {
-      window.alert(m.typeToConfirm);
+      await alert(m.typeToConfirm);
       return;
     }
     setBusy(true);
@@ -77,7 +79,7 @@ export function RestoreWizard({ sourceRun, serviceName, onClose }: Props): React
       await backupsApi.applyRestore(restoreId, confirmationToken);
       setStep("applying");
     } catch (err) {
-      window.alert(getApiErrorMessage(err, m.applyFailed));
+      await alert(getApiErrorMessage(err, m.applyFailed));
     } finally {
       setBusy(false);
     }

@@ -28,7 +28,7 @@ import {
   type ResourceGrant,
   type ResourceType,
 } from "@/lib/api";
-import { useModal } from "@/context/ModalContext";
+import { useModal, useDialog } from "@/context/ModalContext";
 import { GrantPickerModal } from "./GrantPickerModal";
 import { InviteMemberModal } from "./InviteMemberModal";
 import { serversNewlyGranted, hasNewServerGrant, confirmServerAccess } from "@/components/permissions/confirm-server-access";
@@ -93,6 +93,7 @@ export function TeamTab() {
   const { showToast } = useToast();
   const { t } = useI18n();
   const { showModal, hideModal } = useModal();
+  const { confirm } = useDialog();
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [invitations, setInvitations] = useState<InvitationRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,7 +273,7 @@ export function TeamTab() {
   };
 
   const handleRemove = async (memberIdOrEmail: string) => {
-    if (!confirm(t.settings.team.confirmRemove)) return;
+    if (!(await confirm(t.settings.team.confirmRemove))) return;
     const res = await orgClient.removeMember({ memberIdOrEmail });
     if (res.error) {
       showToast(res.error.message ?? t.settings.team.toast.removeFailed, "error", t.settings.common.toast.members);
@@ -305,7 +306,7 @@ export function TeamTab() {
   const handleLeaveWorkspace = async () => {
     const orgId = orgMeta?.organizationId;
     if (!orgId) return;
-    if (!confirm(t.settings.team.workspace.leaveConfirm)) return;
+    if (!(await confirm(t.settings.team.workspace.leaveConfirm))) return;
     const res = await orgClient.leave({ organizationId: orgId });
     if (res.error) {
       showToast(res.error.message ?? t.settings.team.toast.leaveFailed, "error", t.settings.common.toast.team);
