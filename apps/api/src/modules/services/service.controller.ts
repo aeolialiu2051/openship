@@ -21,6 +21,25 @@ import type {
   TSetServiceEnvVarsBody,
 } from "./service.schema";
 
+function serviceMutationError(c: Context, err: unknown, fallback: string) {
+  const message = err instanceof Error ? err.message : fallback;
+  if (err instanceof AppError) {
+    const details =
+      "details" in err && err.details && typeof err.details === "object" ? err.details : undefined;
+    return c.json(
+      {
+        success: false,
+        error: message,
+        message,
+        code: err.code,
+        ...(details ? { details } : {}),
+      },
+      err.statusCode as 400 | 401 | 403 | 404 | 409 | 500,
+    );
+  }
+  return c.json({ success: false, error: message }, 400);
+}
+
 // ─── List services for a project ─────────────────────────────────────────────
 
 export async function list(c: Context) {
@@ -49,7 +68,9 @@ export async function getById(c: Context) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to get service";
     const status =
-      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found" ? 404 : 400;
+      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found"
+        ? 404
+        : 400;
     return c.json({ success: false, error: message }, status);
   }
 }
@@ -67,7 +88,9 @@ export async function volumeSizes(c: Context) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to measure volume sizes";
     const status =
-      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found" ? 404 : 400;
+      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found"
+        ? 404
+        : 400;
     return c.json({ success: false, error: message }, status);
   }
 }
@@ -83,8 +106,7 @@ export async function create(c: Context) {
     const svc = await serviceService.createService(ctx, projectId, body);
     return c.json({ success: true, service: svc }, 201);
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to create service";
-    return c.json({ success: false, error: message }, 400);
+    return serviceMutationError(c, err, "Failed to create service");
   }
 }
 
@@ -98,8 +120,7 @@ export async function update(c: Context) {
     const svc = await serviceService.updateService(ctx, projectId, serviceId, body);
     return c.json({ success: true, service: svc });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to update service";
-    return c.json({ success: false, error: message }, 400);
+    return serviceMutationError(c, err, "Failed to update service");
   }
 }
 
@@ -129,7 +150,9 @@ export async function acceptDrift(c: Context) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to accept drift";
     const status =
-      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found" ? 404 : 400;
+      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found"
+        ? 404
+        : 400;
     return c.json({ success: false, error: message }, status);
   }
 }
@@ -144,7 +167,9 @@ export async function keepDrift(c: Context) {
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to keep edits";
     const status =
-      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found" ? 404 : 400;
+      (err instanceof AppError && err.statusCode === 404) || message === "service-not-found"
+        ? 404
+        : 400;
     return c.json({ success: false, error: message }, status);
   }
 }
@@ -236,8 +261,7 @@ export async function syncFromCompose(c: Context) {
     });
     return c.json({ success: true, services });
   } catch (err) {
-    const message = err instanceof Error ? err.message : "Failed to sync services";
-    return c.json({ success: false, error: message }, 400);
+    return serviceMutationError(c, err, "Failed to sync services");
   }
 }
 

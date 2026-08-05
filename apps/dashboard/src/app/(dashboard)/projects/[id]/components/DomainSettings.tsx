@@ -23,7 +23,18 @@ import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { RoutingConfigCard } from "./RoutingConfigCard";
 import { RouteRules } from "./RouteRules";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
-import { getApiErrorMessage, projectsApi, deployApi, domainsApi, serviceKind, servicesApi, type Service, type ServiceInput } from "@/lib/api";
+import {
+  getApiErrorMessage,
+  getLocalizedCustomDomainProjectLimitError,
+  projectsApi,
+  deployApi,
+  domainsApi,
+  serviceKind,
+  servicesApi,
+  type CustomDomainProjectQuota,
+  type Service,
+  type ServiceInput,
+} from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
@@ -82,10 +93,7 @@ interface DomainSummaryItem {
 function toEditablePublicEndpoint(endpoint: any): PublicEndpoint {
   return createPublicEndpoint({
     id: typeof endpoint?.id === "string" ? endpoint.id : undefined,
-    port:
-      endpoint?.port !== undefined && endpoint?.port !== null
-        ? String(endpoint.port)
-        : "",
+    port: endpoint?.port !== undefined && endpoint?.port !== null ? String(endpoint.port) : "",
     targetPath: endpoint?.targetPath || "",
     domain: endpoint?.domain || "",
     customDomain: endpoint?.customDomain || "",
@@ -147,9 +155,7 @@ function buildPublicEndpointPayload(
     return {
       port,
       domainType,
-      ...(domainType === "custom"
-        ? { customDomain }
-        : { domain: freeDomain }),
+      ...(domainType === "custom" ? { customDomain } : { domain: freeDomain }),
     };
   }
 
@@ -157,9 +163,7 @@ function buildPublicEndpointPayload(
   return {
     targetPath,
     domainType,
-    ...(domainType === "custom"
-      ? { customDomain }
-      : { domain: freeDomain }),
+    ...(domainType === "custom" ? { customDomain } : { domain: freeDomain }),
   };
 }
 
@@ -169,14 +173,16 @@ function resolveProjectEndpointHostname(
   routeKey?: string,
 ): string {
   if (endpoint?.domainType === "custom") {
-    return endpoint?.customDomain?.trim().toLowerCase() || endpoint?.hostname?.trim().toLowerCase() || "";
+    return (
+      endpoint?.customDomain?.trim().toLowerCase() || endpoint?.hostname?.trim().toLowerCase() || ""
+    );
   }
 
   const hostname = endpoint?.hostname?.trim().toLowerCase();
   const managedSuffix = `.${baseDomain.toLowerCase()}`;
-  const domain = endpoint?.domain?.trim().toLowerCase() || (
-    hostname?.endsWith(managedSuffix) ? hostname.slice(0, -managedSuffix.length) : ""
-  );
+  const domain =
+    endpoint?.domain?.trim().toLowerCase() ||
+    (hostname?.endsWith(managedSuffix) ? hostname.slice(0, -managedSuffix.length) : "");
   if (!domain) return "";
 
   const managedDomain = routeKey ? appendProjectRouteKey(domain, routeKey) : domain;
@@ -201,7 +207,12 @@ function resolveDomainStatus(domain: any, t: Dictionary): { label: string; tone:
   }
 }
 
-function resolveDomainSsl(hostname: string, domain: any, baseDomain: string, t: Dictionary): { label: string; tone: DomainTone } {
+function resolveDomainSsl(
+  hostname: string,
+  domain: any,
+  baseDomain: string,
+  t: Dictionary,
+): { label: string; tone: DomainTone } {
   const s = t.projectSettings.domains.ssl;
   if (hostname.endsWith(`.${baseDomain}`)) {
     return { label: s.includedByHost, tone: "success" };
@@ -270,6 +281,7 @@ export const DomainSettings = () => {
   // and publish a plain-HTTP origin route. The domain need not resolve to us.
   const [externalIngress, setExternalIngress] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [customDomainQuota, setCustomDomainQuota] = useState<CustomDomainProjectQuota | null>(null);
   const [dnsRecords, setDnsRecords] = useState<DnsRecord[]>([]);
   // Live preview of the DNS records the user will need to apply, derived
   // from the hostname they're typing. For self-hosted projects the
@@ -321,10 +333,53 @@ export const DomainSettings = () => {
   const [verifyingDomainId, setVerifyingDomainId] = useState<string | null>(null);
   // After a failed verify, remember which record(s) still aren't resolving so
   // the pending card can name them and auto-open its DNS records. Keyed by row.
-  const [verifyFailure, setVerifyFailure] = useState<
-    // `message` is the server's actionable DNS verification reason.
-    { domainId: string; cnameVerified: boolean; txtVerified: boolean; message?: string } | null
-  >(null);
+  // `message` is the server's actionable DNS verification reason.
+  const [verifyFailure, setVerifyFailure] = useState<{
+    domainId: string;
+    cnameVerified: boolean;
+    txtVerified: boolean;
+    message?: string;
+  } | null>(null);
+
+  const refreshCustomDomainQuota = useCallback(async () => {
+    try {
+      const response = await domainsApi.quota();
+      setCustomDomainQuota(response.data);
+    } catch (err) {
+      console.warn("Failed to load custom-domain entitlement:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refreshCustomDomainQuota();
+  }, [refreshCustomDomainQuota, domainsData.domains, servicesData.services]);
+
+  const foreignCustomDomainProject =
+    customDomainQuota?.limit === 1
+      ? (customDomainQuota.claimedProjects.find((project) => project.projectId !== id) ?? null)
+      : null;
+  const customDomainsLocked = foreignCustomDomainProject !== null;
+  const localizedCustomDomainProjectLimitError = (error: unknown) =>
+    getLocalizedCustomDomainProjectLimitError(
+      error,
+      t.projectSettings.domains.add,
+      foreignCustomDomainProject?.projectName ?? "",
+    );
+  const showCustomDomainProjectLimit = () => {
+    showToast(
+      interpolate(t.projectSettings.domains.add.projectLimitDescription, {
+        project: foreignCustomDomainProject?.projectName ?? "",
+      }),
+      "error",
+      t.projectSettings.domains.add.projectLimitTitle,
+    );
+  };
+
+  useEffect(() => {
+    if (customDomainsLocked && newDomainType === "custom") {
+      setNewDomainType("free");
+    }
+  }, [customDomainsLocked, newDomainType]);
   // Live port reachability of the active deployment (advisory) — drives the
   // per-card "nothing responded on port X" hint. [] = no signal → no hint.
   const [portChecks, setPortChecks] = useState<PortCheckUI[]>([]);
@@ -332,18 +387,16 @@ export const DomainSettings = () => {
   const [outputChecks, setOutputChecks] = useState<OutputCheckUI[]>([]);
   const services = servicesData.services;
   const servicesLoading = servicesData.isLoading;
-  const projectRouteKey = typeof projectData.routeKey === "string"
-    ? projectData.routeKey
-    : typeof projectData.route_key === "string"
-      ? projectData.route_key
-      : undefined;
+  const projectRouteKey =
+    typeof projectData.routeKey === "string"
+      ? projectData.routeKey
+      : typeof projectData.route_key === "string"
+        ? projectData.route_key
+        : undefined;
   const hasProjectServer = projectData.options?.hasServer ?? buildData.hasServer ?? true;
 
   const projectRuntimePort = String(
-    projectData.options?.productionPort ||
-    buildData.productionPort ||
-    projectData.port ||
-    "",
+    projectData.options?.productionPort || buildData.productionPort || projectData.port || "",
   );
   const hasProjectLevelRouting =
     (Array.isArray(projectData.publicEndpoints) && projectData.publicEndpoints.length > 0) ||
@@ -356,9 +409,10 @@ export const DomainSettings = () => {
   const [settingPrimaryId, setSettingPrimaryId] = useState<string | null>(null);
 
   const domainSummaries = useMemo<DomainSummaryItem[]>(() => {
-    const endpointSource = Array.isArray(projectData.publicEndpoints) && projectData.publicEndpoints.length > 0
-      ? projectData.publicEndpoints
-      : publicEndpoints;
+    const endpointSource =
+      Array.isArray(projectData.publicEndpoints) && projectData.publicEndpoints.length > 0
+        ? projectData.publicEndpoints
+        : publicEndpoints;
     const domains = Array.isArray(domainsData.domains) ? domainsData.domains : [];
     const domainById = new Map(
       domains
@@ -380,9 +434,10 @@ export const DomainSettings = () => {
           (typeof endpoint?.id === "string" ? domainById.get(endpoint.id) : undefined) ||
           domainByHostname.get(hostname) ||
           null;
-        const mappedPort = endpoint?.port !== undefined && endpoint?.port !== null
-          ? String(endpoint.port)
-          : projectRuntimePort;
+        const mappedPort =
+          endpoint?.port !== undefined && endpoint?.port !== null
+            ? String(endpoint.port)
+            : projectRuntimePort;
 
         // domainId comes from the persisted domain row, NOT the endpoint
         // — the verify endpoint at POST /domains/:id/verify keys on the
@@ -395,14 +450,22 @@ export const DomainSettings = () => {
         return {
           id: endpoint?.id || hostname,
           domainId,
-          title: index === 0 ? t.projectSettings.domains.primaryDomainTitle : interpolate(t.projectSettings.domains.domainNTitle, { n: String(index + 1) }),
+          title:
+            index === 0
+              ? t.projectSettings.domains.primaryDomainTitle
+              : interpolate(t.projectSettings.domains.domainNTitle, { n: String(index + 1) }),
           hostname,
-          typeLabel: endpoint?.domainType === "custom" ? t.projectSettings.domains.typeCustom : t.projectSettings.domains.typeFree,
+          typeLabel:
+            endpoint?.domainType === "custom"
+              ? t.projectSettings.domains.typeCustom
+              : t.projectSettings.domains.typeFree,
           mappedLabel: hasProjectServer
-            ? (mappedPort ? interpolate(t.projectSettings.domains.portLabel, { port: String(mappedPort) }) : t.projectSettings.domains.noPortSelected)
-            : (endpoint?.targetPath || "/"),
-          mappedPort: hasProjectServer ? (Number(mappedPort) || undefined) : undefined,
-          targetPath: hasProjectServer ? undefined : (endpoint?.targetPath || "/"),
+            ? mappedPort
+              ? interpolate(t.projectSettings.domains.portLabel, { port: String(mappedPort) })
+              : t.projectSettings.domains.noPortSelected
+            : endpoint?.targetPath || "/",
+          mappedPort: hasProjectServer ? Number(mappedPort) || undefined : undefined,
+          targetPath: hasProjectServer ? undefined : endpoint?.targetPath || "/",
           liveUrl: `https://${hostname}`,
           isPrimary: index === 0,
           needsVerify,
@@ -411,7 +474,16 @@ export const DomainSettings = () => {
         };
       })
       .filter((domain): domain is DomainSummaryItem => domain !== null);
-  }, [projectData.publicEndpoints, publicEndpoints, domainsData.domains, baseDomain, projectRouteKey, hasProjectServer, projectRuntimePort, t]);
+  }, [
+    projectData.publicEndpoints,
+    publicEndpoints,
+    domainsData.domains,
+    baseDomain,
+    projectRouteKey,
+    hasProjectServer,
+    projectRuntimePort,
+    t,
+  ]);
 
   const primaryProjectDomain = domainSummaries[0] ?? null;
 
@@ -447,7 +519,8 @@ export const DomainSettings = () => {
             ? interpolate(m.primaryAcross, { count: String(domainSummaries.length) })
             : m.hostManaged,
         typeLabel: primaryProjectDomain?.typeLabel || t.projectSettings.domains.typeFree,
-        statusLabel: primaryProjectDomain?.status.label || t.projectSettings.domains.status.verified,
+        statusLabel:
+          primaryProjectDomain?.status.label || t.projectSettings.domains.status.verified,
         statusTone: primaryProjectDomain?.status.tone || ("success" as const),
       };
     }
@@ -570,18 +643,30 @@ export const DomainSettings = () => {
     if (!host) return;
     const isCustom = newDomainType === "custom";
     const portValue = newDomainPort.trim();
+    if (isCustom && customDomainsLocked) {
+      showCustomDomainProjectLimit();
+      return;
+    }
 
     // The "Include www" toggle owns the www record — a hand-typed "www."
     // prefix would double it up, so block it with guidance instead.
     if (isCustom && host.startsWith("www.")) {
-      showToast(t.projectSettings.domains.add.noWww, "error", t.projectSettings.domains.toast.addDomainTitle);
+      showToast(
+        t.projectSettings.domains.add.noWww,
+        "error",
+        t.projectSettings.domains.toast.addDomainTitle,
+      );
       return;
     }
 
     if (hasProjectServer) {
       const portNum = Number(portValue);
       if (!portValue || !Number.isFinite(portNum) || portNum < 1 || portNum > 65535) {
-        showToast(t.projectSettings.domains.toast.enterPort, "error", t.projectSettings.domains.toast.addDomainTitle);
+        showToast(
+          t.projectSettings.domains.toast.enterPort,
+          "error",
+          t.projectSettings.domains.toast.addDomainTitle,
+        );
         return;
       }
     }
@@ -592,7 +677,11 @@ export const DomainSettings = () => {
       // up front. persist (below) then attaches the port and lists it; the
       // backend keeps it pending until /verify.
       if (isCustom) {
-        const result = await projectsApi.connectDomain(id, { domain: host, includeWww, externalIngress });
+        const result = await projectsApi.connectDomain(id, {
+          domain: host,
+          includeWww,
+          externalIngress,
+        });
         if (!result.success) {
           showToast(
             result.error || t.projectSettings.domains.toast.addDomainFailed,
@@ -603,10 +692,9 @@ export const DomainSettings = () => {
         }
         if (result.records?.records) setDnsRecords(result.records.records);
         setPendingVerifyDomain(
-          typeof result.domain?.id === "string"
-            ? { id: result.domain.id, hostname: host }
-            : null,
+          typeof result.domain?.id === "string" ? { id: result.domain.id, hostname: host } : null,
         );
+        void refreshCustomDomainQuota();
       }
 
       const nextEndpoint = createPublicEndpoint({
@@ -639,7 +727,13 @@ export const DomainSettings = () => {
       }
     } catch (err) {
       console.error("Failed to add domain:", err);
-      showToast(getApiErrorMessage(err) || t.projectSettings.domains.toast.addDomainFailed, "error", t.projectSettings.domains.toast.addDomainFailedTitle);
+      const limitError = localizedCustomDomainProjectLimitError(err);
+      showToast(
+        limitError?.message ??
+          getApiErrorMessage(err, t.projectSettings.domains.toast.addDomainFailed),
+        "error",
+        limitError?.title ?? t.projectSettings.domains.toast.addDomainFailedTitle,
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -673,7 +767,8 @@ export const DomainSettings = () => {
         setVerifyFailure((f) => (f?.domainId === domainId ? null : f));
         invalidateProjectCaches(id);
         showToast(
-          result.message || interpolate(t.projectSettings.domains.toast.verifiedSuccess, { hostname }),
+          result.message ||
+            interpolate(t.projectSettings.domains.toast.verifiedSuccess, { hostname }),
           "success",
           t.projectSettings.domains.toast.verifiedTitle,
         );
@@ -814,10 +909,12 @@ export const DomainSettings = () => {
       const res = await deployApi.trigger({ projectId: id, forceAll: true });
       openTriggeredBuild(router, res, id);
     } catch (error) {
+      const limitError = localizedCustomDomainProjectLimitError(error);
       showToast(
-        getApiErrorMessage(error, t.projectSettings.domains.toast.publishFailed),
+        limitError?.message ??
+          getApiErrorMessage(error, t.projectSettings.domains.toast.publishFailed),
         "error",
-        t.projectSettings.domains.toast.domainsTitle,
+        limitError?.title ?? t.projectSettings.domains.toast.domainsTitle,
       );
     }
   };
@@ -833,18 +930,24 @@ export const DomainSettings = () => {
   ): Promise<boolean> => {
     const payload = endpoints
       .map((endpoint) => buildPublicEndpointPayload(endpoint, hasProjectServer))
-      .filter((endpoint): endpoint is NonNullable<ReturnType<typeof buildPublicEndpointPayload>> => endpoint !== null);
+      .filter(
+        (endpoint): endpoint is NonNullable<ReturnType<typeof buildPublicEndpointPayload>> =>
+          endpoint !== null,
+      );
 
     // Reject INCOMPLETE endpoints (a row that didn't map), but ALLOW an empty set
     // — removing every domain is a valid "internal-only / no public route" state.
     if (payload.length !== endpoints.length) {
-      showToast(t.projectSettings.domains.toast.completeEndpoints, "error", t.projectSettings.domains.toast.domainsTitle);
+      showToast(
+        t.projectSettings.domains.toast.completeEndpoints,
+        "error",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
       return false;
     }
 
-    const primaryPort = hasProjectServer && payload[0] && "port" in payload[0]
-      ? payload[0].port
-      : undefined;
+    const primaryPort =
+      hasProjectServer && payload[0] && "port" in payload[0] ? payload[0].port : undefined;
 
     setIsSavingPublicEndpoints(true);
     try {
@@ -864,34 +967,38 @@ export const DomainSettings = () => {
         },
       }));
 
-      await updateDomains(payload.map((endpoint, index) => {
-        const hostname = endpoint.domainType === "custom"
-          ? endpoint.customDomain || ""
-          : `${projectRouteKey ? appendProjectRouteKey(endpoint.domain || "", projectRouteKey) : endpoint.domain}.${baseDomain}`;
-        const existing = domainsData.domains.find((domain) => (
-          (typeof domain?.id === "string" && domain.id === endpoints[index]?.id) ||
-          domain?.hostname === hostname
-        ));
+      await updateDomains(
+        payload.map((endpoint, index) => {
+          const hostname =
+            endpoint.domainType === "custom"
+              ? endpoint.customDomain || ""
+              : `${projectRouteKey ? appendProjectRouteKey(endpoint.domain || "", projectRouteKey) : endpoint.domain}.${baseDomain}`;
+          const existing = domainsData.domains.find(
+            (domain) =>
+              (typeof domain?.id === "string" && domain.id === endpoints[index]?.id) ||
+              domain?.hostname === hostname,
+          );
 
-        // Custom domains are pending until DNS-verified (matches the backend);
-        // free/managed domains are host-verified immediately. Don't optimistically
-        // flash a new custom domain as "Verified".
-        const isCustom = endpoint.domainType === "custom";
-        return {
-          ...existing,
-          id: existing?.id || endpoints[index]?.id || hostname,
-          hostname,
-          domain: hostname,
-          primary: index === 0,
-          isPrimary: index === 0,
-          verified: existing?.verified ?? !isCustom,
-          status: existing?.status ?? (isCustom ? "pending" : "active"),
-          sslStatus: existing?.sslStatus ?? (endpoint.domainType === "free" ? "active" : "none"),
-          targetPort: endpoint.port ?? null,
-          targetPath: endpoint.targetPath ?? null,
-          domainType: endpoint.domainType,
-        };
-      }));
+          // Custom domains are pending until DNS-verified (matches the backend);
+          // free/managed domains are host-verified immediately. Don't optimistically
+          // flash a new custom domain as "Verified".
+          const isCustom = endpoint.domainType === "custom";
+          return {
+            ...existing,
+            id: existing?.id || endpoints[index]?.id || hostname,
+            hostname,
+            domain: hostname,
+            primary: index === 0,
+            isPrimary: index === 0,
+            verified: existing?.verified ?? !isCustom,
+            status: existing?.status ?? (isCustom ? "pending" : "active"),
+            sslStatus: existing?.sslStatus ?? (endpoint.domainType === "free" ? "active" : "none"),
+            targetPort: endpoint.port ?? null,
+            targetPath: endpoint.targetPath ?? null,
+            domainType: endpoint.domainType,
+          };
+        }),
+      );
 
       // Drop the cached project info so the next mount of Overview /
       // any hook consumer refetches with the new domain state.
@@ -901,7 +1008,13 @@ export const DomainSettings = () => {
       await redeployRoutes();
       return true;
     } catch (error) {
-      showToast(getApiErrorMessage(error, t.projectSettings.domains.toast.routingUpdateFailed), "error", t.projectSettings.domains.toast.domainsTitle);
+      const limitError = localizedCustomDomainProjectLimitError(error);
+      showToast(
+        limitError?.message ??
+          getApiErrorMessage(error, t.projectSettings.domains.toast.routingUpdateFailed),
+        "error",
+        limitError?.title ?? t.projectSettings.domains.toast.domainsTitle,
+      );
       return false;
     } finally {
       setIsSavingPublicEndpoints(false);
@@ -921,10 +1034,12 @@ export const DomainSettings = () => {
   // id, endpoint id, or resolved hostname so it works regardless of draft order.
   const handleSetPrimaryDomain = async (summary: DomainSummaryItem) => {
     if (summary.isPrimary) return;
-    const idx = publicEndpoints.findIndex((ep) =>
-      (!!summary.domainId && ep.id === summary.domainId) ||
-      ep.id === summary.id ||
-      resolveProjectEndpointHostname(ep, baseDomain, projectRouteKey)?.toLowerCase() === summary.hostname.toLowerCase(),
+    const idx = publicEndpoints.findIndex(
+      (ep) =>
+        (!!summary.domainId && ep.id === summary.domainId) ||
+        ep.id === summary.id ||
+        resolveProjectEndpointHostname(ep, baseDomain, projectRouteKey)?.toLowerCase() ===
+          summary.hostname.toLowerCase(),
     );
     if (idx <= 0) return; // -1 = not found, 0 = already primary
     const reordered = [...publicEndpoints];
@@ -957,10 +1072,18 @@ export const DomainSettings = () => {
         ),
       );
       if (id) invalidateProjectCaches(id);
-      showToast(t.projectSettings.domains.toast.primaryUpdated, "success", t.projectSettings.domains.toast.domainsTitle);
+      showToast(
+        t.projectSettings.domains.toast.primaryUpdated,
+        "success",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
       await redeployRoutes();
     } catch (error) {
-      showToast(getApiErrorMessage(error, t.projectSettings.domains.toast.setPrimaryFailed), "error", t.projectSettings.domains.toast.domainsTitle);
+      showToast(
+        getApiErrorMessage(error, t.projectSettings.domains.toast.setPrimaryFailed),
+        "error",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
     } finally {
       setSettingPrimaryId(null);
     }
@@ -1010,7 +1133,11 @@ export const DomainSettings = () => {
         if (ok) setRemoveTarget(null);
       }
     } catch (error) {
-      showToast(getApiErrorMessage(error, "Couldn't remove the route."), "error", t.projectSettings.domains.toast.domainsTitle);
+      showToast(
+        getApiErrorMessage(error, "Couldn't remove the route."),
+        "error",
+        t.projectSettings.domains.toast.domainsTitle,
+      );
     } finally {
       setRemoving(false);
     }
@@ -1022,7 +1149,12 @@ export const DomainSettings = () => {
     if (service.domainType === "custom" && service.customDomain) {
       return service.customDomain;
     }
-    const label = resolveServiceHostnameLabel(projectLabel, service.name, service.domain, serviceKind(service));
+    const label = resolveServiceHostnameLabel(
+      projectLabel,
+      service.name,
+      service.domain,
+      serviceKind(service),
+    );
     return `${projectRouteKey ? appendProjectRouteKey(label, projectRouteKey) : label}.${baseDomain}`;
   };
 
@@ -1034,7 +1166,9 @@ export const DomainSettings = () => {
         connected: false,
         statusLabel: t.projectSettings.domains.route.disabled,
         statusClass: "bg-warning-bg text-warning",
-        detail: service.exposed ? t.projectSettings.domains.route.routePaused : t.projectSettings.domains.route.serviceDisabled,
+        detail: service.exposed
+          ? t.projectSettings.domains.route.routePaused
+          : t.projectSettings.domains.route.serviceDisabled,
         liveUrl,
       };
     }
@@ -1053,7 +1187,10 @@ export const DomainSettings = () => {
       connected: true,
       statusLabel: t.projectSettings.domains.route.public,
       statusClass: "bg-success-bg text-success",
-      detail: service.domainType === "custom" ? t.projectSettings.domains.typeCustom : t.projectSettings.domains.typeFree,
+      detail:
+        service.domainType === "custom"
+          ? t.projectSettings.domains.typeCustom
+          : t.projectSettings.domains.typeFree,
       liveUrl,
     };
   };
@@ -1073,7 +1210,13 @@ export const DomainSettings = () => {
       return true;
     } catch (error) {
       console.error("Failed to update service route:", error);
-      showToast(t.projectSettings.domains.toast.routeUpdateFailed, "error");
+      const limitError = localizedCustomDomainProjectLimitError(error);
+      showToast(
+        limitError?.message ??
+          getApiErrorMessage(error, t.projectSettings.domains.toast.routeUpdateFailed),
+        "error",
+        limitError?.title ?? t.projectSettings.domains.toast.domainsTitle,
+      );
       return false;
     } finally {
       setRouteSavingServiceId(null);
@@ -1104,6 +1247,10 @@ export const DomainSettings = () => {
   const handleAddRoute = async () => {
     setAddRouteError(null);
     const { domainType, domain, port } = addRouteDraft;
+    if (domainType === "custom" && customDomainsLocked) {
+      showCustomDomainProjectLimit();
+      return;
+    }
     // Free *.vibrail.warpgateapi.com routes only resolve behind the Vibrail Cloud edge — gate
     // the add on a cloud connection, identical to handleSaveRoute /
     // handleSavePublicEndpoints. requireCloud opens the connect modal and
@@ -1116,12 +1263,18 @@ export const DomainSettings = () => {
     }
     const target = findServiceByPort(cleanPort);
     if (!target) {
-      setAddRouteError(interpolate(t.projectSettings.domains.toast.noServicePort, { port: cleanPort }));
+      setAddRouteError(
+        interpolate(t.projectSettings.domains.toast.noServicePort, { port: cleanPort }),
+      );
       return;
     }
     const domainValue = domain.trim();
     if (!domainValue) {
-      setAddRouteError(domainType === "custom" ? t.projectSettings.domains.toast.enterCustom : t.projectSettings.domains.toast.enterSubdomain);
+      setAddRouteError(
+        domainType === "custom"
+          ? t.projectSettings.domains.toast.enterCustom
+          : t.projectSettings.domains.toast.enterSubdomain,
+      );
       return;
     }
     setAddRouteSaving(true);
@@ -1163,9 +1316,15 @@ export const DomainSettings = () => {
             domainId: typeof domain?.id === "string" ? domain.id : undefined,
             title: service.name,
             hostname,
-            typeLabel: service.domainType === "custom" ? t.projectSettings.domains.typeCustom : t.projectSettings.domains.typeFree,
-            mappedLabel: interpolate(t.projectSettings.domains.portLabel, { port: String(service.exposedPort || firstContainerPort(service.ports) || "auto") }),
-            mappedPort: Number(service.exposedPort || firstContainerPort(service.ports)) || undefined,
+            typeLabel:
+              service.domainType === "custom"
+                ? t.projectSettings.domains.typeCustom
+                : t.projectSettings.domains.typeFree,
+            mappedLabel: interpolate(t.projectSettings.domains.portLabel, {
+              port: String(service.exposedPort || firstContainerPort(service.ports) || "auto"),
+            }),
+            mappedPort:
+              Number(service.exposedPort || firstContainerPort(service.ports)) || undefined,
             serviceId: service.id,
             liveUrl: `https://${hostname}`,
             isPrimary: domain?.isPrimary ?? false,
@@ -1190,7 +1349,12 @@ export const DomainSettings = () => {
     const m = t.projectSettings.domains.menu;
     const items: MenuAction[] = [];
     if (onEditRoute) {
-      items.push({ id: "edit", label: m.editRoute, icon: <Pencil className="size-4" />, onClick: onEditRoute });
+      items.push({
+        id: "edit",
+        label: m.editRoute,
+        icon: <Pencil className="size-4" />,
+        onClick: onEditRoute,
+      });
     }
     if (onSetPrimary) {
       items.push({
@@ -1240,7 +1404,11 @@ export const DomainSettings = () => {
         verifying={!!verifyingDomainId && verifyingDomainId === item.domainId}
         verifyHint={verifyHintFor(item.domainId)}
         autoOpenRecords={!!item.domainId && verifyFailure?.domainId === item.domainId}
-        loadRecords={canVerify ? () => domainsApi.records(item.domainId!).then((r) => r.data.records) : undefined}
+        loadRecords={
+          canVerify
+            ? () => domainsApi.records(item.domainId!).then((r) => r.data.records)
+            : undefined
+        }
         onCopy={handleCopy}
         portHint={portHintFor(item.mappedPort, item.serviceId)}
         outputHint={outputHintFor(item.targetPath)}
@@ -1258,17 +1426,21 @@ export const DomainSettings = () => {
     : "";
   const routeDirty = Boolean(
     editingRouteService &&
-      routeDraft &&
-      (routeDraft.exposed !== editingRouteService.exposed ||
-        routeDraft.domainType !== (editingRouteService.domainType === "custom" ? "custom" : "free") ||
-        routeDraft.domain !== (editingRouteService.domain ?? "") ||
-        routeDraft.customDomain !== (editingRouteService.customDomain ?? "") ||
-        routeDraft.exposedPort !== routeOriginalPort),
+    routeDraft &&
+    (routeDraft.exposed !== editingRouteService.exposed ||
+      routeDraft.domainType !== (editingRouteService.domainType === "custom" ? "custom" : "free") ||
+      routeDraft.domain !== (editingRouteService.domain ?? "") ||
+      routeDraft.customDomain !== (editingRouteService.customDomain ?? "") ||
+      routeDraft.exposedPort !== routeOriginalPort),
   );
   const routeSaving = editingRouteService ? routeSavingServiceId === editingRouteService.id : false;
 
   const handleSaveRoute = async () => {
     if (!editingRouteService || !routeDraft) return;
+    if (routeDraft.domainType === "custom" && customDomainsLocked) {
+      showCustomDomainProjectLimit();
+      return;
+    }
     // A free route rides the cloud edge — gate the save behind connect-cloud.
     if (routeDraft.domainType === "free" && !(await freeNeedsCloud())) return;
     const patch: Partial<ServiceInput> = {};
@@ -1308,17 +1480,30 @@ export const DomainSettings = () => {
       // server every domain routes to the same process, so this is the
       // right default; the user can still change it.
       setNewDomainPort(projectRuntimePort);
+      if (customDomainsLocked) setNewDomainType("free");
       setShowCustomDomainSection(true);
     }
   };
   const singleDomainActions = (
     <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-      <ActionButton href={currentHref} label={t.projectSettings.domains.actions.visit} icon={ExternalLink} />
+      <ActionButton
+        href={currentHref}
+        label={t.projectSettings.domains.actions.visit}
+        icon={ExternalLink}
+      />
       {hasProjectLevelRouting ? (
-        <ActionButton label={t.projectSettings.domains.actions.editDomains} icon={Pencil} onClick={handleStartEditingDomains} />
+        <ActionButton
+          label={t.projectSettings.domains.actions.editDomains}
+          icon={Pencil}
+          onClick={handleStartEditingDomains}
+        />
       ) : null}
       <ActionButton
-        label={showCustomDomainSection ? t.projectSettings.domains.actions.hideSetup : t.projectSettings.domains.actions.addDomain}
+        label={
+          showCustomDomainSection
+            ? t.projectSettings.domains.actions.hideSetup
+            : t.projectSettings.domains.actions.addDomain
+        }
         icon={Plus}
         onClick={handleToggleCustomDomain}
       />
@@ -1343,6 +1528,30 @@ export const DomainSettings = () => {
 
   return (
     <div className="space-y-5">
+      {foreignCustomDomainProject ? (
+        <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ShieldAlert className="mt-0.5 size-4 shrink-0 text-amber-600" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                {t.projectSettings.domains.add.projectLimitTitle}
+              </p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                {interpolate(t.projectSettings.domains.add.projectLimitDescription, {
+                  project: foreignCustomDomainProject.projectName,
+                })}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/billing/plans")}
+            className="shrink-0 rounded-xl bg-foreground px-3 py-2 text-xs font-medium text-background transition-opacity hover:opacity-90"
+          >
+            {t.billing.overview.upgradeToPro}
+          </button>
+        </div>
+      ) : null}
       {domainsData.isLoading ? (
         <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
           {[0, 1].map((i) => (
@@ -1379,27 +1588,46 @@ export const DomainSettings = () => {
                     key={type}
                     type="button"
                     onClick={async () => {
+                      if (type === "custom" && customDomainsLocked) {
+                        showToast(
+                          interpolate(t.projectSettings.domains.add.projectLimitDescription, {
+                            project: foreignCustomDomainProject?.projectName ?? "",
+                          }),
+                          "error",
+                          t.projectSettings.domains.add.projectLimitTitle,
+                        );
+                        return;
+                      }
                       if (type === "free" && !(await freeNeedsCloud())) return;
                       setNewDomainType(type);
                     }}
+                    disabled={type === "custom" && customDomainsLocked}
                     className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
                       newDomainType === type
                         ? "bg-primary/10 text-primary ring-1 ring-primary/15"
-                        : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+                        : "bg-muted/40 text-muted-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-45"
                     }`}
                   >
-                    {type === "free" ? t.projectSettings.domains.add.free : t.projectSettings.domains.add.custom}
+                    {type === "free"
+                      ? t.projectSettings.domains.add.free
+                      : t.projectSettings.domains.add.custom}
                   </button>
                 ))}
               </div>
 
               <div className="space-y-2">
                 <label className="text-[13px] font-medium text-foreground">
-                  {newDomainType === "custom" ? t.projectSettings.domains.add.domainName : t.projectSettings.domains.add.subdomain}
+                  {newDomainType === "custom"
+                    ? t.projectSettings.domains.add.domainName
+                    : t.projectSettings.domains.add.subdomain}
                 </label>
                 <div className="flex items-center overflow-hidden rounded-xl border border-border bg-background transition-colors focus-within:border-primary/40">
                   <input
-                    placeholder={newDomainType === "custom" ? t.projectSettings.domains.add.customPlaceholder : projectLabel || t.projectSettings.domains.add.defaultAppName}
+                    placeholder={
+                      newDomainType === "custom"
+                        ? t.projectSettings.domains.add.customPlaceholder
+                        : projectLabel || t.projectSettings.domains.add.defaultAppName
+                    }
                     value={newDomain}
                     onChange={(e) => setNewDomain(e.target.value)}
                     className="flex-1 bg-transparent px-4 py-3 text-sm text-foreground outline-none placeholder:text-muted-foreground/60"
@@ -1417,7 +1645,9 @@ export const DomainSettings = () => {
 
               {hasProjectServer ? (
                 <div className="space-y-2">
-                  <label className="text-[13px] font-medium text-foreground">{t.projectSettings.domains.add.mapsToPort}</label>
+                  <label className="text-[13px] font-medium text-foreground">
+                    {t.projectSettings.domains.add.mapsToPort}
+                  </label>
                   <input
                     value={newDomainPort}
                     onChange={(e) => setNewDomainPort(e.target.value)}
@@ -1428,24 +1658,34 @@ export const DomainSettings = () => {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  <label className="text-[13px] font-medium text-foreground">{t.projectSettings.domains.add.servesPath}</label>
+                  <label className="text-[13px] font-medium text-foreground">
+                    {t.projectSettings.domains.add.servesPath}
+                  </label>
                   <input
                     value={newDomainPath}
                     onChange={(e) => setNewDomainPath(e.target.value)}
                     placeholder="/"
                     className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-primary/40"
                   />
-                  <p className="text-[12px] text-muted-foreground">{t.projectSettings.domains.add.servesPathHint}</p>
-                  <p className="text-[12px] text-warning">{t.projectSettings.domains.add.servesPathRedeploy}</p>
+                  <p className="text-[12px] text-muted-foreground">
+                    {t.projectSettings.domains.add.servesPathHint}
+                  </p>
+                  <p className="text-[12px] text-warning">
+                    {t.projectSettings.domains.add.servesPathRedeploy}
+                  </p>
                 </div>
               )}
 
               {newDomainType === "custom" && (
                 <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-muted/25 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-foreground">{t.projectSettings.domains.add.includeWww}</p>
+                    <p className="text-[13px] font-medium text-foreground">
+                      {t.projectSettings.domains.add.includeWww}
+                    </p>
                     <p className="text-[12px] text-muted-foreground">
-                      {interpolate(t.projectSettings.domains.add.includeWwwDesc, { domain: newDomain || t.projectSettings.domains.add.includeWwwFallback })}
+                      {interpolate(t.projectSettings.domains.add.includeWwwDesc, {
+                        domain: newDomain || t.projectSettings.domains.add.includeWwwFallback,
+                      })}
                     </p>
                   </div>
                   <button
@@ -1462,7 +1702,9 @@ export const DomainSettings = () => {
               {newDomainType === "custom" && (
                 <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-muted/25 px-4 py-3">
                   <div className="min-w-0">
-                    <p className="text-[13px] font-medium text-foreground">{t.projectSettings.domains.add.externalIngress}</p>
+                    <p className="text-[13px] font-medium text-foreground">
+                      {t.projectSettings.domains.add.externalIngress}
+                    </p>
                     <p className="text-[12px] text-muted-foreground">
                       {t.projectSettings.domains.add.externalIngressDesc}
                     </p>
@@ -1494,7 +1736,9 @@ export const DomainSettings = () => {
                   ) : (
                     <Plus className="size-4" />
                   )}
-                  {isSubmitting ? t.projectSettings.domains.add.adding : t.projectSettings.domains.add.submit}
+                  {isSubmitting
+                    ? t.projectSettings.domains.add.adding
+                    : t.projectSettings.domains.add.submit}
                 </button>
               </div>
             </div>
@@ -1533,7 +1777,9 @@ export const DomainSettings = () => {
                     label={
                       verifyingDomainId === pendingVerifyDomain.id
                         ? t.projectSettings.domains.dns.verifying
-                        : interpolate(t.projectSettings.domains.dns.verify, { hostname: pendingVerifyDomain.hostname })
+                        : interpolate(t.projectSettings.domains.dns.verify, {
+                            hostname: pendingVerifyDomain.hostname,
+                          })
                     }
                     icon={verifyingDomainId === pendingVerifyDomain.id ? Loader2 : RefreshCw}
                     onClick={() =>
@@ -1580,7 +1826,11 @@ export const DomainSettings = () => {
               Visit / Edit-domains top buttons. */}
           <div className="flex flex-wrap items-center justify-end gap-2">
             <ActionButton
-              label={showCustomDomainSection ? t.projectSettings.domains.actions.hideSetup : t.projectSettings.domains.actions.addDomain}
+              label={
+                showCustomDomainSection
+                  ? t.projectSettings.domains.actions.hideSetup
+                  : t.projectSettings.domains.actions.addDomain
+              }
               icon={Plus}
               onClick={handleToggleCustomDomain}
             />
@@ -1617,7 +1867,9 @@ export const DomainSettings = () => {
           >
             <div className="flex items-center justify-between gap-4 border-b border-border/40 px-5 py-4">
               <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold text-foreground">{t.projectSettings.domains.edit.title}</h3>
+                <h3 className="text-[14px] font-semibold text-foreground">
+                  {t.projectSettings.domains.edit.title}
+                </h3>
                 <p className="mt-0.5 text-[12px] text-muted-foreground">
                   {hasProjectServer
                     ? t.projectSettings.domains.edit.descServer
@@ -1658,7 +1910,9 @@ export const DomainSettings = () => {
                 ) : (
                   <CheckCircle2 className="size-4" />
                 )}
-                {isSavingPublicEndpoints ? t.projectSettings.domains.edit.saving : t.projectSettings.domains.edit.save}
+                {isSavingPublicEndpoints
+                  ? t.projectSettings.domains.edit.saving
+                  : t.projectSettings.domains.edit.save}
               </button>
             </div>
           </div>
@@ -1669,7 +1923,11 @@ export const DomainSettings = () => {
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <ActionButton
-              label={showAddRoute ? t.projectSettings.domains.addRoute.cancel : t.projectSettings.domains.addRoute.add}
+              label={
+                showAddRoute
+                  ? t.projectSettings.domains.addRoute.cancel
+                  : t.projectSettings.domains.addRoute.add
+              }
               icon={Plus}
               onClick={() => {
                 setAddRouteError(null);
@@ -1685,16 +1943,23 @@ export const DomainSettings = () => {
                     key={type}
                     type="button"
                     onClick={async () => {
+                      if (type === "custom" && customDomainsLocked) {
+                        showCustomDomainProjectLimit();
+                        return;
+                      }
                       if (type === "free" && !(await freeNeedsCloud())) return;
                       setAddRouteDraft((d) => ({ ...d, domainType: type }));
                     }}
+                    disabled={type === "custom" && customDomainsLocked}
                     className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${
                       addRouteDraft.domainType === type
                         ? "bg-primary/10 text-primary ring-1 ring-primary/15"
-                        : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+                        : "bg-muted/40 text-muted-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-45"
                     }`}
                   >
-                    {type === "free" ? t.projectSettings.domains.addRoute.free : t.projectSettings.domains.addRoute.custom}
+                    {type === "free"
+                      ? t.projectSettings.domains.addRoute.free
+                      : t.projectSettings.domains.addRoute.custom}
                   </button>
                 ))}
               </div>
@@ -1703,7 +1968,11 @@ export const DomainSettings = () => {
                   <input
                     value={addRouteDraft.domain}
                     onChange={(e) => setAddRouteDraft((d) => ({ ...d, domain: e.target.value }))}
-                    placeholder={addRouteDraft.domainType === "custom" ? t.projectSettings.domains.addRoute.customPlaceholder : projectLabel || t.projectSettings.domains.addRoute.defaultServiceName}
+                    placeholder={
+                      addRouteDraft.domainType === "custom"
+                        ? t.projectSettings.domains.addRoute.customPlaceholder
+                        : projectLabel || t.projectSettings.domains.addRoute.defaultServiceName
+                    }
                     className="flex-1 bg-transparent px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
                   />
                   {addRouteDraft.domainType === "free" && (
@@ -1713,7 +1982,9 @@ export const DomainSettings = () => {
                   )}
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[13px] text-muted-foreground">{t.projectSettings.domains.addRoute.port}</span>
+                  <span className="text-[13px] text-muted-foreground">
+                    {t.projectSettings.domains.addRoute.port}
+                  </span>
                   <input
                     value={addRouteDraft.port}
                     onChange={(e) => setAddRouteDraft((d) => ({ ...d, port: e.target.value }))}
@@ -1727,7 +1998,11 @@ export const DomainSettings = () => {
                     disabled={addRouteSaving}
                     className="inline-flex items-center gap-1.5 rounded-xl bg-foreground px-4 py-2.5 text-[13px] font-medium text-background transition-colors hover:bg-foreground/90 disabled:opacity-50"
                   >
-                    {addRouteSaving ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                    {addRouteSaving ? (
+                      <Loader2 className="size-4 animate-spin" />
+                    ) : (
+                      <Plus className="size-4" />
+                    )}
                     {t.projectSettings.domains.addRoute.submit}
                   </button>
                 </div>
@@ -1737,10 +2012,16 @@ export const DomainSettings = () => {
           )}
 
           {servicesLoading ? (
-            <div className="py-8 text-center text-sm text-muted-foreground">{t.projectSettings.domains.addRoute.loading}</div>
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              {t.projectSettings.domains.addRoute.loading}
+            </div>
           ) : serviceRouteCards.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {t.projectSettings.domains.addRoute.emptyPrefix}<span className="font-medium text-foreground">{t.projectSettings.domains.addRoute.emptyAction}</span>{t.projectSettings.domains.addRoute.emptySuffix}
+              {t.projectSettings.domains.addRoute.emptyPrefix}
+              <span className="font-medium text-foreground">
+                {t.projectSettings.domains.addRoute.emptyAction}
+              </span>
+              {t.projectSettings.domains.addRoute.emptySuffix}
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
@@ -1786,7 +2067,9 @@ export const DomainSettings = () => {
           >
             <div className="flex items-center justify-between gap-4 border-b border-border/40 px-5 py-4">
               <div className="min-w-0">
-                <h3 className="text-[14px] font-semibold text-foreground">{t.projectSettings.domains.editRoute.title}</h3>
+                <h3 className="text-[14px] font-semibold text-foreground">
+                  {t.projectSettings.domains.editRoute.title}
+                </h3>
                 <p className="mt-0.5 truncate text-[12px] text-muted-foreground">
                   {editingRouteService.name}
                   {editingRoute.liveUrl
@@ -1818,14 +2101,26 @@ export const DomainSettings = () => {
                 // The card edits the in-memory draft only — the API is hit ONCE
                 // on Save. saveMode="change" reports each edit straight to state
                 // (no per-keystroke/per-toggle request, no inline pill).
-                onExposedChange={(value) => setRouteDraft((prev) => (prev ? { ...prev, exposed: value } : prev))}
+                onExposedChange={(value) =>
+                  setRouteDraft((prev) => (prev ? { ...prev, exposed: value } : prev))
+                }
                 onDomainTypeChange={async (value) => {
+                  if (value === "custom" && customDomainsLocked) {
+                    showCustomDomainProjectLimit();
+                    return;
+                  }
                   if (value === "free" && !(await freeNeedsCloud())) return;
                   setRouteDraft((prev) => (prev ? { ...prev, domainType: value } : prev));
                 }}
-                onDomainChange={(value) => setRouteDraft((prev) => (prev ? { ...prev, domain: value } : prev))}
-                onCustomDomainChange={(value) => setRouteDraft((prev) => (prev ? { ...prev, customDomain: value } : prev))}
-                onExposedPortChange={(value) => setRouteDraft((prev) => (prev ? { ...prev, exposedPort: value } : prev))}
+                onDomainChange={(value) =>
+                  setRouteDraft((prev) => (prev ? { ...prev, domain: value } : prev))
+                }
+                onCustomDomainChange={(value) =>
+                  setRouteDraft((prev) => (prev ? { ...prev, customDomain: value } : prev))
+                }
+                onExposedPortChange={(value) =>
+                  setRouteDraft((prev) => (prev ? { ...prev, exposedPort: value } : prev))
+                }
                 saveMode="change"
               />
               {!editingRouteService.enabled && routeDraft.exposed && (
@@ -1865,11 +2160,14 @@ export const DomainSettings = () => {
               </span>
               <div className="min-w-0">
                 <h3 className="text-[14px] font-semibold text-foreground">Remove route</h3>
-                <p className="mt-0.5 break-all text-[12px] text-muted-foreground">{removeTarget.hostname}</p>
+                <p className="mt-0.5 break-all text-[12px] text-muted-foreground">
+                  {removeTarget.hostname}
+                </p>
               </div>
             </div>
             <p className="px-5 pt-3 text-[12px] leading-relaxed text-muted-foreground">
-              The app keeps running — only this route and its edge registration are removed. You can add it back at any time.
+              The app keeps running — only this route and its edge registration are removed. You can
+              add it back at any time.
             </p>
             <div className="mt-5 flex justify-end gap-2 border-t border-border/40 px-5 py-4">
               <button
@@ -2130,15 +2428,24 @@ function DomainOverviewCard({
       <div className="space-y-4 px-5 py-4">
         <div className="break-all text-[15px] font-semibold text-foreground">{domain.hostname}</div>
         <InfoRow label={d.overview.mappedTo} value={domain.mappedLabel} />
-        <InfoRow label={d.overview.status} value={<StatusPill tone={domain.status.tone}>{domain.status.label}</StatusPill>} />
-        <InfoRow label={d.overview.ssl} value={<StatusPill tone={domain.ssl.tone}>{domain.ssl.label}</StatusPill>} />
+        <InfoRow
+          label={d.overview.status}
+          value={<StatusPill tone={domain.status.tone}>{domain.status.label}</StatusPill>}
+        />
+        <InfoRow
+          label={d.overview.ssl}
+          value={<StatusPill tone={domain.ssl.tone}>{domain.ssl.label}</StatusPill>}
+        />
 
         {portHint ? (
           <div className="flex items-start gap-2 rounded-xl border border-warning-border bg-warning-bg/40 px-3 py-2.5 text-[12px] text-warning">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0" />
             <span>
               {portHint.serviceName
-                ? interpolate(d.portHint.bodyService, { service: portHint.serviceName, port: String(portHint.port) })
+                ? interpolate(d.portHint.bodyService, {
+                    service: portHint.serviceName,
+                    port: String(portHint.port),
+                  })
                 : interpolate(d.portHint.body, { port: String(portHint.port) })}
             </span>
           </div>
@@ -2160,7 +2467,11 @@ function DomainOverviewCard({
                 disabled={verifying}
                 className="inline-flex min-h-9 items-center gap-1.5 rounded-xl bg-primary px-3.5 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {verifying ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+                {verifying ? (
+                  <Loader2 className="size-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="size-3.5" />
+                )}
                 {verifying ? d.menu.verifying : d.menu.verify}
               </button>
               {loadRecords ? (
@@ -2171,7 +2482,9 @@ function DomainOverviewCard({
                 >
                   <Link2 className="size-3.5" />
                   {d.records.toggle}
-                  <ChevronDown className={`size-3.5 transition-transform ${recordsOpen ? "rotate-180" : ""}`} />
+                  <ChevronDown
+                    className={`size-3.5 transition-transform ${recordsOpen ? "rotate-180" : ""}`}
+                  />
                 </button>
               ) : null}
             </div>

@@ -25,7 +25,7 @@ import { imagesApi, type ImageCatalogEntry } from "@/lib/api/images";
 import type { ServiceInput } from "@/lib/api/services";
 import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
-import { getApiErrorMessage } from "@/lib/api";
+import { getApiErrorMessage, getLocalizedCustomDomainProjectLimitError } from "@/lib/api";
 import EnvironmentVariables from "@/components/import-project/EnvironmentVariables";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
 import { LOCAL_SERVICE_CATALOG } from "./local-service-catalog";
@@ -451,7 +451,14 @@ export function AddServiceModal({ open, projectName, routeKey, isCloudProject, o
       await onSubmit(payload);
       onClose();
     } catch (err) {
-      setError(getApiErrorMessage(err, t.projectDetail.services.addModal.addServiceFailed));
+      const limitError = getLocalizedCustomDomainProjectLimitError(
+        err,
+        t.projectSettings.domains.add,
+      );
+      setError(
+        limitError?.message ??
+          getApiErrorMessage(err, t.projectDetail.services.addModal.addServiceFailed),
+      );
     } finally {
       setSaving(false);
     }

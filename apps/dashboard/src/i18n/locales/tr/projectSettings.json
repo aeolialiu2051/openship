@@ -670,7 +670,9 @@
       "externalIngressDesc": "TLS upstream katmanında sonlandırılır (Cloudflare Tunnel veya yük dengeleyici). Yalnızca TXT kaydıyla doğrulayın — alan adının bu sunucuya yönlenmesi gerekmez ve Vibrail sertifika düzenlemez.",
       "noWww": "Alan adını \"www.\" olmadan girin — eklemek için aşağıdan \"www dahil et\" seçeneğini açın.",
       "adding": "Ekleniyor...",
-      "submit": "Alan adı ekle"
+      "submit": "Alan adı ekle",
+      "projectLimitTitle": "Özel alan adları başka bir projede kullanılıyor",
+      "projectLimitDescription": "Free planında özel alan adları yalnızca bir projede kullanılabilir. Bu hak şu anda {project} tarafından kullanılıyor. Burada kullanmak için Pro'ya yükseltin."
     },
     "dns": {
       "title": "DNS Kayıtları",

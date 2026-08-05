@@ -584,7 +584,9 @@
       "includeWwwDesc": "Gerar também registos para www.{domain}",
       "includeWwwFallback": "seudominio.com",
       "adding": "A adicionar...",
-      "submit": "Adicionar domínio"
+      "submit": "Adicionar domínio",
+      "projectLimitTitle": "Os domínios personalizados estão em uso em outro projeto",
+      "projectLimitDescription": "O plano Free permite domínios personalizados em apenas um projeto. {project} já usa esse benefício. Faça upgrade para Pro para usá-los aqui."
     },
     "dns": {
       "title": "Registos DNS",

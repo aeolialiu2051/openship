@@ -591,7 +591,9 @@
       "includeWwwDesc": "Auch Einträge für www.{domain} erzeugen",
       "includeWwwFallback": "ihredomain.de",
       "adding": "Wird hinzugefügt...",
-      "submit": "Domain hinzufügen"
+      "submit": "Domain hinzufügen",
+      "projectLimitTitle": "Benutzerdefinierte Domains werden in einem anderen Projekt verwendet",
+      "projectLimitDescription": "Im Free-Tarif können benutzerdefinierte Domains nur in einem Projekt verwendet werden. {project} nutzt dieses Kontingent bereits. Mit Pro kannst du sie auch hier verwenden."
     },
     "dns": {
       "title": "DNS-Einträge",

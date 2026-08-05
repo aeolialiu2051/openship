@@ -591,7 +591,9 @@
       "includeWwwDesc": "أنشئ أيضًا سجلات لـ www.{domain}",
       "includeWwwFallback": "yourdomain.com",
       "adding": "جارٍ الإضافة...",
-      "submit": "إضافة نطاق"
+      "submit": "إضافة نطاق",
+      "projectLimitTitle": "تُستخدم النطاقات المخصصة في مشروع آخر",
+      "projectLimitDescription": "تسمح الخطة المجانية باستخدام النطاقات المخصصة في مشروع واحد فقط. يستخدم {project} هذه الميزة حالياً. قم بالترقية إلى Pro لاستخدامها هنا."
     },
     "dns": {
       "title": "سجلات DNS",

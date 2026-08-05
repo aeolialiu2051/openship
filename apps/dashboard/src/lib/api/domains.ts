@@ -24,7 +24,17 @@ export interface DomainDnsRecords {
   records: DomainDnsRecord[];
 }
 
+export interface CustomDomainProjectQuota {
+  tier: "free" | "pro" | "team" | "enterprise";
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  claimedProjects: Array<{ projectId: string; projectName: string }>;
+}
+
 export const domainsApi = {
+  quota: () => api.get<{ data: CustomDomainProjectQuota }>(endpoints.domains.quota),
+
   /** Get DNS records preview for a hostname (no domain creation needed). */
   previewRecords: (hostname: string) =>
     api.post<{ data: DomainDnsRecords }>(endpoints.domains.preview, { hostname }),
@@ -46,7 +56,12 @@ export const domainsApi = {
     try {
       return await api.post<DomainVerifyResult>(endpoints.domains.verify(domainId));
     } catch (err) {
-      if (err instanceof ApiError && err.status === 422 && err.body && typeof err.body === "object") {
+      if (
+        err instanceof ApiError &&
+        err.status === 422 &&
+        err.body &&
+        typeof err.body === "object"
+      ) {
         return err.body as DomainVerifyResult;
       }
       throw err;

@@ -137,6 +137,7 @@ export const endpoints = {
   /*  Domains                                                          */
   /* ---------------------------------------------------------------- */
   domains: {
+    quota: "domains/quota",
     preview: "domains/preview",
     byId: (id: string) => `domains/${encodeURIComponent(id)}`,
     verify: (id: string) => `domains/${encodeURIComponent(id)}/verify`,

@@ -20,6 +20,14 @@ export {
   getApiBaseUrl,
 } from "./client";
 export type { RequestOptions } from "./client";
+export {
+  CUSTOM_DOMAIN_PROJECT_LIMIT_ERROR_CODE,
+  getLocalizedCustomDomainProjectLimitError,
+} from "./custom-domain-project-limit-error";
+export type {
+  CustomDomainProjectLimitCopy,
+  LocalizedCustomDomainProjectLimitError,
+} from "./custom-domain-project-limit-error";
 
 /* --- Endpoint registry (single source of truth for paths) --------- */
 export { endpoints } from "./endpoints";
@@ -33,6 +41,7 @@ export { appsApi } from "./apps";
 export type { AppCatalogEntry, AppCatalogField, InstallAppResult } from "./apps";
 export { deployApi } from "./deploy";
 export { domainsApi } from "./domains";
+export type { CustomDomainProjectQuota } from "./domains";
 export { domainSettingsApi } from "./domain-settings";
 export type {
   DomainSettingsView,

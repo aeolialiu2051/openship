@@ -33,8 +33,10 @@ export function handleApiError(err: unknown, c: Context) {
 
   if (err instanceof AppError) {
     const { message, code, statusCode } = err;
+    const details =
+      "details" in err && err.details && typeof err.details === "object" ? err.details : undefined;
     return c.json(
-      { error: message, code },
+      { error: message, message, code, ...(details ? { details } : {}) },
       statusCode as 400 | 401 | 403 | 404 | 409 | 500,
     );
   }

@@ -27,7 +27,7 @@
 
 import crypto from "node:crypto";
 import { repos } from "@repo/db";
-import { safeErrorMessage } from "@repo/core";
+import { AppError, safeErrorMessage } from "@repo/core";
 import {
   resolveExecutor,
   transferVolume,
@@ -51,14 +51,23 @@ import { requestBuildAccess } from "../deployments/build.service";
 import { restartServiceContainer, updateService } from "../services/service.service";
 import { describeLiveState, resolveLiveServiceState } from "../services/live-state";
 import { applyProjectRouting } from "../domains/routing-apply.service";
-import { resolveProjectRouteState, reapplyProjectLiveRoutes } from "../domains/project-route.service";
+import {
+  resolveProjectRouteState,
+  reapplyProjectLiveRoutes,
+} from "../domains/project-route.service";
 import { linkProjectRepo } from "../projects/project-crud.service";
 import type { ProjectCompositeRoute } from "@repo/core";
 import { teardownProject } from "../projects/project-teardown";
 import { discoverServerStack } from "./docker-inspect.service";
-import { adoptServerStack, attachLiveRuntime, joinReusedContainersToGroup, parseRepoCompose } from "./migrate.service";
+import {
+  adoptServerStack,
+  attachLiveRuntime,
+  joinReusedContainersToGroup,
+  parseRepoCompose,
+} from "./migrate.service";
 import { isMovableBind } from "./migration-preflight";
 import { migrationRunBus } from "./migration.sse";
+import { CUSTOM_DOMAIN_PROJECT_LIMIT_CODE } from "../domains/custom-domain-project-quota";
 
 /** Per-service volume ownership for a same-server migration.
  *  "reuse" (default) = seize the original volume in place (zero copy).
@@ -183,11 +192,7 @@ const TRANSFER_CONCURRENCY = 3;
 
 /** Minimal bounded-concurrency runner (no dep): keeps ≤`limit` tasks in flight,
  *  preserves order, propagates the first rejection. */
-async function runPool<T, R>(
-  items: T[],
-  limit: number,
-  fn: (item: T) => Promise<R>,
-): Promise<R[]> {
+async function runPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let next = 0;
   const worker = async () => {
@@ -290,8 +295,7 @@ class MigrationOrchestratorImpl {
       }
 
       const confirmationToken = crypto.randomBytes(8).toString("hex");
-      const mode =
-        input.sourceServerId === input.targetServerId ? "same_server" : "cross_server";
+      const mode = input.sourceServerId === input.targetServerId ? "same_server" : "cross_server";
       const run = await repos.dockerMigrationRun.create({
         id: `dmr_${crypto.randomUUID()}`,
         organizationId: input.organizationId,
@@ -339,11 +343,7 @@ class MigrationOrchestratorImpl {
     }
   }
 
-  private async run(
-    ctx: RequestContext,
-    id: string,
-    input: StartMigrationInput,
-  ): Promise<void> {
+  private async run(ctx: RequestContext, id: string, input: StartMigrationInput): Promise<void> {
     const { organizationId, sourceServerId, targetServerId, serviceNames } = input;
     const sameServer = sourceServerId === targetServerId;
     let scannedContainerIds: Record<string, string> = {};
@@ -367,7 +367,9 @@ class MigrationOrchestratorImpl {
       // ── adopt ──
       this.throwIfCancelled(id);
       await this.transition(id, "adopting");
-      log(`${sameServer ? "same-server" : "cross-server"} migration of ${serviceNames.length} service(s): ${serviceNames.join(", ")}`);
+      log(
+        `${sameServer ? "same-server" : "cross-server"} migration of ${serviceNames.length} service(s): ${serviceNames.join(", ")}`,
+      );
       const stack = await discoverServerStack(sourceServerId, organizationId, undefined, {
         flatDocker: input.flatDocker,
       });
@@ -444,9 +446,11 @@ class MigrationOrchestratorImpl {
       // carry an image, so the deploy reuses it regardless — a GitHub hiccup must
       // never block the (destructive) migration.
       if (input.gitSource) {
-        const linked = await linkProjectRepo(ctx, projectId, input.gitSource).catch(
-          (err) => ({ ok: false as const, code: "invalid" as const, message: safeErrorMessage(err) }),
-        );
+        const linked = await linkProjectRepo(ctx, projectId, input.gitSource).catch((err) => ({
+          ok: false as const,
+          code: "invalid" as const,
+          message: safeErrorMessage(err),
+        }));
         if (!linked.ok) {
           console.warn(`[migration] ${id}: repo link skipped (${linked.code})`);
         }
@@ -652,7 +656,8 @@ class MigrationOrchestratorImpl {
         // reuses its cert instead of re-issuing via ACME. Best-effort.
         if (!sameServer) {
           await this.carrySourceCerts(sourceServerId, targetServerId, organizationId, chosen).catch(
-            (err) => console.warn(`[migration] ${id}: cert carry skipped: ${safeErrorMessage(err)}`),
+            (err) =>
+              console.warn(`[migration] ${id}: cert carry skipped: ${safeErrorMessage(err)}`),
           );
         }
       } else {
@@ -781,9 +786,7 @@ class MigrationOrchestratorImpl {
     runId?: string,
   ): Promise<MoveResult> {
     const rtA = await createServerDockerRuntime(sourceServerId, organizationId);
-    const rtB = sameServer
-      ? null
-      : await createServerDockerRuntime(targetServerId, organizationId);
+    const rtB = sameServer ? null : await createServerDockerRuntime(targetServerId, organizationId);
     try {
       // Quiesce originals for a consistent copy (and to free ports/volumes on
       // a same-server redeploy). Best-effort — a missing container is fine.
@@ -798,8 +801,7 @@ class MigrationOrchestratorImpl {
       if (rtB && transfer.mode !== "stream") {
         // On-the-wire rsync compression is opt-in ("zstd"/"gzip" → -z); "auto"/
         // unset stays OFF (a fast LAN link usually beats the compressor).
-        const compress =
-          transfer.compression === "zstd" || transfer.compression === "gzip";
+        const compress = transfer.compression === "zstd" || transfer.compression === "gzip";
         return await this.moveDataDirect(
           projectId,
           sourceServerId,
@@ -1005,7 +1007,9 @@ class MigrationOrchestratorImpl {
               onProgress?.({ task, kind: "volume", movedBytes: relayMoved(), totalBytes: null });
             },
           });
-          log(`${t.label}/${t.src.sourceId}: ${r.strategy} (${r.compression}) — ${r.bytesMoved} bytes`);
+          log(
+            `${t.label}/${t.src.sourceId}: ${r.strategy} (${r.compression}) — ${r.bytesMoved} bytes`,
+          );
           return r.bytesMoved;
         } catch (err) {
           const message = safeErrorMessage(err);
@@ -1157,7 +1161,9 @@ class MigrationOrchestratorImpl {
         if (!out.includes("CONFLICT")) continue;
         if (fallback) {
           resolution[name] = fallback;
-          log(`conflict ${name}: no explicit choice — applying '${fallback}' (matches your other choices)`);
+          log(
+            `conflict ${name}: no explicit choice — applying '${fallback}' (matches your other choices)`,
+          );
         } else {
           conflicts.push(name);
         }
@@ -1179,20 +1185,20 @@ class MigrationOrchestratorImpl {
         customPaths: customPaths.map((c) => c.source),
       }).catch(() => null);
       const totalBytes = sized && sized.totalBytes > 0 ? sized.totalBytes : null;
-      log(`transfer plan: ${totalBytes ?? "?"} bytes across ${volumeNames.size} volume(s), ` +
-        `${bindPaths.size} bind(s), ${imagesToMove.length} image(s), ${customPaths.length} path(s)`);
+      log(
+        `transfer plan: ${totalBytes ?? "?"} bytes across ${volumeNames.size} volume(s), ` +
+          `${bindPaths.size} bind(s), ${imagesToMove.length} image(s), ${customPaths.length} path(s)`,
+      );
 
       const bytesByTask = new Map<string, number>();
-      const track =
-        (task: string, kind: "image" | "volume") =>
-        (bytes: number) => {
-          // Per-task floor: a resumed rsync re-reports from a lower offset, so
-          // clamp to the max seen — the bar never rewinds on a resume/retry.
-          bytesByTask.set(task, Math.max(bytesByTask.get(task) ?? 0, bytes));
-          let movedBytes = 0;
-          for (const b of bytesByTask.values()) movedBytes += b;
-          onProgress?.({ task, kind, movedBytes, totalBytes });
-        };
+      const track = (task: string, kind: "image" | "volume") => (bytes: number) => {
+        // Per-task floor: a resumed rsync re-reports from a lower offset, so
+        // clamp to the max seen — the bar never rewinds on a resume/retry.
+        bytesByTask.set(task, Math.max(bytesByTask.get(task) ?? 0, bytes));
+        let movedBytes = 0;
+        for (const b of bytesByTask.values()) movedBytes += b;
+        onProgress?.({ task, kind, movedBytes, totalBytes });
+      };
 
       // Images first — sequential (large; save|load contends on the link). Every
       // image the source has locally is MOVED as data (docker save|load), so a
@@ -1232,19 +1238,28 @@ class MigrationOrchestratorImpl {
             if (action === "keep") {
               log(`volume ${it.ref}: keeping existing target data (not transferred)`);
             } else {
-              const dstName = action === "clone" ? scopedVolumeName(projectSlug, it.ref) : undefined;
+              const dstName =
+                action === "clone" ? scopedVolumeName(projectSlug, it.ref) : undefined;
               targetVolumes.push(dstName ?? it.ref); // written on the target (for optional cleanup)
               await link.transferVolume(it.ref, track(`volume:${it.ref}`, "volume"), dstName);
               verifyVolumes.push({ src: it.ref, dst: dstName ?? it.ref });
             }
-          } else if (it.kind === "bind") await link.transferBind(it.ref, track(`bind:${it.ref}`, "volume"));
+          } else if (it.kind === "bind")
+            await link.transferBind(it.ref, track(`bind:${it.ref}`, "volume"));
           else await link.transferPath(it.source, it.dest, track(`path:${it.source}`, "volume"));
         } catch (err) {
           const missing = err instanceof PathMissingError;
           const message = safeErrorMessage(err);
           const pending: PendingItem =
             it.kind === "path"
-              ? { key: `path:${it.source}`, kind: "path", source: it.source, dest: it.dest, reason: missing ? "missing" : "error", message }
+              ? {
+                  key: `path:${it.source}`,
+                  kind: "path",
+                  source: it.source,
+                  dest: it.dest,
+                  reason: missing ? "missing" : "error",
+                  message,
+                }
               : {
                   key: `${it.kind}:${it.ref}`,
                   kind: it.kind,
@@ -1287,7 +1302,9 @@ class MigrationOrchestratorImpl {
           continue;
         }
         const ok = Math.abs(srcBytes - dstBytes) <= Math.max(4096, srcBytes * 0.01);
-        log(`verify ${v.dst}: source ${srcBytes} → target ${dstBytes} bytes ${ok ? "✓" : "⚠ size mismatch"}`);
+        log(
+          `verify ${v.dst}: source ${srcBytes} → target ${dstBytes} bytes ${ok ? "✓" : "⚠ size mismatch"}`,
+        );
       }
 
       let total = 0;
@@ -1418,6 +1435,9 @@ class MigrationOrchestratorImpl {
         });
         log(`published route ${root.name} → ${domain}${root.spec.targetPath ?? ""}`);
       } catch (err) {
+        if (err instanceof AppError && err.code === CUSTOM_DOMAIN_PROJECT_LIMIT_CODE) {
+          throw err;
+        }
         log(`route ${root.name} skipped: ${safeErrorMessage(err)}`);
         continue; // couldn't publish the domain at all
       }
@@ -1599,17 +1619,16 @@ class MigrationOrchestratorImpl {
     }
     const CANCELLABLE = ["queued", "adopting", "moving_data", "deploying", "verifying"];
     if (!CANCELLABLE.includes(run.status)) {
-      return { ok: false, status: 409, error: `Migration is not cancellable (status: ${run.status})` };
+      return {
+        ok: false,
+        status: 409,
+        error: `Migration is not cancellable (status: ${run.status})`,
+      };
     }
     const reg = this.cancelByRun.get(id) ?? { cancelled: false };
     reg.cancelled = true;
     this.cancelByRun.set(id, reg);
-    await this.killTransfer(
-      run.sourceServerId,
-      run.targetServerId,
-      run.organizationId,
-      reg.runTag,
-    );
+    await this.killTransfer(run.sourceServerId, run.targetServerId, run.organizationId, reg.runTag);
     return { ok: true };
   }
 
@@ -1650,14 +1669,15 @@ class MigrationOrchestratorImpl {
       return { ok: false, status: 404, error: "Migration not found" };
     }
     if (run.status !== "awaiting_cutover") {
-      return { ok: false, status: 409, error: `Migration is not awaiting cutover (status: ${run.status})` };
+      return {
+        ok: false,
+        status: 409,
+        error: `Migration is not awaiting cutover (status: ${run.status})`,
+      };
     }
     const expected = Buffer.from(run.confirmationToken ?? "");
     const supplied = Buffer.from(confirmationToken ?? "");
-    if (
-      expected.length !== supplied.length ||
-      !crypto.timingSafeEqual(expected, supplied)
-    ) {
+    if (expected.length !== supplied.length || !crypto.timingSafeEqual(expected, supplied)) {
       return { ok: false, status: 403, error: "Invalid confirmation token" };
     }
 
@@ -1702,7 +1722,11 @@ class MigrationOrchestratorImpl {
       return { ok: false, status: 404, error: "Migration not found" };
     }
     if (run.status !== "partial") {
-      return { ok: false, status: 409, error: `Migration is not resumable (status: ${run.status})` };
+      return {
+        ok: false,
+        status: 409,
+        error: `Migration is not resumable (status: ${run.status})`,
+      };
     }
     if (!run.sourceServerId || !run.targetServerId) {
       return { ok: false, status: 409, error: "Source/target server is no longer available" };
@@ -1767,7 +1791,9 @@ class MigrationOrchestratorImpl {
     const stillPending: PendingItem[] = [];
     const resolvedServices = new Set<string>();
     try {
-      log(`resume: retrying ${toRetry.length}, skipping ${pending.length - toRetry.length} item(s)`);
+      log(
+        `resume: retrying ${toRetry.length}, skipping ${pending.length - toRetry.length} item(s)`,
+      );
       const [source, target] = await Promise.all([
         createServerCommandExecutor(run.sourceServerId!, organizationId),
         createServerCommandExecutor(run.targetServerId!, organizationId),
@@ -2008,7 +2034,10 @@ class MigrationOrchestratorImpl {
         await repos.dockerMigrationRun
           .transition(run.id, "succeeded")
           .catch((err) =>
-            console.warn(`[migration] recovery transition ${run.id} failed:`, safeErrorMessage(err)),
+            console.warn(
+              `[migration] recovery transition ${run.id} failed:`,
+              safeErrorMessage(err),
+            ),
           );
         continue;
       }
@@ -2026,8 +2055,7 @@ class MigrationOrchestratorImpl {
       }
       await repos.dockerMigrationRun
         .transition(run.id, "rolled_back", {
-          errorMessage:
-            "Recovered after an interruption — the original containers were restarted.",
+          errorMessage: "Recovered after an interruption — the original containers were restarted.",
         })
         .catch((err) =>
           console.warn(`[migration] recovery transition ${run.id} failed:`, safeErrorMessage(err)),

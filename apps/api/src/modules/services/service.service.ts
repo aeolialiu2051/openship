@@ -47,10 +47,7 @@ import {
 } from "../../lib/routing-domains";
 import { resolveServicePublicEndpoints } from "../../lib/public-endpoints";
 import { assertFreeEndpointsAllowed } from "../../lib/free-domain-guard";
-import {
-  ensurePendingServiceDomain,
-  removeServiceDomain,
-} from "../domains/domain.service";
+import { ensurePendingServiceDomain, removeServiceDomain } from "../domains/domain.service";
 import { buildUpstreamUrl, resolveRouteStrategy } from "../../lib/upstream-url";
 import {
   reconcileProjectRoutes,
@@ -69,6 +66,13 @@ import {
   clearServiceRoutingWarning,
   markServiceRoutingWarning,
 } from "../../lib/deployment-routing-warning";
+import {
+  assertCustomDomainProjectAllowed,
+  hasAnyCustomDomainConfiguration,
+  hasCustomDomainConfiguration,
+  withCustomDomainProjectEntitlement,
+  withCustomDomainProjectLock,
+} from "../domains/custom-domain-project-quota";
 
 /** Cap how long a route update AWAITS the (SSH) edge re-register before
  *  returning. Past this, the DB change is already saved and the edge apply
@@ -210,6 +214,19 @@ export async function createService(
   projectId: string,
   data: TCreateServiceBody,
 ) {
+  if (hasCustomDomainConfiguration(data)) {
+    return withCustomDomainProjectEntitlement(ctx.organizationId, projectId, () =>
+      createServiceUnlocked(ctx, projectId, data),
+    );
+  }
+  return createServiceUnlocked(ctx, projectId, data);
+}
+
+async function createServiceUnlocked(
+  ctx: RequestContext,
+  projectId: string,
+  data: TCreateServiceBody,
+) {
   const project = await repos.project.findById(projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
 
@@ -287,13 +304,40 @@ export async function createService(
   // edit path. Live route registration still happens through the deploy/add
   // flow, not here.
   for (const hostname of serviceCustomHostnames(created)) {
-    await ensurePendingServiceDomain({ projectId, serviceId: created.id, hostname });
+    await ensurePendingServiceDomain({
+      organizationId: ctx.organizationId,
+      projectId,
+      serviceId: created.id,
+      hostname,
+    });
   }
 
   return created;
 }
 
 export async function updateService(
+  ctx: RequestContext,
+  projectId: string,
+  serviceId: string,
+  data: TUpdateServiceBody,
+) {
+  const touchesRouting = [
+    "exposed",
+    "exposedPort",
+    "domain",
+    "customDomain",
+    "domainType",
+    "publicEndpoints",
+  ].some((key) => key in data);
+  if (touchesRouting) {
+    return withCustomDomainProjectLock(ctx.organizationId, () =>
+      updateServiceUnlocked(ctx, projectId, serviceId, data),
+    );
+  }
+  return updateServiceUnlocked(ctx, projectId, serviceId, data);
+}
+
+async function updateServiceUnlocked(
   ctx: RequestContext,
   projectId: string,
   serviceId: string,
@@ -372,6 +416,10 @@ export async function updateService(
     patch.domainType = normalized.domainType;
     patch.publicEndpoints = normalized.publicEndpoints;
 
+    if (hasCustomDomainConfiguration(normalized)) {
+      await assertCustomDomainProjectAllowed(ctx.organizationId, projectId);
+    }
+
     // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Vibrail
     // Cloud edge. Refuse before the DB write so a disconnected instance can't
     // persist a dead "Pending" route. resolveServicePublicEndpoints is the same
@@ -434,11 +482,10 @@ export async function updateService(
       const removedRoutes = oldRoutes.filter(
         (route) => !nextByHost.has(route.hostname.toLowerCase()),
       );
-      const removes: RouteRemove[] = removedRoutes
-        .map((route) => ({
-          hostname: route.hostname,
-          isCustomDomain: route.domainType === "custom",
-        }));
+      const removes: RouteRemove[] = removedRoutes.map((route) => ({
+        hostname: route.hostname,
+        isCustomDomain: route.domainType === "custom",
+      }));
 
       // Self-hosted upstream = loopback host port (published) or the active
       // deployment's service-row IP; cloud ignores targetUrl. Resolve once.
@@ -543,7 +590,10 @@ export async function updateService(
           dep,
           `Service routing sync failed for ${svc.name}: ${err instanceof Error ? err.message : "unknown edge error"}`,
         ).catch((warningError) =>
-          console.error(`[SERVICE] Failed to persist routing warning for ${svc.name}:`, warningError),
+          console.error(
+            `[SERVICE] Failed to persist routing warning for ${svc.name}:`,
+            warningError,
+          ),
         );
       });
       await Promise.race([
@@ -746,6 +796,11 @@ export async function syncComposeServices(
 ) {
   const project = await repos.project.findById(projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, projectId);
+  if (hasAnyCustomDomainConfiguration(parsed)) {
+    return withCustomDomainProjectEntitlement(ctx.organizationId, projectId, () =>
+      repos.service.syncFromCompose(projectId, parsed, options),
+    );
+  }
   return repos.service.syncFromCompose(projectId, parsed, options);
 }
 
@@ -856,22 +911,22 @@ export async function getActiveServiceContainers(
   const flat = (status: ServiceContainerState): LiveServiceContainer[] =>
     withPrimary(
       services
-      .filter((svc) => svc.enabled !== false)
-      .map((svc) => {
-        const hint = hints.get(svc.id);
-        return {
-          role: "service",
-          serviceId: svc.id,
-          serviceName: svc.name,
-          containerId: hint?.containerId ?? null,
-          status,
-          ip: hint?.ip ?? null,
-          hostPort: hint?.hostPort ?? null,
-          imageRef: hint?.imageRef ?? null,
-          matchedBy: null,
-          duplicates: [],
-        };
-      }),
+        .filter((svc) => svc.enabled !== false)
+        .map((svc) => {
+          const hint = hints.get(svc.id);
+          return {
+            role: "service",
+            serviceId: svc.id,
+            serviceName: svc.name,
+            containerId: hint?.containerId ?? null,
+            status,
+            ip: hint?.ip ?? null,
+            hostPort: hint?.hostPort ?? null,
+            imageRef: hint?.imageRef ?? null,
+            matchedBy: null,
+            duplicates: [],
+          };
+        }),
       status,
     );
 

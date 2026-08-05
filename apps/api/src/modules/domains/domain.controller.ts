@@ -11,6 +11,7 @@ import { notification } from "../../lib/notification-dispatcher";
 import * as domainService from "./domain.service";
 import { maybeProxyCloudProject } from "../../lib/cloud/project-router";
 import type { TAddDomainBody } from "./domain.schema";
+import { getCustomDomainProjectQuota } from "./custom-domain-project-quota";
 
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
@@ -20,21 +21,40 @@ export async function list(c: Context) {
   if (!projectId) {
     return c.json({ error: "projectId query parameter required" }, 400);
   }
-  await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: projectId, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "project",
+    resourceId: projectId,
+    action: "read",
+  });
   const proxied = await maybeProxyCloudProject(c, projectId, getRequestContext(c).organizationId);
   if (proxied) return proxied;
   const domains = await domainService.listDomains(ctx, projectId);
   return c.json({ data: domains });
 }
 
+export async function quota(c: Context) {
+  const ctx = getRequestContext(c);
+  const quota = await getCustomDomainProjectQuota(ctx.organizationId);
+  return c.json({ data: quota });
+}
+
 export async function add(c: Context) {
   const ctx = getRequestContext(c);
   const body = await c.req.json<TAddDomainBody>();
   if (body.projectId) {
-    await permission.assert(getRequestContext(c), { resourceType: "project", resourceId: body.projectId, action: "write" });
-    const proxied = await maybeProxyCloudProject(c, body.projectId, getRequestContext(c).organizationId, {
-      body: JSON.stringify(body),
+    await permission.assert(getRequestContext(c), {
+      resourceType: "project",
+      resourceId: body.projectId,
+      action: "write",
     });
+    const proxied = await maybeProxyCloudProject(
+      c,
+      body.projectId,
+      getRequestContext(c).organizationId,
+      {
+        body: JSON.stringify(body),
+      },
+    );
     if (proxied) return proxied;
   }
   const result = await domainService.addDomain(ctx, body);
@@ -54,7 +74,11 @@ export async function add(c: Context) {
 export async function remove(c: Context) {
   const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "admin" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "domain",
+    resourceId: id,
+    action: "admin",
+  });
   await domainService.removeDomain(ctx, id);
   audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "domain.removed",
@@ -68,7 +92,11 @@ export async function remove(c: Context) {
 export async function verify(c: Context) {
   const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "domain",
+    resourceId: id,
+    action: "write",
+  });
   const force = c.req.query("force") === "1" || c.req.query("force") === "true";
   const result = await domainService.verifyDomain(ctx, id, { force });
 
@@ -115,7 +143,11 @@ export async function verify(c: Context) {
 export async function records(c: Context) {
   const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "read" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "domain",
+    resourceId: id,
+    action: "read",
+  });
   const result = await domainService.getDomainRecords(ctx, id);
   return c.json({ data: result });
 }
@@ -124,7 +156,11 @@ export async function records(c: Context) {
 export async function setPrimary(c: Context) {
   const ctx = getRequestContext(c);
   const id = param(c, "id");
-  await permission.assert(getRequestContext(c), { resourceType: "domain", resourceId: id, action: "write" });
+  await permission.assert(getRequestContext(c), {
+    resourceType: "domain",
+    resourceId: id,
+    action: "write",
+  });
   const domain = await domainService.setPrimaryDomain(ctx, id);
   audit.recordAsync(auditContextFrom(c, ctx.organizationId, ctx.userId), {
     eventType: "domain.set_primary",
@@ -166,7 +202,7 @@ export async function verifyPending(c: Context) {
   // with no organizationId.
   const ctx = getRequestContext(c);
   type Body = { minAgeMinutes?: number; limit?: number };
-  const body: Body = await c.req.json<Body>().catch(() => ({} as Body));
+  const body: Body = await c.req.json<Body>().catch(() => ({}) as Body);
   const result = await domainService.verifyPendingDomains({
     minAgeMinutes: typeof body.minAgeMinutes === "number" ? body.minAgeMinutes : undefined,
     limit: typeof body.limit === "number" ? body.limit : undefined,

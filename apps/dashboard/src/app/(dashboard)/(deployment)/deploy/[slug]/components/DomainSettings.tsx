@@ -1,7 +1,11 @@
 "use client";
 
 import React, { useCallback } from "react";
-import { getApiErrorMessage, projectsApi } from "@/lib/api";
+import {
+  getApiErrorMessage,
+  getLocalizedCustomDomainProjectLimitError,
+  projectsApi,
+} from "@/lib/api";
 import { useToast } from "@/context/ToastContext";
 import { useI18n } from "@/components/i18n-provider";
 import { RoutingModePicker, type RoutingMode } from "@/components/routing/RoutingModePicker";
@@ -103,9 +107,17 @@ const DomainSettings: React.FC<DomainSettingsProps> = ({
       });
     } catch (error) {
       console.error("Failed to persist deploy domains:", error);
-      showToast(getApiErrorMessage(error, t.deploy.domainSettings.saveFailed), "error", t.deploy.domainSettings.toastTitle);
+      const limitError = getLocalizedCustomDomainProjectLimitError(
+        error,
+        t.projectSettings.domains.add,
+      );
+      showToast(
+        limitError?.message ?? getApiErrorMessage(error, t.deploy.domainSettings.saveFailed),
+        "error",
+        limitError?.title ?? t.deploy.domainSettings.toastTitle,
+      );
     }
-  }, [hasServer, projectId, setEndpoints, showToast]);
+  }, [hasServer, projectId, setEndpoints, showToast, t]);
 
   const mode: RoutingMode = noPublicRoute
     ? "none"

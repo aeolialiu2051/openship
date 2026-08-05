@@ -32,6 +32,11 @@ import {
   type DiscoveredVolumeMount,
   type VibrailProjectGroup,
 } from "./docker-reconcile";
+import {
+  hasAnyCustomDomainConfiguration,
+  withCustomDomainDumpEntitlement,
+  withCustomDomainProjectEntitlement,
+} from "../domains/custom-domain-project-quota";
 
 type EnsureBody = Parameters<typeof ensureProject>[0];
 type ParsedComposeList = Parameters<typeof repos.service.syncFromCompose>[1];
@@ -40,7 +45,12 @@ type ParsedComposeList = Parameters<typeof repos.service.syncFromCompose>[1];
 const DEPLOYMENT_ID_RE = /^dep_[A-Za-z0-9]+$/;
 
 /** Compose file names to probe in a linked repo (mirrors prepare.service COMPOSE_FILES). */
-const REPO_COMPOSE_FILES = ["docker-compose.yml", "docker-compose.yaml", "compose.yml", "compose.yaml"];
+const REPO_COMPOSE_FILES = [
+  "docker-compose.yml",
+  "docker-compose.yaml",
+  "compose.yml",
+  "compose.yaml",
+];
 
 /** Compose-service shape returned to the migrate wizard's mapping step. Carries
  *  enough to render a full native service card (env + deps), so a repo service
@@ -108,7 +118,9 @@ export async function parseRepoCompose(
 }
 
 /** Overall deployment status from the live per-container states. */
-export function deriveDeploymentStatus(states: ContainerStatus[]): "ready" | "partial_failure" | "failed" {
+export function deriveDeploymentStatus(
+  states: ContainerStatus[],
+): "ready" | "partial_failure" | "failed" {
   const running = states.filter((s) => s === "running").length;
   if (running === states.length && running > 0) return "ready";
   if (running > 0) return "partial_failure";
@@ -254,11 +266,16 @@ export function buildAdoptedServiceRows(
     //  • No mapping (no repo linked / unmapped) → adopt the running image as-is
     //    (legacy: we have no build source, so reuse the image). Cross-server the
     //    image is transferred (docker save|load) so the target has it.
-    const repo = repoServices?.get(uniqueNames[i]) ?? repoServices?.get(serviceRenames?.[s.name] ?? s.name);
+    const repo =
+      repoServices?.get(uniqueNames[i]) ?? repoServices?.get(serviceRenames?.[s.name] ?? s.name);
     const native = repo && (repo.build || repo.image);
     const source = native
       ? { image: repo.image, build: repo.build, dockerfile: repo.dockerfile }
-      : { image: s.image, build: s.image ? undefined : s.build, dockerfile: s.image ? undefined : s.dockerfile };
+      : {
+          image: s.image,
+          build: s.image ? undefined : s.build,
+          dockerfile: s.image ? undefined : s.dockerfile,
+        };
     // Hand the running image to the deploy for the one-time cutover: a native
     // `build:` row would otherwise rebuild on its very first deploy. Only when we
     // actually have a running image to reuse.
@@ -290,7 +307,6 @@ export function buildAdoptedServiceRows(
   return { rows, renames, handover, claimedHostPorts };
 }
 
-
 export async function adoptServerStack(opts: {
   serverId: string;
   organizationId: string;
@@ -321,7 +337,20 @@ export async function adoptServerStack(opts: {
    *  and the returned `handover` lets the first deploy reuse the running image. */
   repoServices?: Map<string, RepoComposeService>;
 }): Promise<AdoptResult> {
-  const { serverId, organizationId, projectName, routeKey, serviceNames, sameServer, volumeStrategies, serviceSubpaths, serviceEnv, serviceRenames, flatDocker, repoServices } = opts;
+  const {
+    serverId,
+    organizationId,
+    projectName,
+    routeKey,
+    serviceNames,
+    sameServer,
+    volumeStrategies,
+    serviceSubpaths,
+    serviceEnv,
+    serviceRenames,
+    flatDocker,
+    repoServices,
+  } = opts;
 
   const stack = await discoverServerStack(serverId, organizationId, undefined, { flatDocker });
   const selected = new Set(serviceNames);
@@ -378,13 +407,12 @@ export async function adoptServerStack(opts: {
   };
   const { project_id, created } = await ensureProject(ensureBody, organizationId);
 
-  const { rows: parsed, renames, handover, claimedHostPorts } = buildAdoptedServiceRows(
-    chosen,
-    selected,
-    serviceEnv,
-    serviceRenames,
-    repoServices,
-  );
+  const {
+    rows: parsed,
+    renames,
+    handover,
+    claimedHostPorts,
+  } = buildAdoptedServiceRows(chosen, selected, serviceEnv, serviceRenames, repoServices);
 
   // Repo compose services with NO adopted container (e.g. `redis`, or a `build:`
   // app that isn't running) become native rows in the SAME create pass — so every
@@ -419,7 +447,11 @@ export async function adoptServerStack(opts: {
     }
   }
 
-  const createdServices = await repos.service.syncFromCompose(project_id, [...parsed, ...newRows]);
+  const serviceSpecs = [...parsed, ...newRows];
+  const syncServices = () => repos.service.syncFromCompose(project_id, serviceSpecs);
+  const createdServices = hasAnyCustomDomainConfiguration(serviceSpecs)
+    ? await withCustomDomainProjectEntitlement(organizationId, project_id, syncServices)
+    : await syncServices();
 
   // Apply the per-service options keyed by the DISCOVERED name: iterate `chosen`
   // (discovered), resolve the created row by its FINAL (possibly-renamed) name,
@@ -505,7 +537,14 @@ async function reattachRuntime(opts: {
           const info = await rt.getContainerInfo(disc.containerId).catch(() => null);
           if (info) ({ status, ip, hostPort } = info);
         }
-        return { service, containerId: disc?.containerId, image: disc?.image, status, ip, hostPort };
+        return {
+          service,
+          containerId: disc?.containerId,
+          image: disc?.image,
+          status,
+          ip,
+          hostPort,
+        };
       }),
     );
 
@@ -524,7 +563,13 @@ async function reattachRuntime(opts: {
       // says deployTarget==="server", so without it a redeploy re-resolves to
       // the desktop cloud default and misroutes to Oblien. These reattach paths
       // always run against a migration serverId, so the target is always server.
-      meta: { deployTarget: "server", serverId, runtimeMode: "docker", adopt: true, serviceDeploymentMode: "services" },
+      meta: {
+        deployTarget: "server",
+        serverId,
+        runtimeMode: "docker",
+        adopt: true,
+        serviceDeploymentMode: "services",
+      },
     });
     if (!dep) return null;
 
@@ -602,7 +647,14 @@ export async function attachLiveRuntime(opts: {
           const info = await rt.getContainerInfo(disc.containerId).catch(() => null);
           if (info) ({ status, ip, hostPort } = info);
         }
-        return { service, containerId: disc?.containerId, image: disc?.image, status, ip, hostPort };
+        return {
+          service,
+          containerId: disc?.containerId,
+          image: disc?.image,
+          status,
+          ip,
+          hostPort,
+        };
       }),
     );
 
@@ -622,7 +674,14 @@ export async function attachLiveRuntime(opts: {
         trigger: "manual",
         // deployTarget:"server" required — see reattachRuntime above; without it a
         // later redeploy of this migrated project re-resolves to the cloud default.
-        meta: { deployTarget: "server", serverId, runtimeMode: "docker", adopt: true, adoptLive: true, serviceDeploymentMode: "services" },
+        meta: {
+          deployTarget: "server",
+          serverId,
+          runtimeMode: "docker",
+          adopt: true,
+          adoptLive: true,
+          serviceDeploymentMode: "services",
+        },
       });
       if (!dep) return;
     }
@@ -739,7 +798,9 @@ async function restoreFromSnapshot(opts: {
   if (!dump || dump.scope.kind !== "project" || dump.scope.projectId !== projectId) return null;
 
   try {
-    await restoreSubgraph(dump, { mode: "merge", remapOrgId: organizationId });
+    await withCustomDomainDumpEntitlement(organizationId, dump, () =>
+      restoreSubgraph(dump, { mode: "merge", remapOrgId: organizationId }),
+    );
   } catch (err) {
     if (err instanceof PkCollisionError) {
       throw new Error(
@@ -844,7 +905,10 @@ export async function reimportVibrailProject(opts: {
   // Re-import preserves the original service names (from the manifest/labels),
   // so no rename map — buildAdoptedServiceRows returns identity renames here.
   const { rows: parsed } = buildAdoptedServiceRows(chosen, selected);
-  const createdServices = await repos.service.syncFromCompose(created.id, parsed);
+  const syncServices = () => repos.service.syncFromCompose(created.id, parsed);
+  const createdServices = hasAnyCustomDomainConfiguration(parsed)
+    ? await withCustomDomainProjectEntitlement(organizationId, created.id, syncServices)
+    : await syncServices();
 
   // Reuse the original bare-named volumes in place (data survives) — combined
   // with the preserved id, the running containers count as this project's own in

@@ -45,6 +45,15 @@ vi.mock("../../../src/lib/route-apply.service", () => ({
   reconcileProjectRoutes: vi.fn(),
 }));
 
+vi.mock("../../../src/modules/domains/custom-domain-project-quota", () => ({
+  assertCustomDomainProjectAllowed: vi.fn(),
+  withCustomDomainProjectEntitlement: (
+    _organizationId: string,
+    _projectId: string,
+    fn: () => Promise<unknown>,
+  ) => fn(),
+}));
+
 import { addDomain } from "../../../src/modules/domains/domain.service";
 
 const project = {

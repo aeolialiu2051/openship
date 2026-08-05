@@ -712,7 +712,9 @@
       "externalIngressDesc": "TLS terminates upstream (Cloudflare Tunnel, load balancer). Verify by TXT only — the domain need not point at this server, and we won't issue a certificate.",
       "noWww": "Enter the domain without \"www.\" — turn on \"Include www\" below to add it.",
       "adding": "Adding...",
-      "submit": "Add domain"
+      "submit": "Add domain",
+      "projectLimitTitle": "Custom domains are in use on another project",
+      "projectLimitDescription": "Free accounts can use custom domains on only one project. {project} currently uses this entitlement. Upgrade to Pro to use custom domains here."
     },
     "dns": {
       "title": "DNS Records",

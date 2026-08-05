@@ -1,4 +1,4 @@
-import { repos, type Domain } from "@repo/db";
+import { repos, type Domain, type Project } from "@repo/db";
 import { appendProjectRouteKey, ConflictError } from "@repo/core";
 import { CloudRuntime } from "@repo/adapters";
 import {
@@ -9,6 +9,10 @@ import {
 import { platform } from "./controller-helpers";
 import { getRoutingBaseDomain, managedDomainsUseCloudEdge } from "./routing-domains";
 import { generateToken } from "./domain-token";
+import {
+  hasAnyCustomDomainConfiguration,
+  withCustomDomainProjectEntitlement,
+} from "../modules/domains/custom-domain-project-quota";
 
 interface SyncProjectPublicRoutesInput {
   projectId: string;
@@ -83,24 +87,40 @@ function desiredProjectRoutes(endpoints?: StoredPublicEndpoint[] | null): Desire
     if (!hostname || seen.has(hostname)) return [];
 
     seen.add(hostname);
-    return [{
-      hostname,
-      targetPort: endpoint.port,
-      targetPath: endpoint.targetPath,
-      domainType: endpoint.domainType,
-      isPrimary: index === 0,
-    } satisfies DesiredProjectRoute];
+    return [
+      {
+        hostname,
+        targetPort: endpoint.port,
+        targetPath: endpoint.targetPath,
+        domainType: endpoint.domainType,
+        isPrimary: index === 0,
+      } satisfies DesiredProjectRoute,
+    ];
   });
 }
 
 export async function syncProjectPublicRoutes(
   input: SyncProjectPublicRoutesInput,
 ): Promise<StoredPublicEndpoint[]> {
-  const allExistingDomains = input.currentDomains ?? await repos.domain.listByProject(input.projectId);
   const project = await repos.project.findById(input.projectId);
   if (!project) {
     throw new Error(`Cannot sync routes for missing project ${input.projectId}`);
   }
+
+  if (hasAnyCustomDomainConfiguration(input.endpoints)) {
+    return withCustomDomainProjectEntitlement(project.organizationId, project.id, () =>
+      syncProjectPublicRoutesUnlocked(input, project),
+    );
+  }
+  return syncProjectPublicRoutesUnlocked(input, project);
+}
+
+async function syncProjectPublicRoutesUnlocked(
+  input: SyncProjectPublicRoutesInput,
+  project: Project,
+): Promise<StoredPublicEndpoint[]> {
+  const allExistingDomains =
+    input.currentDomains ?? (await repos.domain.listByProject(input.projectId));
   const routeKey = project.routeKey;
 
   const existingProjectHostnames = new Set(
@@ -125,8 +145,7 @@ export async function syncProjectPublicRoutes(
         }
       : endpoint;
   });
-  const existingDomains = allExistingDomains
-    .filter((domain) => !domain.serviceId);
+  const existingDomains = allExistingDomains.filter((domain) => !domain.serviceId);
   const desiredRoutes = desiredProjectRoutes(endpoints);
   const desiredByHostname = new Map(desiredRoutes.map((route) => [route.hostname, route]));
   const existingByHostname = new Map(
@@ -231,8 +250,10 @@ export async function syncProjectPublicRoutes(
 
     const patch: Record<string, unknown> = {};
     if ((existing.serviceId ?? null) !== null) patch.serviceId = null;
-    if ((existing.targetPort ?? null) !== (route.targetPort ?? null)) patch.targetPort = route.targetPort ?? null;
-    if ((existing.targetPath ?? null) !== (route.targetPath ?? null)) patch.targetPath = route.targetPath ?? null;
+    if ((existing.targetPort ?? null) !== (route.targetPort ?? null))
+      patch.targetPort = route.targetPort ?? null;
+    if ((existing.targetPath ?? null) !== (route.targetPath ?? null))
+      patch.targetPath = route.targetPath ?? null;
     if ((existing.domainType ?? null) !== route.domainType) patch.domainType = route.domainType;
     if (existing.isPrimary !== route.isPrimary) patch.isPrimary = route.isPrimary;
     // Auto-verify only host-managed (free) rows. A custom row's verified/status

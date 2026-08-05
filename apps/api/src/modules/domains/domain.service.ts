@@ -34,6 +34,10 @@ import { generateToken } from "../../lib/domain-token";
 import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
 import type { TAddDomainBody } from "./domain.schema";
 import type { CloudRuntime } from "@repo/adapters";
+import {
+  assertCustomDomainProjectAllowed,
+  withCustomDomainProjectEntitlement,
+} from "./custom-domain-project-quota";
 
 // ─── List ────────────────────────────────────────────────────────────────────
 
@@ -67,6 +71,12 @@ export async function setPrimaryDomain(ctx: RequestContext, domainId: string) {
 // ─── Add ─────────────────────────────────────────────────────────────────────
 
 export async function addDomain(ctx: RequestContext, data: TAddDomainBody) {
+  return withCustomDomainProjectEntitlement(ctx.organizationId, data.projectId, () =>
+    addDomainUnlocked(ctx, data),
+  );
+}
+
+async function addDomainUnlocked(ctx: RequestContext, data: TAddDomainBody) {
   const project = await repos.project.findById(data.projectId);
   assertResourceInOrg(project, "Project", ctx.organizationId, data.projectId);
 
@@ -167,11 +177,13 @@ export async function addDomain(ctx: RequestContext, data: TAddDomainBody) {
  * domains stay green); we only backfill its service/port/type identity.
  */
 export async function ensurePendingServiceDomain(opts: {
+  organizationId: string;
   projectId: string;
   serviceId: string;
   hostname: string;
   targetPort?: number;
 }): Promise<{ created: boolean; domainId: string | null }> {
+  await assertCustomDomainProjectAllowed(opts.organizationId, opts.projectId);
   const hostname = normalizeCustomHostname(opts.hostname);
   // THROW (was: silent return) so a per-service custom domain gets the same
   // "row + Verify button, or a clear error" contract as project-level addDomain
@@ -669,10 +681,7 @@ async function buildRecords(
   const serverIp = await resolveProjectServerHost(project);
   return {
     mode: "selfhosted",
-    records: [
-      { type: "A", host: routeHost, name: routeName, value: serverIp ?? "" },
-      txt,
-    ],
+    records: [{ type: "A", host: routeHost, name: routeName, value: serverIp ?? "" }, txt],
   };
 }
 

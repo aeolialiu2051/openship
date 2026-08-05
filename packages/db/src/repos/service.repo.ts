@@ -1,7 +1,7 @@
-import { eq, and, asc, inArray } from "drizzle-orm";
+import { eq, and, asc, inArray, isNull } from "drizzle-orm";
 import { generateId, normalizeCustomHostname, type ComposeAdvanced } from "@repo/core";
 import type { Database } from "../client";
-import { service, serviceDeployment } from "../schema";
+import { project, service, serviceDeployment } from "../schema";
 import type { ComposeServiceSpec, ServicePublicEndpoint } from "../schema/service";
 
 /** A public route as it arrives on the wire (port may be a string) before
@@ -200,7 +200,16 @@ export const composeSpecsEqual = (a: ComposeServiceSpec, b: ComposeServiceSpec) 
 /** Per-field diff of two specs — powers the drift UI. */
 export function composeSpecDiff(base: ComposeServiceSpec, next: ComposeServiceSpec) {
   const fields: (keyof ComposeServiceSpec)[] = [
-    "image", "build", "dockerfile", "ports", "dependsOn", "environment", "volumes", "command", "restart", "advanced",
+    "image",
+    "build",
+    "dockerfile",
+    "ports",
+    "dependsOn",
+    "environment",
+    "volumes",
+    "command",
+    "restart",
+    "advanced",
   ];
   // Compare each field key-order-insensitively (matching canonicalSpec/
   // composeSpecsEqual) so a reordered `environment` or nested `advanced` block
@@ -273,11 +282,19 @@ export function normalizeServicePublicEndpoints(
     if (port === null || seenPorts.has(port)) continue;
     const domainType = endpoint.domainType === "custom" ? "custom" : "free";
     const domain = domainType === "free" ? endpoint.domain?.trim() || undefined : undefined;
-    const customDomain = domainType === "custom" ? normalizeCustomHostname(endpoint.customDomain ?? "") || undefined : undefined;
+    const customDomain =
+      domainType === "custom"
+        ? normalizeCustomHostname(endpoint.customDomain ?? "") || undefined
+        : undefined;
     if (domainType === "free" && !domain) continue;
     if (domainType === "custom" && !customDomain) continue;
     seenPorts.add(port);
-    out.push({ port, domainType, ...(domain ? { domain } : {}), ...(customDomain ? { customDomain } : {}) });
+    out.push({
+      port,
+      domainType,
+      ...(domain ? { domain } : {}),
+      ...(customDomain ? { customDomain } : {}),
+    });
   }
   return out;
 }
@@ -312,8 +329,8 @@ export function normalizeRoutingFields(input: {
     return {
       exposed: true,
       exposedPort: String(primary.port),
-      domain: primary.domainType === "free" ? primary.domain ?? null : null,
-      customDomain: primary.domainType === "custom" ? primary.customDomain ?? null : null,
+      domain: primary.domainType === "free" ? (primary.domain ?? null) : null,
+      customDomain: primary.domainType === "custom" ? (primary.customDomain ?? null) : null,
       domainType: primary.domainType,
       publicEndpoints: endpoints,
     };
@@ -321,7 +338,14 @@ export function normalizeRoutingFields(input: {
 
   const exposed = input.exposed ?? false;
   if (!exposed) {
-    return { exposed: false, exposedPort: null, domain: null, customDomain: null, domainType: "free", publicEndpoints: [] };
+    return {
+      exposed: false,
+      exposedPort: null,
+      domain: null,
+      customDomain: null,
+      domainType: "free",
+      publicEndpoints: [],
+    };
   }
 
   const domainType = input.domainType === "custom" ? "custom" : "free";
@@ -331,7 +355,8 @@ export function normalizeRoutingFields(input: {
     exposed: true,
     exposedPort: trimOrNull(input.exposedPort),
     domain: domainType === "free" ? trimOrNull(input.domain) : null,
-    customDomain: domainType === "custom" ? normalizeCustomHostname(input.customDomain ?? "") || null : null,
+    customDomain:
+      domainType === "custom" ? normalizeCustomHostname(input.customDomain ?? "") || null : null,
     domainType,
     publicEndpoints: [],
   };
@@ -341,6 +366,20 @@ export function normalizeRoutingFields(input: {
 
 export function createServiceRepo(db: Database) {
   return {
+    /** Routing-only projection used by organization entitlement checks. */
+    async listRoutingByOrganization(organizationId: string) {
+      return db
+        .select({
+          projectId: service.projectId,
+          projectName: project.name,
+          domainType: service.domainType,
+          customDomain: service.customDomain,
+          publicEndpoints: service.publicEndpoints,
+        })
+        .from(service)
+        .innerJoin(project, eq(service.projectId, project.id))
+        .where(and(eq(project.organizationId, organizationId), isNull(project.deletedAt)));
+    },
     // ── Services ───────────────────────────────────────────────────────
 
     async findById(id: string) {
@@ -458,7 +497,8 @@ export function createServiceRepo(db: Database) {
 
         const routing = normalizeRoutingFields({
           exposed: app.exposed ?? ex?.exposed ?? true,
-          exposedPort: app.exposedPort ?? ex?.exposedPort ?? (app.port != null ? String(app.port) : null),
+          exposedPort:
+            app.exposedPort ?? ex?.exposedPort ?? (app.port != null ? String(app.port) : null),
           domain: app.domain ?? ex?.domain,
           customDomain: app.customDomain ?? ex?.customDomain,
           domainType: app.domainType ?? ex?.domainType,

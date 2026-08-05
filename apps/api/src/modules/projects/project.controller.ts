@@ -63,10 +63,7 @@ import {
   getInstallUrl,
 } from "../github/github.auth";
 import { ensureSharedWebhook, findSharedWebhookId } from "./project-git-webhook";
-import {
-  appWebhookTargetsInstance,
-  deriveWebhookActive,
-} from "./project-git-status";
+import { appWebhookTargetsInstance, deriveWebhookActive } from "./project-git-status";
 import { listProjectRouteRows, resolveProjectRouteState } from "../domains/project-route.service";
 import { resourceOperationService } from "../operations/resource-operation.service";
 import { toOperationDto } from "../operations/operation.controller";
@@ -2216,6 +2213,22 @@ export async function connectDomain(c: Context) {
       records: result.records,
     });
   } catch (err) {
+    if (err instanceof AppError) {
+      const details =
+        "details" in err && err.details && typeof err.details === "object"
+          ? err.details
+          : undefined;
+      return c.json(
+        {
+          success: false,
+          error: err.message,
+          message: err.message,
+          code: err.code,
+          ...(details ? { details } : {}),
+        },
+        err.statusCode as 400 | 401 | 403 | 404 | 409 | 500,
+      );
+    }
     if (err instanceof Error) {
       return c.json({ success: false, error: err.message, message: err.message }, 400);
     }

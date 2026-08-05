@@ -584,7 +584,9 @@
       "includeWwwDesc": "www.{domain} 用のレコードも生成します",
       "includeWwwFallback": "yourdomain.com",
       "adding": "追加中...",
-      "submit": "ドメインを追加"
+      "submit": "ドメインを追加",
+      "projectLimitTitle": "別のプロジェクトがカスタムドメイン枠を使用中です",
+      "projectLimitDescription": "Free プランでカスタムドメインを利用できるのは 1 プロジェクトだけです。現在は {project} が使用しています。ここで利用するには Pro にアップグレードしてください。"
     },
     "dns": {
       "title": "DNS レコード",

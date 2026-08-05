@@ -34,6 +34,7 @@ import {
 import { cloudClient } from "../../lib/cloud/client";
 import { teardownProject } from "./project-teardown";
 import type { RequestContext } from "../../lib/request-context";
+import { withCustomDomainDumpEntitlement } from "../domains/custom-domain-project-quota";
 
 // ─── Typed errors ────────────────────────────────────────────────────────────
 
@@ -51,9 +52,7 @@ export class TransferConflictError extends Error {
     public readonly conflictKind: "id" | "slug",
     public readonly conflictValue: string,
   ) {
-    super(
-      `Target organization already has a project with this ${conflictKind}: ${conflictValue}.`,
-    );
+    super(`Target organization already has a project with this ${conflictKind}: ${conflictValue}.`);
     this.name = "TransferConflictError";
   }
 }
@@ -91,10 +90,7 @@ interface ProjectRow {
   cloudWorkspaceId: string | null;
 }
 
-async function loadProject(
-  projectId: string,
-  organizationId: string,
-): Promise<ProjectRow | null> {
+async function loadProject(projectId: string, organizationId: string): Promise<ProjectRow | null> {
   const rows = await db
     .select({
       id: schema.project.id,
@@ -289,12 +285,13 @@ export async function transferProjectToSelfHosted(
   //    Uses the shared subgraph-delete primitive (child→parent FK order,
   //    leaves the shared project_app parent) — the same one the SaaS teardown
   //    uses, so both sides stay in lockstep.
-  await deleteProjectSubgraph(project.id);
-
   try {
-    await restoreSubgraph(dump, {
-      mode: "merge",
-      remapOrgId: input.organizationId,
+    await withCustomDomainDumpEntitlement(input.organizationId, dump, async () => {
+      await deleteProjectSubgraph(project.id);
+      await restoreSubgraph(dump, {
+        mode: "merge",
+        remapOrgId: input.organizationId,
+      });
     });
   } catch (err) {
     // PkCollisionError = caller already pulled this project back at some
@@ -315,9 +312,7 @@ export async function transferProjectToSelfHosted(
 
   // The project is local again — drop any cloud webhook binding so pushes are
   // handled locally, not forwarded to the (now torn-down) SaaS copy.
-  await repos.cloudWebhookBinding
-    .deleteByCloudProject(project.id)
-    .catch(() => {});
+  await repos.cloudWebhookBinding.deleteByCloudProject(project.id).catch(() => {});
 
   // 5) Tear down the SaaS copy's ROWS so it doesn't linger as a leftover that
   //    would collide on a future re-promote. Best-effort: the local copy is

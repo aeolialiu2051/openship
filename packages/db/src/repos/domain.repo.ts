@@ -1,4 +1,4 @@
-import { eq, and, lt, inArray } from "drizzle-orm";
+import { eq, and, lt, inArray, isNull, or } from "drizzle-orm";
 import { generateId } from "@repo/core";
 import type { Database } from "../client";
 import { domain, project } from "../schema";
@@ -42,6 +42,29 @@ export function createDomainRepo(db: Database) {
         ...(opts?.limit !== undefined ? { limit: opts.limit } : {}),
         ...(opts?.offset !== undefined ? { offset: opts.offset } : {}),
       });
+    },
+
+    /**
+     * Projects in an organization that currently own at least one custom
+     * project/service domain row. Legacy rows with a null domainType predate
+     * the explicit free/custom discriminator and are custom-domain rows.
+     */
+    async listCustomDomainProjectsByOrganization(organizationId: string) {
+      return db
+        .selectDistinct({
+          projectId: project.id,
+          projectName: project.name,
+        })
+        .from(domain)
+        .innerJoin(project, eq(domain.projectId, project.id))
+        .where(
+          and(
+            eq(project.organizationId, organizationId),
+            isNull(project.deletedAt),
+            eq(domain.ownerType, "project"),
+            or(eq(domain.domainType, "custom"), isNull(domain.domainType)),
+          ),
+        );
     },
 
     /**

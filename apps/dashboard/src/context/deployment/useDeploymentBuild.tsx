@@ -9,11 +9,18 @@ import { useModal } from "@/context/ModalContext";
 import { useGitHub } from "@/context/GitHubContext";
 import type { BuildLog } from "@/utils/deploymentPhaseDetector";
 import { useBuildStream } from "@/hooks/useSSEConnection";
-import { deployApi, projectsApi, serviceKind, servicesApi } from "@/lib/api";
+import {
+  deployApi,
+  getLocalizedCustomDomainProjectLimitError,
+  projectsApi,
+  serviceKind,
+  servicesApi,
+} from "@/lib/api";
 import { randomUUID } from "@/lib/random-uuid";
 import { invalidateProjectCaches } from "@/hooks/useProjectEndpoints";
 import { ApiError, getApiErrorMessage } from "@/lib/api/client";
 import { DeployCredentialModal } from "@/components/deployments/DeployCredentialModal";
+import { useI18n } from "@/components/i18n-provider";
 import { useServerGitHubConnectModal } from "@/components/github/ServerGitHubConnect";
 import { parseCloudRequiredCode, removeProjectRouteKey } from "@repo/core";
 import type { DeploymentConfig, DeploymentState, DeploymentStatus, ServiceDeployStatus } from "./types";
@@ -224,6 +231,7 @@ export function useDeploymentBuild(
   setConfig: React.Dispatch<React.SetStateAction<DeploymentConfig>>,
 ) {
   const { showToast } = useToast();
+  const { t } = useI18n();
   const { requireCloud } = useCloud();
   const { baseDomain, selfHosted, deployMode } = usePlatform();
   const { showModal, hideModal } = useModal();
@@ -727,7 +735,15 @@ export function useDeploymentBuild(
           return projectId;
         } catch (err) {
           // Surface the REAL error (no more opaque "some settings failed").
-          showToast(getApiErrorMessage(err, "Failed to save configuration"), "error", "Save failed");
+          const limitError = getLocalizedCustomDomainProjectLimitError(
+            err,
+            t.projectSettings.domains.add,
+          );
+          showToast(
+            limitError?.message ?? getApiErrorMessage(err, "Failed to save configuration"),
+            "error",
+            limitError?.title ?? "Save failed",
+          );
           return null;
         }
       }
@@ -947,7 +963,12 @@ export function useDeploymentBuild(
       }
     } catch (err) {
       console.error("Deployment error:", err);
-      const message = getApiErrorMessage(err, "Failed to start deployment");
+      const limitError = getLocalizedCustomDomainProjectLimitError(
+        err,
+        t.projectSettings.domains.add,
+      );
+      const message =
+        limitError?.message ?? getApiErrorMessage(err, "Failed to start deployment");
       const errorCode = extractErrorCode(err);
 
       const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
@@ -959,16 +980,16 @@ export function useDeploymentBuild(
       const cloudCapability = parseCloudRequiredCode(errorCode);
       if (cloudCapability && canConnectCloud) {
         const connected = await requireCloud(cloudCapability, { domain: baseDomain });
-        if (!connected) showToast(message, "error", "Error");
+        if (!connected) showToast(message, "error", limitError?.title ?? "Error");
       } else if (!maybeOpenCredentialModal(errorCode)) {
         // Clone-token / credential preflight failures open the missing-credential
         // modal (concrete recovery) instead of a dead-end toast.
-        showToast(message, "error", "Error");
+        showToast(message, "error", limitError?.title ?? "Error");
       }
       setState((prev) => ({ ...prev, isDeploying: false }));
       return null;
     }
-  }, [baseDomain, config, deployMode, hideModal, installUrl, maybeOpenCredentialModal, openGithubConnect, requireCloud, selfHosted, setConfig, showModal, showToast]);
+  }, [baseDomain, config, deployMode, hideModal, installUrl, maybeOpenCredentialModal, openGithubConnect, requireCloud, selfHosted, setConfig, showModal, showToast, t]);
 
   // `startBuild` controls which SSE endpoint to hit:
   //   - true  → POST /:id/build, which ALSO kicks off the build. Now only
@@ -1399,11 +1420,16 @@ export function useDeploymentBuild(
         return newDeploymentId;
       } catch (error) {
         console.error("[DeploymentContext] Failed to redeploy:", error);
-        const msg = getApiErrorMessage(error, "Failed to start redeployment");
+        const limitError = getLocalizedCustomDomainProjectLimitError(
+          error,
+          t.projectSettings.domains.add,
+        );
+        const msg =
+          limitError?.message ?? getApiErrorMessage(error, "Failed to start redeployment");
         // A missing GitHub credential surfaces the SAME modal as the deploy
         // wizard (never a bare toast) — one shared handler, one source of truth.
         const openedModal = maybeOpenCredentialModal(extractErrorCode(error) ?? undefined);
-        if (!openedModal) showToast(msg, "error", "Error");
+        if (!openedModal) showToast(msg, "error", limitError?.title ?? "Error");
         setState((prev) => ({
           ...prev,
           isDeploying: false,
@@ -1414,7 +1440,7 @@ export function useDeploymentBuild(
         return null;
       }
     },
-    [buildStream, showToast, maybeOpenCredentialModal],
+    [buildStream, showToast, maybeOpenCredentialModal, t],
   );
 
   const reset = useCallback(() => {

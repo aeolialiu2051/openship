@@ -27,6 +27,7 @@ import {
   type SubgraphScope,
 } from "@repo/db";
 import { cloudRuntimeTarget } from "../../config/env";
+import { withCustomDomainDumpEntitlement } from "../domains/custom-domain-project-quota";
 
 export class IngestValidationError extends Error {
   readonly code = "INGEST_VALIDATION_FAILED" as const;
@@ -88,9 +89,7 @@ export interface IngestSubgraphResult {
  * Instance-scope ingest is rejected — the SaaS never wants to replace
  * its own auth/instance state from a self-hosted dump.
  */
-export async function ingestSubgraph(
-  input: IngestSubgraphInput,
-): Promise<IngestSubgraphResult> {
+export async function ingestSubgraph(input: IngestSubgraphInput): Promise<IngestSubgraphResult> {
   // ── 1. Validate ───────────────────────────────────────────────────────────
   if (input.dump.formatVersion !== DUMP_FORMAT_VERSION) {
     throw new IngestValidationError(
@@ -98,9 +97,7 @@ export async function ingestSubgraph(
     );
   }
   if (!input.dump.scope || input.dump.scope.kind === "instance") {
-    throw new IngestValidationError(
-      "Instance-scope dumps cannot be ingested on the SaaS.",
-    );
+    throw new IngestValidationError("Instance-scope dumps cannot be ingested on the SaaS.");
   }
 
   // ── 2. Safety check (org-scope only; project-scope handled by caller) ────
@@ -120,7 +117,9 @@ export async function ingestSubgraph(
   }
 
   // ── 4. Restore (merge + remap to target org) ─────────────────────────────
-  await restoreSubgraph(input.dump, { mode: "merge", remapOrgId: input.organizationId });
+  await withCustomDomainDumpEntitlement(input.organizationId, input.dump, () =>
+    restoreSubgraph(input.dump, { mode: "merge", remapOrgId: input.organizationId }),
+  );
 
   return {
     organizationId: input.organizationId,
@@ -150,10 +149,7 @@ export async function projectExistsInOrg(
     .select({ id: schema.project.id })
     .from(schema.project)
     .where(
-      and(
-        eq(schema.project.id, projectId),
-        eq(schema.project.organizationId, organizationId),
-      ),
+      and(eq(schema.project.id, projectId), eq(schema.project.organizationId, organizationId)),
     );
   return rows.length > 0;
 }
@@ -177,4 +173,3 @@ export async function teardownProjectSubgraph(input: {
   }
   await deleteProjectSubgraph(input.projectId);
 }
-

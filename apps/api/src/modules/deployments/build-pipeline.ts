@@ -83,6 +83,10 @@ import {
 } from "./deployment-lifecycle";
 import { auditPorts } from "./port-audit.service";
 import { createBuildConfig } from "./build-config";
+import {
+  hasAnyCustomDomainConfiguration,
+  withCustomDomainProjectEntitlement,
+} from "../domains/custom-domain-project-quota";
 import { resolveClonePlan } from "./clone-plan";
 import { collapseTerminalLogs } from "./terminal-logs";
 import {
@@ -832,9 +836,15 @@ async function executeBuildAndDeploy(project: Project, dep: Deployment, buildSes
       // (projectId, name)). Filter to compose-kind before handing it off.
       const composeOnly = snapshot.composeServices?.filter((s) => serviceKind(s) === "compose");
       if (composeOnly?.length) {
-        await repos.service.syncFromCompose(project.id, composeOnly, {
-          removeMissing: snapshot.composeServicesAuthoritative === true,
-        });
+        const syncCompose = () =>
+          repos.service.syncFromCompose(project.id, composeOnly, {
+            removeMissing: snapshot.composeServicesAuthoritative === true,
+          });
+        if (hasAnyCustomDomainConfiguration(composeOnly)) {
+          await withCustomDomainProjectEntitlement(project.organizationId, project.id, syncCompose);
+        } else {
+          await syncCompose();
+        }
       }
 
       // Clone-on-server for compose: open one repo-pinned relay for the whole
@@ -1427,8 +1437,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
       isApp: project.isApp,
       appTemplateId: project.appTemplateId,
       framework: snapshot.framework,
-      isSelfHostedDocker:
-        runtime instanceof DockerRuntime && phase.effectiveTarget !== "cloud",
+      isSelfHostedDocker: runtime instanceof DockerRuntime && phase.effectiveTarget !== "cloud",
     }),
     outputDirectory: snapshot.outputDirectory,
     productionPaths: snapshot.productionPaths.length ? snapshot.productionPaths : undefined,

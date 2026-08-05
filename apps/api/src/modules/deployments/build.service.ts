@@ -32,10 +32,7 @@ import {
   type StackDefinition,
   type ReleaseSource,
 } from "@repo/core";
-import type {
-  LogEntry,
-  ResourceConfig,
-} from "@repo/adapters";
+import type { LogEntry, ResourceConfig } from "@repo/adapters";
 import { resolveCloudResourceConfig } from "./cloud-resources";
 import type { TBuildAccessBody } from "./deployment.schema";
 import { platform } from "../../lib/controller-helpers";
@@ -68,9 +65,18 @@ import {
   syncProjectRouteState,
 } from "../domains/project-route.service";
 import { kickoffBuild, resolveServicePipelineMode } from "./build-pipeline";
-import { resolveReleaseDist, resolveLatestVersion, readApiVersion } from "../../lib/release-resolver";
+import {
+  resolveReleaseDist,
+  resolveLatestVersion,
+  readApiVersion,
+} from "../../lib/release-resolver";
 import { env } from "../../config";
 import { materializeStarterTemplate } from "./template-source";
+import {
+  CUSTOM_DOMAIN_PROJECT_LIMIT_CODE,
+  hasAnyCustomDomainConfiguration,
+  withCustomDomainProjectEntitlement,
+} from "../domains/custom-domain-project-quota";
 
 function throwPreflightFailure(preflight: PreflightResult): never {
   const failedChecks = preflight.checks.filter((check) => check.status === "fail");
@@ -296,10 +302,7 @@ export type BuildAccessInput = TBuildAccessBody;
 
 /** Build a config snapshot from the project - pure pass-through, no fallbacks.
  *  All values must be set by prepare / ensureProject before this is called. */
-export function buildConfigSnapshot(
-  project: Project,
-  branch?: string,
-): DeploymentConfigSnapshot {
+export function buildConfigSnapshot(project: Project, branch?: string): DeploymentConfigSnapshot {
   const runtimeImage = resolveRuntimeImage(project);
 
   return {
@@ -411,7 +414,11 @@ export async function applyTemplateSourceToSnapshot(
 ): Promise<void> {
   if (!isTemplateProvider(project.gitProvider)) return;
   if (!project.framework) {
-    throw new AppError("Template project has no framework configured", 400, "TEMPLATE_SOURCE_MISSING");
+    throw new AppError(
+      "Template project has no framework configured",
+      400,
+      "TEMPLATE_SOURCE_MISSING",
+    );
   }
   snapshot.localPath = await materializeStarterTemplate(project.framework);
   snapshot.repoUrl = "";
@@ -535,27 +542,34 @@ export async function reconcileComposeDrift(
     }
 
     const sourcePath = localSourcePath ?? project.localPath ?? undefined;
-    const info = project.gitOwner && project.gitRepo
-      ? await resolveProjectInfo({
-          source: "github",
-          owner: project.gitOwner,
-          repo: project.gitRepo,
-          branch,
-          ctx,
-        })
-      : sourcePath
-        ? await resolveProjectInfo({ source: "local", path: sourcePath })
-        : null;
+    const info =
+      project.gitOwner && project.gitRepo
+        ? await resolveProjectInfo({
+            source: "github",
+            owner: project.gitOwner,
+            repo: project.gitRepo,
+            branch,
+            ctx,
+          })
+        : sourcePath
+          ? await resolveProjectInfo({ source: "local", path: sourcePath })
+          : null;
     if (!info) return;
     const services = info.services ?? [];
     if (services.length === 0) return;
-    const { driftedNames } = await repos.service.reconcileFromCompose(project.id, services);
+    const reconcile = () => repos.service.reconcileFromCompose(project.id, services);
+    const { driftedNames } = hasAnyCustomDomainConfiguration(services)
+      ? await withCustomDomainProjectEntitlement(project.organizationId, project.id, reconcile)
+      : await reconcile();
     if (driftedNames.length > 0) {
       console.log(
         `[compose-drift] ${project.id}: kept user edits on ${driftedNames.join(", ")} (pending review)`,
       );
     }
   } catch (err) {
+    if (err instanceof AppError && err.code === CUSTOM_DOMAIN_PROJECT_LIMIT_CODE) {
+      throw err;
+    }
     console.warn(`[compose-drift] reconcile skipped for ${project.id}:`, err);
   }
 }
@@ -718,9 +732,7 @@ export async function checkNoActiveBuild(projectId: string) {
   }
 }
 
-export function assertProjectMayDeploy(
-  project: Pick<Project, "id" | "moderationStatus">,
-): void {
+export function assertProjectMayDeploy(project: Pick<Project, "id" | "moderationStatus">): void {
   if (project.moderationStatus === "suspended") {
     throw new ForbiddenError(
       "This project has been taken offline by the instance administrator and cannot be deployed.",
@@ -893,10 +905,7 @@ export async function createQueuedDeployment(opts: {
 export { subscribe as subscribeToBuildSession } from "./session-manager";
 
 /** Resolve a pending pipeline prompt (e.g. port conflict). */
-export async function respondToPrompt(
-  deploymentId: string,
-  action: string,
-): Promise<boolean> {
+export async function respondToPrompt(deploymentId: string, action: string): Promise<boolean> {
   await loadDeployment(deploymentId);
   return sessionManager.respondToPrompt(deploymentId, action);
 }
@@ -964,9 +973,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // Resolve the upload once and reuse it for both Compose discovery and the
   // eventual snapshot. In the self-hosted upload flow the staging directory is
   // the only source from which a first deploy can reconstruct compose services.
-  const uploadSession = input.uploadSessionId
-    ? getFolderSession(input.uploadSessionId)
-    : undefined;
+  const uploadSession = input.uploadSessionId ? getFolderSession(input.uploadSessionId) : undefined;
   if (input.uploadSessionId && (!uploadSession || uploadSession.orgId !== ctx.organizationId)) {
     throw new AppError("Upload session not found or expired — re-upload the folder.", 400);
   }
@@ -1032,10 +1039,9 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     routeState = routing;
   }
 
-  const requestedServiceMode =
-    composeFirst
-      ? "services"
-      : serviceDeploymentMode === "single"
+  const requestedServiceMode = composeFirst
+    ? "services"
+    : serviceDeploymentMode === "single"
       ? "single"
       : serviceDeploymentMode === "services" || effectiveServices?.length
         ? "services"
@@ -1064,13 +1070,28 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     // Best-effort: a persist failure must never block the deploy.
     const composeOnly = effectiveServices.filter((s) => serviceKind(s) === "compose");
     if (composeOnly.length) {
-      await repos.service
-        .syncFromCompose(project.id, composeOnly, { removeMissing: replaceServices === true })
-        .catch((err) =>
-          console.warn(
-            `[requestBuildAccess] failed to persist compose services: ${safeErrorMessage(err)}`,
-          ),
+      const persistCompose = () =>
+        repos.service.syncFromCompose(project.id, composeOnly, {
+          removeMissing: replaceServices === true,
+        });
+      try {
+        if (hasAnyCustomDomainConfiguration(composeOnly)) {
+          await withCustomDomainProjectEntitlement(
+            project.organizationId,
+            project.id,
+            persistCompose,
+          );
+        } else {
+          await persistCompose();
+        }
+      } catch (err) {
+        if (err instanceof AppError && err.code === CUSTOM_DOMAIN_PROJECT_LIMIT_CODE) {
+          throw err;
+        }
+        console.warn(
+          `[requestBuildAccess] failed to persist compose services: ${safeErrorMessage(err)}`,
         );
+      }
     }
   }
   const { useServicePipeline, servicePreflightServices } = await resolveServicePipelineMode(
@@ -1088,7 +1109,11 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // the single source of truth shared with triggerDeployment — UI override >
   // cloudWorkspaceId > active-deployment meta. Keeps the two deploy entry points
   // from diverging on where a project deploys.
-  const resolvedTarget = await resolveSnapshotTarget(project, { deployTarget, serverId, runtimeMode });
+  const resolvedTarget = await resolveSnapshotTarget(project, {
+    deployTarget,
+    serverId,
+    runtimeMode,
+  });
   snapshot.deployTarget = resolvedTarget.deployTarget;
   snapshot.serverId = resolvedTarget.serverId;
   snapshot.runtimeMode = composeFirst ? "docker" : resolvedTarget.runtimeMode;
@@ -1123,7 +1148,9 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     await repos.project
       .update(project.id, { runtimeMode: "docker" })
       .catch((err) =>
-        console.warn(`[requestBuildAccess] failed to persist runtimeMode: ${safeErrorMessage(err)}`),
+        console.warn(
+          `[requestBuildAccess] failed to persist runtimeMode: ${safeErrorMessage(err)}`,
+        ),
       );
   }
 
@@ -1174,11 +1201,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   const env = environment || "production";
 
   // ── Resolve commit info from the branch HEAD ────
-  const { commitSha, commitMessage } = await resolveLatestCommitInfo(
-    ctx,
-    project,
-    snapshot.branch,
-  );
+  const { commitSha, commitMessage } = await resolveLatestCommitInfo(ctx, project, snapshot.branch);
 
   // ── Resolve rollback context (shared helper — single default) ─────────
   const { rollbackStrategy, commitShaBefore } = await resolveRollbackContext(
@@ -1245,7 +1268,6 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     project_id: project.id,
   };
 }
-
 
 /**
  * Cancel an in-flight deployment.
@@ -1430,10 +1452,7 @@ export async function redeployBuildSession(
   };
 
   // ── Resolve rollback context (shared helper — single default) ─────────
-  const { rollbackStrategy, commitShaBefore } = await resolveRollbackContext(
-    project,
-    branch,
-  );
+  const { rollbackStrategy, commitShaBefore } = await resolveRollbackContext(project, branch);
 
   // "update" wants a snapshot of the OLD state before the (destructive) tag
   // roll-forward — the safety net for stateful apps (n8n/Ghost/Convex volumes).
