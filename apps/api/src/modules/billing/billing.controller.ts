@@ -140,7 +140,7 @@ export async function listTopupPacks(c: Context) {
 export async function createPortal(c: Context) {
   await permission.assert(getRequestContext(c), { resourceType: "billing", resourceId: "*", action: "write" });
   const ctx = getRequestContext(c);
-  const { portalUrl } = await billingService.createPortalSession(ctx.organizationId);
+  const { portalUrl } = await billingService.createPortalSession(ctx.organizationId, ctx.user.email);
   return c.json({ data: { portalUrl } });
 }
 

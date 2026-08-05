@@ -283,23 +283,21 @@ export async function createTopupCheckoutSession(
  * payment-method UI, and the cancellation flow. We just hand them a
  * one-shot redirect URL bound to this org's customer.
  *
- * Orgs without a Stripe customer row haven't ever started a checkout —
- * the portal would 404, so reject up-front with a friendlier error.
+ * Organizations granted a plan manually may not have gone through Checkout
+ * yet. Resolve the customer lazily here so those users can still open the
+ * portal and add a payment method; creating the customer does not create a
+ * subscription or charge the user.
  */
-export async function createPortalSession(organizationId: string): Promise<{ portalUrl: string }> {
+export async function createPortalSession(
+  organizationId: string,
+  email: string | undefined,
+): Promise<{ portalUrl: string }> {
   await assertBillingEnabled();
-  const customer = await billingRepository.getCustomerByOrg(organizationId);
-  if (!customer) {
-    throw new AppError(
-      "No billing account — start a checkout first",
-      404,
-      "BILLING_CUSTOMER_NOT_FOUND",
-    );
-  }
+  const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
   const session = await (await stripe()).billingPortal.sessions.create(
     {
-      customer: customer.stripeCustomerId,
+      customer: customerId,
       return_url: resolveDashboardPageUrl(runtimeTarget.dashboard, "/billing/overview"),
     },
     { idempotencyKey: flowKey("portal", organizationId, "session") },
