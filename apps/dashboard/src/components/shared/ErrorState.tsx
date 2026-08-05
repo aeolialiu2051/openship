@@ -15,7 +15,7 @@ import { useI18n } from "@/components/i18n-provider";
 
 /* ── Error type configs ─────────────────────────────────────────────── */
 
-type ErrorType = "repo-not-found" | "project-not-found" | "access-denied" | "load-failed";
+type ErrorType = "repo-not-found" | "project-not-found" | "access-denied" | "load-failed" | "upload-failed";
 
 interface ErrorStateProps {
   type?: ErrorType;
@@ -80,6 +80,18 @@ export default function ErrorState({ error = {}, type = "repo-not-found" }: Erro
       hints: [] as string[],
       actions: [
         { label: w.projectNotFound.backToDashboard, icon: ArrowLeft, variant: "secondary" as const, path: "/" },
+      ],
+    },
+    "upload-failed": {
+      icon: AlertTriangle,
+      iconColor: "text-destructive",
+      iconBg: "bg-destructive/10",
+      title: w.loadFailed.title,
+      subtitle: w.loadFailed.subtitle,
+      hints: [] as string[],
+      actions: [
+        { label: w.repoNotFound.backToLibrary, icon: ArrowLeft, variant: "secondary" as const, path: "/library" },
+        { label: w.repoNotFound.importRepository, icon: Plus, variant: "primary" as const, path: "/library" },
       ],
     },
   };

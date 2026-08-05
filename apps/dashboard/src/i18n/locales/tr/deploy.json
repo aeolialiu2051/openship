@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "Depo URL biçimi tanınmadı. Lütfen URL'yi kontrol edip tekrar deneyin.",
     "errorLoadProjectTitle": "Proje Yüklenemedi",
     "errorLoadRepoTitle": "Depo Yüklenemedi",
+    "errorProcessUploadTitle": "Yüklenen proje işlenemedi",
+    "errorNoComposeServices": "Yüklenen klasörde Docker Compose hizmeti bulunamadı",
     "errorScanFolderFailed": "Bu klasör taranamadı. Yolun doğru ve erişilebilir olduğundan emin olun.",
     "errorLoadRepoFailed": "Bu depo yüklenemedi. Özel bir depo olabilir, mevcut olmayabilir veya erişim izniniz bulunmayabilir."
   },

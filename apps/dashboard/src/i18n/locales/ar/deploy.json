@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "تنسيق رابط المستودع غير معروف. يرجى التحقق من الرابط والمحاولة مرة أخرى.",
     "errorLoadProjectTitle": "تعذّر تحميل المشروع",
     "errorLoadRepoTitle": "تعذّر تحميل المستودع",
+    "errorProcessUploadTitle": "تعذّرت معالجة المشروع المُحمّل",
+    "errorNoComposeServices": "لم يتم العثور على خدمات Docker Compose في المجلد المُحمّل",
     "errorScanFolderFailed": "تعذّر علينا فحص هذا المجلد. تأكد من أن المسار صحيح ويمكن الوصول إليه.",
     "errorLoadRepoFailed": "تعذّر علينا تحميل هذا المستودع. قد يكون خاصًا، أو غير موجود، أو لا تملك صلاحية الوصول إليه."
   },

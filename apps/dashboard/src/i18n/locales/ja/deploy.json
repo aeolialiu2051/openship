@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "リポジトリURLの形式を認識できませんでした。URLを確認して、もう一度お試しください。",
     "errorLoadProjectTitle": "プロジェクトの読み込みに失敗しました",
     "errorLoadRepoTitle": "リポジトリの読み込みに失敗しました",
+    "errorProcessUploadTitle": "アップロードしたプロジェクトの処理に失敗しました",
+    "errorNoComposeServices": "アップロードしたフォルダに Docker Compose サービスが見つかりませんでした",
     "errorScanFolderFailed": "このフォルダをスキャンできませんでした。パスが正しく、アクセス可能であることを確認してください。",
     "errorLoadRepoFailed": "このリポジトリを読み込めませんでした。非公開である、存在しない、またはアクセス権がない可能性があります。"
   },

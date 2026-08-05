@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "O formato da URL do repositório não foi reconhecido. Verifique a URL e tente novamente.",
     "errorLoadProjectTitle": "Falha ao carregar o projeto",
     "errorLoadRepoTitle": "Falha ao carregar o repositório",
+    "errorProcessUploadTitle": "Falha ao processar o projeto enviado",
+    "errorNoComposeServices": "Nenhum serviço do Docker Compose foi encontrado na pasta enviada",
     "errorScanFolderFailed": "Não foi possível analisar esta pasta. Verifique se o caminho está correto e acessível.",
     "errorLoadRepoFailed": "Não foi possível carregar este repositório. Ele pode ser privado, não existir ou você pode não ter acesso a ele."
   },

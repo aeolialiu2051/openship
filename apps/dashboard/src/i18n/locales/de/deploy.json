@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "Das Format der Repository-URL wird nicht erkannt. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
     "errorLoadProjectTitle": "Projekt konnte nicht geladen werden",
     "errorLoadRepoTitle": "Repository konnte nicht geladen werden",
+    "errorProcessUploadTitle": "Hochgeladenes Projekt konnte nicht verarbeitet werden",
+    "errorNoComposeServices": "Im hochgeladenen Ordner wurden keine Docker-Compose-Dienste gefunden",
     "errorScanFolderFailed": "Dieser Ordner konnte nicht gescannt werden. Stellen Sie sicher, dass der Pfad korrekt und zugänglich ist.",
     "errorLoadRepoFailed": "Dieses Repository konnte nicht geladen werden. Es ist möglicherweise privat, existiert nicht oder Sie haben keinen Zugriff darauf."
   },

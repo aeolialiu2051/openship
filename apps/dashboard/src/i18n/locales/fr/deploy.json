@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "Le format de l'URL du dépôt n'est pas reconnu. Veuillez vérifier l'URL et réessayer.",
     "errorLoadProjectTitle": "Échec du chargement du projet",
     "errorLoadRepoTitle": "Échec du chargement du dépôt",
+    "errorProcessUploadTitle": "Échec du traitement du projet envoyé",
+    "errorNoComposeServices": "Aucun service Docker Compose n'a été trouvé dans le dossier envoyé",
     "errorScanFolderFailed": "Nous n'avons pas pu analyser ce dossier. Assurez-vous que le chemin est correct et accessible.",
     "errorLoadRepoFailed": "Nous n'avons pas pu charger ce dépôt. Il est peut-être privé, inexistant, ou vous n'y avez pas accès."
   },

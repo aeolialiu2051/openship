@@ -26,10 +26,12 @@ import { useToast } from "@/components/toast";
 import { useI18n } from "@/components/i18n-provider";
 
 interface DeployError {
-    type: 'invalid_url' | 'repo_not_found' | 'initialization_failed';
+    type: 'invalid_url' | 'repo_not_found' | 'initialization_failed' | 'upload_failed';
     message: string;
     details?: string;
 }
+
+const NO_DOCKER_COMPOSE_SERVICES_ERROR = "No Docker Compose services were found in the uploaded folder";
 
 const ProjectName: React.FC = () => {
     const { config, updateConfig } = useDeployment();
@@ -65,8 +67,8 @@ const DeployRepository: React.FC = () => {
     const force = searchParams.get("force") || undefined;
     const projectId = searchParams.get("projectId") || undefined;
     const branch = searchParams.get("branch") || undefined;
-    // Folder-upload: the user picked the stack up front (no auto-detection);
-    // carry it (and the folder name) so the wizard seeds from the stack defaults.
+    // Folder-upload: carry the optional stack hint and folder metadata. When
+    // no stack is present, initializeFromUpload performs the authoritative scan.
     const uploadStack = searchParams.get("stack") || undefined;
     const uploadName = searchParams.get("name") || undefined;
     const uploadPackageManager = searchParams.get("packageManager") || undefined;
@@ -252,21 +254,30 @@ const DeployRepository: React.FC = () => {
                 // NetworkErrorHandler — only fire here for api_error so we
                 // don't double-toast network failures.
                 if (result.error) {
+                    const isUpload = decoded.kind === 'upload';
+                    const errorDetails = result.error === NO_DOCKER_COMPOSE_SERVICES_ERROR
+                        ? t.deploy.page.errorNoComposeServices
+                        : result.error;
                     setError({
-                        type: result.errorType === 'api_error' ? 'repo_not_found' : 'initialization_failed',
-                        message: decoded.kind === 'local' ? t.deploy.page.errorLoadProjectTitle : t.deploy.page.errorLoadRepoTitle,
-                        details: result.error
+                        type: isUpload ? 'upload_failed' : result.errorType === 'api_error' ? 'repo_not_found' : 'initialization_failed',
+                        message: isUpload
+                            ? t.deploy.page.errorProcessUploadTitle
+                            : decoded.kind === 'local' ? t.deploy.page.errorLoadProjectTitle : t.deploy.page.errorLoadRepoTitle,
+                        details: errorDetails
                     });
                     if (result.errorType === 'api_error') {
-                        toast('error', result.error);
+                        toast('error', errorDetails);
                     }
                 } else {
+                    const isUpload = decoded.kind === 'upload';
                     const fallbackDetail = decoded.kind === 'local'
                         ? t.deploy.page.errorScanFolderFailed
                         : t.deploy.page.errorLoadRepoFailed;
                     setError({
-                        type: 'initialization_failed',
-                        message: decoded.kind === 'local' ? t.deploy.page.errorLoadProjectTitle : t.deploy.page.errorLoadRepoTitle,
+                        type: isUpload ? 'upload_failed' : 'initialization_failed',
+                        message: isUpload
+                            ? t.deploy.page.errorProcessUploadTitle
+                            : decoded.kind === 'local' ? t.deploy.page.errorLoadProjectTitle : t.deploy.page.errorLoadRepoTitle,
                         details: fallbackDetail
                     });
                     toast('error', fallbackDetail);
@@ -286,7 +297,7 @@ const DeployRepository: React.FC = () => {
     if (error) {
         return (
             <ErrorState 
-                type="repo-not-found" 
+                type={error.type === 'upload_failed' ? 'upload-failed' : 'repo-not-found'}
                 error={{
                     message: error.message,
                     details: error.details

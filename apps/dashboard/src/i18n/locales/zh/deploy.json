@@ -7,6 +7,8 @@
     "errorInvalidUrlDetails": "无法识别该仓库 URL 的格式。请检查 URL 后重试。",
     "errorLoadProjectTitle": "加载项目失败",
     "errorLoadRepoTitle": "加载仓库失败",
+    "errorProcessUploadTitle": "处理上传项目失败",
+    "errorNoComposeServices": "上传的文件夹中未找到 Docker Compose 服务",
     "errorScanFolderFailed": "无法扫描此文件夹。请确认路径正确且可访问。",
     "errorLoadRepoFailed": "无法加载此仓库。它可能是私有的、不存在，或者你没有访问权限。"
   },
