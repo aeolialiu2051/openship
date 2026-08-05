@@ -15,6 +15,18 @@ const freeRoute = (hostname = "api.vibrail.warpgateapi.com"): PlannedRouteDomain
   verified: true,
 });
 
+const pendingCustomRoute = (hostname = "api.example.com"): PlannedRouteDomain => ({
+  hostname,
+  tls: true,
+  provisionSsl: false,
+  isCloud: false,
+  targetPort: 8000,
+  domainType: "custom",
+  serviceId: "svc_1",
+  createIfMissing: true,
+  verified: false,
+});
+
 function dependencies() {
   return {
     ensureRouteDomainRecord: vi.fn().mockResolvedValue({ id: "dom_1" }),
@@ -80,6 +92,75 @@ describe("syncServiceRouteDns", () => {
         message: "Cloudflare unavailable",
       }),
     ]);
+  });
+
+  it("publishes a pending custom route after its connected Cloudflare zone writes DNS", async () => {
+    const deps = dependencies();
+    const route = pendingCustomRoute();
+
+    const result = await syncServiceRouteDns(
+      {
+        projectId: "proj_1",
+        organizationId: "org_1",
+        serverId: "server_1",
+        nextRoutes: [route],
+        removedRoutes: [],
+        domainByHostname: new Map<string, Domain>(),
+      },
+      deps,
+    );
+
+    expect(deps.upsertDeploymentDnsRecord).toHaveBeenCalledWith({
+      hostname: route.hostname,
+      organizationId: "org_1",
+      serverId: "server_1",
+    });
+    expect(result.publishableRoutes).toEqual([{ ...route, verified: true }]);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("keeps a pending custom route manual when no connected zone covers it", async () => {
+    const deps = dependencies();
+    deps.upsertDeploymentDnsRecord.mockResolvedValue("skipped");
+    const route = pendingCustomRoute("api.other.test");
+
+    const result = await syncServiceRouteDns(
+      {
+        projectId: "proj_1",
+        organizationId: "org_1",
+        nextRoutes: [route],
+        removedRoutes: [],
+        domainByHostname: new Map<string, Domain>(),
+      },
+      deps,
+    );
+
+    expect(result.publishableRoutes).toEqual([]);
+    expect(result.failures).toEqual([]);
+  });
+
+  it("does not replace DNS for a verified external-ingress custom route", async () => {
+    const deps = dependencies();
+    deps.ensureRouteDomainRecord.mockResolvedValue({
+      id: "dom_external",
+      externalIngress: true,
+    });
+    const route = { ...pendingCustomRoute("tunnel.example.com"), verified: true };
+
+    const result = await syncServiceRouteDns(
+      {
+        projectId: "proj_1",
+        organizationId: "org_1",
+        nextRoutes: [route],
+        removedRoutes: [],
+        domainByHostname: new Map<string, Domain>(),
+      },
+      deps,
+    );
+
+    expect(deps.upsertDeploymentDnsRecord).not.toHaveBeenCalled();
+    expect(result.publishableRoutes).toEqual([route]);
+    expect(result.failures).toEqual([]);
   });
 
   it("deletes Cloudflare DNS for a removed free route", async () => {

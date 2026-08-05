@@ -51,22 +51,36 @@ export async function syncServiceRouteDns(
 
   for (const route of opts.nextRoutes) {
     try {
-      await dependencies.ensureRouteDomainRecord({
+      const domainRecord = await dependencies.ensureRouteDomainRecord({
         projectId: opts.projectId,
         route,
         domainByHostname: opts.domainByHostname,
       });
-      if (!isRoutePublishable(route)) continue;
-
-      const action = await dependencies.upsertDeploymentDnsRecord({
-        hostname: route.hostname,
-        organizationId: opts.organizationId,
-        serverId: opts.serverId,
-      });
+      const action = domainRecord?.externalIngress
+        ? "skipped"
+        : await dependencies.upsertDeploymentDnsRecord({
+            hostname: route.hostname,
+            organizationId: opts.organizationId,
+            serverId: opts.serverId,
+          });
       if (action === "skipped" && dependencies.isVibrailManagedHostname(route.hostname)) {
         throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
       }
-      publishableRoutes.push(route);
+
+      // A newly-added custom domain starts unverified, but a successful write
+      // through the organization's connected Cloudflare zone is itself the
+      // ownership proof (upsertDeploymentDnsRecord persists that verification).
+      // Try the provider before applying the manual-TXT publish gate so the
+      // advertised one-click custom-domain flow can work on the first deploy.
+      if (!isRoutePublishable(route) && action === "skipped") continue;
+      if (!isRoutePublishable(route) && domainRecord) {
+        opts.domainByHostname.set(route.hostname.toLowerCase(), {
+          ...domainRecord,
+          verified: true,
+          status: "active",
+        });
+      }
+      publishableRoutes.push(isRoutePublishable(route) ? route : { ...route, verified: true });
     } catch (error) {
       failures.push({
         hostname: route.hostname,

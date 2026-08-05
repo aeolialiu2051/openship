@@ -1472,22 +1472,6 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
     runtimeName: runtime.name,
     usesManagedRouting,
   });
-  const preparedTraefik =
-    runtime instanceof DockerRuntime &&
-    !isStaticFileServe &&
-    plannedDomains.some(
-      (route) => route.targetPort !== undefined || (isStaticContainer && !!route.targetPath),
-    ) &&
-    plannedDomains.some(isRoutePublishable)
-      ? await prepareTraefikConfig({
-          runtime,
-          organizationId: dep.organizationId,
-          serverId: snapshot.serverId,
-          projectId: project.id,
-          routes: [],
-          onLog: (message) => logger.log(message),
-        })
-      : undefined;
   // Domains to prune after a successful deploy: project-level rows that
   // no longer back a current public endpoint AND aren't among the routes
   // we just planned. The size>0 guard is a safety valve — if endpoint
@@ -1533,28 +1517,42 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         createdDomainIds.push(created.id);
         logger.log(`Created domain record for "${route.hostname}".\n`);
       }
-      if (isRoutePublishable(route)) {
-        if (usesManagedRouting) {
-          const action = await upsertDeploymentDnsRecord({
-            hostname: route.hostname,
-            organizationId: dep.organizationId,
-            serverId: snapshot.serverId,
-          });
-          if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
-            throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
-          }
-          if (action !== "skipped") {
-            logger.log(
-              `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
+      let routeToPublish = route;
+      if (usesManagedRouting && !created?.externalIngress) {
+        const action = await upsertDeploymentDnsRecord({
+          hostname: route.hostname,
+          organizationId: dep.organizationId,
+          serverId: snapshot.serverId,
+        });
+        if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
+          throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
+        }
+        if (action !== "skipped") {
+          logger.log(
+            `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
+          );
+          if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
+            throw new Error(
+              `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
             );
-            if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
-              throw new Error(
-                `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
-              );
+          }
+          // A connected organization zone proves ownership by successfully
+          // writing the record. The DB row is marked verified by the upsert;
+          // mirror that state in this deploy's immutable route snapshot.
+          if (!isRoutePublishable(route)) {
+            routeToPublish = { ...route, verified: true };
+            if (created) {
+              domainByHostname.set(route.hostname.toLowerCase(), {
+                ...created,
+                verified: true,
+                status: "active",
+              });
             }
           }
         }
-        routableDomains.push(route);
+      }
+      if (isRoutePublishable(routeToPublish)) {
+        routableDomains.push(routeToPublish);
       } else {
         logger.log(
           `Domain "${route.hostname}" is pending TXT ownership verification; route not published.\n`,
@@ -1566,6 +1564,24 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
       domainClaimWarnings.push(`${route.hostname}: ${message}`);
     }
   }
+
+  // Prepare the edge after automatic DNS verification so a deployment whose
+  // only route is a brand-new connected custom domain still gets Traefik.
+  const preparedTraefik =
+    runtime instanceof DockerRuntime &&
+    !isStaticFileServe &&
+    routableDomains.some(
+      (route) => route.targetPort !== undefined || (isStaticContainer && !!route.targetPath),
+    )
+      ? await prepareTraefikConfig({
+          runtime,
+          organizationId: dep.organizationId,
+          serverId: snapshot.serverId,
+          projectId: project.id,
+          routes: [],
+          onLog: (message) => logger.log(message),
+        })
+      : undefined;
 
   if (preparedTraefik) {
     const traefikRoutes = routableDomains

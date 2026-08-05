@@ -395,30 +395,41 @@ async function prepareServiceRoutes(opts: {
           serviceName: service.name,
         });
       }
-      if (isRoutePublishable(route)) {
-        if (routeContext.usesManagedRouting) {
-          const action = await upsertDeploymentDnsRecord({
-            hostname: route.hostname,
-            organizationId: routeContext.organizationId,
-            serverId: routeContext.serverId,
-          });
-          if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
-            throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
-          }
-          if (action !== "skipped") {
-            logger.log(
-              `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
-              "info",
-              { serviceName: service.name },
+      let routeToPublish = route;
+      if (routeContext.usesManagedRouting && !domainRecord?.externalIngress) {
+        const action = await upsertDeploymentDnsRecord({
+          hostname: route.hostname,
+          organizationId: routeContext.organizationId,
+          serverId: routeContext.serverId,
+        });
+        if (action === "skipped" && isVibrailManagedHostname(route.hostname)) {
+          throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
+        }
+        if (action !== "skipped") {
+          logger.log(
+            `${action === "created" ? "Created" : "Updated"} Cloudflare DNS for ${route.hostname}; waiting for propagation before enabling TLS.\n`,
+            "info",
+            { serviceName: service.name },
+          );
+          if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
+            throw new Error(
+              `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
             );
-            if (!(await waitForDeploymentDnsPropagation(route.hostname))) {
-              throw new Error(
-                `DNS for ${route.hostname} did not propagate before the TLS routing timeout`,
-              );
+          }
+          if (!isRoutePublishable(route)) {
+            routeToPublish = { ...route, verified: true };
+            if (domainRecord) {
+              routeContext.domainByHostname.set(domainKey, {
+                ...domainRecord,
+                verified: true,
+                status: "active",
+              });
             }
           }
         }
-        ensured.push(route);
+      }
+      if (isRoutePublishable(routeToPublish)) {
+        ensured.push(routeToPublish);
       } else {
         logger.log(
           `Domain "${route.hostname}" is pending TXT ownership verification; route not published.\n`,
