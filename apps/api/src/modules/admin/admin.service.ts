@@ -385,6 +385,22 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
            order by o.created_at asc limit 1),
           'free'
         )`,
+        currentPeriodStart: sql<Date | null>`coalesce(
+          (select o.current_period_start from ${schema.organization} o
+           where o.id = ('org_' || ${outerUserId}) limit 1),
+          (select o.current_period_start from ${schema.organization} o
+           join ${schema.member} m on m.organization_id = o.id
+           where m.user_id = ${outerUserId} and m.role = 'owner' and o.is_team = false
+           order by o.created_at asc limit 1)
+        )`.mapWith(schema.organization.currentPeriodStart),
+        currentPeriodEnd: sql<Date | null>`coalesce(
+          (select o.current_period_end from ${schema.organization} o
+           where o.id = ('org_' || ${outerUserId}) limit 1),
+          (select o.current_period_end from ${schema.organization} o
+           join ${schema.member} m on m.organization_id = o.id
+           where m.user_id = ${outerUserId} and m.role = 'owner' and o.is_team = false
+           order by o.created_at asc limit 1)
+        )`.mapWith(schema.organization.currentPeriodEnd),
         organizationCount: sql<number>`(
           select count(*)::int from ${schema.member} m where m.user_id = ${outerUserId}
         )`,
@@ -436,7 +452,11 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
   };
 }
 
-export async function updateUserPlan(userId: string, planTierId: "free" | "pro") {
+export async function updateUserPlan(
+  userId: string,
+  planTierId: "free" | "pro",
+  period?: { periodStart?: string; periodEnd?: string },
+) {
   if (planTierId !== "free" && planTierId !== "pro") {
     throw new ValidationError("Plan must be free or pro");
   }
@@ -462,13 +482,27 @@ export async function updateUserPlan(userId: string, planTierId: "free" | "pro")
 
   if (!target) throw new NotFoundError("Personal workspace for user", userId);
 
+  const periodStart = planTierId === "pro" ? parsePeriodDate(period?.periodStart) : null;
+  const periodEnd = planTierId === "pro" ? parsePeriodDate(period?.periodEnd, true) : null;
+  if (planTierId === "pro" && (!periodStart || !periodEnd || periodEnd < periodStart)) {
+    throw new ValidationError("A valid PRO period start and end date are required");
+  }
+
   await setQuotaForTier(target.organizationId, planTierId);
   await db
     .update(schema.organization)
-    .set({ planTierId, subscriptionStatus: "active" })
+    .set({ planTierId, subscriptionStatus: "active", currentPeriodStart: periodStart, currentPeriodEnd: periodEnd })
     .where(eq(schema.organization.id, target.organizationId));
 
-  return { ...target, planTierId };
+  return { ...target, planTierId, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd };
+}
+
+function parsePeriodDate(value: string | undefined, endOfDay = false): Date | null {
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
+  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z`);
+  if (Number.isNaN(date.getTime())) return null;
+  const normalized = date.toISOString().slice(0, 10);
+  return normalized === value ? date : null;
 }
 
 export async function listApplications(

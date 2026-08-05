@@ -19,7 +19,7 @@ export async function BillingLayout({ children }: { children: React.ReactNode })
 
   return (
     <PageContainer className="space-y-6">
-      <BillingHeader />
+      <BillingHeader state={state} />
 
       <BillingTabBar />
 

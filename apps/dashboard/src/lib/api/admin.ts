@@ -45,6 +45,8 @@ export interface AdminUserRow {
   createdAt: string;
   updatedAt: string;
   planTierId: "free" | "pro" | string;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
   organizationCount: number;
   projectCount: number;
   deploymentCount: number;
@@ -171,10 +173,10 @@ export const adminApi = {
     return api.get<AdminPage<AdminUserRow>>("admin/users", { params: params(input) });
   },
 
-  updateUserPlan(userId: string, planTierId: "free" | "pro") {
-    return api.patch<{ data: { organizationId: string; planTierId: "free" | "pro" } }>(
+  updateUserPlan(userId: string, planTierId: "free" | "pro", period?: { periodStart: string; periodEnd: string }) {
+    return api.patch<{ data: { organizationId: string; planTierId: "free" | "pro"; currentPeriodStart: string | null; currentPeriodEnd: string | null } }>(
       `admin/users/${userId}/plan`,
-      { planTierId },
+      { planTierId, ...period },
     );
   },
 

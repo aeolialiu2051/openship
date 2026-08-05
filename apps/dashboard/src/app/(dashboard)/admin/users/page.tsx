@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Loader2, ShieldCheck, XCircle } from "lucide-react";
 import { adminApi, getApiErrorMessage, type AdminPage, type AdminUserRow } from "@/lib/api";
 import { useI18n } from "@/components/i18n-provider";
@@ -30,6 +30,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
+  const [proPeriod, setProPeriod] = useState<{ row: AdminUserRow; start: string; end: string } | null>(null);
+  const proDialogRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -47,29 +49,63 @@ export default function AdminUsersPage() {
     void load();
   }, [load]);
 
-  const updatePlan = async (row: AdminUserRow, planTierId: "free" | "pro") => {
+  useEffect(() => {
+    if (!proPeriod) return;
+
+    proDialogRef.current?.focus();
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setProPeriod(null);
+    };
+    const closeOnWindowBlur = () => setProPeriod(null);
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      if (proDialogRef.current && !proDialogRef.current.contains(event.target as Node)) {
+        setProPeriod(null);
+      }
+    };
+
+    document.addEventListener("keydown", closeOnEscape);
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    window.addEventListener("blur", closeOnWindowBlur);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      document.removeEventListener("pointerdown", closeOnOutsidePointer);
+      window.removeEventListener("blur", closeOnWindowBlur);
+    };
+  }, [proPeriod]);
+
+  const updatePlan = async (
+    row: AdminUserRow,
+    planTierId: "free" | "pro",
+    period?: { periodStart: string; periodEnd: string },
+  ) => {
     const targetUserId = row.id;
-    const confirmed = window.confirm(
+    const confirmed =
       planTierId === "pro"
-        ? zh
-          ? `确认将 ${row.name || row.email} 提升为 PRO 用户吗？套餐额度会立即更新。`
-          : `Promote ${row.name || row.email} to PRO? The plan quota will update immediately.`
-        : zh
-          ? `确认将 ${row.name || row.email} 降级为 FREE 用户吗？套餐额度会立即降低。`
-          : `Downgrade ${row.name || row.email} to FREE? The plan quota will be reduced immediately.`,
-    );
+        ? true
+        : window.confirm(
+            zh
+              ? `确认将 ${row.name || row.email} 降级为 FREE 用户吗？套餐额度会立即降低。`
+              : `Downgrade ${row.name || row.email} to FREE? The plan quota will be reduced immediately.`,
+          );
     if (!confirmed) return;
 
     setUpdatingUserId(targetUserId);
     setError(null);
     try {
-      await adminApi.updateUserPlan(targetUserId, planTierId);
+      const response = await adminApi.updateUserPlan(targetUserId, planTierId, period);
       setResult((current) =>
         current
           ? {
               ...current,
               data: current.data.map((row) =>
-                row.id === targetUserId ? { ...row, planTierId } : row,
+                row.id === targetUserId
+                  ? {
+                      ...row,
+                      planTierId,
+                      currentPeriodStart: response.data.currentPeriodStart,
+                      currentPeriodEnd: response.data.currentPeriodEnd,
+                    }
+                  : row,
               ),
             }
           : current,
@@ -85,6 +121,7 @@ export default function AdminUsersPage() {
       );
     } finally {
       setUpdatingUserId(null);
+      setProPeriod(null);
     }
   };
 
@@ -179,7 +216,9 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={updatingUserId !== null}
                         onClick={() =>
-                          void updatePlan(row, row.planTierId === "free" ? "pro" : "free")
+                          row.planTierId === "free"
+                            ? setProPeriod({ row, start: todayInput(), end: dateAfter(todayInput(), 30) })
+                            : void updatePlan(row, "free")
                         }
                         className="mt-2 flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
                       >
@@ -213,6 +252,73 @@ export default function AdminUsersPage() {
           <Pagination page={result.page} perPage={result.perPage} total={result.total} onPage={setPage} />
         </div>
       )}
+
+      {proPeriod && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-[2px]"
+          role="presentation"
+        >
+          <div
+            ref={proDialogRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="pro-period-dialog-title"
+            tabIndex={-1}
+            className="w-full max-w-lg rounded-2xl border border-border/80 bg-background p-6 text-foreground shadow-2xl outline-none sm:p-7"
+          >
+            <h3 id="pro-period-dialog-title" className="text-lg font-semibold text-foreground">
+              {zh ? "设置 PRO 周期" : "Set PRO period"}
+            </h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {zh ? `为 ${proPeriod.row.name || proPeriod.row.email} 选择权限有效期。` : `Choose the access period for ${proPeriod.row.name || proPeriod.row.email}.`}
+            </p>
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <label className="text-sm text-muted-foreground">
+                {zh ? "开始日期" : "Start date"}
+                <input
+                  type="date"
+                  value={proPeriod.start}
+                  onChange={(event) => setProPeriod({ ...proPeriod, start: event.target.value })}
+                  className="mt-1 h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-foreground"
+                />
+              </label>
+              <label className="text-sm text-muted-foreground">
+                {zh ? "截止日期" : "End date"}
+                <input
+                  type="date"
+                  min={proPeriod.start}
+                  value={proPeriod.end}
+                  onChange={(event) => setProPeriod({ ...proPeriod, end: event.target.value })}
+                  className="mt-1 h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-foreground"
+                />
+              </label>
+            </div>
+            <div className="mt-6 flex justify-end gap-2 border-t border-border/60 pt-5">
+              <button type="button" onClick={() => setProPeriod(null)} className="rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted/40">
+                {zh ? "取消" : "Cancel"}
+              </button>
+              <button
+                type="button"
+                disabled={!proPeriod.start || !proPeriod.end || proPeriod.end < proPeriod.start || updatingUserId !== null}
+                onClick={() => void updatePlan(proPeriod.row, "pro", { periodStart: proPeriod.start, periodEnd: proPeriod.end })}
+                className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+              >
+                {zh ? "确认提升" : "Promote to PRO"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
+}
+
+function todayInput() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dateAfter(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
