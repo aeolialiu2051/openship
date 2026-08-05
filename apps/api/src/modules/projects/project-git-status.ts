@@ -12,8 +12,18 @@ export function appWebhookTargetsInstance(input: {
   active: boolean | null;
   configuredUrl: string | null;
   expectedUrl: string;
+  allowConfiguredRemote?: boolean;
 }): boolean {
-  if (input.active !== true || !input.configuredUrl) return false;
+  // GitHub's App webhook config endpoint returns the configured URL but does
+  // not consistently expose the hook's `active` flag through GET /app. Treat
+  // a missing flag as unknown rather than disabled; an explicit `false` still
+  // wins, and the URL must target this exact control-plane instance.
+  if (input.active === false || !input.configuredUrl) return false;
+  // Local SaaS development uses the real GitHub App and shared cloud data,
+  // while its API advertises localhost. Deliveries correctly go to the App's
+  // configured public control plane, so the configured URL is authoritative
+  // in that narrowly-scoped mode. Production callers never enable this.
+  if (input.allowConfiguredRemote) return true;
   try {
     const configured = new URL(input.configuredUrl);
     const expected = new URL(input.expectedUrl);

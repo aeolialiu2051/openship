@@ -1370,6 +1370,7 @@ export async function getGitInfo(c: Context) {
       active: webhookState.active,
       configuredUrl: webhookState.url,
       expectedUrl: sharedWebhookUrl(),
+      allowConfiguredRemote: env.NODE_ENV === "development" && env.CLOUD_MODE,
     });
   }
 

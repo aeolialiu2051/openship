@@ -51,11 +51,40 @@ describe("project Git webhook status", () => {
         expectedUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
       }),
     ).toBe(false);
+  });
+
+  it("uses a matching App webhook URL when GitHub omits the active flag", () => {
     expect(
       appWebhookTargetsInstance({
         active: null,
         configuredUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
         expectedUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
+      }),
+    ).toBe(true);
+    expect(
+      appWebhookTargetsInstance({
+        active: null,
+        configuredUrl: "https://another.example.com/api/webhooks/github",
+        expectedUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts the configured public App webhook for local SaaS development", () => {
+    expect(
+      appWebhookTargetsInstance({
+        active: null,
+        configuredUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
+        expectedUrl: "http://localhost:4100/api/webhooks/github",
+        allowConfiguredRemote: true,
+      }),
+    ).toBe(true);
+    expect(
+      appWebhookTargetsInstance({
+        active: false,
+        configuredUrl: "https://vibrail.warpgateapi.com/api/proxy/api/webhooks/github",
+        expectedUrl: "http://localhost:4100/api/webhooks/github",
+        allowConfiguredRemote: true,
       }),
     ).toBe(false);
   });
