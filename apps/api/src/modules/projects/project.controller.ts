@@ -1583,8 +1583,25 @@ export async function setAutoDeploy(c: Context) {
 
   try {
     if (strategy === "app") {
-      // GitHub App handles push events natively - just toggle the DB flag
-      await repos.project.update(id, { autoDeploy: enabled });
+      // GitHub App push fan-out is installation-bound. Backfill the binding
+      // when enabling auto-deploy so projects created through the generic
+      // ensure/import flow cannot silently opt into an unusable toggle.
+      const installationId = enabled
+        ? await getInstallationIdByOrg(organizationId, owner)
+        : undefined;
+      if (enabled && !installationId) {
+        return c.json(
+          {
+            success: false,
+            error: "GitHub App is not installed for this repository owner",
+          },
+          400,
+        );
+      }
+      await repos.project.update(id, {
+        autoDeploy: enabled,
+        ...(installationId ? { installationId } : {}),
+      });
     } else if (strategy === "domain") {
       // User has a verified domain - direct webhook delivery
       if (enabled) {

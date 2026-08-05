@@ -675,6 +675,17 @@ async function findProjectByAppSlug(
   return (await repos.project.findBySlugInOrg(organizationId, slug)) ?? null;
 }
 
+/** Resolve the GitHub App installation that owns a repository for this org.
+ * Never trust an installation ID supplied by dashboard/CLI callers: webhook
+ * fan-out binds deliveries to this server-side value. */
+async function resolveCloudGitInstallationId(
+  organizationId: string,
+  owner?: string | null,
+): Promise<number | undefined> {
+  if (!env.CLOUD_MODE || !owner?.trim()) return undefined;
+  return (await getInstallationIdByOrg(organizationId, owner.trim())) ?? undefined;
+}
+
 // ─── Ensure project (create or return existing) ─────────────────────────────
 
 export async function ensureProject(
@@ -698,12 +709,19 @@ export async function ensureProject(
   }
   let created = false;
 
+  const resolvedInstallationId = await resolveCloudGitInstallationId(
+    organizationId,
+    data.gitOwner ?? project?.gitOwner,
+  );
+
   if (!project) {
     // No existing match → this ensure will create. Enforce the cap here too
     // (the folder-upload deploy flow reaches creation only through ensure).
     await assertProjectQuota(organizationId);
     project = await createProductionProject(
-      data,
+      resolvedInstallationId
+        ? { ...data, installationId: resolvedInstallationId }
+        : data,
       desiredSlug,
       organizationId,
     );
@@ -717,6 +735,9 @@ export async function ensureProject(
       throw new NotFoundError("Project", data.projectId ?? desiredSlug);
     }
     const update: Record<string, unknown> = {};
+    if (resolvedInstallationId && project.installationId !== resolvedInstallationId) {
+      update.installationId = resolvedInstallationId;
+    }
     if (data.framework !== undefined) update.framework = data.framework;
     if (data.packageManager !== undefined) update.packageManager = data.packageManager;
     if (data.installCommand !== undefined) update.installCommand = data.installCommand;
