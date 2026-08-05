@@ -99,7 +99,6 @@
         "features": [
           "Unlimited projects",
           "10 workspaces",
-          "Git push auto-deploy",
           "Scheduled backups and one-click rollback",
           "Unlimited custom domains with automatic SSL",
           "Email support"

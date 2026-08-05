@@ -99,7 +99,6 @@
         "features": [
           "Unbegrenzte Projekte",
           "10 Workspaces",
-          "Automatische Bereitstellung per Git Push",
           "Geplante Backups und Rollback mit einem Klick",
           "Unbegrenzte eigene Domains mit automatischem SSL",
           "E-Mail-Support"
