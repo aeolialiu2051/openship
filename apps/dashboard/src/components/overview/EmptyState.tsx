@@ -5,9 +5,11 @@ import Link from 'next/link';
 import { Plus, GitBranch, Zap, Globe, Eye, RotateCcw } from 'lucide-react';
 import { useI18n } from '@/components/i18n-provider';
 import { ProjectIllustration } from '@/components/overview/ProjectIllustration';
+import { usePlatform } from '@/context/PlatformContext';
 
 const EmptyState: React.FC = () => {
   const { t } = useI18n();
+  const { deployMode } = usePlatform();
   const emptyState = t.dashboard.pages.projects.emptyState;
 
   return (
@@ -75,10 +77,12 @@ const EmptyState: React.FC = () => {
         </div>
       </div>
 
-      <p className="text-xs text-muted-foreground/60 mt-8">
-        {emptyState.commandPalette.replace('{key}', '')}
-        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘ K</kbd>
-      </p>
+      {deployMode === 'desktop' && (
+        <p className="text-xs text-muted-foreground/60 mt-8">
+          {emptyState.commandPalette.replace('{key}', '')}
+          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘ K</kbd>
+        </p>
+      )}
     </div>
   );
 };

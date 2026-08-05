@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { Plus, Github, GitBranch, Zap, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/components/i18n-provider";
+import { usePlatform } from "@/context/PlatformContext";
 
 const FEATURES = [
   { icon: Zap, label: "Zero config", sub: "Push to deploy" },
@@ -19,6 +20,7 @@ const FEATURES = [
  */
 const HomeWelcome: React.FC = () => {
   const { t } = useI18n();
+  const { deployMode } = usePlatform();
   return (
     <div className="px-6 py-6 sm:py-10 sm:pb-12">
       {/* Illustration */}
@@ -101,11 +103,13 @@ const HomeWelcome: React.FC = () => {
         ))}
       </div> */}
 
-      <p className="text-center text-xs text-muted-foreground/60 mt-7">
-        {t.overview.welcome.tipPrefix}{" "}
-        <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘ K</kbd>{" "}
-        {t.overview.welcome.tipSuffix}
-      </p>
+      {deployMode === "desktop" && (
+        <p className="text-center text-xs text-muted-foreground/60 mt-7">
+          {t.overview.welcome.tipPrefix}{" "}
+          <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">⌘ K</kbd>{" "}
+          {t.overview.welcome.tipSuffix}
+        </p>
+      )}
     </div>
   );
 };
