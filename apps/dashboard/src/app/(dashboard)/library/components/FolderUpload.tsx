@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Upload, Loader2, AlertCircle, Package, X, ArrowRight, ArrowLeft } from "lucide-react";
+import { Upload, Loader2, AlertCircle, Package, X, ArrowRight, ArrowLeft, ScanSearch } from "lucide-react";
 import { buildFolderTarGz, collectFolderFiles } from "@/utils/tarGz";
 import { encodeUploadSlug } from "@/utils/repoSlug";
 import { folderApi } from "@/lib/api/folder";
@@ -29,17 +29,17 @@ function detectPackageManager(paths: Set<string>): string {
 }
 
 /**
- * Folder-upload entry: the user first picks the stack (reusing the framework
- * grid — no auto-detection), which fixes the build image up front, then uploads
- * the folder. We pack in the browser, open a session, upload straight to the
- * build workspace (SaaS) or the API (self-hosted), and hand off to the deploy
- * wizard seeded from the chosen stack.
+ * Folder-upload entry: the user can let Vibrail detect the stack from the
+ * uploaded source or choose one explicitly. We pack in the browser, open a
+ * session, upload straight to the build workspace (SaaS) or the API
+ * (self-hosted), and hand off to the deploy wizard. Omitting the stack hint is
+ * what activates the backend's authoritative source scan.
  */
 export function FolderUpload() {
   const { t } = useI18n();
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [stack, setStack] = useState<FrameworkConfig | null>(null);
+  const [stack, setStack] = useState<FrameworkConfig | "auto" | null>(null);
   const [picked, setPicked] = useState<Picked | null>(null);
   const [server, setServer] = useState<ServerOption | null>(null);
   const [phase, setPhase] = useState<Phase>("idle");
@@ -86,7 +86,7 @@ export function FolderUpload() {
 
       setPhase("uploading");
       const session = await folderApi.createSession({
-        stack: stack.id,
+        ...(stack !== "auto" && { stack: stack.id }),
         packageManager: picked.packageManager,
         name: picked.name,
         serverId: server.id,
@@ -94,11 +94,11 @@ export function FolderUpload() {
       await folderApi.upload(session, blob);
 
       const params = new URLSearchParams({
-        stack: stack.id,
         name: picked.name,
         packageManager: picked.packageManager,
         serverId: server.id,
       });
+      if (stack !== "auto") params.set("stack", stack.id);
       router.push(`/deploy/${encodeUploadSlug(session.sessionId)}?${params.toString()}`);
     } catch (err: unknown) {
       setError(getApiErrorMessage(err, t.library.folderUpload.uploadError));
@@ -123,6 +123,18 @@ export function FolderUpload() {
           </p>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+          <button
+            onClick={() => setStack("auto")}
+            className="flex flex-col items-center gap-3 p-5 rounded-xl border border-primary/35 bg-primary/[0.04] hover:bg-primary/[0.08] hover:border-primary/60 transition-all group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-105 transition-transform">
+              <ScanSearch className="size-5 text-primary" />
+            </div>
+            <div className="text-center">
+              <span className="block text-sm font-medium text-foreground">{t.library.folderUpload.autoDetect}</span>
+              <span className="block mt-1 text-[11px] leading-4 text-muted-foreground">{t.library.folderUpload.autoDetectDesc}</span>
+            </div>
+          </button>
           {folderImportFrameworks
             .filter((fw) => fw.id !== "static")
             .map((fw) => (
@@ -156,10 +168,16 @@ export function FolderUpload() {
           </button>
         )}
         <div className="w-9 h-9 bg-muted/60 rounded-xl flex items-center justify-center">
-          {stack.icon("hsl(var(--foreground))")}
+          {stack === "auto"
+            ? <ScanSearch className="size-[18px] text-primary" />
+            : stack.icon("hsl(var(--foreground))")}
         </div>
         <div>
-          <h2 className="font-semibold text-foreground text-[15px]">{interpolate(t.library.folderUpload.uploadTitle, { stack: stack.name })}</h2>
+          <h2 className="font-semibold text-foreground text-[15px]">
+            {stack === "auto"
+              ? t.library.folderUpload.autoUploadTitle
+              : interpolate(t.library.folderUpload.uploadTitle, { stack: stack.name })}
+          </h2>
           <p className="text-xs text-muted-foreground">{t.library.folderUpload.uploadSubtitle}</p>
         </div>
       </div>
@@ -192,7 +210,9 @@ export function FolderUpload() {
               {t.library.folderUpload.dropTitle}
             </p>
             <p className="text-xs text-muted-foreground">
-              {interpolate(t.library.folderUpload.dropSubtitle, { stack: stack.name })}
+              {stack === "auto"
+                ? t.library.folderUpload.autoDropSubtitle
+                : interpolate(t.library.folderUpload.dropSubtitle, { stack: stack.name })}
             </p>
           </div>
         ) : (
@@ -204,7 +224,7 @@ export function FolderUpload() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-foreground truncate">{picked.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  {interpolate(picked.fileCount !== 1 ? t.library.folderUpload.filesPlural : t.library.folderUpload.filesSingular, { count: String(picked.fileCount) })} · {picked.packageManager} · {stack.name}
+                  {interpolate(picked.fileCount !== 1 ? t.library.folderUpload.filesPlural : t.library.folderUpload.filesSingular, { count: String(picked.fileCount) })} · {picked.packageManager} · {stack === "auto" ? t.library.folderUpload.autoDetect : stack.name}
                 </p>
               </div>
               {!busy && (
