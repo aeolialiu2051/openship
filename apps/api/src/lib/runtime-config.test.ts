@@ -23,18 +23,18 @@ describe("runtime configuration", () => {
   it("inherits environment defaults until an admin override is saved", async () => {
     const initial = await getRuntimeConfigState();
     expect(initial.overrides).toEqual({});
-    expect(initial.values.STRIPE_PRICE_PRO_MONTHLY).toBe(
-      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY,
+    expect(initial.values.STRIPE_PRICE_PRO_MONTHLY_ID).toBe(
+      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY_ID,
     );
 
     const updated = await updateRuntimeConfig({
-      STRIPE_PRICE_PRO_MONTHLY: initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
+      STRIPE_PRICE_PRO_MONTHLY_ID: "price_test_monthly",
     });
-    expect(updated.values.STRIPE_PRICE_PRO_MONTHLY).toBe(
-      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
+    expect(updated.values.STRIPE_PRICE_PRO_MONTHLY_ID).toBe(
+      "price_test_monthly",
     );
-    expect(updated.overrides.STRIPE_PRICE_PRO_MONTHLY).toBe(
-      initial.environmentDefaults.STRIPE_PRICE_PRO_MONTHLY + 1,
+    expect(updated.overrides.STRIPE_PRICE_PRO_MONTHLY_ID).toBe(
+      "price_test_monthly",
     );
   });
 

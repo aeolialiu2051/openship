@@ -36,6 +36,7 @@ import { getRuntimeConfig } from "../../lib/runtime-config";
  */
 export async function listPlans(c: Context) {
   const runtimeConfig = await getRuntimeConfig();
+  const proPrices = await billingService.getProPriceAmounts(runtimeConfig);
   const plans = PLAN_IDS.map((id) => {
     const p = PLANS[id];
     return {
@@ -46,21 +47,17 @@ export async function listPlans(c: Context) {
       price:
         id === "pro"
           ? {
-              monthly: Math.round(runtimeConfig.STRIPE_PRICE_PRO_MONTHLY * 100),
-              annual: Math.round(runtimeConfig.STRIPE_PRICE_PRO_ANNUAL * 100),
+              monthly: proPrices.monthly,
+              annual: proPrices.annual,
             }
           : p.price,
       promotionalPrice:
         id === "pro"
           ? {
               monthly:
-                runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL > 0
-                  ? Math.round(runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL * 100)
-                  : null,
+                proPrices.promotionalMonthly,
               annual:
-                runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL > 0
-                  ? Math.round(runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL * 100)
-                  : null,
+                proPrices.promotionalAnnual,
             }
           : { monthly: null, annual: null },
       monthlyCredits: p.monthlyCredits,

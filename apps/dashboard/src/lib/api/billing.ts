@@ -16,6 +16,7 @@ import type { PlanTierId, CreditPackDefinition } from "@repo/core";
 export interface BillingState {
   tier: PlanTierId;
   status: string;
+  currentInterval: SubscriptionInterval | null;
   currentPeriod: {
     start: string | null;
     end: string | null;
@@ -230,4 +231,3 @@ export const billingApi = {
     return res.data;
   },
 };
-

@@ -468,7 +468,7 @@ async function handleSubscriptionCreated(sub: Stripe.Subscription): Promise<void
     );
     return;
   }
-  const planTierId = resolvePlanFromPriceId(sub);
+  const planTierId = await resolvePlanFromPriceId(sub);
 
   await upsertSubscription({
     organizationId: orgId,
@@ -512,7 +512,7 @@ async function handleSubscriptionUpdated(sub: Stripe.Subscription): Promise<void
     return;
   }
 
-  const newPlanTierId = resolvePlanFromPriceId(sub);
+  const newPlanTierId = await resolvePlanFromPriceId(sub);
 
   // Pull the previous local row to detect price flip vs cancel_at flip
   // AND a past_due → active recovery transition.
@@ -748,12 +748,20 @@ function resolveIntervalFromSub(sub: Stripe.Subscription): "monthly" | "annual" 
   return "monthly";
 }
 
-function resolvePlanFromPriceId(sub: Stripe.Subscription): PlanTierId {
+async function resolvePlanFromPriceId(sub: Stripe.Subscription): Promise<PlanTierId> {
   const metadataTier = sub.metadata?.planTierId;
   if (metadataTier === "pro" || metadataTier === "team" || metadataTier === "enterprise") {
     return metadataTier;
   }
   const priceId = resolvePriceIdFromSub(sub);
+  const runtimeConfig = await getRuntimeConfig();
+  const proPriceIds = new Set([
+    runtimeConfig.STRIPE_PRICE_PRO_MONTHLY_ID,
+    runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_ID,
+    runtimeConfig.STRIPE_PRICE_PRO_MONTHLY_PROMOTIONAL_ID,
+    runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL_ID,
+  ].filter(Boolean));
+  if (proPriceIds.has(priceId)) return "pro";
   for (const tier of ["pro", "team", "enterprise"] as const) {
     const plan = PLANS[tier];
     if (

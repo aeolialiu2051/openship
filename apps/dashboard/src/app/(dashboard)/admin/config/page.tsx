@@ -29,7 +29,7 @@ const ITEMS: Array<{
   group: "commercial" | "security" | "network";
   title: [string, string];
   description: [string, string];
-  kind: "boolean" | "number" | "pinning" | "secret" | "price" | "optionalPrice";
+  kind: "boolean" | "number" | "pinning" | "secret" | "priceId" | "price" | "optionalPrice";
 }> = [
   {
     key: "STRIPE_SECRET_KEY",
@@ -52,38 +52,38 @@ const ITEMS: Array<{
     kind: "secret",
   },
   {
-    key: "STRIPE_PRICE_PRO_MONTHLY",
+    key: "STRIPE_PRICE_PRO_MONTHLY_ID",
     group: "commercial",
-    title: ["Pro 月付价格", "Pro monthly price"],
-    description: ["美元金额，例如 5。", "Price in USD, for example 5."],
-    kind: "price",
+    title: ["Pro 月付 Price ID", "Pro monthly Price ID"],
+    description: ["Stripe 月付固定 Price ID。", "Fixed Stripe Price ID for Pro monthly billing."],
+    kind: "priceId",
   },
   {
-    key: "STRIPE_PRICE_PRO_ANNUAL",
+    key: "STRIPE_PRICE_PRO_ANNUAL_ID",
     group: "commercial",
-    title: ["Pro 年付价格", "Pro annual price"],
-    description: ["美元金额，例如 50。", "Price in USD, for example 50."],
-    kind: "price",
+    title: ["Pro 年付 Price ID", "Pro annual Price ID"],
+    description: ["Stripe 年付固定 Price ID。", "Fixed Stripe Price ID for Pro annual billing."],
+    kind: "priceId",
   },
   {
-    key: "STRIPE_PRICE_PRO_PROMOTIONAL",
+    key: "STRIPE_PRICE_PRO_MONTHLY_PROMOTIONAL_ID",
     group: "commercial",
-    title: ["Pro 限时活动价格", "Pro promotional price"],
+    title: ["Pro 月付促销 Price ID", "Pro monthly promotional Price ID"],
     description: [
-      "可选的月付美元活动价。留空时不显示活动标签和原价删除线。",
-      "Optional promotional monthly price in USD. Leave blank to hide the offer label and crossed-out price.",
+      "可选的 Stripe 月付促销 Price ID。",
+      "Optional Stripe promotional Price ID for Pro monthly billing.",
     ],
-    kind: "optionalPrice",
+    kind: "priceId",
   },
   {
-    key: "STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL",
+    key: "STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL_ID",
     group: "commercial",
-    title: ["Pro 年付限时活动价格", "Pro annual promotional price"],
+    title: ["Pro 年付促销 Price ID", "Pro annual promotional Price ID"],
     description: [
-      "可选的年付美元活动价。留空时年付选项不显示活动标签和原价删除线。",
-      "Optional annual promotional price in USD. Leave blank to hide the offer label and crossed-out annual price.",
+      "可选的 Stripe 年付促销 Price ID。",
+      "Optional Stripe promotional Price ID for Pro annual billing.",
     ],
-    kind: "optionalPrice",
+    kind: "priceId",
   },
   {
     key: "CLOUD_MAX_PROJECTS_PER_USER",
@@ -383,6 +383,16 @@ export default function AdminRuntimeConfigPage() {
                           </select>
                           <ChevronDown className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                         </div>
+                      )}
+                      {item.kind === "priceId" && (
+                        <input
+                          type="text"
+                          value={values[item.key] as string}
+                          placeholder="price_..."
+                          aria-label={item.title[zh ? 0 : 1]}
+                          onChange={(event) => setValue(item.key, event.target.value)}
+                          className="h-10 w-full rounded-xl border border-border/60 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                        />
                       )}
                       {item.kind === "secret" && (
                         <input

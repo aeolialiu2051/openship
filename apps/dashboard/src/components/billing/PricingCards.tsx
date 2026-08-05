@@ -21,6 +21,7 @@ export interface ApiPlan {
 interface PricingCardsProps {
   plans: ApiPlan[];
   currentPlan?: PlanTierId;
+  currentInterval?: "monthly" | "annual" | null;
   interval: "monthly" | "annual";
   onSelectPlan?: (planId: PlanTierId) => void;
   subscribingPlan?: string | null;
@@ -29,6 +30,7 @@ interface PricingCardsProps {
 export const PricingCards: React.FC<PricingCardsProps> = ({
   plans,
   currentPlan = "free",
+  currentInterval = null,
   interval,
   onSelectPlan,
   subscribingPlan,
@@ -43,7 +45,9 @@ export const PricingCards: React.FC<PricingCardsProps> = ({
     <div className="grid w-full gap-5 md:grid-cols-2">
       {visiblePlans.map((plan) => {
         const isPro = plan.id === "pro";
-        const isCurrent = currentPlan === plan.id;
+        const isCurrent =
+          currentPlan === plan.id &&
+          (plan.id !== "pro" || currentInterval === interval);
         const originalPrice = plan.price[interval];
         const promotionalPrice = isPro ? plan.promotionalPrice?.[interval] : null;
         const hasPromotion = promotionalPrice !== null && promotionalPrice !== undefined;

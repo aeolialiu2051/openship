@@ -26,6 +26,36 @@ import { handleStripeEvent as handleStripeWebhook } from "./billing.webhooks";
 import * as billingRepository from "./billing.repository";
 import { getRuntimeConfig } from "../../lib/runtime-config";
 
+type BillingInterval = "monthly" | "annual";
+
+function configuredProPriceId(
+  config: Awaited<ReturnType<typeof getRuntimeConfig>>,
+  interval: BillingInterval,
+): string {
+  const promo = interval === "annual"
+    ? config.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL_ID
+    : config.STRIPE_PRICE_PRO_MONTHLY_PROMOTIONAL_ID;
+  if (promo.trim()) return promo.trim();
+  return (interval === "annual" ? config.STRIPE_PRICE_PRO_ANNUAL_ID : config.STRIPE_PRICE_PRO_MONTHLY_ID).trim();
+}
+
+async function stripePriceAmount(id: string): Promise<number | null> {
+  if (!id || isPlaceholderPriceId(id)) return null;
+  try { return (await (await stripe()).prices.retrieve(id)).unit_amount; } catch { return null; }
+}
+
+export async function getProPriceAmounts(
+  config: Awaited<ReturnType<typeof getRuntimeConfig>>,
+) {
+  const [monthly, annual, promotionalMonthly, promotionalAnnual] = await Promise.all([
+    stripePriceAmount(config.STRIPE_PRICE_PRO_MONTHLY_ID),
+    stripePriceAmount(config.STRIPE_PRICE_PRO_ANNUAL_ID),
+    stripePriceAmount(config.STRIPE_PRICE_PRO_MONTHLY_PROMOTIONAL_ID),
+    stripePriceAmount(config.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL_ID),
+  ]);
+  return { monthly, annual, promotionalMonthly, promotionalAnnual };
+}
+
 /* ---------- Feature gate (master switch, cloud-owned) ---------- */
 
 /**
@@ -151,20 +181,9 @@ export async function createCheckoutSession(
   await assertBillingEnabled();
   const organizationId = ctx.organizationId;
   const email = ctx.user.email;
-  const plan = PLANS[planTierId];
   const runtimeConfig = await getRuntimeConfig();
-  const amountDollars =
-    planTierId === "pro"
-      ? interval === "annual"
-        ? runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL > 0
-          ? runtimeConfig.STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL
-          : runtimeConfig.STRIPE_PRICE_PRO_ANNUAL
-        : runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL > 0
-          ? runtimeConfig.STRIPE_PRICE_PRO_PROMOTIONAL
-          : runtimeConfig.STRIPE_PRICE_PRO_MONTHLY
-      : null;
-
-  if (amountDollars === null) {
+  const priceId = planTierId === "pro" ? configuredProPriceId(runtimeConfig, interval) : "";
+  if (!priceId || isPlaceholderPriceId(priceId)) {
     throw new AppError(
       `Plan ${planTierId} (${interval}) is not purchasable`,
       400,
@@ -185,12 +204,7 @@ export async function createCheckoutSession(
       },
       line_items: [
         {
-          price_data: {
-            currency: "usd",
-            unit_amount: Math.round(amountDollars * 100),
-            recurring: { interval: interval === "annual" ? "year" : "month" },
-            product_data: { name: `${plan.name} plan` },
-          },
+          price: priceId,
           quantity: 1,
         },
       ],

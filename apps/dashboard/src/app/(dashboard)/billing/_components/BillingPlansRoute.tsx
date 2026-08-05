@@ -16,7 +16,13 @@ interface CheckoutResponse {
   data: { checkoutUrl: string };
 }
 
-export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanTierId }) {
+export function BillingPlansRoute({
+  currentPlan,
+  currentInterval,
+}: {
+  currentPlan: PlanTierId;
+  currentInterval?: "monthly" | "annual" | null;
+}) {
   const { t, locale } = useI18n();
   const [plans, setPlans] = useState<ApiPlan[] | null>(null);
   const [loading, setLoading] = useState(true);
@@ -43,7 +49,7 @@ export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanTierId }) 
   }, []);
 
   const handleSelectPlan = async (planTierId: PlanTierId) => {
-    if (planTierId === "free" || planTierId === currentPlan) return;
+    if (planTierId === "free" || (planTierId === currentPlan && currentInterval === interval)) return;
     const checkoutWindow = window.open("about:blank", "_blank");
     if (!checkoutWindow) {
       setError(locale === "zh" ? "浏览器阻止了新窗口，请允许弹出窗口后重试" : "Your browser blocked the new window. Allow pop-ups and try again.");
@@ -111,6 +117,7 @@ export function BillingPlansRoute({ currentPlan }: { currentPlan: PlanTierId }) 
       <PricingCards
         plans={plans}
         currentPlan={currentPlan}
+        currentInterval={currentInterval}
         interval={interval}
         onSelectPlan={handleSelectPlan}
         subscribingPlan={subscribing}

@@ -31,11 +31,11 @@ const InvoicesPanel = dynamic(
 export function BillingTabContent({ tab, state }: { tab: BillingTab; state: BillingState }) {
   switch (tab) {
     case "overview":
-      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} />;
+      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} currentInterval={state.currentInterval} />;
     case "usage":
       return <BillingUsage state={state} />;
     case "plans":
-      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} />;
+      return <BillingPlansRoute currentPlan={state.tier as PlanTierId} currentInterval={state.currentInterval} />;
     case "topups":
       return <BillingTopups state={state} />;
     case "payment":

@@ -37,6 +37,8 @@ export const organization = pgTable("organization", {
   stripeCustomerId: text("stripe_customer_id"),
   /** 'active' | 'past_due' | 'canceled' | 'credit_exhausted' | 'trialing' */
   subscriptionStatus: text("subscription_status").notNull().default("active"),
+  /** 'monthly' | 'annual'; null for Free or legacy/manual records without a cycle. */
+  subscriptionInterval: text("subscription_interval"),
   currentPeriodStart: timestamp("current_period_start"),
   currentPeriodEnd: timestamp("current_period_end"),
   /** Oblien-side namespace for this org's metered resources. Set when the

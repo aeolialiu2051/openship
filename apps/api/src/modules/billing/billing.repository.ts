@@ -35,6 +35,7 @@ const {
 export interface BillingState {
   tier: PlanTierId;
   status: string;
+  currentInterval: "monthly" | "annual" | null;
   currentPeriod: {
     start: Date | null;
     end: Date | null;
@@ -135,6 +136,7 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
     .select({
       planTierId: organization.planTierId,
       subscriptionStatus: organization.subscriptionStatus,
+      subscriptionInterval: organization.subscriptionInterval,
       currentPeriodStart: organization.currentPeriodStart,
       currentPeriodEnd: organization.currentPeriodEnd,
       oblienNamespace: organization.oblienNamespace,
@@ -201,6 +203,10 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
   return {
     tier,
     status: org.subscriptionStatus,
+    currentInterval:
+      org.subscriptionInterval === "monthly" || org.subscriptionInterval === "annual"
+        ? org.subscriptionInterval
+        : null,
     currentPeriod: {
       start: org.currentPeriodStart ?? null,
       end: org.currentPeriodEnd ?? null,
@@ -327,6 +333,7 @@ export async function upsertSubscription(
       .set({
         planTierId: input.planTierId,
         subscriptionStatus: input.status,
+        subscriptionInterval: input.planTierId === "free" ? null : input.interval,
         currentPeriodStart: input.currentPeriodStart,
         currentPeriodEnd: input.currentPeriodEnd,
       })

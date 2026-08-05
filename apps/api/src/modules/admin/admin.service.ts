@@ -385,6 +385,14 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
            order by o.created_at asc limit 1),
           'free'
         )`,
+        subscriptionInterval: sql<string | null>`coalesce(
+          (select o.subscription_interval from ${schema.organization} o
+           where o.id = ('org_' || ${outerUserId}) limit 1),
+          (select o.subscription_interval from ${schema.organization} o
+           join ${schema.member} m on m.organization_id = o.id
+           where m.user_id = ${outerUserId} and m.role = 'owner' and o.is_team = false
+           order by o.created_at asc limit 1)
+        )`,
         currentPeriodStart: sql<Date | null>`coalesce(
           (select o.current_period_start from ${schema.organization} o
            where o.id = ('org_' || ${outerUserId}) limit 1),
@@ -455,7 +463,7 @@ export async function listUsers(opts: AdminListOptions & { role?: string; verifi
 export async function updateUserPlan(
   userId: string,
   planTierId: "free" | "pro",
-  period?: { periodStart?: string; periodEnd?: string },
+  period?: { periodStart?: string; periodEnd?: string; interval?: "monthly" | "annual" },
 ) {
   if (planTierId !== "free" && planTierId !== "pro") {
     throw new ValidationError("Plan must be free or pro");
@@ -464,6 +472,7 @@ export async function updateUserPlan(
     .select({
       organizationId: schema.organization.id,
       previousPlan: schema.organization.planTierId,
+      previousInterval: schema.organization.subscriptionInterval,
     })
     .from(schema.organization)
     .innerJoin(schema.member, eq(schema.member.organizationId, schema.organization.id))
@@ -487,14 +496,29 @@ export async function updateUserPlan(
   if (planTierId === "pro" && (!periodStart || !periodEnd || periodEnd < periodStart)) {
     throw new ValidationError("A valid PRO period start and end date are required");
   }
+  if (planTierId === "pro" && period?.interval !== "monthly" && period?.interval !== "annual") {
+    throw new ValidationError("A PRO subscription interval is required");
+  }
 
   await setQuotaForTier(target.organizationId, planTierId);
   await db
     .update(schema.organization)
-    .set({ planTierId, subscriptionStatus: "active", currentPeriodStart: periodStart, currentPeriodEnd: periodEnd })
+    .set({
+      planTierId,
+      subscriptionStatus: "active",
+      subscriptionInterval: planTierId === "pro" ? period?.interval : null,
+      currentPeriodStart: periodStart,
+      currentPeriodEnd: periodEnd,
+    })
     .where(eq(schema.organization.id, target.organizationId));
 
-  return { ...target, planTierId, currentPeriodStart: periodStart, currentPeriodEnd: periodEnd };
+  return {
+    ...target,
+    planTierId,
+    subscriptionInterval: planTierId === "pro" ? period?.interval : null,
+    currentPeriodStart: periodStart,
+    currentPeriodEnd: periodEnd,
+  };
 }
 
 function parsePeriodDate(value: string | undefined, endOfDay = false): Date | null {

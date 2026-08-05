@@ -32,7 +32,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [updatingUserId, setUpdatingUserId] = useState<string | null>(null);
-  const [proPeriod, setProPeriod] = useState<{ row: AdminUserRow; start: string; end: string } | null>(null);
+  const [proPeriod, setProPeriod] = useState<{ row: AdminUserRow; start: string; end: string; interval: "monthly" | "annual" } | null>(null);
   const proDialogRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
@@ -78,7 +78,7 @@ export default function AdminUsersPage() {
   const updatePlan = async (
     row: AdminUserRow,
     planTierId: "free" | "pro",
-    period?: { periodStart: string; periodEnd: string },
+    period?: { periodStart: string; periodEnd: string; interval: "monthly" | "annual" },
   ) => {
     const targetUserId = row.id;
     const confirmed =
@@ -104,6 +104,7 @@ export default function AdminUsersPage() {
                   ? {
                       ...row,
                       planTierId,
+                      subscriptionInterval: response.data.subscriptionInterval,
                       currentPeriodStart: response.data.currentPeriodStart,
                       currentPeriodEnd: response.data.currentPeriodEnd,
                     }
@@ -219,7 +220,7 @@ export default function AdminUsersPage() {
                         disabled={updatingUserId !== null}
                         onClick={() =>
                           row.planTierId === "free"
-                            ? setProPeriod({ row, start: todayInput(), end: dateAfter(todayInput(), 30) })
+                            ? setProPeriod({ row, start: todayInput(), end: dateAfterInterval(todayInput(), "monthly"), interval: "monthly" })
                             : void updatePlan(row, "free")
                         }
                         className="mt-2 flex h-8 items-center gap-1.5 rounded-lg border border-border/60 px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-muted/40 disabled:opacity-50"
@@ -274,13 +275,38 @@ export default function AdminUsersPage() {
             <p className="mt-1 text-sm text-muted-foreground">
               {zh ? `为 ${proPeriod.row.name || proPeriod.row.email} 选择权限有效期。` : `Choose the access period for ${proPeriod.row.name || proPeriod.row.email}.`}
             </p>
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <label className="text-sm text-muted-foreground">
+                {zh ? "订阅周期" : "Billing interval"}
+                <select
+                  value={proPeriod.interval}
+                  onChange={(event) => {
+                    const interval = event.target.value as "monthly" | "annual";
+                    setProPeriod({
+                      ...proPeriod,
+                      interval,
+                      end: dateAfterInterval(proPeriod.start, interval),
+                    });
+                  }}
+                  className="mt-1 h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-foreground"
+                >
+                  <option value="monthly">{zh ? "月付" : "Monthly"}</option>
+                  <option value="annual">{zh ? "年付" : "Annual"}</option>
+                </select>
+              </label>
               <label className="text-sm text-muted-foreground">
                 {zh ? "开始日期" : "Start date"}
                 <input
                   type="date"
                   value={proPeriod.start}
-                  onChange={(event) => setProPeriod({ ...proPeriod, start: event.target.value })}
+                  onChange={(event) => {
+                    const start = event.target.value;
+                    setProPeriod({
+                      ...proPeriod,
+                      start,
+                      end: start ? dateAfterInterval(start, proPeriod.interval) : "",
+                    });
+                  }}
                   className="mt-1 h-10 w-full rounded-lg border border-border/60 bg-background px-3 text-foreground"
                 />
               </label>
@@ -302,7 +328,7 @@ export default function AdminUsersPage() {
               <button
                 type="button"
                 disabled={!proPeriod.start || !proPeriod.end || proPeriod.end < proPeriod.start || updatingUserId !== null}
-                onClick={() => void updatePlan(proPeriod.row, "pro", { periodStart: proPeriod.start, periodEnd: proPeriod.end })}
+                onClick={() => void updatePlan(proPeriod.row, "pro", { periodStart: proPeriod.start, periodEnd: proPeriod.end, interval: proPeriod.interval })}
                 className="rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
               >
                 {zh ? "确认提升" : "Promote to PRO"}
@@ -319,8 +345,12 @@ function todayInput() {
   return new Date().toISOString().slice(0, 10);
 }
 
-function dateAfter(value: string, days: number) {
-  const date = new Date(`${value}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
+function dateAfterInterval(value: string, interval: "monthly" | "annual") {
+  const source = new Date(`${value}T00:00:00Z`);
+  const targetMonthOffset = source.getUTCMonth() + (interval === "annual" ? 12 : 1);
+  const targetYear = source.getUTCFullYear() + Math.floor(targetMonthOffset / 12);
+  const targetMonth = targetMonthOffset % 12;
+  const lastDay = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+  const target = new Date(Date.UTC(targetYear, targetMonth, Math.min(source.getUTCDate(), lastDay)));
+  return target.toISOString().slice(0, 10);
 }

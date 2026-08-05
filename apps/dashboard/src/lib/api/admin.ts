@@ -45,6 +45,7 @@ export interface AdminUserRow {
   createdAt: string;
   updatedAt: string;
   planTierId: "free" | "pro" | string;
+  subscriptionInterval: "monthly" | "annual" | null;
   currentPeriodStart: string | null;
   currentPeriodEnd: string | null;
   organizationCount: number;
@@ -133,10 +134,10 @@ export type AdminRuntimeConfig = {
   VIBRAIL_CLOUDFLARE_PROXY: boolean;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
-  STRIPE_PRICE_PRO_MONTHLY: number;
-  STRIPE_PRICE_PRO_ANNUAL: number;
-  STRIPE_PRICE_PRO_PROMOTIONAL: number;
-  STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL: number;
+  STRIPE_PRICE_PRO_MONTHLY_ID: string;
+  STRIPE_PRICE_PRO_ANNUAL_ID: string;
+  STRIPE_PRICE_PRO_MONTHLY_PROMOTIONAL_ID: string;
+  STRIPE_PRICE_PRO_ANNUAL_PROMOTIONAL_ID: string;
 };
 
 export interface AdminRuntimeConfigState {
@@ -173,8 +174,8 @@ export const adminApi = {
     return api.get<AdminPage<AdminUserRow>>("admin/users", { params: params(input) });
   },
 
-  updateUserPlan(userId: string, planTierId: "free" | "pro", period?: { periodStart: string; periodEnd: string }) {
-    return api.patch<{ data: { organizationId: string; planTierId: "free" | "pro"; currentPeriodStart: string | null; currentPeriodEnd: string | null } }>(
+  updateUserPlan(userId: string, planTierId: "free" | "pro", period?: { periodStart: string; periodEnd: string; interval: "monthly" | "annual" }) {
+    return api.patch<{ data: { organizationId: string; planTierId: "free" | "pro"; subscriptionInterval: "monthly" | "annual" | null; currentPeriodStart: string | null; currentPeriodEnd: string | null } }>(
       `admin/users/${userId}/plan`,
       { planTierId, ...period },
     );

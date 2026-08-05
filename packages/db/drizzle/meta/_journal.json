@@ -582,6 +582,13 @@
       "when": 1893456000006,
       "tag": "0082_nullable_active_organization",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "7",
+      "when": 1893456000007,
+      "tag": "0083_organization_subscription_interval",
+      "breakpoints": true
     }
   ]
 }
