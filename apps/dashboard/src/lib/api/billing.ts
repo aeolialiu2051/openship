@@ -17,6 +17,8 @@ export interface BillingState {
   tier: PlanTierId;
   status: string;
   currentInterval: SubscriptionInterval | null;
+  /** True when a non-terminal Stripe subscription exists for this org. */
+  stripeManaged: boolean;
   currentPeriod: {
     start: string | null;
     end: string | null;

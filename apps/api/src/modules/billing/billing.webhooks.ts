@@ -575,6 +575,18 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription): Promise<void
     return;
   }
 
+  const customerId =
+    typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+  const otherNonTerminalSubscription = customerId
+    ? (await (await stripe()).subscriptions.list({ customer: customerId, status: "all", limit: 100 }))
+        .data.find(
+          (candidate) =>
+            candidate.id !== sub.id &&
+            candidate.status !== "canceled" &&
+            candidate.status !== "incomplete_expired",
+        )
+    : undefined;
+
   await upsertSubscription({
     organizationId: orgId,
     stripeSubscriptionId: sub.id,
@@ -585,7 +597,19 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription): Promise<void
     currentPeriodStart: periodStart(sub),
     currentPeriodEnd: periodEnd(sub),
     cancelAtPeriodEnd: false,
+    // A delayed deletion event must never revoke a different subscription
+    // that is still live for the same Stripe customer. We still record this
+    // row as canceled, but leave the org entitlement to the surviving
+    // subscription's webhook.
+    syncOrganization: !otherNonTerminalSubscription,
   });
+
+  if (otherNonTerminalSubscription) {
+    console.warn(
+      `[billing] subscription.deleted ${sub.id} ignored for org entitlement because ${otherNonTerminalSubscription.id} is still non-terminal`,
+    );
+    return;
+  }
 
   await setQuotaForTier(orgId, "free");
   // Status already "canceled" — no canonical mapping needed; this is

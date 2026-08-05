@@ -18,7 +18,7 @@ import {
   safeErrorMessage,
   type PlanTierId,
 } from "@repo/core";
-import { db, schema, eq, asc, desc } from "@repo/db";
+import { and, db, schema, eq, asc, desc, notInArray } from "@repo/db";
 import { runtimeTarget } from "../../config/env";
 import type { RequestContext } from "../../lib/request-context";
 import { stripe } from "../../lib/stripe-client";
@@ -27,6 +27,8 @@ import * as billingRepository from "./billing.repository";
 import { getRuntimeConfig } from "../../lib/runtime-config";
 
 type BillingInterval = "monthly" | "annual";
+
+const TERMINAL_STRIPE_SUBSCRIPTION_STATUSES = new Set(["canceled", "incomplete_expired"]);
 
 function configuredProPriceId(
   config: Awaited<ReturnType<typeof getRuntimeConfig>>,
@@ -191,6 +193,68 @@ export async function createCheckoutSession(
     );
   }
 
+  // A PRO flag is not enough to answer this question because admins can grant
+  // PRO manually. Conversely, a webhook can lag behind Stripe. Check both our
+  // local subscription ledger and Stripe itself before minting another
+  // subscription Checkout session. Stripe allows multiple subscriptions per
+  // customer, so this guard is the critical protection against duplicate
+  // recurring charges.
+  if (await billingRepository.hasNonTerminalStripeSubscription(organizationId)) {
+    throw new AppError(
+      "This organization already has a Stripe subscription. Manage plan changes in the billing portal.",
+      409,
+      "BILLING_SUBSCRIPTION_ALREADY_EXISTS",
+    );
+  }
+
+  const existingCustomer = await billingRepository.getCustomerByOrg(organizationId);
+  if (existingCustomer) {
+    const stripeClient = await stripe();
+    const [subscriptions, openCheckoutSessions] = await Promise.all([
+      stripeClient.subscriptions.list({
+        customer: existingCustomer.stripeCustomerId,
+        status: "all",
+        limit: 100,
+      }),
+      stripeClient.checkout.sessions.list({
+        customer: existingCustomer.stripeCustomerId,
+        status: "open",
+        limit: 100,
+      }),
+    ]);
+    if (subscriptions.data.some((sub) => !TERMINAL_STRIPE_SUBSCRIPTION_STATUSES.has(sub.status))) {
+      throw new AppError(
+        "This organization already has a Stripe subscription. Manage plan changes in the billing portal.",
+        409,
+        "BILLING_SUBSCRIPTION_ALREADY_EXISTS",
+      );
+    }
+
+    // Reuse an already-open subscription Checkout instead of creating another
+    // payable path for the same customer. Combined with the shared
+    // idempotency key below, this covers both sequential retries and concurrent
+    // double-clicks before any subscription/webhook exists.
+    const openSubscriptionCheckout = openCheckoutSessions.data.find(
+      (session) =>
+        session.mode === "subscription" &&
+        session.metadata?.organizationId === organizationId &&
+        !!session.url,
+    );
+    if (openSubscriptionCheckout?.url) {
+      if (
+        openSubscriptionCheckout.metadata?.planTierId !== planTierId ||
+        openSubscriptionCheckout.metadata?.interval !== interval
+      ) {
+        throw new AppError(
+          "A different subscription checkout is already open. Close it and try again after it expires.",
+          409,
+          "BILLING_CHECKOUT_ALREADY_OPEN",
+        );
+      }
+      return { checkoutUrl: openSubscriptionCheckout.url };
+    }
+  }
+
   const customerId = await getOrCreateStripeCustomerId(organizationId, email);
 
   const session = await (await stripe()).checkout.sessions.create(
@@ -202,6 +266,9 @@ export async function createCheckoutSession(
       subscription_data: {
         metadata: { organizationId, planTierId, interval },
       },
+      // Keep abandoned sessions short-lived. Until expiry, a repeated request
+      // reuses the open session above; afterwards the user can start fresh.
+      expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
       line_items: [
         {
           price: priceId,
@@ -218,7 +285,10 @@ export async function createCheckoutSession(
       ),
     },
     {
-      idempotencyKey: flowKey("checkout-sub", organizationId, `${planTierId}-${interval}`),
+      // Do not include the interval: concurrent monthly/annual clicks must not
+      // be able to create two different sessions in the same retry window.
+      // Stripe will replay an identical request and reject a conflicting one.
+      idempotencyKey: flowKey("checkout-sub", organizationId, planTierId),
     },
   );
 
@@ -339,7 +409,12 @@ export async function cancelSubscription(
   const [sub] = await db
     .select()
     .from(schema.billingSubscription)
-    .where(eq(schema.billingSubscription.organizationId, organizationId))
+    .where(
+      and(
+        eq(schema.billingSubscription.organizationId, organizationId),
+        notInArray(schema.billingSubscription.status, ["canceled", "incomplete_expired"]),
+      ),
+    )
     .orderBy(desc(schema.billingSubscription.createdAt))
     .limit(1);
 

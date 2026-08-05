@@ -11,7 +11,7 @@
  * `billing-oblien-quota` helper.
  */
 
-import { eq, db, schema, repos } from "@repo/db";
+import { and, eq, db, schema, repos, notInArray } from "@repo/db";
 import {
   generateId,
   safeErrorMessage,
@@ -36,6 +36,12 @@ export interface BillingState {
   tier: PlanTierId;
   status: string;
   currentInterval: "monthly" | "annual" | null;
+  /**
+   * True only when Stripe currently owns a non-terminal subscription for the
+   * organization. This is deliberately independent from `tier === "pro"`:
+   * administrators can grant PRO without creating a Stripe subscription.
+   */
+  stripeManaged: boolean;
   currentPeriod: {
     start: Date | null;
     end: Date | null;
@@ -118,6 +124,12 @@ export interface UpsertSubscriptionInput {
   currentPeriodStart: Date;
   currentPeriodEnd: Date;
   cancelAtPeriodEnd?: boolean;
+  /**
+   * Set false when recording a historical/terminal row that must not replace
+   * the organization's entitlement because another Stripe subscription is
+   * still active.
+   */
+  syncOrganization?: boolean;
 }
 
 // ─── getBillingState ─────────────────────────────────────────────────────────
@@ -168,7 +180,10 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
     );
   }
 
-  const snapshot = await repos.billingUsageSnapshot.findByOrg(orgId).catch(() => null);
+  const [snapshot, stripeManaged] = await Promise.all([
+    repos.billingUsageSnapshot.findByOrg(orgId).catch(() => null),
+    hasNonTerminalStripeSubscription(orgId),
+  ]);
 
   const quotaUsed = quota?.quotaUsed ?? snapshot?.creditsUsed ?? 0;
   // `quotaLimit === null` (Oblien "unlimited") falls through to the derived
@@ -207,6 +222,7 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
       org.subscriptionInterval === "monthly" || org.subscriptionInterval === "annual"
         ? org.subscriptionInterval
         : null,
+    stripeManaged,
     currentPeriod: {
       start: org.currentPeriodStart ?? null,
       end: org.currentPeriodEnd ?? null,
@@ -233,6 +249,27 @@ export async function getBillingState(orgId: string): Promise<BillingState> {
           : "coming_soon",
     },
   };
+}
+
+/** Stripe subscriptions in either terminal state no longer own billing. */
+const TERMINAL_STRIPE_SUBSCRIPTION_STATUSES = ["canceled", "incomplete_expired"] as const;
+
+/**
+ * Whether this org has a Stripe subscription that can still charge, renew,
+ * recover from dunning, or be managed in Customer Portal.
+ */
+export async function hasNonTerminalStripeSubscription(orgId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: billingSubscription.id })
+    .from(billingSubscription)
+    .where(
+      and(
+        eq(billingSubscription.organizationId, orgId),
+        notInArray(billingSubscription.status, [...TERMINAL_STRIPE_SUBSCRIPTION_STATUSES]),
+      ),
+    )
+    .limit(1);
+  return !!row;
 }
 
 // ─── billing_customer ────────────────────────────────────────────────────────
@@ -328,16 +365,18 @@ export async function upsertSubscription(
         },
       });
 
-    await tx
-      .update(organization)
-      .set({
-        planTierId: input.planTierId,
-        subscriptionStatus: input.status,
-        subscriptionInterval: input.planTierId === "free" ? null : input.interval,
-        currentPeriodStart: input.currentPeriodStart,
-        currentPeriodEnd: input.currentPeriodEnd,
-      })
-      .where(eq(organization.id, input.organizationId));
+    if (input.syncOrganization !== false) {
+      await tx
+        .update(organization)
+        .set({
+          planTierId: input.planTierId,
+          subscriptionStatus: input.status,
+          subscriptionInterval: input.planTierId === "free" ? null : input.interval,
+          currentPeriodStart: input.currentPeriodStart,
+          currentPeriodEnd: input.currentPeriodEnd,
+        })
+        .where(eq(organization.id, input.organizationId));
+    }
   });
 }
 

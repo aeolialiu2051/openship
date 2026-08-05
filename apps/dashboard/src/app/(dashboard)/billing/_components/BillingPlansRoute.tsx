@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PricingCards, type ApiPlan } from "@/components/billing/PricingCards";
-import { api } from "@/lib/api/client";
+import { api, getApiErrorCode, getApiErrorMessage } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import type { PlanTierId } from "@repo/core";
 import { Loader2 } from "lucide-react";
@@ -16,12 +16,18 @@ interface CheckoutResponse {
   data: { checkoutUrl: string };
 }
 
+interface PortalResponse {
+  data: { portalUrl: string };
+}
+
 export function BillingPlansRoute({
   currentPlan,
   currentInterval,
+  stripeManaged,
 }: {
   currentPlan: PlanTierId;
   currentInterval?: "monthly" | "annual" | null;
+  stripeManaged: boolean;
 }) {
   const { t, locale } = useI18n();
   const [plans, setPlans] = useState<ApiPlan[] | null>(null);
@@ -57,7 +63,16 @@ export function BillingPlansRoute({
     }
     checkoutWindow.opener = null;
     setSubscribing(planTierId);
+    const openPortal = async () => {
+      const res = await api.post<PortalResponse>(endpoints.billing.portal);
+      checkoutWindow.location.href = res.data.portalUrl;
+    };
     try {
+      if (stripeManaged) {
+        await openPortal();
+        return;
+      }
+
       // Body key MUST be `planTierId` — the backend `createSubscriptionSchema`
       // validates that exact field (the old `planId` silently 400'd).
       const res = await api.post<CheckoutResponse>("billing/subscription", {
@@ -66,8 +81,19 @@ export function BillingPlansRoute({
       });
       checkoutWindow.location.href = res.data.checkoutUrl;
     } catch (err) {
+      // The state request and Stripe webhook can race. If the backend's direct
+      // Stripe check finds an existing subscription, recover by opening Portal
+      // instead of leaving the user with a stale-state error.
+      if (getApiErrorCode(err) === "BILLING_SUBSCRIPTION_ALREADY_EXISTS") {
+        try {
+          await openPortal();
+          return;
+        } catch (portalErr) {
+          err = portalErr;
+        }
+      }
       checkoutWindow.close();
-      setError(err instanceof Error ? err.message : t.billing.plansRoute.checkoutError);
+      setError(getApiErrorMessage(err, t.billing.plansRoute.checkoutError));
       setSubscribing(null);
     }
   };
