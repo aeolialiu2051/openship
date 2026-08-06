@@ -109,6 +109,7 @@ export async function reconcileDeployment(deploymentId: string): Promise<Reconci
     await repos.deployment.updateStatus(dep.id, "failed", {
       errorMessage: "Reconcile found no containers to verify.",
     });
+    await repos.updateStatus.markNotInProgress(dep.projectId).catch(() => {});
     return "finalized";
   }
 
@@ -155,6 +156,7 @@ export async function reconcileDeployment(deploymentId: string): Promise<Reconci
   if (verdict === "failed") {
     // Forward-only: a failed reconcile NEVER advances the project pointer.
     await repos.deployment.updateStatus(dep.id, "failed", { meta: nextMeta });
+    await repos.updateStatus.markNotInProgress(dep.projectId).catch(() => {});
     return "finalized";
   }
 
@@ -173,6 +175,9 @@ export async function reconcileDeployment(deploymentId: string): Promise<Reconci
   if (project && !(await isSuperseded(project.activeDeploymentId, dep))) {
     await repos.project.setActiveDeployment(project.id, dep.id);
   }
+  // A reconciled success changes (or confirms) the live release, so the cached
+  // drift row points at the former active deployment and must be discarded.
+  await repos.updateStatus.deleteByProject(dep.projectId).catch(() => {});
   return "finalized";
 }
 

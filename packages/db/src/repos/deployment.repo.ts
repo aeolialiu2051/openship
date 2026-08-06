@@ -197,7 +197,7 @@ export function createDeploymentRepo(db: Database) {
         where: and(
           eq(deployment.projectId, projectId),
           eq(deployment.commitSha, commitSha),
-          inArray(deployment.status, ["queued", "building", "deploying"]),
+          inArray(deployment.status, ["queued", "building", "deploying", "reconciling"]),
         ),
         orderBy: [desc(deployment.createdAt)],
       });
@@ -219,7 +219,24 @@ export function createDeploymentRepo(db: Database) {
         where: and(
           eq(deployment.projectId, projectId),
           eq(deployment.releaseVersion, releaseVersion),
-          inArray(deployment.status, ["queued", "building", "deploying"]),
+          inArray(deployment.status, ["queued", "building", "deploying", "reconciling"]),
+        ),
+        orderBy: [desc(deployment.createdAt)],
+      });
+    },
+
+    /**
+     * Image-tag updates do not have a single commit SHA or release version to
+     * match. Their durable in-flight identity is the project's deployment with
+     * trigger="update". Include reconciling because the update is still being
+     * verified and must not become actionable again during that window.
+     */
+    async findInProgressUpdateByProject(projectId: string) {
+      return db.query.deployment.findFirst({
+        where: and(
+          eq(deployment.projectId, projectId),
+          eq(deployment.trigger, "update"),
+          inArray(deployment.status, ["queued", "building", "deploying", "reconciling"]),
         ),
         orderBy: [desc(deployment.createdAt)],
       });

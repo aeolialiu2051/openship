@@ -1344,6 +1344,10 @@ export async function cancelBuildSession(
   // Broadcast cancelled AFTER service statuses so UI receives the service updates first
   sessionManager.updateStatus(dep.id, "cancelled");
 
+  // This cancellation path settles the deployment directly instead of going
+  // through lifecycle.onCancelled. Release the cached update spinner here too.
+  await repos.updateStatus.markNotInProgress(project.id).catch(() => {});
+
   return { success: true, message: "Deployment cancelled" };
 }
 

@@ -1519,7 +1519,12 @@ async function getImageDriftStatus(p: Project) {
     supported: true as const,
     mode: "image" as const,
     behind: serviceStatuses.some((s) => s.behind),
-    latestInProgress: false,
+    // Unlike commit/release projects, an image update has no single target
+    // identity to match. The update-triggered deployment itself is the durable
+    // source of truth, so refreshes keep showing "Updating" while it runs.
+    latestInProgress: Boolean(
+      await repos.deployment.findInProgressUpdateByProject(p.id).catch(() => undefined),
+    ),
     services: serviceStatuses,
   };
 }

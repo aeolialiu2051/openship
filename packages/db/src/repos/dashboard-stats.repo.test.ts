@@ -54,6 +54,7 @@ async function seedDeployments(
   projectId: string,
   organizationId: string,
   statuses: string[],
+  opts?: { trigger?: string },
 ) {
   await db.insert(schema.deployment).values(
     statuses.map((status, i) => ({
@@ -62,6 +63,7 @@ async function seedDeployments(
       organizationId,
       branch: "main",
       status,
+      trigger: opts?.trigger ?? "manual",
     })),
   );
 }
@@ -122,6 +124,33 @@ describe("dashboard stats aggregates", () => {
   it("returns an empty record for an org with no deployments", async () => {
     await seedProject(db, "proj_idle", "org_1");
     expect(await deploymentRepo.countByStatusForOrganization("org_1")).toEqual({});
+  });
+
+  it("finds an image update across every non-terminal deployment phase", async () => {
+    for (const status of ["queued", "building", "deploying", "reconciling"]) {
+      const projectId = `proj_update_${status}`;
+      await seedProject(db, projectId, "org_1");
+      await seedDeployments(db, projectId, "org_1", [status], { trigger: "update" });
+
+      expect(await deploymentRepo.findInProgressUpdateByProject(projectId)).toMatchObject({
+        projectId,
+        status,
+        trigger: "update",
+      });
+    }
+  });
+
+  it("does not treat ordinary or terminal deployments as an image update in progress", async () => {
+    await seedProject(db, "proj_manual", "org_1");
+    await seedDeployments(db, "proj_manual", "org_1", ["building"]);
+    expect(await deploymentRepo.findInProgressUpdateByProject("proj_manual")).toBeUndefined();
+
+    for (const status of ["ready", "failed", "cancelled", "partial_failure"]) {
+      const projectId = `proj_terminal_${status}`;
+      await seedProject(db, projectId, "org_1");
+      await seedDeployments(db, projectId, "org_1", [status], { trigger: "update" });
+      expect(await deploymentRepo.findInProgressUpdateByProject(projectId)).toBeUndefined();
+    }
   });
 
   it("counts total and active projects, ignoring soft-deleted and other orgs", async () => {
