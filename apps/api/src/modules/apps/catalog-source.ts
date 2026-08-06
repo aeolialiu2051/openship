@@ -49,7 +49,7 @@ const MAX_CATALOG_VERSION = 1;
  */
 function remoteOverlayEnabled(): boolean {
   return (
-    process.env.NODE_ENV !== "development" ||
+    process.env.NODE_ENV !== "development" &&
     process.env.VIBRAIL_CATALOG_REMOTE_OVERLAY === "true"
   );
 }
