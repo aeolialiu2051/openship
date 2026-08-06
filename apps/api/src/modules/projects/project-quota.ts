@@ -1,9 +1,20 @@
 import { repos } from "@repo/db";
-import { ValidationError, type PlanTierId } from "@repo/core";
+import { AppError, type PlanTierId } from "@repo/core";
 import { getRuntimeConfig } from "../../lib/runtime-config";
 import { resolveOrganizationPlanTier } from "../../lib/plan-tier";
 
 const UNLIMITED_PROJECT_TIERS = new Set<PlanTierId>(["pro", "team", "enterprise"]);
+export const PROJECT_LIMIT_REACHED_CODE = "PROJECT_LIMIT_REACHED";
+
+export class ProjectLimitReachedError extends AppError {
+  public readonly details: { limit: number };
+
+  constructor(limit: number) {
+    super(`Project limit reached (${limit})`, 400, PROJECT_LIMIT_REACHED_CODE);
+    this.name = "ProjectLimitReachedError";
+    this.details = { limit };
+  }
+}
 
 /**
  * Enforce the configured Free project cap for every project target.
@@ -23,6 +34,6 @@ export async function assertProjectQuota(organizationId: string): Promise<void> 
     perPage: 1,
   });
   if (total >= cap) {
-    throw new ValidationError(`Project limit reached (${cap})`);
+    throw new ProjectLimitReachedError(cap);
   }
 }

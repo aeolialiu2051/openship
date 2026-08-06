@@ -12,6 +12,7 @@ import { useBuildStream } from "@/hooks/useSSEConnection";
 import {
   deployApi,
   getLocalizedCustomDomainProjectLimitError,
+  getLocalizedProjectLimitError,
   projectsApi,
   serviceKind,
   servicesApi,
@@ -967,8 +968,11 @@ export function useDeploymentBuild(
         err,
         t.projectSettings.domains.add,
       );
+      const projectLimitError = getLocalizedProjectLimitError(err, t.projects.quota);
       const message =
-        limitError?.message ?? getApiErrorMessage(err, "Failed to start deployment");
+        projectLimitError?.message ??
+        limitError?.message ??
+        getApiErrorMessage(err, "Failed to start deployment");
       const errorCode = extractErrorCode(err);
 
       const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
@@ -980,11 +984,13 @@ export function useDeploymentBuild(
       const cloudCapability = parseCloudRequiredCode(errorCode);
       if (cloudCapability && canConnectCloud) {
         const connected = await requireCloud(cloudCapability, { domain: baseDomain });
-        if (!connected) showToast(message, "error", limitError?.title ?? "Error");
+        if (!connected) {
+          showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
+        }
       } else if (!maybeOpenCredentialModal(errorCode)) {
         // Clone-token / credential preflight failures open the missing-credential
         // modal (concrete recovery) instead of a dead-end toast.
-        showToast(message, "error", limitError?.title ?? "Error");
+        showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
       }
       setState((prev) => ({ ...prev, isDeploying: false }));
       return null;

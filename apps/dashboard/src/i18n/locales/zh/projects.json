@@ -6,6 +6,10 @@
     "noTargetProjects": "尚未有项目部署到此目标。",
     "noTargetDesc": "将应用部署到此目标，或创建一个新项目以开始使用。"
   },
+  "quota": {
+    "errorTitle": "项目数量已达上限",
+    "limitReached": "当前套餐最多可创建 {limit} 个项目。"
+  },
   "status": {
     "suspended": "已下架",
     "live": "运行中",

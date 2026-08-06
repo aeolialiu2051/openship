@@ -23,7 +23,10 @@ vi.mock("../../lib/cloud/client", () => ({
   cloudClient: () => ({ request: mocks.cloudRequest }),
 }));
 
-import { assertProjectQuota } from "./project-quota";
+import {
+  assertProjectQuota,
+  PROJECT_LIMIT_REACHED_CODE,
+} from "./project-quota";
 
 describe("project quota", () => {
   beforeEach(() => {
@@ -41,6 +44,10 @@ describe("project quota", () => {
     await expect(assertProjectQuota("org_free")).rejects.toThrow(
       "Project limit reached (5)",
     );
+    await expect(assertProjectQuota("org_free")).rejects.toMatchObject({
+      code: PROJECT_LIMIT_REACHED_CODE,
+      details: { limit: 5 },
+    });
   });
 
   it("uses the same configured limit for self-hosted Free organizations", async () => {

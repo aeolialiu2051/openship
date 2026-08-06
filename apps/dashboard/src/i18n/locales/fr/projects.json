@@ -6,6 +6,10 @@
     "noTargetProjects": "Aucun projet déployé sur cette cible pour le moment.",
     "noTargetDesc": "Déployez une application sur cette cible, ou créez un nouveau projet pour commencer."
   },
+  "quota": {
+    "errorTitle": "Limite de projets atteinte",
+    "limitReached": "Votre offre actuelle autorise jusqu’à {limit} projets."
+  },
   "status": {
     "suspended": "Mis hors ligne",
     "live": "En ligne",

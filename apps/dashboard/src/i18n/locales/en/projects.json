@@ -6,6 +6,10 @@
     "noTargetProjects": "No projects deployed to this target yet.",
     "noTargetDesc": "Deploy an app to this target, or create a new project to get started."
   },
+  "quota": {
+    "errorTitle": "Project limit reached",
+    "limitReached": "Your current plan allows up to {limit} projects."
+  },
   "status": {
     "suspended": "Taken offline",
     "live": "Live",

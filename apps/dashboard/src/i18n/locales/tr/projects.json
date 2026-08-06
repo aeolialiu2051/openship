@@ -6,6 +6,10 @@
     "noTargetProjects": "Bu hedefe henüz hiç proje dağıtılmadı.",
     "noTargetDesc": "Başlamak için bu hedefe bir uygulama dağıtın veya yeni bir proje oluşturun."
   },
+  "quota": {
+    "errorTitle": "Proje sınırına ulaşıldı",
+    "limitReached": "Mevcut planınız en fazla {limit} projeye izin veriyor."
+  },
   "status": {
     "suspended": "Yayından kaldırıldı",
     "live": "Yayında",

@@ -5,6 +5,10 @@
     "countOther": "{count} 件のプロジェクト",
     "noTargetProjects": "このターゲットにはまだプロジェクトがデプロイされていません。"
   },
+  "quota": {
+    "errorTitle": "プロジェクト数の上限に達しました",
+    "limitReached": "現在のプランでは最大 {limit} 個のプロジェクトを作成できます。"
+  },
   "status": {
     "suspended": "公開停止",
     "live": "稼働中",

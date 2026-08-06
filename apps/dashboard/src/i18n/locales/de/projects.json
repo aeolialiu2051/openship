@@ -5,6 +5,10 @@
     "countOther": "{count} Projekte",
     "noTargetProjects": "Noch keine Projekte auf diesem Ziel bereitgestellt."
   },
+  "quota": {
+    "errorTitle": "Projektlimit erreicht",
+    "limitReached": "Dein aktueller Tarif erlaubt bis zu {limit} Projekte."
+  },
   "status": {
     "suspended": "Offline genommen",
     "live": "Live",

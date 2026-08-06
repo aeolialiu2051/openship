@@ -17,7 +17,9 @@ import {
   Zap,
   HardDrive,
 } from "lucide-react";
+import { getLocalizedProjectLimitError } from "@/lib/api";
 import { projectsApi, type ScanProjectResponse } from "@/lib/api/projects";
+import { getApiErrorMessage } from "@/lib/api/client";
 import { systemApi } from "@/lib/api/system";
 import { encodeLocalSlug } from "@/utils/repoSlug";
 import { useI18n, interpolate } from "@/components/i18n-provider";
@@ -395,7 +397,9 @@ function ImportForm({ onClose, onImported }: ImportFormProps) {
       });
       onImported();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t.library.localProjects.form.importError;
+      const message =
+        getLocalizedProjectLimitError(err, t.projects.quota)?.message ??
+        getApiErrorMessage(err, t.library.localProjects.form.importError);
       setScanError(message);
       setImporting(false);
     }

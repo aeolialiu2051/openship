@@ -5,6 +5,10 @@
     "countOther": "{count} مشاريع",
     "noTargetProjects": "لا توجد مشاريع منشورة على هذا الهدف بعد."
   },
+  "quota": {
+    "errorTitle": "تم بلوغ حد المشاريع",
+    "limitReached": "تتيح خطتك الحالية إنشاء ما يصل إلى {limit} من المشاريع."
+  },
   "status": {
     "suspended": "تم إيقافه",
     "live": "مباشر",

@@ -5,6 +5,10 @@
     "countOther": "{count} proyectos",
     "noTargetProjects": "Aún no hay proyectos desplegados en este destino."
   },
+  "quota": {
+    "errorTitle": "Límite de proyectos alcanzado",
+    "limitReached": "Tu plan actual permite hasta {limit} proyectos."
+  },
   "status": {
     "suspended": "Retirado",
     "live": "En vivo",

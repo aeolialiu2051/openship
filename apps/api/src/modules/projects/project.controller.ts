@@ -125,8 +125,18 @@ export async function ensure(c: Context) {
     logEnsureProjectError(ctx.userId, body, err);
 
     if (err instanceof AppError) {
+      const details =
+        "details" in err && err.details && typeof err.details === "object"
+          ? err.details
+          : undefined;
       return c.json(
-        { success: false, error: err.message, code: err.code },
+        {
+          success: false,
+          error: err.message,
+          message: err.message,
+          code: err.code,
+          ...(details ? { details } : {}),
+        },
         err.statusCode as 400 | 401 | 403 | 404 | 409 | 500,
       );
     }

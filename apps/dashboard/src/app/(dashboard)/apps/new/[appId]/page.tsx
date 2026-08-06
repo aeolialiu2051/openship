@@ -33,6 +33,7 @@ import {
   servicesApi,
   projectsApi,
   getLocalizedCustomDomainProjectLimitError,
+  getLocalizedProjectLimitError,
   type CustomDomainProjectQuota,
 } from "@/lib/api";
 import { connectionsApi } from "@/lib/api/connections";
@@ -623,15 +624,19 @@ export default function AppInstallPage() {
         err,
         t.projectSettings.domains.add,
       );
-      const msg = limitError?.message ?? getApiErrorMessage(err, w.installFailed).replace(
-        /^Pre-deploy checks failed:\s*/i,
-        "",
-      );
+      const projectLimitError = getLocalizedProjectLimitError(err, t.projects.quota);
+      const msg =
+        projectLimitError?.message ??
+        limitError?.message ??
+        getApiErrorMessage(err, w.installFailed).replace(
+          /^Pre-deploy checks failed:\s*/i,
+          "",
+        );
       if (started) {
         setErrorMsg(msg);
         setPhase("error");
       } else {
-        showToast(msg, "error", limitError?.title);
+        showToast(msg, "error", projectLimitError?.title ?? limitError?.title);
       }
     } finally {
       setBusy(false);

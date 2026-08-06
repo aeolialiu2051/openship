@@ -28,6 +28,14 @@ export type {
   CustomDomainProjectLimitCopy,
   LocalizedCustomDomainProjectLimitError,
 } from "./custom-domain-project-limit-error";
+export {
+  PROJECT_LIMIT_REACHED_ERROR_CODE,
+  getLocalizedProjectLimitError,
+} from "./project-limit-error";
+export type {
+  ProjectLimitCopy,
+  LocalizedProjectLimitError,
+} from "./project-limit-error";
 
 /* --- Endpoint registry (single source of truth for paths) --------- */
 export { endpoints } from "./endpoints";
