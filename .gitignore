@@ -45,8 +45,6 @@ coverage/
 
 # Database (PGlite local data)
 .vibrail/
-# Legacy OpenShip project state remains ignored during the Vibrail transition.
-.openship/
 data/
 *.pglite
 

@@ -56,7 +56,7 @@ export const loginCommand = new Command("login")
       console.error(chalk.red("\n  No token provided.\n"));
       process.exit(1);
     }
-    if (!token.startsWith("vibrail_pat_") && !token.startsWith("opsh_pat_")) {
+    if (!token.startsWith("vibrail_pat_")) {
       console.error(
         chalk.red("\n  That doesn't look like a Vibrail token (expected vibrail_pat_…).\n"),
       );

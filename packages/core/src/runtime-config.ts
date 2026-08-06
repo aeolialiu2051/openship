@@ -8,18 +8,6 @@ export const DEFAULT_PORT = {
 
 const localhost = (port: number) => `http://localhost:${port}`;
 
-/**
- * Keep upgrades from existing OpenShip installs working while Vibrail becomes
- * the canonical public prefix. Explicit VIBRAIL_* values always win.
- */
-if (typeof process !== "undefined" && process.env) {
-  for (const [key, value] of Object.entries(process.env)) {
-    if (!key.startsWith("OPENSHIP_") || value === undefined) continue;
-    const vibrailKey = `VIBRAIL_${key.slice("OPENSHIP_".length)}`;
-    process.env[vibrailKey] ??= value;
-  }
-}
-
 // Standalone URL exports — consumed by desktop, CLI, and onboarding
 // flows that want "the localhost dashboard URL" without going through
 // the runtime-target table. They're the same strings used inside

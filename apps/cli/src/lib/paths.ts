@@ -11,18 +11,12 @@
  * VIBRAIL_HOME=~/.vibrail-dev.
  */
 import { homedir } from "node:os";
-import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const DEFAULT_HOME = join(homedir(), ".vibrail");
-const LEGACY_HOME = join(homedir(), ".openship");
 
-const override = (process.env.VIBRAIL_HOME ?? process.env.OPENSHIP_HOME)?.trim();
-export const OS_DIR = override
-  ? resolve(override)
-  : !existsSync(DEFAULT_HOME) && existsSync(LEGACY_HOME)
-    ? LEGACY_HOME
-    : DEFAULT_HOME;
+const override = process.env.VIBRAIL_HOME?.trim();
+export const OS_DIR = override ? resolve(override) : DEFAULT_HOME;
 
 /** True when running against a non-default home (a from-source/dev install). */
 export const IS_ALT_HOME = OS_DIR !== DEFAULT_HOME;

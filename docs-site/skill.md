@@ -302,7 +302,7 @@ At minimum, exclude:
 
 - `.git`, `.svn`, and other source-control metadata
 - `.env`, `.env.*`, local secrets, and machine-specific configuration; retain an example file only after verifying it contains placeholders
-- `.vibrail`, `.codex`, `.claude`, `.cursor`, `.agents`, `.openship`, and other agent or local-control metadata
+- `.vibrail`, `.codex`, `.claude`, `.cursor`, `.agents`, and other agent or local-control metadata
 - `node_modules`, virtual environments, caches, coverage, logs, temporary files, and local databases
 - Private keys, certificates with private material, credential exports, and cloud-provider credential directories
 - Existing build output such as `dist`, `build`, `.next`, `out`, and `.output` unless it is intentionally reviewed source
@@ -319,7 +319,7 @@ STAGE_DIR="$(mktemp -d)"
 git ls-files --cached --others --exclude-standard -z | \
   rsync -a --from0 --files-from=- \
     --exclude='.env' --exclude='.env.*' \
-    --exclude='.git/' --exclude='.vibrail/' --exclude='.openship/' \
+    --exclude='.git/' --exclude='.vibrail/' \
     --exclude='.codex/' --exclude='.claude/' --exclude='.cursor/' --exclude='.agents/' \
     --exclude='node_modules/' --exclude='.venv/' --exclude='venv/' \
     --exclude='dist/' --exclude='build/' --exclude='.next/' --exclude='out/' --exclude='.output/' \
@@ -336,7 +336,7 @@ PROJECT_ROOT="$(pwd -P)"
 STAGE_DIR="$(mktemp -d)"
 rsync -a \
   --exclude='.env' --exclude='.env.*' \
-  --exclude='.git/' --exclude='.svn/' --exclude='.vibrail/' --exclude='.openship/' \
+  --exclude='.git/' --exclude='.svn/' --exclude='.vibrail/' \
   --exclude='.codex/' --exclude='.claude/' --exclude='.cursor/' --exclude='.agents/' \
   --exclude='node_modules/' --exclude='.venv/' --exclude='venv/' \
   --exclude='dist/' --exclude='build/' --exclude='.next/' --exclude='out/' --exclude='.output/' \

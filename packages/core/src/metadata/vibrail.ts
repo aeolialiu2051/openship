@@ -17,9 +17,9 @@ import type { DeploymentMetadata, MetadataParser } from "./types";
 
 export const vibrailMetadataParser: MetadataParser = {
   source: "vibrail",
-  files: ["vibrail.json", "openship.json"],
+  files: ["vibrail.json"],
   parse(fileContents) {
-    const raw = fileContents["vibrail.json"] ?? fileContents["openship.json"];
+    const raw = fileContents["vibrail.json"];
     if (!raw) return null;
 
     const { config } = parseVibrailConfigJson(raw);

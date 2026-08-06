@@ -15,7 +15,6 @@ import { detectPrivilege, elevatedExecutor, type CommandExecutor } from "@repo/a
 
 /** The one folder. Nothing else hard-codes this path. */
 export const VIBRAIL_DIR = "/root/.vibrail";
-const LEGACY_OPENSHIP_DIR = "/root/.openship";
 
 /**
  * Resolve an executor that can access Vibrail's root-owned server store.
@@ -69,14 +68,9 @@ export async function ensureVibrailDir(exec: CommandExecutor): Promise<void> {
  */
 export async function readVibrailFile(exec: CommandExecutor, name: string): Promise<string> {
   const path = `${VIBRAIL_DIR}/${name}`;
-  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   try {
     const rootExec = await resolveRootExecutor(exec);
-    return (
-      await rootExec.exec(
-        `if [ -f ${sq(path)} ]; then cat ${sq(path)}; else cat ${sq(legacyPath)} 2>/dev/null || echo ""; fi`,
-      )
-    ).trim();
+    return (await rootExec.exec(`cat ${sq(path)} 2>/dev/null || echo ""`)).trim();
   } catch {
     return "";
   }
@@ -102,22 +96,16 @@ export async function writeVibrailFile(
 /** Remove a file (and any stale temp) from `.vibrail`. Idempotent. */
 export async function removeVibrailFile(exec: CommandExecutor, name: string): Promise<void> {
   const path = `${VIBRAIL_DIR}/${name}`;
-  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   const rootExec = await resolveRootExecutor(exec);
-  await rootExec.exec(
-    `rm -f ${sq(path)} ${sq(`${path}.tmp`)} ${sq(legacyPath)} ${sq(`${legacyPath}.tmp`)}`,
-  );
+  await rootExec.exec(`rm -f ${sq(path)} ${sq(`${path}.tmp`)}`);
 }
 
 /** Cheap existence check (no read) — `true` iff `.vibrail/<name>` is a file. */
 export async function vibrailFileExists(exec: CommandExecutor, name: string): Promise<boolean> {
   const path = `${VIBRAIL_DIR}/${name}`;
-  const legacyPath = `${LEGACY_OPENSHIP_DIR}/${name}`;
   try {
     const rootExec = await resolveRootExecutor(exec);
-    return (
-      await rootExec.exec(`test -f ${sq(path)} -o -f ${sq(legacyPath)} && echo yes || echo no`)
-    ).trim() === "yes";
+    return (await rootExec.exec(`test -f ${sq(path)} && echo yes || echo no`)).trim() === "yes";
   } catch {
     return false;
   }

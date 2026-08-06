@@ -141,9 +141,7 @@ function extractRootRouting(fileContents: Record<string, string>): RoutingConfig
  */
 function extractVibrailConfig(fileContents: Record<string, string>): VibrailConfig | undefined {
   const entries = Object.entries(fileContents);
-  const entry =
-    entries.find(([name]) => name.toLowerCase() === "vibrail.json") ??
-    entries.find(([name]) => name.toLowerCase() === "openship.json");
+  const entry = entries.find(([name]) => name.toLowerCase() === "vibrail.json");
   if (!entry?.[1]) return undefined;
   return parseVibrailConfigJson(entry[1]).config ?? undefined;
 }

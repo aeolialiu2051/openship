@@ -12,7 +12,6 @@ export interface ProjectLink {
 }
 
 const LINK_REL = join(".vibrail", "project.json");
-const LEGACY_LINK_REL = join(".openship", "project.json");
 
 /** Absolute path of the nearest `.vibrail/project.json`, or null. */
 export function findProjectLinkPath(from: string = process.cwd()): string | null {
@@ -21,8 +20,6 @@ export function findProjectLinkPath(from: string = process.cwd()): string | null
   for (;;) {
     const candidate = join(dir, LINK_REL);
     if (existsSync(candidate)) return candidate;
-    const legacyCandidate = join(dir, LEGACY_LINK_REL);
-    if (existsSync(legacyCandidate)) return legacyCandidate;
     if (dir === root) return null;
     dir = dirname(dir);
   }

@@ -99,7 +99,7 @@ export interface ReapResult {
  * critical selection, kept pure + unit-tested so "never ruin an operator's
  * image" is verifiable:
  *   - in the keep-set (active/pinned/rollback-window) → keep (`[]`).
- *   - has `vibrail/…` or legacy `openship/…` tags → return THOSE tags: we untag only what we own, so
+ *   - has `vibrail/…` tags → return THOSE tags: we untag only what we own, so
  *     Docker deletes the image when our last tag is gone. Removing by these tags
  *     (not the image id) can never yank a foreign tag the operator added.
  *   - truly dangling (NO tags at all) → the image id: our superseded, untagged
@@ -111,9 +111,7 @@ export function selectImageRemovalRefs(
   keep: Set<string>,
 ): string[] {
   if (img.repoTags.some((t) => keep.has(t))) return [];
-  const ownTags = img.repoTags.filter(
-    (tag) => tag.startsWith("vibrail/") || tag.startsWith("openship/"),
-  );
+  const ownTags = img.repoTags.filter((tag) => tag.startsWith("vibrail/"));
   if (ownTags.length > 0) return ownTags;
   if (img.repoTags.length === 0) return [img.id];
   return []; // only foreign tags → never touch

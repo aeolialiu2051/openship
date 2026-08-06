@@ -22,7 +22,6 @@ import { DeployError } from "@repo/core";
 
 /** Prefix for newly-created Vibrail systemd units. */
 const UNIT_PREFIX = "vibrail";
-const LEGACY_UNIT_PREFIX = "openship";
 
 /**
  * Escape an env value for a double-quoted systemd `Environment=` assignment.
@@ -57,10 +56,6 @@ export class SystemdSupervisor implements ProcessSupervisor {
 
   private unitName(deploymentId: string): string {
     return `${UNIT_PREFIX}-${deploymentId}.service`;
-  }
-
-  private legacyUnitName(deploymentId: string): string {
-    return `${LEGACY_UNIT_PREFIX}-${deploymentId}.service`;
   }
 
   private unitPath(deploymentId: string): string {
@@ -188,44 +183,29 @@ WantedBy=multi-user.target
 
   async stop(deploymentId: string): Promise<void> {
     try {
-      await this.executor.exec(
-        `systemctl stop ${sq(this.unitName(deploymentId))} ${sq(this.legacyUnitName(deploymentId))} 2>/dev/null || true`,
-      );
+      await this.executor.exec(`systemctl stop ${sq(this.unitName(deploymentId))} 2>/dev/null || true`);
     } catch {
       // Unit may not exist - that's OK
     }
   }
 
   async start(deploymentId: string): Promise<void> {
-    const unitName = this.unitName(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
-    await this.executor.exec(
-      `systemctl start ${sq(unitName)} 2>/dev/null || systemctl start ${sq(legacyUnitName)}`,
-    );
+    await this.executor.exec(`systemctl start ${sq(this.unitName(deploymentId))}`);
   }
 
   async restart(deploymentId: string): Promise<void> {
-    const unitName = this.unitName(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
-    await this.executor.exec(
-      `systemctl restart ${sq(unitName)} 2>/dev/null || systemctl restart ${sq(legacyUnitName)}`,
-    );
+    await this.executor.exec(`systemctl restart ${sq(this.unitName(deploymentId))}`);
   }
 
   async destroy(deploymentId: string): Promise<void> {
     const unitName = this.unitName(deploymentId);
     const unitPath = this.unitPath(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
-    const legacyUnitPath = `/etc/systemd/system/${legacyUnitName}`;
 
     // Stop and disable the service
-    await this.executor.exec(
-      `systemctl disable --now ${sq(unitName)} ${sq(legacyUnitName)} 2>/dev/null || true`,
-    );
+    await this.executor.exec(`systemctl disable --now ${sq(unitName)} 2>/dev/null || true`);
 
     // Remove the unit file
     await this.executor.rm(unitPath).catch(() => {});
-    await this.executor.rm(legacyUnitPath).catch(() => {});
 
     // Reload so systemd forgets about it
     await this.executor.exec("systemctl daemon-reload");
@@ -240,11 +220,8 @@ WantedBy=multi-user.target
 
   async isRunning(deploymentId: string): Promise<boolean> {
     const unitName = this.unitName(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
     try {
-      const result = await this.executor.exec(
-        `systemctl is-active ${sq(unitName)} ${sq(legacyUnitName)} 2>/dev/null || true`,
-      );
+      const result = await this.executor.exec(`systemctl is-active ${sq(unitName)} 2>/dev/null || true`);
       return result.split("\n").some((status) => status.trim() === "active");
     } catch {
       return false;
@@ -253,11 +230,10 @@ WantedBy=multi-user.target
 
   async getLogs(deploymentId: string, tail?: number): Promise<LogEntry[]> {
     const unitName = this.unitName(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
     const tailArg = tail ? `-n ${tail}` : `-n 200`;
     try {
       const output = await this.executor.exec(
-        `journalctl -u ${sq(unitName)} -u ${sq(legacyUnitName)} ${tailArg} --no-pager -o short-iso 2>/dev/null`,
+        `journalctl -u ${sq(unitName)} ${tailArg} --no-pager -o short-iso 2>/dev/null`,
       );
 
       return output
@@ -283,12 +259,11 @@ WantedBy=multi-user.target
     opts?: { tail?: number },
   ): Promise<() => void> {
     const unitName = this.unitName(deploymentId);
-    const legacyUnitName = this.legacyUnitName(deploymentId);
     const tailN = opts?.tail ?? 100;
 
     let stopped = false;
     const promise = this.executor.streamExec(
-      `journalctl -u ${sq(unitName)} -u ${sq(legacyUnitName)} -n ${tailN} -f --no-pager -o short-iso 2>/dev/null`,
+      `journalctl -u ${sq(unitName)} -n ${tailN} -f --no-pager -o short-iso 2>/dev/null`,
       (entry) => {
         if (stopped) return;
         // Strip journalctl prefix: "TIMESTAMP HOSTNAME UNIT[PID]: MESSAGE" → keep timestamp + message
@@ -304,9 +279,7 @@ WantedBy=multi-user.target
     return () => {
       stopped = true;
       this.executor
-        .exec(
-          `pkill -f ${sq(`journalctl.*(${unitName}|${legacyUnitName})`)} 2>/dev/null || true`,
-        )
+        .exec(`pkill -f ${sq(`journalctl.*${unitName}`)} 2>/dev/null || true`)
         .catch(() => {});
     };
   }

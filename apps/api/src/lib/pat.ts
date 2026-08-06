@@ -9,7 +9,6 @@ import { createHash, randomBytes } from "node:crypto";
  * SHA-256 hash is persisted; the plaintext is shown to the user once.
  */
 export const PAT_PREFIX = "vibrail_pat_";
-export const LEGACY_PAT_PREFIX = "opsh_pat_";
 
 /** SHA-256 hex of the full token — the DB lookup key. */
 export function hashPatToken(token: string): string {

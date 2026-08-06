@@ -14,8 +14,7 @@ describe("personal access token branding", () => {
 
   test("recognizes current and legacy PAT prefixes", () => {
     expect(isPatToken("vibrail_pat_current-token")).toBe(true);
-    expect(isPatToken("opsh_pat_legacy-token")).toBe(true);
-    expect(isPatToken("openship_pat_invalid-token")).toBe(false);
+    expect(isPatToken("other_pat_invalid-token")).toBe(false);
     expect(isPatToken(null)).toBe(false);
   });
 });

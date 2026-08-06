@@ -124,7 +124,7 @@ describe("probeListeningPort — tiered fallback", () => {
     expect(occ?.command).toContain("envoy");
   });
 
-  test.each(["vibrail-dep_123.service", "openship-dep_123.service"])(
+  test.each(["vibrail-dep_123.service"])(
     "recognizes managed systemd unit %s",
     async (unit) => {
       const occ = await probeListeningPort(

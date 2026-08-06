@@ -44,7 +44,7 @@ async function resolveSystemdUnit(
     executor,
     `systemctl show ${systemdUnit} --property=Description --value 2>/dev/null || true`,
   );
-  const managedMatch = systemdUnit.match(/^(?:vibrail|openship)-(.+)\.service$/);
+  const managedMatch = systemdUnit.match(/^vibrail-(.+)\.service$/);
 
   return {
     systemdUnit,

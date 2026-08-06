@@ -4003,7 +4003,7 @@ export class DockerRuntime implements RuntimeAdapter {
 
   /** Remove a project network (best-effort). */
   async removeNetwork(slug: string): Promise<void> {
-    const networkNames = [`vibrail-${slug}`, `openship-${slug}`];
+    const networkNames = [`vibrail-${slug}`];
     if (this.usesRemoteDockerCli()) {
       for (const networkName of networkNames) {
         await this.remoteDockerExec(`network rm ${sq(networkName)}`).catch(() => {});
@@ -4033,22 +4033,16 @@ export class DockerRuntime implements RuntimeAdapter {
   ): Promise<MultiServiceDeployResult> {
     const log = onLog ?? (() => {});
     const containerName = `vibrail-${config.slug}-${config.serviceName}`;
-    const legacyContainerName = `openship-${config.slug}-${config.serviceName}`;
 
-    // Stop and remove any existing container with the current or legacy name.
-    // The legacy cleanup prevents the branding migration from leaving the old
-    // workload running beside its vibrail-prefixed replacement.
+    // Stop and remove any existing container with the current name.
     if (this.usesRemoteDockerCli()) {
       await this.remoteDockerExec(`rm -f ${sq(containerName)}`).catch(() => {});
-      await this.remoteDockerExec(`rm -f ${sq(legacyContainerName)}`).catch(() => {});
     } else {
-      for (const existingName of [containerName, legacyContainerName]) {
-        try {
-          const existing = this.docker.getContainer(existingName);
-          await existing.remove({ force: true });
-        } catch {
-          // Does not exist - fine
-        }
+      try {
+        const existing = this.docker.getContainer(containerName);
+        await existing.remove({ force: true });
+      } catch {
+        // Does not exist - fine
       }
     }
 
@@ -4070,9 +4064,7 @@ export class DockerRuntime implements RuntimeAdapter {
       for (const route of config.traefik.routes) exposedPorts[`${route.port}/tcp`] = {};
     }
 
-    // Project-scope NAMED volumes retain their legacy openship-<slug>-<name>
-    // namespace so this branding change cannot disconnect persistent data.
-    // never share one docker volume; bind mounts / anonymous volumes pass
+    // Project-scoped named volumes never share one Docker volume; bind mounts / anonymous volumes pass
     // through. Grandfathered services (namespaceVolumes=false) keep their bare
     // names — for those, fail fast if a bare name already belongs to another
     // project (the exact class of bug this change prevents going forward).
@@ -4092,7 +4084,7 @@ export class DockerRuntime implements RuntimeAdapter {
     });
 
     // Pull image if not local
-    if (!config.image.startsWith("vibrail/") && !config.image.startsWith("openship/")) {
+    if (!config.image.startsWith("vibrail/")) {
       try {
         log({
           timestamp: new Date().toISOString(),
