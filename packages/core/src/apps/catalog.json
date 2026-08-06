@@ -1363,7 +1363,8 @@
       ]
     },
     {
-      "available": false,
+      "available": true,
+      "verified": true,
       "id": "uptime-kuma",
       "name": "Uptime Kuma",
       "description": "Self-hosted uptime monitoring with status pages and alerts.",

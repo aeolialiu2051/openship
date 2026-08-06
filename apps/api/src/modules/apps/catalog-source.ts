@@ -38,6 +38,22 @@ const TTL_MS = 600_000; // 10 minutes
  *  newer envelope is logged, not fatal — entries are gated individually. */
 const MAX_CATALOG_VERSION = 1;
 
+/**
+ * Production instances consume the repo overlay so catalog updates can ship
+ * independently of an application release. In development the bundled catalog
+ * is the local source tree, so a remote-wins refresh would unexpectedly hide
+ * local edits behind whatever is currently on `main`.
+ *
+ * Set VIBRAIL_CATALOG_REMOTE_OVERLAY=true to exercise the production overlay
+ * behavior while developing.
+ */
+function remoteOverlayEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "development" ||
+    process.env.VIBRAIL_CATALOG_REMOTE_OVERLAY === "true"
+  );
+}
+
 /** A resolved catalog entry: a template, possibly a lightweight placeholder that
  *  needs a newer Vibrail to install. */
 export type ResolvedAppTemplate = AppTemplate & {
@@ -202,7 +218,7 @@ function refresh(): void {
 /** The current app catalog (bundled ∪ repo overlay, engine-resolved). Sync;
  *  refreshes in the background when the cache is older than the TTL. */
 export function getRuntimeCatalog(): readonly ResolvedAppTemplate[] {
-  if (Date.now() - cachedAt > TTL_MS) refresh();
+  if (remoteOverlayEnabled() && Date.now() - cachedAt > TTL_MS) refresh();
   return cache;
 }
 
@@ -237,4 +253,4 @@ export async function getTemplateForOrg(
 
 // Warm the overlay at boot so instances pick up repo changes promptly. Skipped
 // under vitest so importing the module never fires a real network fetch.
-if (!process.env.VITEST) refresh();
+if (!process.env.VITEST && remoteOverlayEnabled()) refresh();
