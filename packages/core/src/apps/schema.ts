@@ -144,6 +144,7 @@ const file = z.object({
   service: z.string(),
   path: z.string(),
   content: z.string(),
+  writable: z.boolean().optional(),
 });
 
 const settingOption = z.object({ value: z.string(), label: z.string() });

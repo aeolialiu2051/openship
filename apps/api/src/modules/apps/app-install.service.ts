@@ -230,10 +230,14 @@ export async function installApp(
     s.replace(/\{\{\s*config:([A-Za-z0-9_]+)\s*\}\}/g, (_m, k) => resolved.get(k) ?? "");
 
   // Resolve template files per service.
-  const filesByService = new Map<string, { path: string; content: string }[]>();
+  const filesByService = new Map<string, { path: string; content: string; writable?: boolean }[]>();
   for (const f of template.files ?? []) {
     const list = filesByService.get(f.service) ?? [];
-    list.push({ path: f.path, content: inlineConfig(f.content) });
+    list.push({
+      path: f.path,
+      content: inlineConfig(f.content),
+      ...(f.writable ? { writable: true } : {}),
+    });
     filesByService.set(f.service, list);
   }
 

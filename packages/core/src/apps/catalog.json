@@ -82,6 +82,7 @@
         {
           "service": "cli-proxy-api",
           "path": "/CLIProxyAPI/config.yaml",
+          "writable": true,
           "content": "host: 0.0.0.0\nport: 8317\nremote-management:\n  allow-remote: true\n  secret-key: \"\"\nauth-dir: /root/.cli-proxy-api\napi-keys:\n  - \"{{config:API_KEY}}\"\ndebug: false\nlogging-to-file: true\nusage-statistics-enabled: false\nplugins:\n  enabled: false\n  dir: /CLIProxyAPI/plugins\n"
         }
       ],

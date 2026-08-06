@@ -103,6 +103,7 @@ export interface AppConfigField {
   secret?: boolean;
 }
 
+
 /**
  * A command run INSIDE a service's container around the deploy, whose stdout is
  * captured and persisted as a service env var. For values the app can only mint
@@ -338,11 +339,13 @@ export interface AppTemplate {
    */
   endpoints?: readonly AppEndpoint[];
   /**
-   * Generated config files bind-mounted (read-only) into a service's container
-   * at deploy — for apps that need a config FILE, not just env (e.g. Kong's
-   * declarative `kong.yml`, Postgres init `.sql`). `content` may contain the
-   * same `{{publicUrl:…}}` and generated-key (`{{config:KEY}}`) placeholders as
-   * env, resolved at install. Self-hosted / desktop only (cloud can't bind-mount).
+   * Generated config files bind-mounted into a service's container at deploy —
+   * for apps that need a config FILE, not just env (e.g. Kong's declarative
+   * `kong.yml`, Postgres init `.sql`). Files are read-only by default; writable
+   * files are initialized once and then preserved across redeploys. `content`
+   * may contain the same `{{publicUrl:…}}` and generated-key (`{{config:KEY}}`)
+   * placeholders as env, resolved at install. Self-hosted / desktop only
+   * (cloud can't bind-mount).
    */
   files?: readonly AppFile[];
   /** Connectable bundles this app advertises to other projects. */
@@ -359,8 +362,9 @@ export interface AppFile {
   path: string;
   /** File contents; may contain `{{publicUrl:…}}` / `{{config:KEY}}` placeholders. */
   content: string;
+  /** Allow the container to edit this file. Initialized only when absent. */
+  writable?: boolean;
 }
-
 
 /**
  * The bundled app catalog. Source of truth = per-app JSON in `apps/catalog/`,

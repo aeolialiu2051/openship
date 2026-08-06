@@ -43,6 +43,7 @@ import { decryptEnvMap, encrypt } from "../../../lib/encryption";
 import { resolveComposeRuntimeEnvironment } from "./runtime-environment";
 import { resolveServerHost } from "../../../lib/server-target";
 import { resolveRootExecutor } from "../../../lib/vibrail-server-store";
+import { isWritableAppConfig, prepareAppConfigMount } from "./app-config-file";
 import { containerIdForService } from "../../services/service-container";
 import { isConnectionLoss } from "../../../lib/remote-state";
 import {
@@ -998,9 +999,11 @@ export async function deployComposeServices(
     });
 
     // Generated config files (app template `advanced.files`): write each onto
-    // the Docker host and bind-mount it read-only. `{{publicUrl:…}}` in content
-    // resolves the same way as env. Needs a host executor + a runtime that
-    // bind-mounts host paths — cloud has neither, so warn-and-skip there.
+    // the Docker host and bind-mount it. Read-only files are refreshed from the
+    // template on every deploy; writable files are initialized once so edits
+    // made by an app's config panel survive redeploys. `{{publicUrl:…}}` in
+    // content resolves the same way as env. Needs a host executor + a runtime
+    // that bind-mounts host paths — cloud has neither, so warn-and-skip there.
     const advancedFiles = (svc.advanced as ComposeAdvanced | null)?.files ?? [];
     if (advancedFiles.length > 0) {
       if (runtime.name === "cloud" || !opts?.executor) {
@@ -1016,11 +1019,12 @@ export async function deployComposeServices(
             publicUrlByService.get(port !== undefined ? `${name}:${port}` : name),
           ).__c;
           const hostPath = appConfigHostPath(project.id, svc.name, file.path);
-          await appConfigExecutor.writeFile(hostPath, content);
-          serviceRuntimeConfig.volumes = [
-            ...serviceRuntimeConfig.volumes,
-            `${hostPath}:${file.path}:ro`,
-          ];
+          const mount = await prepareAppConfigMount(appConfigExecutor, hostPath, {
+            ...file,
+            content,
+            writable: isWritableAppConfig(project.appTemplateId, file),
+          });
+          serviceRuntimeConfig.volumes = [...serviceRuntimeConfig.volumes, mount];
         }
         logger.log(
           `Service "${svc.name}": mounted ${advancedFiles.length} generated config file(s).\n`,
