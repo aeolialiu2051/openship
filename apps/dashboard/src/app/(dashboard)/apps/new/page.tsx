@@ -206,7 +206,7 @@ export default function NewAppPage() {
       {loading ? (
         <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-2xl border border-border/50 bg-card" />
+            <div key={i} className="h-28 animate-pulse rounded-2xl border border-border/50 bg-card" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
@@ -220,13 +220,13 @@ export default function NewAppPage() {
             const locked = isLocked(app);
             const needsUpdate = !!app.requiresUpdate;
             return (
-              <div key={app.id} className="group relative">
+              <div key={app.id} className="group relative h-28">
                 <button
                   type="button"
                   disabled={!!installingId || locked}
                   aria-disabled={locked}
                   onClick={() => install(app)}
-                  className={`flex w-full items-start gap-3 rounded-2xl border border-border/50 bg-card p-5 text-left transition-all ${
+                  className={`flex h-full w-full items-start gap-3 rounded-2xl border border-border/50 bg-card p-5 text-left transition-all ${
                     locked
                       ? "cursor-not-allowed opacity-45 saturate-50"
                       : "hover:border-primary/40 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
