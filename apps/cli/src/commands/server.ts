@@ -14,6 +14,9 @@
 import { Command } from "commander";
 import chalk from "chalk";
 import ora from "ora";
+import { readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
 import { apiRequest, ApiError } from "../lib/api-client";
 import { sseRequest } from "../lib/sse";
 import { getToken } from "../lib/config";
@@ -21,6 +24,7 @@ import { fetchCaps, requireUserServers } from "../lib/caps";
 import { isJsonMode, printJson, printTable, ok, err, info } from "../lib/output";
 
 const INSTALLABLE = ["docker", "git", "certbot", "rsync"] as const;
+const MAX_PRIVATE_KEY_BYTES = 65_536;
 
 /**
  * Wrap a subcommand action: require a token, enforce user-server support, and turn any
@@ -90,8 +94,44 @@ interface ConnOpts {
   sshArgs?: string;
 }
 
+/** Read a CLI-local private key without ever sending its filesystem path. */
+function readPrivateKeyFile(rawPath: string): string {
+  const expanded = rawPath === "~"
+    ? homedir()
+    : rawPath.startsWith("~/")
+      ? resolve(homedir(), rawPath.slice(2))
+      : resolve(rawPath);
+
+  let size: number;
+  try {
+    const stat = statSync(expanded);
+    if (!stat.isFile()) throw new Error("not a regular file");
+    size = stat.size;
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Unable to read SSH private key file ${rawPath}: ${detail}`);
+  }
+
+  if (size > MAX_PRIVATE_KEY_BYTES) {
+    throw new Error(`SSH private key file exceeds the ${MAX_PRIVATE_KEY_BYTES}-byte limit`);
+  }
+
+  try {
+    const privateKey = readFileSync(expanded, "utf8");
+    if (!privateKey.trim()) throw new Error("file is empty");
+    return privateKey;
+  } catch (cause) {
+    const detail = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`Unable to read SSH private key file ${rawPath}: ${detail}`);
+  }
+}
+
 /** Map CLI connection flags to the API's ssh* request body. */
 function connBody(o: ConnOpts): Record<string, unknown> {
+  if (o.authMethod === "key" && !o.keyPath) {
+    throw new Error("Key authentication requires --key-path <path>");
+  }
+
   return {
     name: o.name,
     sshHost: o.host,
@@ -99,7 +139,9 @@ function connBody(o: ConnOpts): Record<string, unknown> {
     sshUser: o.user,
     sshAuthMethod: o.authMethod ?? null,
     sshPassword: o.password,
-    sshKeyPath: o.keyPath,
+    // `--key-path` is always local to the CLI host. The API may be remote, so
+    // send the key bytes through its existing encrypted inline-key channel.
+    sshPrivateKey: o.authMethod === "key" && o.keyPath ? readPrivateKeyFile(o.keyPath) : undefined,
     sshKeyPassphrase: o.keyPassphrase,
     sshJumpHost: o.jumpHost,
     sshArgs: o.sshArgs,
@@ -218,7 +260,7 @@ server
   .option("--user <user>", "SSH user", "root")
   .option("--auth-method <method>", "Auth method (password|key|agent)")
   .option("--password <password>", "SSH password (password auth)")
-  .option("--key-path <path>", "Path to private key (key auth)")
+  .option("--key-path <path>", "Path to local private key file (key auth)")
   .option("--key-passphrase <passphrase>", "Private key passphrase")
   .option("--jump-host <host>", "SSH jump / bastion host")
   .option("--ssh-args <args>", "Extra raw ssh args")
@@ -257,7 +299,7 @@ server
   .option("--user <user>", "SSH user", "root")
   .option("--auth-method <method>", "Auth method (password|key|agent)")
   .option("--password <password>", "SSH password")
-  .option("--key-path <path>", "Path to private key")
+  .option("--key-path <path>", "Path to local private key file")
   .option("--key-passphrase <passphrase>", "Private key passphrase")
   .option("--jump-host <host>", "SSH jump / bastion host")
   .option("--ssh-args <args>", "Extra raw ssh args")

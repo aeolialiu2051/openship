@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Server, Loader2, Check, KeyRound, Lock, ChevronDown, Network } from "lucide-react";
+import { useRef, useState } from "react";
+import { Server, Loader2, Check, KeyRound, Lock, ChevronDown, Network, Upload } from "lucide-react";
 import { getApiErrorCode, getApiErrorMessage, systemApi } from "@/lib/api";
 import type { ServerInfo } from "@/lib/api/system";
 import { useToast } from "@/context/ToastContext";
@@ -12,6 +12,7 @@ const INPUT =
   "w-full px-3.5 py-2.5 rounded-xl border border-border/50 bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground/50 outline-none transition-all focus:ring-2 focus:ring-primary/20";
 
 const LABEL = "block text-sm font-medium text-muted-foreground mb-1.5";
+const MAX_PRIVATE_KEY_BYTES = 65_536;
 
 interface ServerFormProps {
   /** Truthy => edit mode (prefill + PATCH); otherwise create mode (POST). */
@@ -59,7 +60,11 @@ export function ServerForm({
   const [sshPassword, setSshPassword] = useState("");
   const [sshKeyPath, setSshKeyPath] = useState(server?.sshKeyPath ?? "");
   const [sshPrivateKey, setSshPrivateKey] = useState("");
+  const [sshPrivateKeyFile, setSshPrivateKeyFile] = useState("");
+  const [sshPrivateKeyFileName, setSshPrivateKeyFileName] = useState("");
+  const [privateKeyInputMode, setPrivateKeyInputMode] = useState<"file" | "paste">("file");
   const [sshKeyPassphrase, setSshKeyPassphrase] = useState("");
+  const privateKeyFileInputRef = useRef<HTMLInputElement>(null);
   const [showAdvanced, setShowAdvanced] = useState(
     !!(
       server?.sshJumpHost ||
@@ -82,6 +87,43 @@ export function ServerForm({
     if (code === "duplicate_server") return t.deploy.addServer.duplicateServer;
     return getApiErrorMessage(err, fallback);
   };
+
+  async function handlePrivateKeyFile(file: File | undefined) {
+    if (!file) return;
+    if (file.size > MAX_PRIVATE_KEY_BYTES) {
+      setSshPrivateKeyFile("");
+      setSshPrivateKeyFileName("");
+      if (privateKeyFileInputRef.current) privateKeyFileInputRef.current.value = "";
+      showToast(t.servers.form.toastPrivateKeyFileTooLarge, "error", t.servers.toastTitles.server);
+      return;
+    }
+
+    try {
+      const contents = await file.text();
+      if (!contents.trim()) throw new Error("empty private key file");
+      setSshPrivateKeyFile(contents);
+      setSshPrivateKeyFileName(file.name);
+      setSshPrivateKey("");
+    } catch {
+      setSshPrivateKeyFile("");
+      setSshPrivateKeyFileName("");
+      if (privateKeyFileInputRef.current) privateKeyFileInputRef.current.value = "";
+      showToast(t.servers.form.toastPrivateKeyFileReadFailed, "error", t.servers.toastTitles.server);
+    }
+  }
+
+  function handlePastedPrivateKey(value: string) {
+    setSshPrivateKey(value);
+  }
+
+  function switchPrivateKeyInputMode(mode: "file" | "paste") {
+    if (mode === privateKeyInputMode) return;
+    setPrivateKeyInputMode(mode);
+    setSshPrivateKey("");
+    setSshPrivateKeyFile("");
+    setSshPrivateKeyFileName("");
+    if (privateKeyFileInputRef.current) privateKeyFileInputRef.current.value = "";
+  }
 
   async function handleSave() {
     if (!sshHost.trim()) {
@@ -107,7 +149,8 @@ export function ServerForm({
       return;
     }
 
-    const keyCredential = useInlinePrivateKey ? sshPrivateKey : sshKeyPath;
+    const inlinePrivateKey = sshPrivateKeyFile || sshPrivateKey;
+    const keyCredential = useInlinePrivateKey ? inlinePrivateKey : sshKeyPath;
     if (
       sshAuthMethod === "key" &&
       (!isEditing || server?.sshAuthMethod !== "key") &&
@@ -143,7 +186,7 @@ export function ServerForm({
         data.sshPassword = sshPassword;
       }
       if (sshAuthMethod === "key") {
-        if (useInlinePrivateKey && sshPrivateKey) data.sshPrivateKey = sshPrivateKey;
+        if (useInlinePrivateKey && inlinePrivateKey) data.sshPrivateKey = inlinePrivateKey;
         if (!useInlinePrivateKey && sshKeyPath) data.sshKeyPath = sshKeyPath;
         if (sshKeyPassphrase) data.sshKeyPassphrase = sshKeyPassphrase;
       }
@@ -185,7 +228,8 @@ export function ServerForm({
       return;
     }
 
-    const keyCredential = useInlinePrivateKey ? sshPrivateKey : sshKeyPath;
+    const inlinePrivateKey = sshPrivateKeyFile || sshPrivateKey;
+    const keyCredential = useInlinePrivateKey ? inlinePrivateKey : sshKeyPath;
     if (sshAuthMethod === "key" && !keyCredential) {
       showToast(
         useInlinePrivateKey
@@ -210,7 +254,7 @@ export function ServerForm({
         payload.sshPassword = sshPassword;
       }
       if (sshAuthMethod === "key") {
-        if (useInlinePrivateKey && sshPrivateKey) payload.sshPrivateKey = sshPrivateKey;
+        if (useInlinePrivateKey && inlinePrivateKey) payload.sshPrivateKey = inlinePrivateKey;
         if (!useInlinePrivateKey && sshKeyPath) payload.sshKeyPath = sshKeyPath;
         if (sshKeyPassphrase) payload.sshKeyPassphrase = sshKeyPassphrase;
       }
@@ -378,21 +422,67 @@ export function ServerForm({
           ) : (
             <div className="space-y-[18px]">
               {useInlinePrivateKey ? (
-                <div>
+                <div className="space-y-3">
                   <label className={LABEL}>{t.servers.form.privateKey}</label>
-                  <textarea
-                    value={sshPrivateKey}
-                    onChange={(e) => setSshPrivateKey(e.target.value)}
-                    placeholder={
-                      isEditing && server?.hasInlineSshKey
-                        ? t.servers.form.privateKeyPlaceholderKeep
-                        : t.servers.form.privateKeyPlaceholderEnter
-                    }
-                    spellCheck={false}
-                    autoComplete="off"
-                    rows={7}
-                    className={`${INPUT} resize-y font-mono text-xs`}
-                  />
+                  <div className="flex gap-1 rounded-[10px] bg-muted/50 p-[3px]">
+                    <button
+                      type="button"
+                      onClick={() => switchPrivateKeyInputMode("file")}
+                      className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                        privateKeyInputMode === "file"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground/70"
+                      }`}
+                    >
+                      {t.servers.form.privateKeyFile}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => switchPrivateKeyInputMode("paste")}
+                      className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-medium transition-all ${
+                        privateKeyInputMode === "paste"
+                          ? "bg-card text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground/70"
+                      }`}
+                    >
+                      {t.servers.form.pastePrivateKeyInstead}
+                    </button>
+                  </div>
+                  {privateKeyInputMode === "file" ? (
+                    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-dashed border-border/70 bg-muted/20 px-4 py-4 transition-colors hover:border-primary/50 hover:bg-muted/30">
+                      <Upload className="size-5 shrink-0 text-primary" />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-foreground">
+                          {sshPrivateKeyFileName || t.servers.form.privateKeyFile}
+                        </span>
+                        <span className="mt-0.5 block text-xs text-muted-foreground">
+                          {isEditing && server?.hasInlineSshKey
+                            ? t.servers.form.privateKeyPlaceholderKeep
+                            : t.servers.form.privateKeyFileHelp}
+                        </span>
+                      </span>
+                      <input
+                        ref={privateKeyFileInputRef}
+                        type="file"
+                        className="sr-only"
+                        onChange={(e) => void handlePrivateKeyFile(e.currentTarget.files?.[0])}
+                      />
+                    </label>
+                  ) : (
+                    <textarea
+                      value={sshPrivateKey}
+                      onChange={(e) => handlePastedPrivateKey(e.target.value)}
+                      placeholder={
+                        isEditing && server?.hasInlineSshKey
+                          ? t.servers.form.privateKeyPlaceholderKeep
+                          : t.servers.form.privateKeyPlaceholderEnter
+                      }
+                      spellCheck={false}
+                      autoComplete="off"
+                      rows={7}
+                      className={`${INPUT} resize-y font-mono text-xs`}
+                    />
+                  )}
                 </div>
               ) : (
                 <div>

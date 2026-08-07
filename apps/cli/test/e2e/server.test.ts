@@ -1,4 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const h = vi.hoisted(() => ({ token: "tok" as string | null }));
 vi.mock("../../src/lib/config", () => ({
@@ -15,10 +18,15 @@ import { setJsonMode } from "../../src/lib/output";
 import { runCommand, stubFetch, type FetchStub } from "../helpers/harness";
 
 let fetchStub: FetchStub;
+let tempDir: string | undefined;
 beforeEach(() => {
   h.token = "tok";
 });
-afterEach(() => fetchStub?.restore());
+afterEach(() => {
+  fetchStub?.restore();
+  if (tempDir) rmSync(tempDir, { recursive: true, force: true });
+  tempDir = undefined;
+});
 
 const SERVERS = [
   { id: "srv1", name: "web", sshHost: "1.2.3.4", sshPort: 22, sshUser: "root" },
@@ -98,6 +106,85 @@ describe("vibrail server rm", () => {
     expect(fetchStub.calls[0].method).toBe("DELETE");
     expect(fetchStub.calls[0].url).toBe("http://api.test/api/system/servers/srv1");
     expect(err).toContain("Removed server srv1");
+  });
+});
+
+describe("vibrail server add", () => {
+  it("reads --key-path locally and uploads the private key contents", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "vibrail-cli-server-"));
+    const keyPath = join(tempDir, "id_ed25519");
+    const privateKey = "-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----\n";
+    writeFileSync(keyPath, privateKey, { mode: 0o600 });
+    fetchStub = stubFetch(() => ({ json: { ...SERVERS[0], sshAuthMethod: "key" } }));
+
+    const { code } = await runCommand(serverCommand, [
+      "add",
+      "--host", "1.2.3.4",
+      "--auth-method", "key",
+      "--key-path", keyPath,
+    ]);
+
+    expect(code).toBe(0);
+    expect(fetchStub.calls[0].body).toMatchObject({
+      sshAuthMethod: "key",
+      sshPrivateKey: privateKey,
+    });
+    expect(fetchStub.calls[0].body).not.toHaveProperty("sshKeyPath");
+  });
+
+  it("rejects an unreadable key path before making an API request", async () => {
+    fetchStub = stubFetch(() => ({ json: SERVERS[0] }));
+
+    const { code, err } = await runCommand(serverCommand, [
+      "add",
+      "--host", "1.2.3.4",
+      "--auth-method", "key",
+      "--key-path", "/definitely/missing/vibrail-key",
+    ]);
+
+    expect(code).toBe(1);
+    expect(err).toContain("Unable to read SSH private key file");
+    expect(fetchStub.calls).toHaveLength(0);
+  });
+
+  it("rejects a private key file larger than the API limit", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "vibrail-cli-server-"));
+    const keyPath = join(tempDir, "oversized-key");
+    writeFileSync(keyPath, "x".repeat(65_537), { mode: 0o600 });
+    fetchStub = stubFetch(() => ({ json: SERVERS[0] }));
+
+    const { code, err } = await runCommand(serverCommand, [
+      "add",
+      "--host", "1.2.3.4",
+      "--auth-method", "key",
+      "--key-path", keyPath,
+    ]);
+
+    expect(code).toBe(1);
+    expect(err).toContain("exceeds the 65536-byte limit");
+    expect(fetchStub.calls).toHaveLength(0);
+  });
+});
+
+describe("vibrail server test-connection", () => {
+  it("uses the same local private-key upload flow", async () => {
+    tempDir = mkdtempSync(join(tmpdir(), "vibrail-cli-server-"));
+    const keyPath = join(tempDir, "id_ed25519");
+    const privateKey = "-----BEGIN OPENSSH PRIVATE KEY-----\ntest-key\n-----END OPENSSH PRIVATE KEY-----\n";
+    writeFileSync(keyPath, privateKey, { mode: 0o600 });
+    fetchStub = stubFetch(() => ({ json: { ok: true, message: "connected" } }));
+
+    const { code } = await runCommand(serverCommand, [
+      "test-connection",
+      "--host", "1.2.3.4",
+      "--auth-method", "key",
+      "--key-path", keyPath,
+    ]);
+
+    expect(code).toBe(0);
+    expect(fetchStub.calls[0].url).toBe("http://api.test/api/system/test-connection");
+    expect(fetchStub.calls[0].body).toMatchObject({ sshPrivateKey: privateKey });
+    expect(fetchStub.calls[0].body).not.toHaveProperty("sshKeyPath");
   });
 });
 
