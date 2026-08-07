@@ -104,6 +104,14 @@
     "adminPasswordLabel": "Mot de passe administrateur",
     "passwordPlaceholder": "Mot de passe fort - ou cliquez sur Générer",
     "passwordHint": "Utilisé pour se connecter à la boîte mail après la configuration. Vous pourrez le modifier plus tard depuis le panneau d'administration ci-dessous.",
+    "relay": {
+      "toggle": "Relayer les e-mails sortants via Amazon SES",
+      "hint": "Recommandé. Envoyez via les adresses IP de confiance de SES (les IP des nouveaux serveurs figurent souvent sur des listes de blocage et de nombreux hébergeurs bloquent le port sortant 25). La réception reste assurée par ce serveur.",
+      "region": "Région SES",
+      "username": "Nom d'utilisateur SMTP",
+      "password": "Mot de passe SMTP",
+      "perDomainNote": "S'applique à tous les domaines. Le routage par domaine et les enregistrements SES DKIM de chaque domaine se configurent après l'installation dans l'onglet Envoi."
+    },
     "startSetup": "Démarrer la configuration",
     "adoptCta": "Vous avez déjà un serveur de messagerie ? Adoptez-le",
     "whatInstalled": "Ce qui est installé",

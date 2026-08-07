@@ -112,6 +112,14 @@
     "adminPasswordLabel": "管理员密码",
     "passwordPlaceholder": "强密码 - 或点击“生成”",
     "passwordHint": "用于设置完成后登录邮箱。之后可在下方的管理面板中修改。",
+    "relay": {
+      "toggle": "通过 Amazon SES 中继发送邮件",
+      "hint": "建议启用。通过 SES 的可信 IP 发送（新服务器 IP 经常被列入拦截名单，且许多服务商会封锁出站 25 端口）。收件仍由此服务器处理。",
+      "region": "SES 区域",
+      "username": "SMTP 用户名",
+      "password": "SMTP 密码",
+      "perDomainNote": "适用于所有域名。安装后可在“发送”标签页中配置按域名路由，以及每个域名的 SES DKIM 记录。"
+    },
     "startSetup": "开始设置",
     "adoptCta": "已有邮件服务器？采用它",
     "whatInstalled": "将安装的内容",

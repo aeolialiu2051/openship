@@ -104,6 +104,14 @@
     "adminPasswordLabel": "Admin-Passwort",
     "passwordPlaceholder": "Starkes Passwort – oder auf Generieren klicken",
     "passwordHint": "Wird nach der Einrichtung für die Anmeldung am Postfach verwendet. Du kannst es später im Admin-Panel unten ändern.",
+    "relay": {
+      "toggle": "Ausgehende E-Mails über Amazon SES weiterleiten",
+      "hint": "Empfohlen. Versand über die vertrauenswürdigen IP-Adressen von SES (IP-Adressen neuer Server stehen häufig auf Sperrlisten und viele Hoster blockieren den ausgehenden Port 25). Der Empfang bleibt auf diesem Server.",
+      "region": "SES-Region",
+      "username": "SMTP-Benutzername",
+      "password": "SMTP-Passwort",
+      "perDomainNote": "Gilt für alle Domains. Das Routing pro Domain und die SES-DKIM-Einträge jeder Domain werden nach der Installation im Tab „Senden“ konfiguriert."
+    },
     "startSetup": "Einrichtung starten",
     "adoptCta": "Du hast bereits einen Mailserver? Übernimm ihn",
     "whatInstalled": "Was installiert wird",

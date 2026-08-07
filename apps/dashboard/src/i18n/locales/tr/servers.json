@@ -40,7 +40,7 @@
     "whatGetsConfigured": "Neler yapılandırılır",
     "featContainer": "Konteyner çalışma zamanı",
     "featContainerDesc": "Her uygulamayı izolasyon içinde çalıştırır",
-    "featProxy": "Reverse proxy",
+    "featProxy": "Ters proxy",
     "featProxyDesc": "Yönlendirme ve SSL",
     "monitoring": "İzleme",
     "monitoringDesc": "Sağlık kontrolleri",

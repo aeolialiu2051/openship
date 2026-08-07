@@ -104,6 +104,14 @@
     "adminPasswordLabel": "Palavra-passe de administrador",
     "passwordPlaceholder": "Palavra-passe forte - ou clique em Gerar",
     "passwordHint": "Usada para iniciar sessão na caixa de correio após a configuração. Pode alterá-la mais tarde no painel de administração abaixo.",
+    "relay": {
+      "toggle": "Encaminhar correio de saída através do Amazon SES",
+      "hint": "Recomendado. Envie através dos IPs fidedignos do SES (os IPs de servidores novos estão frequentemente em listas de bloqueio e muitos fornecedores bloqueiam a porta de saída 25). A receção permanece neste servidor.",
+      "region": "Região do SES",
+      "username": "Nome de utilizador SMTP",
+      "password": "Palavra-passe SMTP",
+      "perDomainNote": "Aplica-se a todos os domínios. O encaminhamento por domínio e os registos SES DKIM de cada domínio são configurados após a instalação no separador Envio."
+    },
     "startSetup": "Iniciar configuração",
     "adoptCta": "Já tem um servidor de email? Adote-o",
     "whatInstalled": "O que é instalado",

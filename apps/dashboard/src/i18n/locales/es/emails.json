@@ -104,6 +104,14 @@
     "adminPasswordLabel": "Contraseña de administrador",
     "passwordPlaceholder": "Contraseña segura, o haz clic en Generar",
     "passwordHint": "Se usa para iniciar sesión en el buzón después de la configuración. Puedes cambiarla más tarde desde el panel de administración de abajo.",
+    "relay": {
+      "toggle": "Enviar el correo saliente mediante Amazon SES",
+      "hint": "Recomendado. Envía mediante las IP de confianza de SES (las IP de servidores nuevos suelen estar en listas de bloqueo y muchos proveedores bloquean el puerto de salida 25). La recepción permanece en este servidor.",
+      "region": "Región de SES",
+      "username": "Nombre de usuario SMTP",
+      "password": "Contraseña SMTP",
+      "perDomainNote": "Se aplica a todos los dominios. El enrutamiento por dominio y los registros SES DKIM de cada dominio se configuran después de la instalación en la pestaña Envío."
+    },
     "startSetup": "Iniciar configuración",
     "adoptCta": "¿Ya tienes un servidor de correo? Adóptalo",
     "whatInstalled": "Qué se instala",
