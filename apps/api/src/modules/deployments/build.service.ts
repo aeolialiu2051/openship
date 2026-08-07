@@ -77,6 +77,7 @@ import {
   hasAnyCustomDomainConfiguration,
   withCustomDomainProjectEntitlement,
 } from "../domains/custom-domain-project-quota";
+import { applyRequestedPublicService } from "./compose/public-service";
 
 function throwPreflightFailure(preflight: PreflightResult): never {
   const failedChecks = preflight.checks.filter((check) => check.status === "fail");
@@ -941,6 +942,8 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
     runtimeMode,
     serviceDeploymentMode,
     services,
+    publicService,
+    publicPort,
     replaceServices,
     serviceIds,
     refreshServiceIds,
@@ -977,7 +980,25 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   if (input.uploadSessionId && (!uploadSession || uploadSession.orgId !== ctx.organizationId)) {
     throw new AppError("Upload session not found or expired — re-upload the folder.", 400);
   }
-  const effectiveServices = services ?? uploadSession?.detectedServices;
+  let effectiveServices = services ?? uploadSession?.detectedServices;
+  if (publicService || publicPort) {
+    if (!effectiveServices?.length) {
+      throw new AppError(
+        "publicService can only be used with a Compose or multi-service deploy.",
+        400,
+      );
+    }
+    try {
+      effectiveServices = applyRequestedPublicService(
+        effectiveServices,
+        project,
+        publicService,
+        publicPort,
+      );
+    } catch (error) {
+      throw new AppError(error instanceof Error ? error.message : "Invalid public service.", 400);
+    }
+  }
 
   // Reconcile the repo's compose BEFORE resolving the service set — the third
   // deploy entry point (alongside redeployBuildSession + triggerDeployment) that

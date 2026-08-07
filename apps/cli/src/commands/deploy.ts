@@ -23,9 +23,11 @@ import { isJsonMode, printJson, err, info } from "../lib/output";
 /** Read a value from git, or undefined when not in a repo / git missing. */
 function git(args: string[]): string | undefined {
   try {
-    return execFileSync("git", args, { stdio: ["ignore", "pipe", "ignore"] })
-      .toString()
-      .trim() || undefined;
+    return (
+      execFileSync("git", args, { stdio: ["ignore", "pipe", "ignore"] })
+        .toString()
+        .trim() || undefined
+    );
   } catch {
     return undefined;
   }
@@ -45,9 +47,20 @@ export const deployCommand = new Command("deploy")
   .option("--service-ids <ids>", "Comma-separated service IDs to deploy (smart routing)")
   .option("--smart-route", "Rebuild only services changed since the active deploy")
   .option("--refresh", "Re-apply current env to the active deploy (no git pull, no rebuild)")
-  .option("--name <name>", "Project name for a folder (non-git) deploy (defaults to the directory name)")
+  .option(
+    "--name <name>",
+    "Project name for a folder (non-git) deploy (defaults to the directory name)",
+  )
   .option("--server <id>", "Deploy to a user-owned server (alias of --server-id)")
   .option("--server-id <id>", "Deploy to a user-owned server by ID")
+  .option(
+    "--public-service <name>",
+    "Expose this Compose service on a Vibrail-managed public hostname",
+  )
+  .option(
+    "--public-port <port>",
+    "Container port for --public-service (defaults to its first declared port)",
+  )
   .option("--watch", "Stream the deployment logs until it finishes")
   .action(async (opts) => {
     const link = readProjectLink();
@@ -57,6 +70,11 @@ export const deployCommand = new Command("deploy")
       process.exit(1);
     }
     const serverId: string | undefined = opts.serverId || opts.server;
+
+    if (opts.publicPort && !opts.publicService) {
+      err("--public-port requires --public-service.");
+      process.exit(1);
+    }
 
     const env: string = opts.env;
     if (env !== "production" && env !== "preview") {
@@ -68,12 +86,21 @@ export const deployCommand = new Command("deploy")
     // (same pipeline as the MCP / dashboard folder deploy). The git-only flags
     // don't apply to a fresh upload, so they force the git path if set.
     const inGitRepo = git(["rev-parse", "--is-inside-work-tree"]) === "true";
+    if (inGitRepo && opts.publicService) {
+      err(
+        "--public-service is available for new folder/Compose deployments only; configure an existing project's service route before redeploying.",
+      );
+      process.exit(1);
+    }
     // --service-ids scopes BOTH a git redeploy and a folder redeploy (so a
     // backend-only change doesn't recreate stateful services), so it is NOT
     // git-only; commit/smart-route/refresh genuinely need git history.
     const gitOnlyFlags = opts.commit || opts.smartRoute || opts.refresh;
     const serviceIds: string[] | undefined = opts.serviceIds
-      ? opts.serviceIds.split(",").map((s: string) => s.trim()).filter(Boolean)
+      ? opts.serviceIds
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)
       : undefined;
 
     let deploymentId: string | undefined;
@@ -89,12 +116,18 @@ export const deployCommand = new Command("deploy")
           environment: env,
           serviceIds,
           serverId,
+          publicService: opts.publicService,
+          publicPort: opts.publicPort,
           onStep: (m) => {
             if (spinner) spinner.text = m;
           },
         });
         deploymentId = result.deploymentId;
-        payload = { success: true, deployment_id: result.deploymentId, project_id: result.projectId };
+        payload = {
+          success: true,
+          deployment_id: result.deploymentId,
+          project_id: result.projectId,
+        };
         spinner?.succeed(deploymentId ? `Deployment queued: ${deploymentId}` : "Deployment queued");
       } catch (e) {
         spinner?.fail("Folder deploy failed");

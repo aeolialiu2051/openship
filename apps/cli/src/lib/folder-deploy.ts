@@ -74,7 +74,8 @@ function detectPackageManager(dir: string): string | undefined {
 function detectStack(dir: string): string | undefined {
   if (existsSync(join(dir, "go.mod"))) return "go";
   if (existsSync(join(dir, "Cargo.toml"))) return "rust";
-  if (existsSync(join(dir, "requirements.txt")) || existsSync(join(dir, "pyproject.toml"))) return "python";
+  if (existsSync(join(dir, "requirements.txt")) || existsSync(join(dir, "pyproject.toml")))
+    return "python";
   if (existsSync(join(dir, "package.json"))) return "node";
   return undefined;
 }
@@ -95,6 +96,10 @@ export async function deployFolder(opts: {
   serviceIds?: string[];
   /** Bind this upload and deployment to a user-owned server. */
   serverId?: string;
+  /** Explicit Compose service selected for a managed public hostname. */
+  publicService?: string;
+  /** Container port for publicService; backend derives the first port when omitted. */
+  publicPort?: string;
   onStep?: (message: string) => void;
 }): Promise<FolderDeployResult> {
   const { cwd } = opts;
@@ -192,8 +197,10 @@ export async function deployFolder(opts: {
   });
   if (!ensured.project_id) throw new Error(ensured.error || "Failed to create project");
 
-  // 6. Deploy the uploaded source. Omitting publicEndpoints lets the server
-  //    auto-bind a free subdomain from the project slug.
+  // 6. Deploy the uploaded source. Single-app projects get the backend's
+  //    project-level free-domain default. Compose routes are service-owned, so
+  //    an explicit publicService carries the user's public-access choice into
+  //    the first service sync instead of silently creating every row private.
   step("Deploying");
   const dep = await apiRequest<BuildAccessRes>("/deployments/build/access", {
     method: "POST",
@@ -209,6 +216,8 @@ export async function deployFolder(opts: {
       // a services project (persisted rows + services-mode preflight). Absent for
       // single-app folders, so their path is unchanged.
       ...(scan.services && scan.services.length > 0 ? { services: scan.services } : {}),
+      ...(opts.publicService ? { publicService: opts.publicService } : {}),
+      ...(opts.publicPort ? { publicPort: opts.publicPort } : {}),
       ...(scan.services && scan.services.length > 0 ? { replaceServices: true } : {}),
       // Scope a redeploy to a subset of services (others carry forward untouched).
       ...(opts.serviceIds && opts.serviceIds.length > 0 ? { serviceIds: opts.serviceIds } : {}),

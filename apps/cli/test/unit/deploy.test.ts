@@ -89,6 +89,32 @@ describe("vibrail deploy server target", () => {
     );
   });
 
+  it("passes the confirmed public Compose service to a fresh folder upload", async () => {
+    h.inGitRepo = false;
+    h.deployFolder.mockResolvedValue({ deploymentId: "dep_2", projectId: "proj_2" });
+
+    const { code } = await runCommand(deployCommand, [
+      "--public-service",
+      "web",
+      "--public-port",
+      "8080",
+    ]);
+
+    expect(code).toBe(0);
+    expect(h.deployFolder).toHaveBeenCalledWith(
+      expect.objectContaining({ publicService: "web", publicPort: "8080" }),
+    );
+  });
+
+  it("rejects a public port without a selected service", async () => {
+    h.inGitRepo = false;
+    const { code, err } = await runCommand(deployCommand, ["--public-port", "8080"]);
+
+    expect(code).toBe(1);
+    expect(err).toContain("--public-port requires --public-service");
+    expect(h.deployFolder).not.toHaveBeenCalled();
+  });
+
   it("rejects conflicting values for the two aliases", async () => {
     const { code, err } = await runCommand(deployCommand, [
       "--server",

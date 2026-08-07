@@ -82,4 +82,22 @@ describe("deployFolder server binding", () => {
       }),
     );
   });
+
+  it("carries an explicit public Compose service into the first build request", async () => {
+    await deployFolder({
+      cwd: "/tmp/vibrail-folder-test",
+      publicService: "web",
+      publicPort: "80",
+    });
+
+    const buildCall = h.apiRequest.mock.calls.find(
+      ([path]) => path === "/deployments/build/access",
+    );
+    expect(JSON.parse(buildCall?.[1]?.body as string)).toEqual(
+      expect.objectContaining({
+        publicService: "web",
+        publicPort: "80",
+      }),
+    );
+  });
 });

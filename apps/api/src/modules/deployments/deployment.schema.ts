@@ -136,6 +136,20 @@ export const BuildAccessBody = Type.Object({
       description: "Compose / multi-service definitions (services mode).",
     }),
   ),
+  publicService: Type.Optional(
+    Type.String({
+      minLength: 1,
+      description:
+        "Compose service name to expose on a Vibrail-managed public hostname during this deploy.",
+    }),
+  ),
+  publicPort: Type.Optional(
+    Type.String({
+      pattern: "^[0-9]+$",
+      description:
+        "Container port for publicService. Omit to use that service's first declared container port.",
+    }),
+  ),
   replaceServices: Type.Optional(
     Type.Boolean({
       description:
