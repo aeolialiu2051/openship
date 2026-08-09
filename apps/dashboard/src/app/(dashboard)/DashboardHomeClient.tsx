@@ -48,6 +48,7 @@ import { useServerResourceStats } from "@/hooks/useServerResourceStats";
 import { useServersList } from "@/hooks/useServersList";
 import { projectsApi, systemApi } from "@/lib/api";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
+import { isStaticProjectRuntime } from "@/utils/project-runtime";
 import { FEATURED_APPS } from "./apps/featured-apps";
 
 type ResourceFilter = "all" | "projects"| "apps"  | "running" | "stopped";
@@ -795,11 +796,12 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                     <div className="divide-y divide-border/40">
                       {filteredProjects.slice(0, 12).map((project) => {
                         const status = getProjectStatus(project);
+                        const isStaticRuntime = isStaticProjectRuntime(project);
                         const usageUnavailableReason = status !== "live"
                           ? labels.usageStopped
                           : project.deployTarget === "cloud"
                             ? labels.usageCloud
-                            : project.productionMode === "static"
+                            : isStaticRuntime
                               ? labels.usageStatic
                               : labels.usageUnmatched;
                         const domainUrl = projectDomainUrl(project.primaryDomain);
@@ -845,7 +847,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                             <span className="truncate text-xs text-muted-foreground">
                               {formatRuntime(
                                 project.runtimeStartedAt ??
-                                  (project.productionMode === "static"
+                                  (isStaticRuntime
                                     ? project.updatedAt
                                     : project.activeDeploymentCreatedAt),
                                 status === "live",
