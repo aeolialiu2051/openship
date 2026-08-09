@@ -131,7 +131,7 @@
       "noPublicPorts": "لم يتم اكتشاف منافذ عامة",
       "publicDomain": "نطاق عام",
       "internetEnabled": "حركة مرور الإنترنت مفعّلة",
-      "privateByDefault": "خاص افتراضيًا",
+      "internetDisabled": "حركة الإنترنت معطلة",
       "exposedPort": "المنفذ المكشوف",
       "portOption": "المنفذ {port}",
       "domainLabel": "النطاق",

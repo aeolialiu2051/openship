@@ -131,7 +131,7 @@
       "noPublicPorts": "Dışa açık port tespit edilmedi",
       "publicDomain": "Herkese açık alan adı",
       "internetEnabled": "İnternet trafiği etkin",
-      "privateByDefault": "Varsayılan olarak özel",
+      "internetDisabled": "İnternet trafiği devre dışı",
       "exposedPort": "Dışa Açılan Port",
       "portOption": "Port {port}",
       "domainLabel": "Alan Adı",

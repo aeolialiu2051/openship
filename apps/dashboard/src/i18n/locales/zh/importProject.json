@@ -130,7 +130,7 @@
       "noPublicPorts": "未检测到公开端口",
       "publicDomain": "公开域名",
       "internetEnabled": "已启用互联网流量",
-      "privateByDefault": "默认私有",
+      "internetDisabled": "互联网流量已关闭",
       "exposedPort": "暴露端口",
       "portOption": "端口 {port}",
       "domainLabel": "域名",

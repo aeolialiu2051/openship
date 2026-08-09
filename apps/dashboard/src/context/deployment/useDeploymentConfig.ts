@@ -735,7 +735,7 @@ export function useDeploymentConfig() {
         branch,
         branches,
         services: applyRouteKeyToComposeServices(
-          response.services || [],
+          (response.services || []).map(normalizeComposeService),
           project?.slug || projectName,
           routeKey,
         ),

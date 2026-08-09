@@ -240,7 +240,7 @@ const ServiceDomainSection: React.FC<{
           <div>
             <p className="text-sm font-medium text-foreground">{d.publicDomain}</p>
             <p className="text-xs text-muted-foreground">
-              {service.exposed ? d.internetEnabled : d.privateByDefault}
+              {service.exposed ? d.internetEnabled : d.internetDisabled}
             </p>
           </div>
         </div>

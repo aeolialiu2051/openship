@@ -121,7 +121,10 @@ export function normalizeComposeService(raw: RawComposeService): ComposeServiceI
     command: raw.command ?? undefined,
     restart: raw.restart ?? undefined,
     advanced: raw.advanced ?? undefined,
-    exposed: raw.exposed ?? false,
+    // Fresh compose detection does not persist an `exposed` preference yet.
+    // Treat a detected port as an exposable web service by default, while
+    // preserving both explicit opt-outs and portless internal services.
+    exposed: raw.exposed ?? (raw.ports?.length ?? 0) > 0,
     exposedPort: raw.exposedPort ?? undefined,
     domain: raw.domain ?? undefined,
     customDomain: raw.customDomain ?? undefined,

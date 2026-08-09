@@ -130,7 +130,7 @@
       "noPublicPorts": "Keine öffentlichen Ports erkannt",
       "publicDomain": "Öffentliche Domain",
       "internetEnabled": "Internetverkehr aktiviert",
-      "privateByDefault": "Standardmäßig privat",
+      "internetDisabled": "Internetverkehr deaktiviert",
       "exposedPort": "Freigegebener Port",
       "portOption": "Port {port}",
       "domainLabel": "Domain",

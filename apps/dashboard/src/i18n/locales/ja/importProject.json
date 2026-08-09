@@ -130,7 +130,7 @@
       "noPublicPorts": "公開ポートが検出されませんでした",
       "publicDomain": "公開ドメイン",
       "internetEnabled": "インターネットトラフィックが有効",
-      "privateByDefault": "デフォルトでプライベート",
+      "internetDisabled": "インターネット通信は無効です",
       "exposedPort": "公開ポート",
       "portOption": "ポート {port}",
       "domainLabel": "ドメイン",
