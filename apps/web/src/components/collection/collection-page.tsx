@@ -14,7 +14,7 @@ import {
 import { Navbar } from "@/components/landing/navbar";
 import { landingCopy, type LandingLocale } from "@/components/landing/landing-copy";
 import { useLandingPreferences } from "@/components/landing/use-landing-preferences";
-import { getFrameworkConfig } from "@/lib/frameworks";
+import { getFrameworkConfig, hasVisualPreview } from "@/lib/frameworks";
 
 type Project = {
   id: string;
@@ -70,6 +70,35 @@ const text = {
     list: "公开的 Vibrail 项目",
   },
 } as const;
+
+function VibrailPreviewPlaceholder() {
+  return (
+    <div className="collection-preview-placeholder" aria-hidden="true">
+      <img src="/apple-touch-icon.png" alt="" />
+      <span>Vibrail</span>
+    </div>
+  );
+}
+
+function CollectionPreview({ project }: { project: Project }) {
+  const [failed, setFailed] = useState(false);
+
+  if (!hasVisualPreview(project.framework) || failed) return <VibrailPreviewPlaceholder />;
+
+  return (
+    <>
+      <iframe
+        src={project.url}
+        title={`${project.name} preview`}
+        loading="lazy"
+        tabIndex={-1}
+        sandbox="allow-scripts allow-same-origin"
+        onError={() => setFailed(true)}
+      />
+      <div className="collection-preview-shield" />
+    </>
+  );
+}
 
 export function CollectionPage({
   initialProjects,
@@ -139,14 +168,7 @@ export function CollectionPage({
                 onClick={() => setSelected(project)}
               >
                 <div className="collection-preview">
-                  <iframe
-                    src={project.url}
-                    title={`${project.name} preview`}
-                    loading="lazy"
-                    tabIndex={-1}
-                    sandbox="allow-scripts allow-same-origin"
-                  />
-                  <div className="collection-preview-shield" />
+                  <CollectionPreview project={project} />
                 </div>
                 <div className="collection-card-body">
                   <div className="collection-title-row">
@@ -215,11 +237,15 @@ export function CollectionPage({
                 <X size={21} />
               </button>
               <div className="collection-live">
-                <iframe
-                  src={selected.url}
-                  title={selected.name}
-                  sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-                />
+                {hasVisualPreview(selected.framework) ? (
+                  <iframe
+                    src={selected.url}
+                    title={selected.name}
+                    sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+                  />
+                ) : (
+                  <VibrailPreviewPlaceholder />
+                )}
               </div>
               <aside className="collection-comments">
                 <div className="collection-project-head">
