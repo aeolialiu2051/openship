@@ -60,6 +60,7 @@ export function Navbar({
           <Link href="/#platform">{copy.platform}</Link>
           <Link href="/#workflow">{copy.workflow}</Link>
           <Link href="/#operations">{copy.operations}</Link>
+          <Link href="/collection">{copy.collection}</Link>
           <a href={DOCS_URL}>{copy.docs}</a>
           <Link href="/about">{copy.about}</Link>
         </nav>

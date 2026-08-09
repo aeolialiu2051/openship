@@ -55,6 +55,7 @@ import { resourceOperationService } from "./modules/operations/resource-operatio
 import { operationRoutes } from "./modules/operations/operation.routes";
 import { adminRoutes } from "./modules/admin/admin.routes";
 import { telemetryRoutes } from "./modules/telemetry/telemetry.routes";
+import { collectionRoutes } from "./modules/collection/collection.routes";
 
 /* ---------- Initialize platform (runtime + infra + system) ---------- */
 await initPlatform(resolvePlatformConfig());
@@ -148,6 +149,7 @@ app.route("/api/jobs", jobRoutes);
 app.route("/api/operations", operationRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/telemetry", telemetryRoutes);
+app.route("/api/collection", collectionRoutes);
 // Platform status notices — banner feed (public read) + operator push (internal).
 // Both modes; primarily consumed on the SaaS.
 app.route("/api/notices", noticeRoutes);

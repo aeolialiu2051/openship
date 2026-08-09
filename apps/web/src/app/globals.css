@@ -2,6 +2,7 @@
 @import "../styles/theme.css";
 @import "../styles/landing.css";
 @import "../styles/vibrail-landing.css";
+@import "../styles/collection.css";
 
 @theme inline {
   --font-sans: 'Gellix', 'SF Arabic', system-ui, -apple-system, sans-serif;
