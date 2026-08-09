@@ -769,6 +769,7 @@ const STATS_COMMAND = [
   'cpu_d=$(( (cpu1_u-cpu0_u)+(cpu1_n-cpu0_n)+(cpu1_s-cpu0_s)+(cpu1_i-cpu0_i) ));',
   'cpu_idle=$(( cpu1_i - cpu0_i ));',
   '[ "$cpu_d" -gt 0 ] && cpu_pct=$(( 100 - (cpu_idle * 100 / cpu_d) )) || cpu_pct=0;',
+  'cpu_cores=$(nproc 2>/dev/null || getconf _NPROCESSORS_ONLN 2>/dev/null || echo 1);',
   // Memory
   'read mem_t mem_a <<< $(awk \'/MemTotal/{t=$2} /MemAvailable/{a=$2} END{print t*1024, a*1024}\' /proc/meminfo);',
   'mem_u=$((mem_t - mem_a));',
@@ -778,7 +779,7 @@ const STATS_COMMAND = [
   'read up_s _ <<< $(cat /proc/uptime);',
   'read l1 l5 l15 _ _ <<< $(cat /proc/loadavg);',
   // Output JSON
-  'printf \'{"cpu":%d,"memTotal":%s,"memUsed":%s,"memAvail":%s,"diskTotal":%s,"diskUsed":%s,"diskAvail":%s,"uptime":"%s","load1":"%s","load5":"%s","load15":"%s"}\\n\' "$cpu_pct" "$mem_t" "$mem_u" "$mem_a" "$disk_t" "$disk_u" "$disk_a" "$up_s" "$l1" "$l5" "$l15"',
+  'printf \'{"cpu":%d,"cpuCores":%s,"memTotal":%s,"memUsed":%s,"memAvail":%s,"diskTotal":%s,"diskUsed":%s,"diskAvail":%s,"uptime":"%s","load1":"%s","load5":"%s","load15":"%s"}\\n\' "$cpu_pct" "$cpu_cores" "$mem_t" "$mem_u" "$mem_a" "$disk_t" "$disk_u" "$disk_a" "$up_s" "$l1" "$l5" "$l15"',
 ].join(" ");
 
 /**
@@ -788,7 +789,7 @@ const STATS_COMMAND = [
  * Runs a lightweight stats command via SSH on an interval.
  * Stops when the client disconnects.
  *
- * Query: ?serverId=<uuid>
+ * Query: ?serverId=<uuid>&intervalMs=<3000..60000>
  */
 export async function monitorStream(c: Context) {
   if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
@@ -799,7 +800,10 @@ export async function monitorStream(c: Context) {
   getRequestContext(c);
   await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "read" });
 
-  const POLL_INTERVAL = 3_000;
+  const requestedInterval = Number(c.req.query("intervalMs"));
+  const POLL_INTERVAL = Number.isFinite(requestedInterval)
+    ? Math.min(60_000, Math.max(3_000, Math.round(requestedInterval)))
+    : 3_000;
   // Generous per-sample timeout: on the system-ssh (agent) path each exec is a
   // fresh ssh process + ControlMaster channel + remote shell, so the heavy
   // /proc one-liner can take a few seconds on a busy box. 5s was too tight.

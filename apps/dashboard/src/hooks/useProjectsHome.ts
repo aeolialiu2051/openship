@@ -69,6 +69,13 @@ export function prefetchProjectsHome() {
   return fetchProjectsHome(false);
 }
 
+/** Timestamp of the last successful projects/home fetch (any source:
+ * initial load, background revalidation, or manual refresh). Null before
+ * the first successful fetch. */
+export function getProjectsHomeFetchedAt(): number | null {
+  return cachedAt > 0 ? cachedAt : null;
+}
+
 /** Mark the cache stale after a project mutation while keeping its current
  * value available for an instant transition. Revalidate immediately so a
  * subsequent navigation does not spend up to the full TTL showing stale data. */

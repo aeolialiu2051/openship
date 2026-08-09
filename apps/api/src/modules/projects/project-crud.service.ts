@@ -115,6 +115,7 @@ function readDeployMeta(dep: Deployment | null | undefined): {
 function readActiveDeploymentSummary(dep: Deployment | null | undefined): {
   activeVersion: number | null;
   activeDeploymentStatus: string | null;
+  activeDeploymentCreatedAt: string | null;
   awaitingDecision: boolean;
   routingUnsynced: boolean;
 } {
@@ -126,6 +127,9 @@ function readActiveDeploymentSummary(dep: Deployment | null | undefined): {
   return {
     activeVersion: dep?.version ?? null,
     activeDeploymentStatus: dep?.status ?? null,
+    // The active deployment is the currently running release. Its creation
+    // time is the stable, cross-runtime anchor the dashboard uses for uptime.
+    activeDeploymentCreatedAt: dep?.createdAt?.toISOString() ?? null,
     awaitingDecision: meta?.composeDeployment?.decision === "pending",
     // Live, but the free .vibrail.warpgateapi.com edge route didn't sync — surfaced as
     // "Action Required" with a Retry routing action (see routing/retry).

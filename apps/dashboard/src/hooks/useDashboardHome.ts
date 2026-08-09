@@ -16,11 +16,12 @@ interface DashboardNumbers {
 export type { OtherOrgHint };
 
 export function useDashboardHome(initialData?: any) {
-  const { projects, numbers, otherOrgs, isLoading } = useProjectsHome(initialData);
+  const { projects, numbers, otherOrgs, isLoading, refresh } = useProjectsHome(initialData);
   return {
     projects,
     numbers: numbers as DashboardNumbers,
     otherOrgs,
     loading: isLoading,
+    refresh,
   };
 }

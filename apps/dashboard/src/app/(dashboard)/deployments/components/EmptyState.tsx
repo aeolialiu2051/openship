@@ -89,7 +89,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ hasFilters }) => {
           {t.deployments.empty.none.deployButton}
         </Link>
         <Link
-          href="/library"
+          href="/library?tab=template"
           className="inline-flex items-center gap-2 px-6 py-3 bg-muted/50 text-foreground text-sm font-medium rounded-xl hover:bg-muted transition-colors"
         >
           <GitBranch className="size-4" />
@@ -99,4 +99,3 @@ export const EmptyState: React.FC<EmptyStateProps> = ({ hasFilters }) => {
     </div>
   );
 };
-

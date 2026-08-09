@@ -31,7 +31,19 @@
     "createLabel": "Neues Projekt",
     "settingsText": "Richte Umgebungsvariablen und eigene Domains in den Projekteinstellungen ein.",
     "settingsLabel": "Projekteinstellungen",
-    "connected": "Verbunden"
+    "connected": "Verbunden",
+    "tips": {
+      "envVars": { "text": "Füge jedem Projekt verschlüsselte Umgebungsvariablen und Geheimnisse hinzu.", "label": "Projekte öffnen" },
+      "customDomain": { "text": "Verbinde eine eigene Domain mit einem Projekt – HTTPS wird automatisch eingerichtet.", "label": "Projekte öffnen" },
+      "autoDeploy": { "text": "Verbinde GitHub für automatische Deployments bei jedem Push – ganz ohne zusätzliche CI.", "label": "Git-Einstellungen öffnen" },
+      "rollback": { "text": "Kehre mit einem Klick zu jedem früheren Deployment zurück.", "label": "Deployments anzeigen" },
+      "apps": { "text": "Installiere selbst gehostete Apps wie Gitea, n8n und Metabase mit einem Klick.", "label": "Apps durchsuchen" },
+      "servers": { "text": "Verbinde deine eigenen Server per SSH und deploye von hier aus darauf.", "label": "Server verwalten" },
+      "jobs": { "text": "Plane Befehle als Cronjobs – inklusive Wiederholungen, Live-Logs und Verlauf.", "label": "Jobs öffnen" },
+      "backups": { "text": "Richte automatische Backups für Datenbanken und Volumes ein.", "label": "Backups einrichten" },
+      "mail": { "text": "Betreibe deinen eigenen Mailserver samt Webmail vollständig selbst gehostet.", "label": "Mail einrichten" },
+      "team": { "text": "Lade Teammitglieder ein und lege ihren Zugriff pro Projekt fest.", "label": "Team verwalten" }
+    }
   },
   "welcome": {
     "title": "Starte dein erstes Projekt",

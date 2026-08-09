@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { cookies, headers } from "next/headers";
 import "./globals.css";
 import { ThemeProvider, ThemeScript } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/toast";
@@ -7,38 +6,10 @@ import { I18nProvider } from "@/components/i18n-provider";
 import { NetworkErrorHandler } from "@/components/network-error-handler";
 import { ModalProvider } from "@/context/ModalContext";
 import { DesktopChrome } from "@/components/desktop-chrome";
-import {
-  defaultLocale,
-  getUiDirection,
-  LOCALE_COOKIE,
-  locales,
-  type Locale,
-} from "@/i18n";
+import { getUiDirection, LOCALE_COOKIE } from "@/i18n";
 import { loadDictionary } from "@/i18n/dictionaries";
 import { getSupportEmail } from "@/lib/support-email";
-
-/** Resolve the request locale server-side: explicit cookie first, then the
- *  browser's Accept-Language, else the default. Keeps SSR and first paint in
- *  the right language (no English→Arabic flash on load). */
-async function resolveRequestLocale(): Promise<Locale> {
-  const hdrs = await headers();
-
-  // The proxy (src/proxy.ts) mirrors the locale cookie onto this header — the
-  // reliable path, since `cookies()` / the raw Cookie header can come back
-  // empty in the SSR render. Fall back to cookies() (works in dev), then
-  // Accept-Language, then the default.
-  const cookieStore = await cookies();
-  const fromCookie =
-    hdrs.get("x-vibrail-locale") ?? cookieStore.get(LOCALE_COOKIE)?.value;
-  if (fromCookie && (locales as readonly string[]).includes(fromCookie)) {
-    return fromCookie as Locale;
-  }
-
-  const accept = hdrs.get("accept-language") ?? "";
-  const pref = accept.split(",")[0]?.split("-")[0]?.trim().toLowerCase();
-  if (pref && (locales as readonly string[]).includes(pref)) return pref as Locale;
-  return defaultLocale;
-}
+import { getRequestLocale } from "@/lib/server/locale";
 
 /**
  * Render every route on-demand, never at build time. The dashboard resolves its
@@ -83,7 +54,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // blank document while the same health request was made again below.
   const supportEmail = getSupportEmail();
 
-  const locale = await resolveRequestLocale();
+  const locale = await getRequestLocale();
   const dir = getUiDirection(locale);
   // Always seed the provider from SSR. The client no longer bundles English as
   // a global fallback and therefore does not download a dictionary twice.

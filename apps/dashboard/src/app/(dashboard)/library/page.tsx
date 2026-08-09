@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { FolderUp, Github, Link2, Sparkles, Boxes } from "lucide-react";
 import { useGitHub } from "@/context/GitHubContext";
 import { usePlatform } from "@/context/PlatformContext";
@@ -32,6 +33,7 @@ interface TabItem {
 }
 
 export default function LibraryPage() {
+  const searchParams = useSearchParams();
   const { t } = useI18n();
   const { showToast } = useToast();
   const {
@@ -60,7 +62,15 @@ export default function LibraryPage() {
   // Default to the GitHub tab everywhere. When GitHub isn't connected it shows
   // the connect prompt (a fine call-to-action); the Folder/URL/Template tabs
   // are one click away for local/self-hosted deploys.
-  const [activeTab, setActiveTab] = useState<Tab>("repositories");
+  const requestedTab = searchParams.get("tab");
+  const [activeTab, setActiveTab] = useState<Tab>(
+    requestedTab === "folder" ||
+      requestedTab === "repositories" ||
+      requestedTab === "url" ||
+      requestedTab === "template"
+      ? requestedTab
+      : "repositories",
+  );
   const [showMigrate, setShowMigrate] = useState(false);
 
   // First-run consent before the gh-CLI source lists repos. The gh path runs

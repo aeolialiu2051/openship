@@ -46,6 +46,8 @@ export interface Project {
   activeVersion?: number | null;
   /** Status of the live release (e.g. `partial_failure`). */
   activeDeploymentStatus?: string | null;
+  /** Creation time of the currently active deployment, used for runtime age. */
+  activeDeploymentCreatedAt?: string | null;
   /** True when the live release is a partial-failure deploy awaiting keep/reject. */
   awaitingDecision?: boolean | null;
   serviceCount?: number;

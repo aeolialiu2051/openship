@@ -195,6 +195,7 @@ export interface SetupPromptEvent {
 
 export interface ServerStats {
   cpu: number;
+  cpuCores: number;
   memTotal: number;
   memUsed: number;
   memAvail: number;

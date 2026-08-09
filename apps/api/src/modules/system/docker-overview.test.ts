@@ -84,4 +84,27 @@ describe("parseDockerOverview", () => {
       }),
     );
   });
+
+  it("retains URL-safe nanoid project labels", () => {
+    const raw = [
+      "__VIBRAIL_DOCKER_PS__",
+      JSON.stringify({
+        ID: "abcdef1234567890",
+        Image: "nginx:latest",
+        Names: "vibrail-web",
+        Labels: "vibrail.project=proj_j_FHHc7x1DNo5q7I,vibrail.service=web",
+        State: "running",
+        Status: "Up 2 minutes",
+      }),
+      "__VIBRAIL_DOCKER_STATS__",
+    ].join("\n");
+
+    expect(parseDockerOverview(raw)[0]).toEqual(
+      expect.objectContaining({
+        projectId: "proj_j_FHHc7x1DNo5q7I",
+        serviceName: "web",
+        running: true,
+      }),
+    );
+  });
 });

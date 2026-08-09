@@ -11,6 +11,7 @@ import HomeTipCard from "./HomeTipCard";
 interface UpdatesBlockProps {
   projectCount: number;
   loading: boolean;
+  refreshKey?: number;
 }
 
 /**
@@ -20,7 +21,7 @@ interface UpdatesBlockProps {
  * it (force-pull + redeploy, pre-deploy backup). When nothing is behind it
  * gracefully falls back to the product tip so the slot never goes empty.
  */
-export default function UpdatesBlock({ projectCount, loading }: UpdatesBlockProps) {
+export default function UpdatesBlock({ projectCount, loading, refreshKey = 0 }: UpdatesBlockProps) {
   const { t } = useI18n();
   const { toast } = useToast();
   const c = t.overview.updates;
@@ -39,7 +40,7 @@ export default function UpdatesBlock({ projectCount, loading }: UpdatesBlockProp
 
   useEffect(() => {
     void load();
-  }, [load]);
+  }, [load, refreshKey]);
 
   // Applying an update is asynchronous: the API returns when the deployment
   // starts, while the cached update row is settled by the deployment lifecycle.
@@ -47,7 +48,7 @@ export default function UpdatesBlock({ projectCount, loading }: UpdatesBlockProp
   // success (or becomes retryable after failure/cancellation).
   useEffect(() => {
     if (!items?.some((item) => item.latestInProgress)) return;
-    const timer = window.setInterval(() => void load(), 3_000);
+    const timer = window.setInterval(() => void load(), 15_000);
     return () => window.clearInterval(timer);
   }, [items, load]);
 

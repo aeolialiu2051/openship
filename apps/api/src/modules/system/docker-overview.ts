@@ -95,7 +95,11 @@ function normalizeName(value?: string): string {
   return (value ?? "").replace(/^\//, "").trim();
 }
 
-const VIBRAIL_PROJECT_ID_RE = /^proj_[A-Za-z0-9]+$/;
+// Project ids are generated with nanoid's URL-safe alphabet. Besides letters
+// and digits, valid production ids can therefore contain `_` and `-` (for
+// example `proj_j_FHHc7x1DNo5q7I`). Reject path/control punctuation, but do
+// not discard those canonical ids or their containers cannot be attributed.
+const VIBRAIL_PROJECT_ID_RE = /^proj_[A-Za-z0-9_-]+$/;
 
 /**
  * `docker ps --format '{{json .}}'` emits labels as a comma-delimited string.

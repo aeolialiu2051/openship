@@ -13,18 +13,16 @@ function metric(value: string | number | null, suffix = "") {
 
 function ContainerGauge({ value }: { value: number | null }) {
   const pct = Math.min(Math.max(value ?? 0, 0), 100);
-  const tone =
-    pct >= 90 ? "var(--danger-solid)" : pct >= 70 ? "var(--warning-solid)" : "var(--success-solid)";
 
   return (
     <div
-      className="relative flex size-11 shrink-0 items-center justify-center rounded-full"
+      className="relative flex size-9 shrink-0 items-center justify-center rounded-full"
       style={{
-        background: `conic-gradient(${tone} ${pct}%, var(--muted) ${pct}% 100%)`,
+        background: `conic-gradient(rgb(139 92 246) 0%, rgb(34 211 238) ${pct}%, var(--muted) ${pct}% 100%)`,
       }}
     >
-      <div className="absolute inset-[4px] rounded-full bg-card" />
-      <span className="relative text-[10px] font-medium leading-none tabular-nums text-muted-foreground">
+      <div className="absolute inset-[3px] rounded-full bg-card" />
+      <span className="relative text-[9px] font-medium leading-none tabular-nums text-muted-foreground">
         {value == null ? "-" : `${Math.round(value)}%`}
       </span>
     </div>
@@ -121,35 +119,34 @@ function ContainerCard({ container }: { container: DockerContainerOverview }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-4 border-t border-border/40 pt-4 sm:grid-cols-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <ContainerGauge value={container.cpuPercent} />
-          <div>
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/40 pt-4 sm:max-w-4xl sm:grid-cols-[3rem_minmax(12rem,18rem)_minmax(7rem,10rem)_minmax(7rem,10rem)] sm:justify-between sm:gap-x-8">
+        <div className="flex min-w-0 items-start gap-3">
+          <div className="flex shrink-0 flex-col items-center">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/70">
               CPU
             </p>
-            <p className="mt-1 text-xs tabular-nums text-foreground">
-              {metric(container.cpuPercent, "%")}
-            </p>
+            <div className="mt-1.5">
+              <ContainerGauge value={container.cpuPercent} />
+            </div>
           </div>
         </div>
 
         <div className="min-w-0">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/70">
               MEM
             </p>
             <span className="text-[10px] tabular-nums text-muted-foreground">
               {metric(container.memoryPercent, "%")}
             </span>
           </div>
-          <p className="mt-1 truncate text-xs tabular-nums text-foreground">
+          <p className="mt-0.5 truncate text-[11px] tabular-nums text-foreground/80">
             {metric(container.memoryUsage)}
             {container.memoryLimit ? ` / ${container.memoryLimit}` : ""}
           </p>
-          <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted">
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-foreground/[0.06]">
             <div
-              className="h-full rounded-full bg-foreground/55 transition-[width] duration-500"
+              className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-[width] duration-500"
               style={{ width: `${Math.min(container.memoryPercent ?? 0, 100)}%` }}
             />
           </div>
