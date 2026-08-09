@@ -104,6 +104,9 @@ export const project = pgTable(
      * can be started again without rebuilding it.
      */
     active: boolean("active").notNull().default(true),
+    /** Start of the current running session. Unlike deployment creation time,
+     * this is reset when an existing release is started again. */
+    runtimeStartedAt: timestamp("runtime_started_at"),
 
     /* ── Source ───────────────────────────────────────────────────────────── */
     /** Absolute path on disk for locally-imported projects */

@@ -164,7 +164,12 @@ async function changeRuntimeState(
     await runtime.dispose?.();
   }
 
-  await repos.project.update(projectId, { active });
+  await repos.project.update(projectId, {
+    active,
+    // Starting an existing release begins a new runtime session. Keep the
+    // previous value while stopped so history is not replaced by stop time.
+    ...(active ? { runtimeStartedAt: new Date() } : {}),
+  });
   return {
     success: true,
     active,

@@ -43,6 +43,7 @@ describe("parseDockerOverview", () => {
         deploymentId: "dep_123",
         serviceName: "api",
         composeProject: "vibrail",
+        uptimeSeconds: 16 * 60 * 60,
         cpuPercent: 2.75,
         memoryUsage: "242MiB",
         memoryLimit: "1GiB",
@@ -56,9 +57,26 @@ describe("parseDockerOverview", () => {
       expect.objectContaining({
         name: "vibrail-redis-1",
         running: false,
+        uptimeSeconds: null,
         cpuPercent: null,
       }),
     ]);
+  });
+
+  it("parses the current container uptime from Docker status", () => {
+    const raw = [
+      "__VIBRAIL_DOCKER_PS__",
+      JSON.stringify({
+        ID: "abcdef1234567890",
+        Image: "nginx:latest",
+        Names: "vibrail-web",
+        State: "running",
+        Status: "Up 4 minutes (healthy)",
+      }),
+      "__VIBRAIL_DOCKER_STATS__",
+    ].join("\n");
+
+    expect(parseDockerOverview(raw)[0]?.uptimeSeconds).toBe(240);
   });
 
   it("drops malformed Vibrail project labels while retaining compose identity", () => {

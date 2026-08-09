@@ -81,17 +81,34 @@ function formatDateTimeParts(date: string | number | undefined | null, locale: s
   return { datePart, timePart };
 }
 
-function formatRuntime(startedAt: string | null | undefined, running: boolean) {
-  if (!running || !startedAt) return "—";
-  const started = new Date(startedAt).getTime();
-  if (!Number.isFinite(started)) return "—";
-  const totalMinutes = Math.max(0, Math.floor((Date.now() - started) / 60_000));
+function formatRuntime(
+  startedAt: string | null | undefined,
+  running: boolean,
+  locale: string,
+  uptimeSeconds?: number | null,
+) {
+  if (!running) return "—";
+  let totalMinutes: number;
+  if (uptimeSeconds != null) {
+    totalMinutes = Math.max(0, Math.floor(uptimeSeconds / 60));
+  } else {
+    if (!startedAt) return "—";
+    const started = new Date(startedAt).getTime();
+    if (!Number.isFinite(started)) return "—";
+    totalMinutes = Math.max(0, Math.floor((Date.now() - started) / 60_000));
+  }
   const days = Math.floor(totalMinutes / 1_440);
   const hours = Math.floor((totalMinutes % 1_440) / 60);
   const minutes = totalMinutes % 60;
-  if (days > 0) return `${days}d ${hours}h`;
-  if (hours > 0) return `${hours}h ${minutes}m`;
-  return `${minutes}m`;
+  const formatUnit = (value: number, unit: "day" | "hour" | "minute") =>
+    new Intl.NumberFormat(locale, {
+      style: "unit",
+      unit,
+      unitDisplay: "narrow",
+    }).format(value);
+  if (days > 0) return `${formatUnit(days, "day")} ${formatUnit(hours, "hour")}`;
+  if (hours > 0) return `${formatUnit(hours, "hour")} ${formatUnit(minutes, "minute")}`;
+  return formatUnit(minutes, "minute");
 }
 
 function locationLabel(project: Project, labels: Copy) {
@@ -817,7 +834,15 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                               />
                             </div>
                             <span className="truncate text-xs text-muted-foreground">
-                              {formatRuntime(project.activeDeploymentCreatedAt, status === "live")}
+                              {formatRuntime(
+                                project.runtimeStartedAt ??
+                                  (project.productionMode === "static"
+                                    ? project.updatedAt
+                                    : project.activeDeploymentCreatedAt),
+                                status === "live",
+                                locale,
+                                usageByProject[project.id]?.uptimeSeconds,
+                              )}
                             </span>
                             <div className="flex min-w-0 items-center pe-1">
                               <span className={`rounded-full px-2 py-1 text-[10px] font-medium ${PROJECT_STATUS_META[status].badge}`}>{projectStatusLabel(status, t)}</span>

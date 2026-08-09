@@ -11,6 +11,7 @@ export interface ProjectUsage {
   memoryUsedMiB: number | null;
   memoryLimitMiB: number | null;
   memoryPercent: number | null;
+  uptimeSeconds: number | null;
 }
 
 const POLL_INTERVAL_MS = 15_000;
@@ -141,6 +142,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
           let usedMiB = 0;
           let limitMiB = 0;
           let hasMem = false;
+          let uptimeSeconds: number | null = null;
           for (const container of running) {
             if (container.cpuPercent != null) {
               cpu += container.cpuPercent;
@@ -153,6 +155,13 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
               hasMem = true;
             }
             if (limit != null) limitMiB += limit;
+            if (container.uptimeSeconds != null) {
+              // A multi-container project is fully up only as long as its
+              // newest running container, matching the detail view's runtime.
+              uptimeSeconds = uptimeSeconds == null
+                ? container.uptimeSeconds
+                : Math.min(uptimeSeconds, container.uptimeSeconds);
+            }
           }
 
           next[projectGroup.id] = {
@@ -160,6 +169,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
             memoryUsedMiB: hasMem ? usedMiB : null,
             memoryLimitMiB: limitMiB > 0 ? limitMiB : null,
             memoryPercent: hasMem && limitMiB > 0 ? (usedMiB / limitMiB) * 100 : null,
+            uptimeSeconds,
           };
         }
       }

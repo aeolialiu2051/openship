@@ -471,7 +471,7 @@ export function createProjectRepo(db: Database) {
           activeDeploymentId: deploymentId,
           // A release only becomes active after its runtime has started.
           // Clearing the pointer is not itself a runtime-state transition.
-          ...(deploymentId ? { active: true } : {}),
+          ...(deploymentId ? { active: true, runtimeStartedAt: new Date() } : {}),
           updatedAt: new Date(),
         })
         .where(eq(project.id, projectId));

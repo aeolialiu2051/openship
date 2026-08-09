@@ -26,6 +26,8 @@ export interface DockerContainerOverview {
   status: string;
   health: DockerHealth;
   running: boolean;
+  /** Seconds since the container's current start, derived from Docker status. */
+  uptimeSeconds: number | null;
   cpuPercent: number | null;
   memoryUsage: string | null;
   memoryLimit: string | null;
@@ -123,6 +125,24 @@ function healthFromStatus(status: string): DockerHealth {
   return null;
 }
 
+function uptimeSecondsFromStatus(status: string, running: boolean): number | null {
+  if (!running) return null;
+  if (/^up\s+less than a second/i.test(status)) return 0;
+  const match = status.match(/^up\s+(?:about\s+)?(\d+)\s+(second|minute|hour|day|week|month|year)s?/i);
+  if (!match) return null;
+  const value = Number.parseInt(match[1]!, 10);
+  const unitSeconds: Record<string, number> = {
+    second: 1,
+    minute: 60,
+    hour: 3_600,
+    day: 86_400,
+    week: 604_800,
+    month: 2_592_000,
+    year: 31_536_000,
+  };
+  return value * unitSeconds[match[2]!.toLowerCase()]!;
+}
+
 /** Parse the two JSON-lines sections emitted by `DOCKER_OVERVIEW_COMMAND`. */
 export function parseDockerOverview(raw: string): DockerContainerOverview[] {
   const psStart = raw.indexOf(PS_MARKER);
@@ -177,6 +197,7 @@ export function parseDockerOverview(raw: string): DockerContainerOverview[] {
         status,
         health: healthFromStatus(status),
         running: state === "running",
+        uptimeSeconds: uptimeSecondsFromStatus(status, state === "running"),
         cpuPercent: parsePercent(stats?.CPUPerc),
         memoryUsage,
         memoryLimit,

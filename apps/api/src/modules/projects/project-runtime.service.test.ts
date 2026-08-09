@@ -98,7 +98,10 @@ describe("project runtime state", () => {
       "container_db",
       "container_api",
     ]);
-    expect(mocks.projectUpdate).toHaveBeenCalledWith("proj_1", { active: true });
+    expect(mocks.projectUpdate).toHaveBeenCalledWith("proj_1", {
+      active: true,
+      runtimeStartedAt: expect.any(Date),
+    });
   });
 
   it("does not persist a partial transition and compensates completed containers", async () => {

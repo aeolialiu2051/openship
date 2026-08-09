@@ -48,6 +48,8 @@ export interface Project {
   activeDeploymentStatus?: string | null;
   /** Creation time of the currently active deployment, used for runtime age. */
   activeDeploymentCreatedAt?: string | null;
+  /** Start of the current runtime session; reset after stop/start. */
+  runtimeStartedAt?: string | null;
   /** True when the live release is a partial-failure deploy awaiting keep/reject. */
   awaitingDecision?: boolean | null;
   serviceCount?: number;

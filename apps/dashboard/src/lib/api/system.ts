@@ -222,6 +222,8 @@ export interface DockerContainerOverview {
   status: string;
   health: "healthy" | "unhealthy" | "starting" | null;
   running: boolean;
+  /** Missing when connected to an older API during a rolling upgrade. */
+  uptimeSeconds?: number | null;
   cpuPercent: number | null;
   memoryUsage: string | null;
   memoryLimit: string | null;
