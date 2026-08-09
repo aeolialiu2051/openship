@@ -22,7 +22,7 @@ import {
   Mail,
   Clock,
   DatabaseBackup,
-  Building2,
+  Boxes,
   ChevronsUpDown,
   Check,
   Menu,
@@ -93,7 +93,7 @@ interface NavSection {
 const MAIN_ITEMS: NavItem[] = [
   { key: "home", href: "/", icon: LayoutDashboard },
   { key: "projects", href: "/projects", icon: FolderKanban },
-  { key: "apps", href: "/apps", icon: Building2 },
+  { key: "apps", href: "/apps", icon: Boxes },
   { key: "deployments", href: "/deployments", icon: Rocket },
 ];
 
@@ -639,7 +639,7 @@ export function Sidebar({
               >
                 {/* Org avatar / initial */}
                 <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-foreground/[0.08] text-sm font-semibold uppercase text-foreground">
-                  {activeOrg?.name?.[0] ?? <Building2 className="size-4" />}
+                  {activeOrg?.name?.[0] ?? <Boxes className="size-4" />}
                 </div>
 
                 {!collapsed && (
@@ -691,7 +691,7 @@ export function Sidebar({
                           }`}
                         >
                           <div className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-foreground/[0.08] text-[12px] font-semibold uppercase text-foreground">
-                            {o.name?.[0] ?? <Building2 className="size-3.5" />}
+                            {o.name?.[0] ?? <Boxes className="size-3.5" />}
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] font-medium leading-tight text-foreground">
