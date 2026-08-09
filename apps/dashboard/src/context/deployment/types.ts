@@ -101,6 +101,57 @@ export type RawComposeService = {
   }> | null;
 };
 
+// Conservative defaults for fresh Compose detection. Infrastructure protocols
+// may publish a port for host access, but that does not make them HTTP services
+// that should be presented as publicly routed in the UI.
+const INTERNAL_SERVICE_NAME_RE =
+  /(^|[-_.])(db|database|postgres|postgresql|pgvector|mysql|mariadb|mongo|mongodb|redis|valkey|memcached|cache|rabbitmq|kafka|zookeeper|nats|pulsar|redpanda|clickhouse|cassandra|couchdb|influxdb|elasticsearch|opensearch|qdrant|weaviate|milvus|chroma|vector)([-_.]|$)/i;
+const INTERNAL_IMAGE_RE =
+  /(^|\/)(postgres|postgresql|postgis\/postgis|ankane\/pgvector|pgvector\/pgvector|mysql|mariadb|mongo|mongodb|redis|valkey|memcached|rabbitmq|kafka|zookeeper|nats|pulsar|redpanda|clickhouse|cassandra|couchdb|influxdb|elasticsearch|opensearchproject\/opensearch|qdrant\/qdrant|semitechnologies\/weaviate|milvusdb\/milvus|chromadb\/chroma)(:|@|\/|$)/i;
+const INTERNAL_PORTS = new Set([
+  2181, 3306, 4222, 5432, 5672, 5984, 6379, 6380, 8086, 9042, 9092, 9200,
+  9300, 11211, 15672, 27017,
+]);
+const WEB_SERVICE_NAME_RE =
+  /(^|[-_.])(web|www|frontend|front|api|app|server|dashboard|ui|admin|gateway|proxy)([-_.]|$)/i;
+const WEB_IMAGE_RE =
+  /(^|\/)(nginx|caddy|httpd|apache|traefik|haproxy)(:|@|\/|$)/i;
+const COMMON_HTTP_PORTS = new Set([
+  80, 443, 3000, 3001, 4000, 4173, 4200, 5000, 5173, 8000, 8001, 8080, 8081,
+  8888,
+]);
+
+function composeContainerPorts(ports: string[] | null | undefined): number[] {
+  return (ports ?? [])
+    .map((raw) => Number(raw.split("/")[0]?.split(":").pop()))
+    .filter((port) => Number.isInteger(port) && port > 0);
+}
+
+/** Infer only the initial UI default; an explicit user/config choice always wins. */
+export function inferDefaultServiceExposure(raw: RawComposeService): boolean {
+  if (raw.exposed != null) return raw.exposed;
+  if (raw.customDomain || raw.domain || (raw.publicEndpoints?.length ?? 0) > 0) return true;
+
+  const ports = composeContainerPorts(raw.ports);
+  if (ports.length === 0) return false;
+
+  const name = raw.name.trim();
+  const image = raw.image?.trim() ?? "";
+  if (
+    INTERNAL_SERVICE_NAME_RE.test(name) ||
+    INTERNAL_IMAGE_RE.test(image) ||
+    ports.some((port) => INTERNAL_PORTS.has(port))
+  ) {
+    return false;
+  }
+
+  return (
+    WEB_SERVICE_NAME_RE.test(name) ||
+    WEB_IMAGE_RE.test(image) ||
+    ports.some((port) => COMMON_HTTP_PORTS.has(port))
+  );
+}
+
 /**
  * Normalize a raw compose service (DB row / snapshot / prepare) into the
  * ComposeServiceInfo shape the wizard renders — one place so the config-edit
@@ -121,10 +172,7 @@ export function normalizeComposeService(raw: RawComposeService): ComposeServiceI
     command: raw.command ?? undefined,
     restart: raw.restart ?? undefined,
     advanced: raw.advanced ?? undefined,
-    // Fresh compose detection does not persist an `exposed` preference yet.
-    // Treat a detected port as an exposable web service by default, while
-    // preserving both explicit opt-outs and portless internal services.
-    exposed: raw.exposed ?? (raw.ports?.length ?? 0) > 0,
+    exposed: inferDefaultServiceExposure(raw),
     exposedPort: raw.exposedPort ?? undefined,
     domain: raw.domain ?? undefined,
     customDomain: raw.customDomain ?? undefined,
