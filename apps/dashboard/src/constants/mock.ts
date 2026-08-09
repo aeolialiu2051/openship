@@ -72,6 +72,8 @@ export interface Project {
   serverName?: string | null;
   /** Primary project hostname returned by /projects/home. */
   primaryDomain?: string | null;
+  /** Whether at least one enabled service is exposed through public routing. */
+  isPubliclyAccessible?: boolean;
   /** Legacy rows may be bare; new user workloads are always Docker. */
   runtimeMode?: "bare" | "docker" | null;
   /**

@@ -264,6 +264,10 @@ export async function getHome(c: Context) {
       latestDeploymentId: latest?.id ?? null,
       latestDeploymentStatus: latest?.status ?? null,
       primaryDomain: primary?.hostname ?? null,
+      isPubliclyAccessible:
+        services.length > 0
+          ? services.some((service) => service.enabled && service.exposed)
+          : Boolean(primary?.hostname),
       serviceCount: services.length,
       hasMultipleServices: services.length > 1,
     };

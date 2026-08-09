@@ -260,6 +260,9 @@ function getCopy(locale: string) {
         stopped: "未运行",
         name: "名称",
         type: "类型",
+        visibility: "访问权限",
+        public: "公开",
+        private: "私有",
         stack: "技术栈",
         location: "运行位置",
         resources: "资源用量 (CPU / MEM)",
@@ -312,6 +315,9 @@ function getCopy(locale: string) {
         stopped: "Not running",
         name: "Name",
         type: "Type",
+        visibility: "Visibility",
+        public: "Public",
+        private: "Private",
         stack: "Stack",
         location: "Location",
         resources: "Usage (CPU / MEM)",
@@ -783,8 +789,8 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
               ) : (
                 <div className="max-w-full overflow-x-auto overscroll-x-contain">
                   <div className="min-w-[1180px]">
-                    <div className="grid grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_156px] items-center border-b border-border/50 px-5 py-3 text-[11px] font-medium text-muted-foreground">
-                      <span>{labels.name}</span><span>{labels.type}</span><span>{labels.stack}</span><span>{labels.location}</span><span>{labels.resources}</span><span>{labels.updated}</span><span>{labels.status}</span><span className="ps-4">{labels.actions}</span>
+                    <div className="grid grid-cols-[minmax(180px,1.2fr)_74px_86px_112px_140px_190px_100px_96px_140px] items-center border-b border-border/50 px-5 py-3 text-[11px] font-medium text-muted-foreground">
+                      <span>{labels.name}</span><span>{labels.type}</span><span>{labels.visibility}</span><span>{labels.stack}</span><span>{labels.location}</span><span>{labels.resources}</span><span>{labels.updated}</span><span>{labels.status}</span><span>{labels.actions}</span>
                     </div>
                     <div className="divide-y divide-border/40">
                       {filteredProjects.slice(0, 12).map((project) => {
@@ -809,7 +815,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                                 router.push(`/projects/${project.id}`);
                               }
                             }}
-                            className="group grid min-h-[72px] cursor-pointer grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_156px] items-center px-5 py-2.5 transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
+                            className="group grid min-h-[72px] cursor-pointer grid-cols-[minmax(180px,1.2fr)_74px_86px_112px_140px_190px_100px_96px_140px] items-center px-5 py-2.5 transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                           >
                             <div className="flex min-w-0 items-center gap-3 pe-4">
                               <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/50 bg-background/60">
@@ -822,6 +828,9 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                             </div>
                             <span className={`w-fit rounded-md px-2 py-1 text-[10px] font-medium ${project.isApp ? "bg-violet-500/10 text-violet-400" : "bg-cyan-500/10 text-cyan-400"}`}>
                               {project.isApp ? labels.apps : labels.projects}
+                            </span>
+                            <span className={`w-fit rounded-md px-2 py-1 text-[10px] font-medium ${project.isPubliclyAccessible ? "bg-emerald-500/10 text-emerald-400" : "bg-foreground/[0.06] text-muted-foreground"}`}>
+                              {project.isPubliclyAccessible ? labels.public : labels.private}
                             </span>
                             <span className="truncate pe-3 text-xs text-foreground/75">{getFrameworkConfig(project.framework).name || "—"}</span>
                             <span className="flex min-w-0 items-center gap-1.5 pe-3 text-xs text-muted-foreground"><LocationIcon project={project} /><span className="truncate">{locationLabel(project, labels)}</span></span>
@@ -845,7 +854,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                               )}
                             </span>
                             <div className="flex min-w-0 items-center pe-1">
-                              <span className={`rounded-full px-2 py-1 text-[10px] font-medium ${PROJECT_STATUS_META[status].badge}`}>{projectStatusLabel(status, t)}</span>
+                              <span className={`whitespace-nowrap rounded-full px-2 py-1 text-[10px] font-medium ${PROJECT_STATUS_META[status].badge}`}>{projectStatusLabel(status, t)}</span>
                             </div>
                             <div
                               className="flex min-w-0 items-center justify-end gap-1"
