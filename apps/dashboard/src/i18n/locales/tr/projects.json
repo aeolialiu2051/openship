@@ -286,6 +286,8 @@
     "unknown": "Bilinmiyor"
   },
   "routingRetry": {
+    "deploymentDescription": "Uygulama çalışıyor ancak genel alan adı yönlendirmesi hâlâ ilgilenmenizi gerektiriyor. İncelemek ve onarmak için Alan adları ve yönlendirme bölümünü açın.",
+    "manage": "Alan adları ve yönlendirmeyi aç",
     "title": "Ücretsiz alan adı yönlendirmesinin müdahaleye ihtiyacı var",
     "description": "Uygulama sunucuda yayında ancak ücretsiz .vibrail.com URL'si Vibrail Cloud'un edge servisi üzerinden yönlendirilmedi. Sunucuya buluttan 80 numaralı port üzerinden erişilebildiğinde tekrar deneyin.",
     "retry": "Yönlendirmeyi tekrar dene",

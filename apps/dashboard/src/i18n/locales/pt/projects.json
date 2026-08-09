@@ -271,6 +271,8 @@
     "unknown": "Desconhecido"
   },
   "routingRetry": {
+    "deploymentDescription": "A aplicação está em execução, mas a rota do domínio público ainda requer atenção. Abra Domínios e roteamento para a rever e reparar.",
+    "manage": "Abrir domínios e roteamento",
     "title": "O encaminhamento do domínio gratuito precisa de atenção",
     "description": "A aplicação está ativa no servidor, mas o seu URL gratuito .vibrail.com não foi encaminhado através da edge do Vibrail Cloud. Tente novamente assim que o servidor estiver acessível a partir da cloud na porta 80.",
     "retry": "Repetir encaminhamento",

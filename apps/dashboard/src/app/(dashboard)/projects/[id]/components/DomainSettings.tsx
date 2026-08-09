@@ -44,6 +44,7 @@ import { appendProjectRouteKey, resolveServiceHostnameLabel } from "@repo/core";
 import PublicEndpointsCard from "@/components/routing/PublicEndpointsCard";
 import { RoutingSettingsCard } from "@/components/routing/RoutingSettingsCard";
 import DomainSelector from "@/components/shared/DomainSelector";
+import WarningCallout from "@/components/shared/WarningCallout";
 import { openTriggeredBuild } from "@/lib/deploy-nav";
 import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import {
@@ -247,6 +248,7 @@ export const DomainSettings = () => {
     refreshServices,
     pendingDomainAction,
     setPendingDomainAction,
+    updateProjectData,
   } = useProjectSettings();
   const { showToast } = useToast();
   const { t } = useI18n();
@@ -267,6 +269,35 @@ export const DomainSettings = () => {
   // saved once cloud is available. Single source: the `managed-project-domain`
   // capability (copy from the shared registry).
   const freeNeedsCloud = () => requireCloud("managed-project-domain", { domain: baseDomain });
+  const [isRetryingRoute, setIsRetryingRoute] = useState(false);
+
+  /** Re-run DNS + live proxy routing without rebuilding containers. The API
+   * clears the project warning only after the public route is confirmed. */
+  const handleRetryRouting = async () => {
+    if (!projectData?.id || isRetryingRoute) return;
+    setIsRetryingRoute(true);
+    try {
+      const result = await projectsApi.retryRouting(projectData.id);
+      if (result?.ok) {
+        updateProjectData({ routingUnsynced: false });
+        showToast(t.projects.routingRetry.success, "success", t.projects.routingRetry.title);
+      } else {
+        showToast(
+          result?.warning || result?.error || t.projects.routingRetry.failed,
+          "error",
+          t.projects.routingRetry.title,
+        );
+      }
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error) || t.projects.routingRetry.failed,
+        "error",
+        t.projects.routingRetry.title,
+      );
+    } finally {
+      setIsRetryingRoute(false);
+    }
+  };
 
   const [newDomain, setNewDomain] = useState("");
   // Unified "add domain" = add a route: pick free/custom + the port it maps to.
@@ -1529,6 +1560,23 @@ export const DomainSettings = () => {
 
   return (
     <div className="space-y-5">
+      {projectData.routingUnsynced && !projectData.awaitingDecision ? (
+        <WarningCallout
+          title={t.projects.routingRetry.title}
+          description={t.projects.routingRetry.description}
+          actions={
+            <button
+              type="button"
+              onClick={handleRetryRouting}
+              disabled={isRetryingRoute}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-warning-solid px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-warning-solid/90 disabled:opacity-60"
+            >
+              {isRetryingRoute ? <RefreshCw className="size-3 animate-spin" /> : null}
+              {isRetryingRoute ? t.projects.routingRetry.retrying : t.projects.routingRetry.retry}
+            </button>
+          }
+        />
+      ) : null}
       {foreignCustomDomainProject ? (
         <div className="flex flex-col gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/[0.06] p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">

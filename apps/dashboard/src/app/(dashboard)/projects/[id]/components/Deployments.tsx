@@ -3,7 +3,7 @@
 import React from "react";
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { DeploymentsContent } from "@/app/(dashboard)/deployments/components";
-import { deployApi, projectsApi, isAbortError, getApiErrorMessage } from "@/lib/api";
+import { deployApi, projectsApi, isAbortError } from "@/lib/api";
 import { openTriggeredBuild } from "@/lib/deploy-nav";
 import { type Service } from "@/lib/api/services";
 import { useModal } from "@/context/ModalContext";
@@ -22,7 +22,6 @@ export const Deployments = () => {
     servicesData,
     refreshServices,
     hasMultipleServices,
-    updateProjectData,
   } = useProjectSettings();
   const { t } = useI18n();
   const { showToast } = useToast();
@@ -30,38 +29,9 @@ export const Deployments = () => {
   const router = useRouter();
 
   const [isRedeploying, setIsRedeploying] = React.useState(false);
-  const [isRetryingRoute, setIsRetryingRoute] = React.useState(false);
   // The Vibrail control-plane self-app has no deployable source and updates
   // itself via the CLI — redeploy/self-update controls would only 403, so hide them.
   const isSelfApp = projectData?.appTemplateId === "vibrail";
-
-  /** Re-run DNS + live proxy routing without rebuilding containers. The API
-   *  clears the warning only after the route is confirmed. */
-  const handleRetryRouting = async () => {
-    if (!projectData?.id || isRetryingRoute) return;
-    setIsRetryingRoute(true);
-    try {
-      const res = await projectsApi.retryRouting(projectData.id);
-      if (res?.ok) {
-        updateProjectData({ routingUnsynced: false });
-        showToast(t.projects.routingRetry.success, "success", t.projects.routingRetry.title);
-      } else {
-        showToast(
-          res?.warning || res?.error || t.projects.routingRetry.failed,
-          "error",
-          t.projects.routingRetry.title,
-        );
-      }
-    } catch (err) {
-      showToast(
-        getApiErrorMessage(err) || t.projects.routingRetry.failed,
-        "error",
-        t.projects.routingRetry.title,
-      );
-    } finally {
-      setIsRetryingRoute(false);
-    }
-  };
 
   // "Project outdated" banner. Two shapes discriminated by `mode`: a commit
   // project is behind its branch HEAD; a release/dist project has a newer
@@ -245,21 +215,19 @@ export const Deployments = () => {
 
   return (
     <div className="space-y-6">
-      {/* Routing-not-synced nudge — the release is live, but DNS propagation or
-          the live proxy route is incomplete. Retry repairs the full route chain. */}
+      {/* Routing belongs to Domains. Keep the deploy result visible here, but
+          send the user to the same place the sidebar attention dot identifies. */}
       {projectData.routingUnsynced && !projectData.awaitingDecision && (
         <WarningCallout
           title={t.projects.routingRetry.title}
-          description={t.projects.routingRetry.description}
+          description={t.projects.routingRetry.deploymentDescription}
           actions={
             <button
               type="button"
-              onClick={handleRetryRouting}
-              disabled={isRetryingRoute}
+              onClick={() => router.push(`/projects/${projectData.id}/domains`)}
               className="inline-flex items-center gap-1.5 rounded-lg bg-warning-solid px-3 py-1.5 text-[12px] font-medium text-white transition-colors hover:bg-warning-solid/90 disabled:opacity-60"
             >
-              {isRetryingRoute && <RefreshCw className="size-3 animate-spin" />}
-              {isRetryingRoute ? t.projects.routingRetry.retrying : t.projects.routingRetry.retry}
+              {t.projects.routingRetry.manage}
             </button>
           }
         />

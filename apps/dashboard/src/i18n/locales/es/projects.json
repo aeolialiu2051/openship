@@ -271,6 +271,8 @@
     "unknown": "Desconocido"
   },
   "routingRetry": {
+    "deploymentDescription": "La aplicación está en ejecución, pero la ruta del dominio público aún requiere atención. Abre Dominios y enrutamiento para revisarla y repararla.",
+    "manage": "Abrir dominios y enrutamiento",
     "title": "El enrutamiento del dominio gratuito necesita atención",
     "description": "La aplicación está en vivo en el servidor, pero su URL gratuita .vibrail.com no se enrutó a través del edge de Vibrail Cloud. Reintenta cuando el servidor sea accesible desde la nube en el puerto 80.",
     "retry": "Reintentar enrutamiento",

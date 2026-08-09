@@ -330,6 +330,8 @@
   "routingRetry": {
     "title": "Domain routing is incomplete",
     "description": "The app is running, but DNS propagation or the Traefik route is incomplete. Repair rechecks DNS, resolves the live service, and rebuilds the proxy route without rebuilding containers.",
+    "deploymentDescription": "The app is running, but its public domain route still needs attention. Open Domains & routing to review and repair it.",
+    "manage": "Open domains & routing",
     "retry": "Repair domain routing",
     "retrying": "Retrying…",
     "success": "DNS and proxy routing recovered.",

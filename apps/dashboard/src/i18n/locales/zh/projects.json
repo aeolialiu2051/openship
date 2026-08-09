@@ -276,6 +276,8 @@
   "routingRetry": {
     "title": "域名路由尚未完成",
     "description": "应用已经运行，但 DNS 传播或 Traefik 转发尚未完成。点击修复会重新检查 DNS、读取正在运行的服务地址并重建代理路由，不会重新构建容器。",
+    "deploymentDescription": "应用已经运行，但公网域名路由仍需处理。请前往“域名与路由”查看并修复。",
+    "manage": "前往域名与路由",
     "retry": "修复域名路由",
     "retrying": "重试中……",
     "success": "DNS 和代理路由已恢复。",
