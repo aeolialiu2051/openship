@@ -1,37 +1,27 @@
 "use client";
 
 import { useI18n } from "@/components/i18n-provider";
-import type { BillingState } from "@/lib/api/billing";
 
-export function BillingHeader({ state }: { state: BillingState }) {
-  const { t, locale } = useI18n();
-  const isPro = state.tier === "pro";
+/**
+ * Billing page header — title + subtitle shown once the layout confirms that
+ * billing is available.
+ *
+ * The state-dependent PRO access-period line is passed in as `children` from
+ * the server layout (see `BillingProPeriod`); it streams in separately inside a
+ * Suspense boundary and never blocks this static header.
+ */
+export function BillingHeader({ children }: { children?: React.ReactNode }) {
+  const { t } = useI18n();
   return (
-    <header className="pt-2">
-      <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+    <header>
+      <h1
+        className="text-2xl font-medium text-foreground/80"
+        style={{ letterSpacing: "-0.2px" }}
+      >
         {t.billing.layout.title}
       </h1>
-      <p className="mt-2 text-base text-muted-foreground">{t.billing.layout.subtitle}</p>
-      {isPro && (state.currentPeriod.start || state.currentPeriod.end) && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">{locale === "zh" ? "PRO 权限周期" : "PRO access period"}</span>
-          {" · "}
-          {formatDate(state.currentPeriod.start, locale)}
-          <span className="mx-1.5">→</span>
-          {formatDate(state.currentPeriod.end, locale)}
-        </p>
-      )}
+      <p className="mt-1 text-sm text-muted-foreground/70">{t.billing.layout.subtitle}</p>
+      {children}
     </header>
   );
-}
-
-function formatDate(value: string | null, locale: string): string {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  }).format(date);
 }
