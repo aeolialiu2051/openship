@@ -12,6 +12,7 @@
   },
   "status": {
     "suspended": "Taken offline",
+    "disabled": "Disabled",
     "live": "Live",
     "attention": "Action Required",
     "queued": "Queued",

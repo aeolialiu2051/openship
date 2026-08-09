@@ -307,7 +307,9 @@ export const projectsApi = {
 
   /** Enable or disable a project */
   toggle: (id: string | number, enable: boolean) =>
-    api.post<any>(endpoints.projects.toggle(id, enable ? "enable" : "disable")),
+    api.post<{ success: true; active: boolean; message: string }>(
+      endpoints.projects.toggle(id, enable ? "enable" : "disable"),
+    ),
 
   /** Retry DNS + live proxy routing without rebuilding. The backend bounds DNS
    *  propagation to 60 seconds, then may recreate an existing-image container

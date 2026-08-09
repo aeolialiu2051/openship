@@ -11,6 +11,7 @@
   },
   "status": {
     "suspended": "Offline genommen",
+    "disabled": "Deaktiviert",
     "live": "Live",
     "attention": "Aktion erforderlich",
     "queued": "In Warteschlange",

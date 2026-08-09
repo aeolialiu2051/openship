@@ -88,52 +88,96 @@ export async function streamRuntimeLogs(
 
 // ─── Enable / Disable ────────────────────────────────────────────────────────
 
-export async function enableProject(projectId: string, organizationId: string) {
-  const p = await repos.project.findById(projectId);
-  assertResourceInOrg(p, "Project", organizationId, projectId);
+/** Every runtime object that belongs to the active release. Compose releases
+ * keep one row per service while deployment.containerId is only a legacy /
+ * primary-container pointer. De-duplicate because the primary appears in both. */
+export function runtimeContainerIds(
+  deploymentContainerId: string | null,
+  serviceDeployments: Array<{ containerId: string | null }>,
+): string[] {
+  const ids = serviceDeployments
+    .map((row) => row.containerId)
+    .filter((id): id is string => Boolean(id));
+  if (deploymentContainerId) ids.push(deploymentContainerId);
+  return [...new Set(ids)];
+}
 
-  if (!p.activeDeploymentId) {
-    throw new ValidationError("No deployment to enable - deploy first");
+async function activeRuntime(projectId: string, organizationId: string) {
+  const project = await repos.project.findById(projectId);
+  assertResourceInOrg(project, "Project", organizationId, projectId);
+
+  if (!project.activeDeploymentId) {
+    throw new ValidationError("No deployment is available - deploy first");
   }
 
-  const dep = await repos.deployment.findById(p.activeDeploymentId);
-  if (!dep?.containerId) {
-    throw new ValidationError("No container found for active deployment");
+  const deployment = await repos.deployment.findById(project.activeDeploymentId);
+  if (!deployment) {
+    throw new ValidationError("Active deployment no longer exists");
+  }
+  const serviceDeployments = await repos.service.listByDeployment(deployment.id);
+  const containerIds = runtimeContainerIds(deployment.containerId, serviceDeployments);
+  if (containerIds.length === 0) {
+    throw new ValidationError("No runtime containers found for active deployment");
   }
 
-  const { runtime } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
-    organizationId: dep.organizationId,
+  const { runtime } = await resolveDeploymentRuntimeOnly(deployment.meta ?? {}, {
+    organizationId: deployment.organizationId,
   });
+  return { project, runtime, containerIds };
+}
+
+async function changeRuntimeState(
+  projectId: string,
+  organizationId: string,
+  active: boolean,
+) {
+  const { runtime, containerIds } = await activeRuntime(projectId, organizationId);
+  const completed: string[] = [];
   try {
-    await runtime.start(dep.containerId);
+    for (const containerId of containerIds) {
+      if (active) await runtime.start(containerId);
+      else await runtime.stop(containerId);
+      completed.push(containerId);
+    }
+  } catch (error) {
+    // Best-effort compensation keeps a multi-service project from being left
+    // half enabled/disabled when one container operation fails.
+    for (const containerId of completed.reverse()) {
+      try {
+        if (active) await runtime.stop(containerId);
+        else await runtime.start(containerId);
+      } catch {
+        // Preserve the original error; the persisted state is left unchanged.
+      }
+    }
+    if (
+      active &&
+      error instanceof Error &&
+      /cannot be started after stopping|trigger a new deployment/i.test(error.message)
+    ) {
+      throw new ValidationError(
+        "This process runtime cannot resume a stopped project. Redeploy the project to start it again.",
+      );
+    }
+    throw error;
   } finally {
     await runtime.dispose?.();
   }
-  return { success: true, message: "Project enabled" };
+
+  await repos.project.update(projectId, { active });
+  return {
+    success: true,
+    active,
+    message: active ? "Project enabled" : "Project disabled",
+  };
+}
+
+export async function enableProject(projectId: string, organizationId: string) {
+  return changeRuntimeState(projectId, organizationId, true);
 }
 
 export async function disableProject(projectId: string, organizationId: string) {
-  const p = await repos.project.findById(projectId);
-  assertResourceInOrg(p, "Project", organizationId, projectId);
-
-  if (!p.activeDeploymentId) {
-    return { success: true, message: "No active deployment" };
-  }
-
-  const dep = await repos.deployment.findById(p.activeDeploymentId);
-  if (!dep?.containerId) {
-    return { success: true, message: "No container to stop" };
-  }
-
-  const { runtime } = await resolveDeploymentRuntimeOnly(dep.meta ?? {}, {
-    organizationId: dep.organizationId,
-  });
-  try {
-    await runtime.stop(dep.containerId);
-  } finally {
-    await runtime.dispose?.();
-  }
-  return { success: true, message: "Project disabled" };
+  return changeRuntimeState(projectId, organizationId, false);
 }
 
 /** Retry the complete live routing chain WITHOUT rebuilding images: managed

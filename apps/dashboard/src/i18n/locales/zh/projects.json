@@ -12,6 +12,7 @@
   },
   "status": {
     "suspended": "已下架",
+    "disabled": "已禁用",
     "live": "运行中",
     "attention": "需要处理",
     "queued": "排队中",

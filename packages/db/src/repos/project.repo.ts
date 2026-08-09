@@ -467,7 +467,13 @@ export function createProjectRepo(db: Database) {
     async setActiveDeployment(projectId: string, deploymentId: string | null) {
       await db
         .update(project)
-        .set({ activeDeploymentId: deploymentId, updatedAt: new Date() })
+        .set({
+          activeDeploymentId: deploymentId,
+          // A release only becomes active after its runtime has started.
+          // Clearing the pointer is not itself a runtime-state transition.
+          ...(deploymentId ? { active: true } : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(project.id, projectId));
     },
 

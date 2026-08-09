@@ -12,6 +12,7 @@
   },
   "status": {
     "suspended": "Yayından kaldırıldı",
+    "disabled": "Devre dışı",
     "live": "Yayında",
     "attention": "İşlem Gerekiyor",
     "queued": "Sıraya Alındı",

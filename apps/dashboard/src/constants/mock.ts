@@ -68,6 +68,8 @@ export interface Project {
   deployTarget?: string | null;
   serverId?: string | null;
   serverName?: string | null;
+  /** Primary project hostname returned by /projects/home. */
+  primaryDomain?: string | null;
   /** Legacy rows may be bare; new user workloads are always Docker. */
   runtimeMode?: "bare" | "docker" | null;
   /**

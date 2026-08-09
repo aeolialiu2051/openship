@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowRightLeft,
@@ -25,6 +25,7 @@ import { DeletionModal } from "./DeletionModal";
 import { useToast } from "@/context/ToastContext";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { projectsApi } from "@/lib/api";
+import { getApiErrorMessage } from "@/lib/api/client";
 import type { RouteStrategy } from "@/lib/api/settings";
 
 interface Props {
@@ -102,7 +103,7 @@ function SectionCard({
 export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   const { showToast } = useToast();
   const { t } = useI18n();
-  const { projectData } = useProjectSettings();
+  const { projectData, updateProjectData } = useProjectSettings();
   const [isProjectActive, setIsProjectActive] = useState(projectData?.active ?? true);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
@@ -112,16 +113,30 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
     clearBuildCache: false,
   });
 
+  // Project data is loaded asynchronously and can also change after a deploy.
+  // Keep this control aligned with the persisted server value.
+  useEffect(() => {
+    setIsProjectActive(projectData?.active ?? true);
+  }, [projectData?.active, projectData?.id]);
+
   const handleDisableProject = async () => {
     if (loading.disableProject) return;
     setLoading((s) => ({ ...s, disableProject: true }));
-    const response = await projectsApi.toggle(projectData.id, !isProjectActive);
-    if (response.success) {
-      setIsProjectActive(!isProjectActive);
-    } else {
-      showToast(response.message, "error", t.projectSettings.advanced.toast.toggleFailed);
+    const nextActive = !isProjectActive;
+    try {
+      const response = await projectsApi.toggle(projectData.id, nextActive);
+      const active = response.active ?? nextActive;
+      setIsProjectActive(active);
+      updateProjectData({ active });
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, t.projectSettings.advanced.toast.toggleFailed),
+        "error",
+        t.projectSettings.advanced.toast.toggleFailed,
+      );
+    } finally {
+      setLoading((s) => ({ ...s, disableProject: false }));
     }
-    setLoading((s) => ({ ...s, disableProject: false }));
   };
 
   const handleClearInstallCache = async () => {
@@ -511,4 +526,3 @@ function TransferOptions({
     </div>
   );
 }
-

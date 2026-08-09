@@ -98,6 +98,13 @@ export const project = pgTable(
     /** Catalog template id this app was installed from (e.g. "convex", "mail-webmail"). */
     appTemplateId: text("app_template_id"),
 
+    /**
+     * Operator-controlled runtime state. This is deliberately separate from
+     * activeDeploymentId: a stopped project still has an active release that
+     * can be started again without rebuilding it.
+     */
+    active: boolean("active").notNull().default(true),
+
     /* ── Source ───────────────────────────────────────────────────────────── */
     /** Absolute path on disk for locally-imported projects */
     localPath: text("local_path"),

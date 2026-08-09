@@ -2,6 +2,7 @@ import type { Dictionary } from "@/i18n";
 
 export type ProjectStatus =
   | "suspended"
+  | "disabled"
   | "live"
   | "attention"
   | "queued"
@@ -13,6 +14,7 @@ export type ProjectStatus =
   | "draft";
 
 type ProjectStatusSource = {
+  active?: boolean | null;
   activeDeploymentId?: string | null;
   latestDeploymentStatus?: string | null;
   /** True when the live release is a partial-failure deploy still awaiting the
@@ -44,6 +46,10 @@ export const PROJECT_STATUS_META: Record<
   suspended: {
     badge: "bg-danger-bg text-danger",
     dot: "bg-danger-solid",
+  },
+  disabled: {
+    badge: "bg-muted text-muted-foreground",
+    dot: "bg-muted-foreground",
   },
   live: {
     badge: "bg-success-bg text-success",
@@ -96,6 +102,10 @@ export function getProjectStatus(project: ProjectStatusSource): ProjectStatus {
 
   if (project.moderationStatus === "suspended") {
     return "suspended";
+  }
+
+  if (project.active === false && project.activeDeploymentId) {
+    return "disabled";
   }
 
   // The Vibrail control-plane self-app IS the running host process; it has no

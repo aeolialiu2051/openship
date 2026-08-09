@@ -11,6 +11,7 @@
   },
   "status": {
     "suspended": "Retirado do ar",
+    "disabled": "Desativado",
     "live": "Ativo",
     "attention": "Ação Necessária",
     "queued": "Em fila",

@@ -11,6 +11,7 @@
   },
   "status": {
     "suspended": "تم إيقافه",
+    "disabled": "معطّل",
     "live": "مباشر",
     "attention": "إجراء مطلوب",
     "queued": "في الطابور",

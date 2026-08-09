@@ -12,6 +12,7 @@
   },
   "status": {
     "suspended": "Mis hors ligne",
+    "disabled": "Désactivé",
     "live": "En ligne",
     "attention": "Action requise",
     "queued": "En file d'attente",

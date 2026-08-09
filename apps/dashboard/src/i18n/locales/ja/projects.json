@@ -11,6 +11,7 @@
   },
   "status": {
     "suspended": "公開停止",
+    "disabled": "無効",
     "live": "稼働中",
     "attention": "要対応",
     "queued": "待機中",

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Activity,
   AppWindow,
@@ -18,12 +19,18 @@ import {
   Gauge,
   HardDrive,
   MemoryStick,
+  Loader2,
   Plus,
+  Power,
+  PowerOff,
   RefreshCw,
   Rocket,
+  ScrollText,
   Search,
   Server,
   Settings,
+  Terminal,
+  X,
 } from "lucide-react";
 
 import { AppLogo } from "@/components/AppLogo";
@@ -39,7 +46,7 @@ import { getProjectsHomeFetchedAt } from "@/hooks/useProjectsHome";
 import { formatMiB, useResourceUsage, type ProjectUsage } from "@/hooks/useResourceUsage";
 import { useServerResourceStats } from "@/hooks/useServerResourceStats";
 import { useServersList } from "@/hooks/useServersList";
-import { systemApi } from "@/lib/api";
+import { projectsApi, systemApi } from "@/lib/api";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
 import { FEATURED_APPS } from "./apps/featured-apps";
 
@@ -93,6 +100,12 @@ function locationLabel(project: Project, labels: Copy) {
   if (project.deployTarget === "server") return labels.server;
   if (project.deployTarget === "local") return labels.local;
   return "—";
+}
+
+function projectDomainUrl(domain: string | null | undefined) {
+  const value = domain?.trim();
+  if (!value) return null;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 function LocationIcon({ project }: { project: Project }) {
@@ -235,6 +248,7 @@ function getCopy(locale: string) {
         resources: "资源用量 (CPU / MEM)",
         updated: "运行时长",
         status: "状态",
+        actions: "操作",
         noResults: "没有找到匹配的资源",
         server: "自托管服务器",
         local: "本地",
@@ -243,6 +257,19 @@ function getCopy(locale: string) {
         usageCloud: "云端暂无",
         usageStatic: "静态站点",
         usageUnmatched: "无容器",
+        terminal: "打开服务器终端",
+        logs: "打开项目日志",
+        openProject: "打开项目域名",
+        stop: "停止服务",
+        start: "启动服务",
+        stopTitle: "停止服务？",
+        stopDescription: "停止后，{name} 将暂时无法访问。之后可随时从此处重新启动。",
+        cancel: "取消",
+        confirmStop: "确认停止",
+        stopping: "正在停止…",
+        stopSuccess: "服务已停止",
+        startSuccess: "服务已启动",
+        actionFailed: "操作失败，请稍后重试",
       }
     : {
         search: "Search projects, apps, or commands…",
@@ -273,6 +300,7 @@ function getCopy(locale: string) {
         resources: "Usage (CPU / MEM)",
         updated: "Runtime",
         status: "Status",
+        actions: "Actions",
         noResults: "No matching resources",
         server: "Self-hosted server",
         local: "Local",
@@ -281,6 +309,19 @@ function getCopy(locale: string) {
         usageCloud: "Cloud unavailable",
         usageStatic: "Static site",
         usageUnmatched: "No container",
+        terminal: "Open server terminal",
+        logs: "Open project logs",
+        openProject: "Open project domain",
+        stop: "Stop service",
+        start: "Start service",
+        stopTitle: "Stop service?",
+        stopDescription: "Stopping {name} will make it temporarily unavailable. You can start it again here at any time.",
+        cancel: "Cancel",
+        confirmStop: "Stop service",
+        stopping: "Stopping…",
+        stopSuccess: "Service stopped",
+        startSuccess: "Service started",
+        actionFailed: "Action failed, please try again",
       };
 }
 
@@ -369,6 +410,7 @@ function Sparkline({ values, color }: { values: number[]; color: string }) {
 }
 
 export default function DashboardHomeClient({ initialData }: DashboardHomeClientProps) {
+  const router = useRouter();
   const { user } = useAuth();
   const { showToast } = useToast();
   const { t, locale } = useI18n();
@@ -392,10 +434,12 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   const [refreshDone, setRefreshDone] = useState(false);
   const [projectsFetchedAt, setProjectsFetchedAt] = useState<number | null>(null);
   const [serverReachability, setServerReachability] = useState<Record<string, boolean>>({});
-  const [checkingServers, setCheckingServers] = useState(false);
+  const [serverReachabilityLoaded, setServerReachabilityLoaded] = useState(false);
   const [cpuHistory, setCpuHistory] = useState<number[]>([]);
   const [memoryHistory, setMemoryHistory] = useState<number[]>([]);
   const [dataRefreshKey, setDataRefreshKey] = useState(0);
+  const [stopTarget, setStopTarget] = useState<Project | null>(null);
+  const [actionProjectId, setActionProjectId] = useState<string | null>(null);
   const refreshDoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshSourcesRef = useRef({ refresh, refreshUsage, refreshServers });
   refreshSourcesRef.current = { refresh, refreshUsage, refreshServers };
@@ -439,12 +483,15 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
 
   useEffect(() => {
     let cancelled = false;
-    if (servers.length === 0) {
+    if (serversData === undefined) {
       setServerReachability({});
-      setCheckingServers(false);
       return;
     }
-    setCheckingServers(true);
+    if (servers.length === 0) {
+      setServerReachability({});
+      setServerReachabilityLoaded(true);
+      return;
+    }
     void Promise.all(
       servers.map(async (server) => {
         try {
@@ -457,12 +504,12 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
     ).then((entries) => {
       if (cancelled) return;
       setServerReachability(Object.fromEntries(entries));
-      setCheckingServers(false);
+      setServerReachabilityLoaded(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [servers]);
+  }, [servers, serversData]);
 
   const greeting =
     localHour == null
@@ -566,6 +613,22 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
     }
   };
 
+  const handleProjectToggle = async (project: Project, enable: boolean) => {
+    if (actionProjectId) return;
+    setActionProjectId(project.id);
+    try {
+      await projectsApi.toggle(project.id, enable);
+      setStopTarget(null);
+      showToast(enable ? labels.startSuccess : labels.stopSuccess, "success");
+      await Promise.all([refresh(), refreshUsage(true)]);
+      setDataRefreshKey((key) => key + 1);
+    } catch {
+      showToast(labels.actionFailed, "error");
+    } finally {
+      setActionProjectId(null);
+    }
+  };
+
   const filters: { key: ResourceFilter; label: string }[] = [
     { key: "all", label: labels.all },
     { key: "projects", label: labels.projects },
@@ -626,7 +689,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                 value={connectedServers}
                 detail={`${connectedServers} ${labels.connected} · ${disconnectedServers} ${labels.disconnected}`}
                 tone="green"
-                loading={serversLoading || checkingServers}
+                loading={serversLoading || !serverReachabilityLoaded}
               />
               <MetricCard
                 icon={Gauge}
@@ -702,9 +765,9 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                 </div>
               ) : (
                 <div className="max-w-full overflow-x-auto overscroll-x-contain">
-                  <div className="min-w-[1100px]">
-                    <div className="grid grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_56px] items-center border-b border-border/50 px-5 py-3 text-[11px] font-medium text-muted-foreground">
-                      <span>{labels.name}</span><span>{labels.type}</span><span>{labels.stack}</span><span>{labels.location}</span><span>{labels.resources}</span><span>{labels.updated}</span><span>{labels.status}</span>
+                  <div className="min-w-[1180px]">
+                    <div className="grid grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_156px] items-center border-b border-border/50 px-5 py-3 text-[11px] font-medium text-muted-foreground">
+                      <span>{labels.name}</span><span>{labels.type}</span><span>{labels.stack}</span><span>{labels.location}</span><span>{labels.resources}</span><span>{labels.updated}</span><span>{labels.status}</span><span className="ps-4">{labels.actions}</span>
                     </div>
                     <div className="divide-y divide-border/40">
                       {filteredProjects.slice(0, 12).map((project) => {
@@ -716,11 +779,20 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                             : project.productionMode === "static"
                               ? labels.usageStatic
                               : labels.usageUnmatched;
+                        const domainUrl = projectDomainUrl(project.primaryDomain);
                         return (
-                          <Link
+                          <div
                             key={project.id}
-                            href={`/projects/${project.id}`}
-                            className="group grid min-h-[72px] grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_56px] items-center px-5 py-2.5 transition hover:bg-muted/30"
+                            role="link"
+                            tabIndex={0}
+                            onClick={() => router.push(`/projects/${project.id}`)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                router.push(`/projects/${project.id}`);
+                              }
+                            }}
+                            className="group grid min-h-[72px] cursor-pointer grid-cols-[minmax(210px,1.5fr)_82px_120px_150px_200px_105px_90px_156px] items-center px-5 py-2.5 transition hover:bg-muted/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                           >
                             <div className="flex min-w-0 items-center gap-3 pe-4">
                               <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border border-border/50 bg-background/60">
@@ -750,10 +822,61 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                             <div className="flex min-w-0 items-center pe-1">
                               <span className={`rounded-full px-2 py-1 text-[10px] font-medium ${PROJECT_STATUS_META[status].badge}`}>{projectStatusLabel(status, t)}</span>
                             </div>
-                            <div className="flex min-w-0 items-center justify-center">
-                              <ArrowRight className="size-4 text-muted-foreground/40 transition group-hover:translate-x-0.5 group-hover:text-foreground" />
+                            <div
+                              className="flex min-w-0 items-center justify-end gap-1"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
+                              <Link
+                                href={project.serverId ? `/servers/${project.serverId}?tab=terminal` : "#"}
+                                aria-label={labels.terminal}
+                                title={labels.terminal}
+                                aria-disabled={!project.serverId}
+                                tabIndex={project.serverId ? 0 : -1}
+                                onClick={(event) => { if (!project.serverId) event.preventDefault(); }}
+                                className={`flex size-8 items-center justify-center rounded-lg transition-colors ${project.serverId ? "text-muted-foreground hover:bg-background hover:text-foreground" : "pointer-events-none text-muted-foreground/25"}`}
+                              >
+                                <Terminal className="size-4" />
+                              </Link>
+                              <Link
+                                href={`/projects/${project.id}/logs`}
+                                aria-label={labels.logs}
+                                title={labels.logs}
+                                className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-background hover:text-foreground"
+                              >
+                                <ScrollText className="size-4" />
+                              </Link>
+                              <a
+                                href={domainUrl ?? undefined}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={labels.openProject}
+                                title={labels.openProject}
+                                aria-disabled={!domainUrl}
+                                tabIndex={domainUrl ? 0 : -1}
+                                onClick={(event) => { if (!domainUrl) event.preventDefault(); }}
+                                className={`flex size-8 items-center justify-center rounded-lg transition-colors ${domainUrl ? "text-muted-foreground hover:bg-background hover:text-foreground" : "pointer-events-none text-muted-foreground/25"}`}
+                              >
+                                <ExternalLink className="size-4" />
+                              </a>
+                              <button
+                                type="button"
+                                aria-label={status === "live" ? labels.stop : labels.start}
+                                title={status === "live" ? labels.stop : labels.start}
+                                disabled={actionProjectId !== null || (status !== "live" && status !== "disabled")}
+                                onClick={() => status === "live" ? setStopTarget(project) : void handleProjectToggle(project, true)}
+                                className={`flex size-8 items-center justify-center rounded-lg transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${status === "live" ? "text-muted-foreground hover:bg-destructive/10 hover:text-destructive" : "text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-400"}`}
+                              >
+                                {actionProjectId === project.id ? (
+                                  <Loader2 className="size-4 animate-spin" />
+                                ) : status === "live" ? (
+                                  <PowerOff className="size-4" />
+                                ) : (
+                                  <Power className="size-4" />
+                                )}
+                              </button>
                             </div>
-                          </Link>
+                          </div>
                         );
                       })}
                     </div>
@@ -866,6 +989,24 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
           </aside>
         </div>
       </div>
+      {stopTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !actionProjectId) setStopTarget(null); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="stop-service-title" className="w-full max-w-md rounded-2xl border border-border bg-card p-5 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"><Power className="size-5" /></div>
+              <button type="button" aria-label={labels.cancel} disabled={!!actionProjectId} onClick={() => setStopTarget(null)} className="flex size-8 items-center justify-center rounded-lg text-muted-foreground transition hover:bg-muted hover:text-foreground disabled:opacity-50"><X className="size-4" /></button>
+            </div>
+            <h2 id="stop-service-title" className="mt-4 text-lg font-semibold text-foreground">{labels.stopTitle}</h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">{interpolate(labels.stopDescription, { name: stopTarget.name })}</p>
+            <div className="mt-6 flex justify-end gap-2">
+              <button type="button" disabled={!!actionProjectId} onClick={() => setStopTarget(null)} className="rounded-xl border border-border px-4 py-2 text-sm font-medium text-foreground transition hover:bg-muted disabled:opacity-50">{labels.cancel}</button>
+              <button type="button" disabled={!!actionProjectId} onClick={() => void handleProjectToggle(stopTarget, false)} className="inline-flex min-w-28 items-center justify-center gap-2 rounded-xl bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground transition hover:bg-destructive/90 disabled:opacity-60">
+                {actionProjectId ? <><Loader2 className="size-4 animate-spin" />{labels.stopping}</> : labels.confirmStop}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
