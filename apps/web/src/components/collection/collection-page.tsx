@@ -24,6 +24,7 @@ type Project = {
   favicon?: string | null;
   framework?: string | null;
   updatedAt?: string;
+  publisher?: { name: string; image?: string | null } | null;
 };
 const text = {
   en: {
@@ -47,6 +48,8 @@ const text = {
     close: "Close",
     like: "Like project",
     list: "Public Vibrail projects",
+    by: "by",
+    unknownPublisher: "Vibrail user",
   },
   zh: {
     search: "搜索 Collection",
@@ -68,6 +71,8 @@ const text = {
     close: "关闭",
     like: "喜欢这个项目",
     list: "公开的 Vibrail 项目",
+    by: "发布者",
+    unknownPublisher: "Vibrail 用户",
   },
 } as const;
 
@@ -182,6 +187,9 @@ export function CollectionPage({
                     <div>
                       <h2>{project.name}</h2>
                       <p>{new URL(project.url).hostname}</p>
+                      <p className="collection-publisher">
+                        {copy.by} {project.publisher?.name ?? copy.unknownPublisher}
+                      </p>
                     </div>
                   </div>
                   <div className="collection-card-meta">

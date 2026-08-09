@@ -175,6 +175,11 @@
   gap: 10px;
   align-items: center;
 }
+.collection-title-row .collection-publisher {
+  margin-top: 3px;
+  color: #85847d;
+  font-size: 12px;
+}
 .collection-favicon {
   width: 34px;
   height: 34px;
