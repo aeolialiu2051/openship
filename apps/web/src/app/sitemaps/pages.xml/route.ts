@@ -7,6 +7,7 @@ export function GET() {
   const now = new Date();
   const entries: SitemapEntry[] = [
     { loc: `${SITE_URL}/`,         lastmod: now, changefreq: "daily",   priority: 1.0  },
+    { loc: `${SITE_URL}/about`,    lastmod: now, changefreq: "monthly", priority: 0.6 },
   ];
   return xmlResponse(buildUrlset(entries));
 }

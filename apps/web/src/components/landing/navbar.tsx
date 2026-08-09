@@ -61,6 +61,7 @@ export function Navbar({
           <Link href="/#workflow">{copy.workflow}</Link>
           <Link href="/#operations">{copy.operations}</Link>
           <a href={DOCS_URL}>{copy.docs}</a>
+          <Link href="/about">{copy.about}</Link>
         </nav>
 
         <div className="vr-nav-actions">

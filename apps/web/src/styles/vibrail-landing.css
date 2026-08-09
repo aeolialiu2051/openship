@@ -280,6 +280,19 @@ body:has(.vr-site) {
 .vr-not-found-copy > div { width: min(500px,100%); margin: 28px auto 32px; color: #8d95a3; font-size: 16px; line-height: 1.7; }
 .vr-not-found-copy .vr-button { width: fit-content; margin: 0 auto; }
 
+.vr-about-site { min-height: 100vh; }
+.vr-about-main { min-height: 100vh; padding: 195px 16px 64px; display: flex; flex-direction: column; align-items: center; background: #1d1d1d; }
+.vr-about-logo { width: 96px; height: 96px; margin: 0 0 24px; object-fit: contain; }
+.vr-about-card { width: min(448px,100%); padding: 16px; border: 1px solid rgba(255,255,255,.075); border-radius: 16px; background: rgba(255,255,255,.025); }
+.vr-about-card h1 { margin: 0 0 12px; color: #f4f4f4; font-size: 16px; line-height: 24px; font-weight: 600; letter-spacing: 0; }
+.vr-about-card dl { margin: 0; display: grid; gap: 8px; }
+.vr-about-card dl > div { min-width: 0; display: flex; align-items: center; font-size: 14px; line-height: 20px; }
+.vr-about-card dt { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; color: #b9b9b9; }
+.vr-about-card dt svg { width: 16px; height: 16px; stroke-width: 1.7; }
+.vr-about-card dd { min-width: 0; margin: 0 0 0 8px; color: #f4f4f4; overflow-wrap: anywhere; }
+.vr-about-card a { color: #1684d7; text-decoration: none; }
+.vr-about-card a:hover { text-decoration: underline; }
+
 .vr-site[data-locale="zh"] { font-family: Inter, "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif; }
 .vr-site[data-locale="zh"] :is(.vr-hero h1,.vr-section-heading h2,.vr-infra-copy h3,.vr-final-cta h2) { letter-spacing: -.04em; }
 
@@ -389,6 +402,10 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
 .vr-theme-light .vr-not-found-grid { opacity: .5; background-image: linear-gradient(rgba(36,53,88,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(36,53,88,.06) 1px,transparent 1px); }
 .vr-theme-light .vr-not-found-copy > p { color: #4d6fc8; border-color: rgba(67,103,204,.2); background: rgba(83,115,205,.07); }
 .vr-theme-light .vr-not-found-copy > div { color: #687386; }
+.vr-theme-light .vr-about-main { background: #f5f7fb; }
+.vr-theme-light .vr-about-card { border-color: rgba(30,45,74,.13); background: #fff; box-shadow: 0 24px 60px rgba(54,70,104,.1); }
+.vr-theme-light .vr-about-card h1,.vr-theme-light .vr-about-card dd { color: #172033; }
+.vr-theme-light .vr-about-card dt { color: #697386; }
 
 @media (max-width: 900px) {
   .vr-nav { grid-template-columns: 1fr auto; }
@@ -467,6 +484,7 @@ body:has(.vr-site.vr-theme-light) { background: #f5f7fb; color: #172033; color-s
   .vr-legal-article section { grid-template-columns: 32px 1fr; gap: 12px; padding-bottom: 34px; margin-bottom: 34px; }
   .vr-not-found { min-height: 72vh; padding: 130px 16px 70px; }
   .vr-not-found-copy h1 { font-size: clamp(4rem,20vw,6rem); }
+  .vr-about-main { padding: 145px 16px 40px; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
