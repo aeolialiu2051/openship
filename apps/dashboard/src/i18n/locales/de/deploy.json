@@ -291,7 +291,7 @@
     "notAvailable": "Nicht verfügbar",
     "domainTitle": "Domain",
     "domainHintProxy": "Ihr Mail-Server besitzt diesen Hostnamen bereits – wir leiten ihn über Ihren Mail-VPS an den Vibrail Cloud-Workload weiter. Keine DNS-Änderungen nötig.",
-    "domainHintCloud": "Richten Sie einen CNAME auf die *.vibrail.warpgateapi.com-URL, die wir bereitstellen (Sie sehen sie nach dem Deploy).",
+    "domainHintCloud": "Richten Sie einen CNAME auf die *.vibrail.com-URL, die wir bereitstellen (Sie sehen sie nach dem Deploy).",
     "domainHintDefault": "Die URL, die Betreiber besuchen. DNS muss auf das Deploy-Ziel verweisen.",
     "summary": "Zusammenfassung",
     "summaryTarget": "Ziel",

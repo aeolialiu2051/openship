@@ -5,7 +5,7 @@
 #   docker compose up -d --build
 #
 # This is the CONTROL PLANE: it BUILDS api + dashboard + web from source and
-# runs postgres + redis. It's what we deploy for the vibrail.warpgateapi.com SaaS, and what
+# runs postgres + redis. It's what we deploy for the vibrail.com SaaS, and what
 # a from-source contributor runs locally. The MODE is decided entirely by .env —
 # no profiles, no per-mode service variants:
 #   • SaaS (our env):   CLOUD_MODE=true + VIBRAIL_TARGET=vibrail-saas + Oblien /
@@ -25,7 +25,7 @@
 #   • redis    → private :6379   (queue + cache + rate-limit)
 #   • api      → :4000   (override: API_PORT)
 #   • dashboard→ :3001   (override: DASHBOARD_PORT)
-#   • web      → :3000   (override: WEB_PORT)   landing site (vibrail.warpgateapi.com)
+#   • web      → :3000   (override: WEB_PORT)   landing site (vibrail.com)
 #
 # The API + dashboard bind fixed internal ports via PORT (the API honors PORT
 # regardless of VIBRAIL_TARGET); a reverse proxy maps the public domains to
@@ -145,7 +145,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "${WEB_PORT:-3000}"
-      VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:-https://vibrail.warpgateapi.com/dashboard}"
+      VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:-https://vibrail.com/dashboard}"
 
 volumes:
   postgres_data:

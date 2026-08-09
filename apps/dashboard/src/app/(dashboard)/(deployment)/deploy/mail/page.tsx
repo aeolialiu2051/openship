@@ -98,7 +98,7 @@ export default function DeployMailPage() {
   const mailHostnameFromStatus = status?.domain ? `mail.${status.domain}` : "";
   // When cloud is chosen AND the chosen domain is the mail server's own
   // `mail.<install>` subdomain, the deploy uses the proxy variant: the
-  // workload runs on Vibrail Cloud at *.vibrail.warpgateapi.com, the mail VPS proxies the
+  // workload runs on Vibrail Cloud at *.vibrail.com, the mail VPS proxies the
   // public hostname over. DNS stays put - operators don't have to touch
   // it. Otherwise both paths follow normal preflight/DNS expectations.
   const isCloudProxyVariant =

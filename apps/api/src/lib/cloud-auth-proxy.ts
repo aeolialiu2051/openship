@@ -6,7 +6,7 @@
  *   - Self-hosted settings: connect-callback stores cloud token for deploys
  *   - Cloud mode (SaaS): desktop-handoff generates one-time codes
  *
- * All external auth happens on vibrail.warpgateapi.com - this module only handles
+ * All external auth happens on vibrail.com - this module only handles
  * the local side (mirroring users, creating sessions, managing codes).
  */
 

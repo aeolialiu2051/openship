@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-または [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com) からデスクトップアプリをダウンロードしてください。
+または [vibrail.com](https://vibrail.com) からデスクトップアプリをダウンロードしてください。
 
 ---
 
@@ -93,7 +93,7 @@ docker compose up -d
 - **Web ダッシュボード** — ブラウザ上の同じ UI、チーム向け。
 - **CLI** — スクリプト可能で CI にやさしい。
 
-**REST API** と **MCP**（AI エージェントプロトコル）が、自動化とツール連携を締めくくります。コマンドと API の完全なリファレンスは [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/) にあります。
+**REST API** と **MCP**（AI エージェントプロトコル）が、自動化とツール連携を締めくくります。コマンドと API の完全なリファレンスは [docs.vibrail.com](https://docs.vibrail.com/) にあります。
 
 > [!NOTE]
 > ドキュメントはまだ作成中です — 現在積極的に拡充しています。不足や不明点があれば、[コントリビューション](../../CONTRIBUTING.md)を大歓迎します。完成が早まります。

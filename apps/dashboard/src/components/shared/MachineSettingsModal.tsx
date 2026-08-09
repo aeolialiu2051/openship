@@ -179,7 +179,7 @@ export default function MachineSettingsModal({
     }
   };
 
-  const docsUrl = 'https://docs.vibrail.warpgateapi.com/#/docs/projects';
+  const docsUrl = 'https://docs.vibrail.com/#/docs/projects';
 
   return (
     <Modal

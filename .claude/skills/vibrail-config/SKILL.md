@@ -24,7 +24,7 @@ or override, not the whole detected config.
    autocomplete:
    ```json
    {
-     "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json"
+     "$schema": "https://docs.vibrail.com/vibrail.schema.json"
    }
    ```
 4. **Validate** with `vibrail config validate` (or `vibrail config validate path/to/vibrail.json`).
@@ -47,7 +47,7 @@ or override, not the whole detected config.
 **Static site**
 ```json
 {
-  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
+  "$schema": "https://docs.vibrail.com/vibrail.schema.json",
   "framework": "vite",
   "buildCommand": "pnpm build",
   "outputDirectory": "dist",
@@ -58,7 +58,7 @@ or override, not the whole detected config.
 **Server app with a custom domain + secret**
 ```json
 {
-  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
+  "$schema": "https://docs.vibrail.com/vibrail.schema.json",
   "framework": "nextjs",
   "port": 3000,
   "runtime": "docker",
@@ -73,7 +73,7 @@ or override, not the whole detected config.
 **Compose services** — declaring `services` makes it a multi-service project (Docker runtime):
 ```json
 {
-  "$schema": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
+  "$schema": "https://docs.vibrail.com/vibrail.schema.json",
   "services": [
     { "name": "web", "build": ".", "ports": ["3000"], "exposed": true, "domain": "app.acme.com" },
     { "name": "db", "image": "postgres:17", "volumes": ["pgdata:/var/lib/postgresql/data"],

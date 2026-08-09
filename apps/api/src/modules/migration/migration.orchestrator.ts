@@ -1483,7 +1483,7 @@ class MigrationOrchestratorImpl {
     // REMOVE every hostname that was served before but is NOT published now — via
     // the same atomic path the interactive edits use (reconcileProjectRoutes →
     // The routing provider removes the registered route and validates its configuration.
-    // and reloads, plus deregisters dropped free *.vibrail.warpgateapi.com slugs). This makes a
+    // and reloads, plus deregisters dropped free *.vibrail.com slugs). This makes a
     // migrated route set to "None" actually take the domain DOWN on the edge
     // instead of leaving a legacy vhost pointed at the old port.
     const refreshed = await repos.project.findById(projectId).catch(() => null);

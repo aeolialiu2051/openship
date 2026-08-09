@@ -11,7 +11,7 @@
  *
  *   2. **Cloud auth** (/cloud-callback)
  *      User chose "Continue with Cloud" → authenticates on
- *      vibrail.warpgateapi.com, exchanges a one-time code for a local session.
+ *      vibrail.com, exchanges a one-time code for a local session.
  *      Desktop flow uses PKCE + nonce for end-to-end binding.
  *
  * The rest of the app treats both flows identically (one session

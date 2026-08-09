@@ -925,7 +925,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                 </Link>
               ))}
               <a
-                href="https://docs.vibrail.warpgateapi.com/"
+                href="https://docs.vibrail.com/"
                 target="_blank"
                 rel="noreferrer"
                 className="group rounded-xl border border-border/50 bg-card p-4 transition-all hover:border-border hover:bg-muted/40"

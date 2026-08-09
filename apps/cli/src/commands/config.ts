@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { parseVibrailConfigJson, type VibrailConfig } from "@repo/core";
 import { err, info, isJsonMode, ok, printJson } from "../lib/output";
 
-const SCHEMA_URL = "https://docs.vibrail.warpgateapi.com/vibrail.schema.json";
+const SCHEMA_URL = "https://docs.vibrail.com/vibrail.schema.json";
 const CONFIG_FILE = "vibrail.json";
 
 /** Cheap, dependency-free stack hints from the target dir. No network, no clone. */

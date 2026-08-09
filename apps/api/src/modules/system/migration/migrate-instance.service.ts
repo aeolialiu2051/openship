@@ -66,7 +66,7 @@ function publicUrlFor(domain: DomainChoice): string {
   if (domain.kind === "custom") {
     return `https://${domain.hostname}`;
   }
-  return `https://${domain.slug}.vibrail.warpgateapi.com`;
+  return `https://${domain.slug}.vibrail.com`;
 }
 
 export async function migrateInstanceToServer(

@@ -61,7 +61,7 @@ describe("retryProjectServiceRoutes", () => {
     exposed: true,
   } as any;
   const route = {
-    hostname: "api-abc.vibrail.warpgateapi.com",
+    hostname: "api-abc.vibrail.com",
     targetPort: 8317,
     domainType: "free",
   } as any;
@@ -168,7 +168,7 @@ describe("retryProjectServiceRoutes", () => {
   it("checks multiple domain propagation windows concurrently", async () => {
     const secondRoute = {
       ...route,
-      hostname: "api-secondary-abc.vibrail.warpgateapi.com",
+      hostname: "api-secondary-abc.vibrail.com",
       targetPort: 8318,
     };
     const resolvers: Array<(value: boolean) => void> = [];

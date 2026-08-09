@@ -272,7 +272,7 @@
   },
   "routingRetry": {
     "title": "Freie Domain-Weiterleitung erfordert Aufmerksamkeit",
-    "description": "Die App ist auf dem Server live, aber ihre kostenlose .vibrail.warpgateapi.com-URL wurde nicht über die Edge von Vibrail Cloud geleitet. Versuche es erneut, sobald der Server aus der Cloud über Port 80 erreichbar ist.",
+    "description": "Die App ist auf dem Server live, aber ihre kostenlose .vibrail.com-URL wurde nicht über die Edge von Vibrail Cloud geleitet. Versuche es erneut, sobald der Server aus der Cloud über Port 80 erreichbar ist.",
     "retry": "Weiterleitung erneut versuchen",
     "retrying": "Wird erneut versucht…",
     "success": "Freie Domain-Weiterleitung synchronisiert.",

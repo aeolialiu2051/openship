@@ -136,7 +136,7 @@ type DeployPrimaryEndpoint = NonNullable<DeployConfig["publicEndpoints"]>[number
  * constructed for a local/desktop instance — the implementation
  * forwards each call to the SaaS, which performs it with master creds.
  *
- * Today this is just `createPage` (Oblien Pages on shared `.vibrail.warpgateapi.com`).
+ * Today this is just `createPage` (Oblien Pages on shared `.vibrail.com`).
  * Add new fields here when more admin-scoped paths need proxying.
  */
 export interface CloudAdminProxy {
@@ -427,7 +427,7 @@ export class CloudRuntime implements MultiServiceRuntimeAdapter {
   private readonly client: Oblien;
   // Optional admin-scoped proxy. Set when this runtime is constructed
   // by a local/desktop instance whose `client` is a namespace token —
-  // admin-scoped operations (e.g. creating pages on shared `.vibrail.warpgateapi.com`)
+  // admin-scoped operations (e.g. creating pages on shared `.vibrail.com`)
   // get handed off to the SaaS through this callback. SaaS instances
   // construct CloudRuntime with master creds and leave it null;
   // `this.client` already has the needed scope there.
@@ -1755,7 +1755,7 @@ fi`;
     );
 
     // Create a brand-new page bound the way this deploy wants. Free subdomains
-    // live on the shared `.vibrail.warpgateapi.com` zone (an account-level op): a namespace
+    // live on the shared `.vibrail.com` zone (an account-level op): a namespace
     // runtime (self-host) hands off to the SaaS via adminProxy, the SaaS master
     // client creates directly. Custom-domain / no-domain pages are local creates.
     const createFresh = async (): Promise<{ slug: string; url?: string | null }> => {
@@ -2463,7 +2463,7 @@ fi`;
   // ── Domain / Slug checks ───────────────────────────────────────────────
 
   /**
-   * Check whether a subdomain slug is available on vibrail.warpgateapi.com.
+   * Check whether a subdomain slug is available on vibrail.com.
    * Uses Oblien's standalone `domain.checkSlug()` - no workspace needed.
    */
   async checkSlug(slug: string, domain: string = SYSTEM.DOMAINS.CLOUD_DOMAIN): Promise<{ available: boolean; url: string }> {

@@ -21,7 +21,7 @@ import { parseDotenv } from "@/lib/dotenv";
 
 type KV = { key: string; value: string };
 const NOTIFY_STATES: JobRunState[] = ["running", "success", "failed"];
-const DOCS_URL = "https://docs.vibrail.warpgateapi.com/";
+const DOCS_URL = "https://docs.vibrail.com/";
 const inputCls =
   "w-full rounded-xl border border-border/60 bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary/50";
 /** Subtle bordered action button (Paste/Upload .env), matching the form theme. */

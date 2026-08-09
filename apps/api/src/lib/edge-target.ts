@@ -3,14 +3,14 @@ import { env } from "../config/env";
 import { getInstanceReachability } from "./public-url";
 
 /**
- * The host Vibrail Cloud's shared edge (Oblien) dials for a free `<slug>.vibrail.warpgateapi.com`
+ * The host Vibrail Cloud's shared edge (Oblien) dials for a free `<slug>.vibrail.com`
  * route — it must be a PUBLIC address reachable from the internet on :80, never a
  * loopback/private one.
  *
  * This exists because the deploy server's `sshHost` is the WRONG source for an
  * `isLocal "This Server"` row: that field is display-only (self-server.ts sets it
  * to `SERVER_IP || HOST_DOMAIN || "127.0.0.1"`), so a box with no public URL set
- * would make Oblien proxy `<slug>.vibrail.warpgateapi.com` at `http://127.0.0.1` — its OWN
+ * would make Oblien proxy `<slug>.vibrail.com` at `http://127.0.0.1` — its OWN
  * loopback — which 404s. For a real REMOTE server, `sshHost` IS the reachable
  * address, so we keep using it there.
  *

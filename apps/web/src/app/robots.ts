@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = "https://vibrail.warpgateapi.com";
+const BASE_URL = "https://vibrail.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {

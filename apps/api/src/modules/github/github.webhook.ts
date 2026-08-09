@@ -69,7 +69,7 @@ async function collectDeliverySecrets(
 ): Promise<string[]> {
   const event = headers["x-github-event"];
   // installation / ping events aren't repo-scoped on the deploy side — they hit
-  // vibrail.warpgateapi.com's App webhook, verified with the env secret (no project).
+  // vibrail.com's App webhook, verified with the env secret (no project).
   if (event !== "push" && event !== "check_run") return [];
 
   let parsed: unknown;

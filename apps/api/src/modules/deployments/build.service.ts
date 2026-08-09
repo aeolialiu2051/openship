@@ -247,7 +247,7 @@ export interface DeploymentConfigSnapshot {
   };
   /**
    * A non-fatal post-deploy warning to surface on an otherwise-successful
-   * deploy — e.g. a self-hosted + free-.vibrail.warpgateapi.com deploy whose cloud edge route
+   * deploy — e.g. a self-hosted + free-.vibrail.com deploy whose cloud edge route
    * didn't sync (app is live locally but the free URL won't resolve yet).
    * Persisted so it survives a page refresh, not just the live SSE event.
    */
@@ -1037,7 +1037,7 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // NOT for services projects: a services deploy exposes PER SERVICE (each row
   // carries its own publicEndpoints), so there is no project-level domain to
   // default. An internal-only services stack (e.g. a migrated postgres/redis)
-  // must deploy with no public route — defaulting a free .vibrail.warpgateapi.com project domain
+  // must deploy with no public route — defaulting a free .vibrail.com project domain
   // here made self-hosted migration fail preflight (free domains need cloud edge).
   const composeFirst = isMultiServiceProject(project);
   const isServicesDeploy =

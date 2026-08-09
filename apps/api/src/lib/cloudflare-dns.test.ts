@@ -7,7 +7,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@repo/db", () => ({ repos: {} }));
 vi.mock("../config/env", () => ({
   env: {
-    VIBRAIL_MANAGED_DOMAIN: "vibrail.warpgateapi.com",
+    VIBRAIL_MANAGED_DOMAIN: "vibrail.com",
   },
 }));
 vi.mock("./encryption", () => ({ decrypt: vi.fn() }));
@@ -30,14 +30,14 @@ describe("waitForDeploymentDnsPropagation", () => {
     mocks.resolveRecords.mockResolvedValue(["136.118.60.116"]);
 
     await expect(
-      waitForDeploymentDnsPropagation("CLIProxyAPI-CLI-Proxy-API-CVQQ59.Vibrail.WarpgateAPI.com.", {
+      waitForDeploymentDnsPropagation("CLIProxyAPI-CLI-Proxy-API-CVQQ59.vibrail.com.", {
         attempts: 1,
         intervalMs: 0,
       }),
     ).resolves.toBe(true);
 
     expect(mocks.resolveRecords).toHaveBeenCalledWith(
-      "cliproxyapi-cli-proxy-api-cvqq59.vibrail.warpgateapi.com",
+      "cliproxyapi-cli-proxy-api-cvqq59.vibrail.com",
       "A",
       { timeoutMs: 2_000 },
     );
@@ -48,7 +48,7 @@ describe("waitForDeploymentDnsPropagation", () => {
     const sleep = vi.fn().mockResolvedValue(undefined);
 
     await expect(
-      waitForDeploymentDnsPropagation("app.vibrail.warpgateapi.com", {
+      waitForDeploymentDnsPropagation("app.vibrail.com", {
         attempts: 2,
         intervalMs: 1,
         sleep,
@@ -65,7 +65,7 @@ describe("waitForDeploymentDnsPropagation", () => {
     const now = vi.spyOn(Date, "now").mockReturnValueOnce(1_000).mockReturnValue(1_002);
 
     await expect(
-      waitForDeploymentDnsPropagation("app.vibrail.warpgateapi.com", {
+      waitForDeploymentDnsPropagation("app.vibrail.com", {
         attempts: 60,
         intervalMs: 1_000,
         deadlineMs: 1,

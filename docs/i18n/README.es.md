@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -44,7 +44,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-O descarga la app de escritorio desde [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com).
+O descarga la app de escritorio desde [vibrail.com](https://vibrail.com).
 
 ---
 
@@ -93,7 +93,7 @@ La misma interfaz sin importar dónde despliegues.
 - **Panel web** — la misma interfaz en el navegador, pensada para equipos.
 - **CLI** — programable y compatible con CI.
 
-Una **API REST** y **MCP** (protocolo para agentes de IA) completan el conjunto para la automatización e integración con herramientas. Referencia completa de comandos y API en [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
+Una **API REST** y **MCP** (protocolo para agentes de IA) completan el conjunto para la automatización e integración con herramientas. Referencia completa de comandos y API en [docs.vibrail.com](https://docs.vibrail.com/).
 
 > [!NOTE]
 > La documentación aún está en desarrollo — la estamos completando activamente. Si algo falta o no queda claro, las [contribuciones](../../CONTRIBUTING.md) son muy bienvenidas y nos ayudan a llegar más rápido.

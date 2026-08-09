@@ -95,7 +95,7 @@ export const instanceSettings = pgTable("instance_settings", {
   migratedAt: timestamp("migrated_at"),
   /**
    * Oblien tunnel slug (the host portion, e.g. "myteam" for
-   * "myteam.vibrail.warpgateapi.com" / "myteam-<suffix>.preview.oblien.com"). Set when
+   * "myteam.vibrail.com" / "myteam-<suffix>.preview.oblien.com"). Set when
    * teamMode transitions through the tunneled path. Null otherwise.
    */
   tunnelSlug: text("tunnel_slug"),
@@ -185,7 +185,7 @@ export const userSettings = pgTable("user_settings", {
 
   /**
    * Encrypted session token for the user's Vibrail Cloud account.
-   * Used by local instances to fetch namespace tokens from vibrail.warpgateapi.com.
+   * Used by local instances to fetch namespace tokens from vibrail.com.
    * Null if the user hasn't linked their cloud account.
    */
   cloudSessionToken: text("cloud_session_token"),

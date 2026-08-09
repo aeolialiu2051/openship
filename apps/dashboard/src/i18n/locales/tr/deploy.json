@@ -282,7 +282,7 @@
     "notAvailable": "Kullanılamıyor",
     "domainTitle": "Alan Adı",
     "domainHintProxy": "E-posta sunucunuz zaten bu host adına sahip - bunu e-posta VPS'iniz üzerinden Vibrail Cloud iş yüküne vekil sunucu (proxy) olarak yönlendireceğiz. DNS değişikliği gerekmez.",
-    "domainHintCloud": "Oluşturduğumuz *.vibrail.warpgateapi.com URL'sine bir CNAME yönlendirin (dağıtımdan sonra göreceksiniz).",
+    "domainHintCloud": "Oluşturduğumuz *.vibrail.com URL'sine bir CNAME yönlendirin (dağıtımdan sonra göreceksiniz).",
     "domainHintDefault": "Operatörlerin ziyaret edeceği URL. DNS, dağıtım hedefine yönlenmelidir.",
     "summary": "Özet",
     "summaryTarget": "Hedef",

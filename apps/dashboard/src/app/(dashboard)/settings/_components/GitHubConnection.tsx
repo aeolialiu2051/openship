@@ -111,7 +111,7 @@ export function GitHubConnection() {
   );
 
   // Self-hosted needs an active Vibrail Cloud connection to use the
-  // GitHub App at all — the App private key lives in vibrail.warpgateapi.com and
+  // GitHub App at all — the App private key lives in vibrail.com and
   // self-hosted instances proxy through it. PAT + gh CLI escape hatches
   // don't require cloud.
   const { connected: cloudConnected, startConnect: startCloudConnect } = useCloud();

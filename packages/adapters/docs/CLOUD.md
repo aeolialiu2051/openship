@@ -37,7 +37,7 @@ Vibrail runs in two modes. Both use the **exact same** `CloudRuntime` and build/
 
 ## Mode 1: SaaS (`CLOUD_MODE=true`)
 
-When Vibrail runs as the hosted SaaS platform (vibrail.warpgateapi.com):
+When Vibrail runs as the hosted SaaS platform (vibrail.com):
 
 ```
 Server startup
@@ -74,7 +74,7 @@ When Vibrail runs locally (desktop app, self-hosted, CLI):
 Dashboard Settings page
   → user enters email + password
   → POST /api/cloud/connect
-  → Local API proxies login to vibrail.warpgateapi.com/api/auth/sign-in/email
+  → Local API proxies login to vibrail.com/api/auth/sign-in/email
   → Receives session token
   → Encrypts + stores in user_settings.cloud_session_token
 ```
@@ -86,7 +86,7 @@ build.service.ts → executeBuildAndDeploy()
   → detects !CLOUD_MODE && target === "cloud"
   → getCloudToken(userId)
       → reads encrypted session from DB
-      → POST vibrail.warpgateapi.com/api/cloud/token (with Bearer session)
+      → POST vibrail.com/api/cloud/token (with Bearer session)
       → receives namespace-scoped Oblien token (cached in memory, 30min TTL)
   → createPlatform({ target: "cloud", cloudToken: result.token })
       → new Oblien({ token })                  ← namespace-scoped
@@ -186,7 +186,7 @@ The namespace token gives full access to everything in that namespace:
 | Concern | Approach |
 |---|---|
 | Cloud session at rest | AES-256 encrypted via `encrypt()`/`decrypt()` in `encryption.ts` |
-| Session in transit | HTTPS only (vibrail.warpgateapi.com) |
+| Session in transit | HTTPS only (vibrail.com) |
 | Expired sessions | Auto-cleared on 401 from SaaS API |
 | Namespace tokens | 30min TTL, 5min refresh buffer, in-memory cache only |
 | Token scope | Namespace-scoped - user can only access their own resources |

@@ -12,7 +12,7 @@
  *      of letting the operator click Deploy and then fail mid-stream.
  *   3. Domain readiness:
  *        - "custom" → DNS A record points at the server IP
- *        - "free"   → the chosen `<slug>.vibrail.warpgateapi.com` slug is free on
+ *        - "free"   → the chosen `<slug>.vibrail.com` slug is free on
  *                     Oblien (ensureManagedEdgeProxy will reserve it
  *                     at deploy time)
  *
@@ -174,7 +174,7 @@ async function checkCustomDomain(
 }
 
 /**
- * Free-subdomain availability — check the `<slug>.vibrail.warpgateapi.com` namespace
+ * Free-subdomain availability — check the `<slug>.vibrail.com` namespace
  * via the existing managed-edge-proxy primitive. We DON'T reserve the
  * slug here (preflight is read-only); we just verify it's free.
  *
@@ -201,6 +201,6 @@ async function checkFreeSubdomainAvailable(
   // detected at deploy time and surfaces with a clean error.
   return {
     ok: true,
-    detail: `Slug "${slug}.vibrail.warpgateapi.com" is structurally valid; availability confirmed at deploy time.`,
+    detail: `Slug "${slug}.vibrail.com" is structurally valid; availability confirmed at deploy time.`,
   };
 }

@@ -3,8 +3,8 @@ import { extractSupportEmail } from "./support-email";
 
 describe("extractSupportEmail", () => {
   it("extracts the mailbox from SMTP_FROM display-name syntax", () => {
-    expect(extractSupportEmail("Vibrail <support@warpgateapi.com>"))
-      .toBe("support@warpgateapi.com");
+    expect(extractSupportEmail("Vibrail <support@vibrail.com>"))
+      .toBe("support@vibrail.com");
   });
 
   it("accepts a bare mailbox and rejects an empty value", () => {

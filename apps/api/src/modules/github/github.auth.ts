@@ -315,7 +315,7 @@ export async function getInstallationId(
   if (!owner) return null;
   const userId = ctx.userId;
 
-  // Cloud-app mode: ALWAYS ask SaaS. vibrail.warpgateapi.com is the canonical
+  // Cloud-app mode: ALWAYS ask SaaS. vibrail.com is the canonical
   // store — the GitHub App webhook fires to SaaS, not to us, so its
   // record is authoritative. Skip the local DB entirely; a stale row
   // would lie for up to 50min after a user uninstalls / re-installs.
@@ -419,7 +419,7 @@ export async function getInstallationIdByOrg(
  *
  * Path branches on the user's resolved auth mode:
  *   - "app"       → local JWT signing + api.github.com call (cloud-mode only)
- *   - "cloud-app" → cloud-client proxy to vibrail.warpgateapi.com
+ *   - "cloud-app" → cloud-client proxy to vibrail.com
  *
  * Other modes (cli/oauth/token) don't use installation tokens.
  *
@@ -683,7 +683,7 @@ export async function getUserStatus(userId: string) {
   // off the bare userId. Use the internal mode resolver.
   const mode = await resolveAuthModeForUserId(userId);
 
-  // ── Cloud-app: status comes from vibrail.warpgateapi.com ────────────────────────────
+  // ── Cloud-app: status comes from vibrail.com ────────────────────────────
   if (mode === "cloud-app") {
     const { cloudClient } = await import("../../lib/cloud/client");
     const status = await cloudClient({ userId }).github.userStatus();
@@ -935,7 +935,7 @@ export async function getUserInstallations(
 
   if (mode === "cloud-app") {
     // SaaS is the canonical source of truth — the GitHub App's webhook
-    // fires to vibrail.warpgateapi.com, not to us, so vibrail.warpgateapi.com is the
+    // fires to vibrail.com, not to us, so vibrail.com is the
     // only place that reliably knows about installations. We do NOT
     // cache to local DB here: a stale local row would lie for up to
     // 50 minutes after the user uninstalls or moves the App, and the
@@ -1053,7 +1053,7 @@ export type GitHubAuthMode = "app" | "oauth" | "cli" | "token" | "cloud-app";
  *
  * Used by code paths that need a mode without a user context (e.g. boot-
  * time checks, batch jobs). Returns the LOCAL-only resolution:
- *   - CLOUD_MODE=true  → "app"  (this IS vibrail.warpgateapi.com — holds App creds)
+ *   - CLOUD_MODE=true  → "app"  (this IS vibrail.com — holds App creds)
  *   - CLOUD_MODE=false → "cli"  (defaults to local gh CLI for offline use)
  *
  * Per-request callers should call `resolveGitHubAuthMode(ctx)` instead
@@ -1074,10 +1074,10 @@ export function getGitHubAuthMode(): GitHubAuthMode {
  * The canonical answer for any request that has a userId. Resolution:
  *
  *   1. Explicit `GITHUB_AUTH_MODE` env var → used as-is (escape hatch).
- *   2. `CLOUD_MODE=true` (this IS vibrail.warpgateapi.com) → "app".
+ *   2. `CLOUD_MODE=true` (this IS vibrail.com) → "app".
  *   3. Self-hosted + the user is connected to Vibrail Cloud → "cloud-app".
  *      All App-scoped operations (install URL, list installations, mint
- *      install token, OAuth identity) proxy through vibrail.warpgateapi.com.
+ *      install token, OAuth identity) proxy through vibrail.com.
  *   4. Self-hosted + NOT cloud-connected → "cli" (the gh CLI / PAT
  *      escape hatch — no App-scoped features available).
  */
@@ -1152,7 +1152,7 @@ async function resolveAuthModeForOrgOwner(
  * Used when this process IS the App owner — i.e. cloud-mode SaaS or an
  * explicit GITHUB_AUTH_MODE=app self-host with creds set. For the
  * canonical self-hosted path (cloud-app), use `resolveInstallUrl(userId)`
- * which proxies through vibrail.warpgateapi.com and returns a state-bound URL.
+ * which proxies through vibrail.com and returns a state-bound URL.
  */
 export function getInstallUrl(): string {
   // Single source of truth: env.GITHUB_APP_SLUG defaults to "vibrail-io"
@@ -1163,7 +1163,7 @@ export function getInstallUrl(): string {
 
 /**
  * Per-user install URL resolution. In cloud-app mode this round-trips
- * through vibrail.warpgateapi.com to get a state-bound URL; otherwise returns the
+ * through vibrail.com to get a state-bound URL; otherwise returns the
  * sync `getInstallUrl()` result. `state` is empty string when not
  * applicable (local-app mode).
  */
@@ -1201,7 +1201,7 @@ export async function resolveInstallUrl(
       return res;
     }
     // SaaS-only mode: the GitHub App install URL MUST come from
-    // vibrail.warpgateapi.com — it carries the org-bound state nonce the
+    // vibrail.com — it carries the org-bound state nonce the
     // install-complete webhook needs to attribute the installation.
     // The SaaS is unreachable (or has no cloud-owner link), so there is
     // NO valid local fallback: a stateless github.com/apps/... URL would

@@ -64,7 +64,7 @@ export const SYSTEM = {
   // ── Domains / SSL ────────────────────────────────────────────────────
   DOMAINS: {
     /** Free domain for cloud deployments (slug.CLOUD_DOMAIN) */
-    CLOUD_DOMAIN: "vibrail.warpgateapi.com",
+    CLOUD_DOMAIN: "vibrail.com",
     /** Maximum custom domains per project */
     MAX_PER_PROJECT: 10,
     /** DNS TXT record prefix for domain verification */

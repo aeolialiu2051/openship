@@ -207,7 +207,7 @@ export function LoginClient() {
           <div className="flex items-center gap-2 text-[13px] text-muted-foreground">
             <span>Powered by</span>
             <a
-              href="https://vibrail.warpgateapi.com"
+              href="https://vibrail.com"
               target="_blank"
               rel="noopener noreferrer"
               className="font-medium text-foreground transition-colors hover:text-foreground/70"
@@ -217,7 +217,7 @@ export function LoginClient() {
           </div>
           <nav className="flex items-center gap-6 text-[13px] text-muted-foreground">
             <a
-              href="https://docs.vibrail.warpgateapi.com/"
+              href="https://docs.vibrail.com/"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"
@@ -225,7 +225,7 @@ export function LoginClient() {
               Docs
             </a>
             <a
-              href="https://vibrail.warpgateapi.com/privacy"
+              href="https://vibrail.com/privacy"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"
@@ -233,7 +233,7 @@ export function LoginClient() {
               Privacy
             </a>
             <a
-              href="https://vibrail.warpgateapi.com/terms"
+              href="https://vibrail.com/terms"
               target="_blank"
               rel="noopener noreferrer"
               className="transition-colors hover:text-foreground"

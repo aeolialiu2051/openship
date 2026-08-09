@@ -420,7 +420,7 @@ async function updateServiceUnlocked(
       await assertCustomDomainProjectAllowed(ctx.organizationId, projectId);
     }
 
-    // Atomic gate: a free (*.vibrail.warpgateapi.com) route only resolves behind the Vibrail
+    // Atomic gate: a free (*.vibrail.com) route only resolves behind the Vibrail
     // Cloud edge. Refuse before the DB write so a disconnected instance can't
     // persist a dead "Pending" route. resolveServicePublicEndpoints is the same
     // resolver the deploy loop uses, so the gate sees the exact routes to apply.

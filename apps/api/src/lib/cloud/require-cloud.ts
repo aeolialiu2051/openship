@@ -17,9 +17,9 @@ const CAPABILITY_MESSAGE: Record<CloudCapability, string> = {
   "cloud-deploy-target":
     "Connect Vibrail Cloud to deploy to Vibrail Cloud, or pick one of your servers.",
   "managed-project-domain":
-    "Connect Vibrail Cloud to use a free subdomain — free *.vibrail.warpgateapi.com domains route through the Vibrail Cloud edge. Add a custom domain instead, or connect Cloud in Settings.",
+    "Connect Vibrail Cloud to use a free subdomain — free *.vibrail.com domains route through the Vibrail Cloud edge. Add a custom domain instead, or connect Cloud in Settings.",
   "managed-compose-domains":
-    "Connect Vibrail Cloud to expose services on free *.vibrail.warpgateapi.com subdomains — they route through the Vibrail Cloud edge. Use custom domains instead, or connect Cloud in Settings.",
+    "Connect Vibrail Cloud to expose services on free *.vibrail.com subdomains — they route through the Vibrail Cloud edge. Use custom domains instead, or connect Cloud in Settings.",
   "cloud-services-catalog": "Connect Vibrail Cloud to add cloud-managed services.",
   billing: "Connect Vibrail Cloud to manage billing and usage.",
   "migrate-to-cloud": "Connect Vibrail Cloud to migrate this project to the cloud.",

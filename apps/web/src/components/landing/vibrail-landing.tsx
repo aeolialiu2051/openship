@@ -31,7 +31,7 @@ import { landingCopy, type LandingLocale } from "./landing-copy";
 import { Navbar } from "./navbar";
 import { useLandingPreferences } from "./use-landing-preferences";
 
-const DOCS_URL = "https://docs.vibrail.warpgateapi.com/";
+const DOCS_URL = "https://docs.vibrail.com/";
 
 const featureIcons = [Zap, Network, RotateCcw, Bot] as const;
 const featureVisuals = ["terminal", "nodes", "releases", "surfaces"] as const;
@@ -176,7 +176,7 @@ export function VibrailLanding({
                 <div className="vr-log vr-log-success"><span><Check size={13} /></span><b>{copy.cli.logs[4]}</b><em>42.6s</em></div>
                 <div className="vr-release-card">
                   <div><span>vibrail-web</span><strong>{copy.cli.environment}</strong></div>
-                  <p>vibrail.warpgateapi.com</p>
+                  <p>vibrail.com</p>
                   <div className="vr-release-flow"><i /><i /><i /><i /><i /></div>
                 </div>
               </div>

@@ -114,5 +114,5 @@ bug-bounty program.
 ## Questions
 
 For anything that isn't itself a vulnerability report, see the
-[Trust & Security](https://vibrail.warpgateapi.com/trust) page or reach us at
+[Trust & Security](https://vibrail.com/trust) page or reach us at
 <security@oblien.com>.

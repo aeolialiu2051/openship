@@ -133,7 +133,7 @@ export function buildDiscordMessage(input: {
 }): DiscordMessage {
   return {
     username: "Vibrail",
-    avatar_url: "https://vibrail.warpgateapi.com/favicon.ico",
+    avatar_url: "https://vibrail.com/favicon.ico",
     embeds: [
       {
         title: truncate(input.title, DISCORD_TITLE_LIMIT),

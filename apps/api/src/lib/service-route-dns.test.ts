@@ -3,7 +3,7 @@ import type { Domain } from "@repo/db";
 import type { PlannedRouteDomain } from "./routing-domains";
 import { syncServiceRouteDns } from "./service-route-dns";
 
-const freeRoute = (hostname = "api.vibrail.warpgateapi.com"): PlannedRouteDomain => ({
+const freeRoute = (hostname = "api.vibrail.com"): PlannedRouteDomain => ({
   hostname,
   tls: true,
   provisionSsl: false,
@@ -33,7 +33,7 @@ function dependencies() {
     upsertDeploymentDnsRecord: vi.fn().mockResolvedValue("created" as const),
     deleteDeploymentDnsRecord: vi.fn().mockResolvedValue(undefined),
     isVibrailManagedHostname: vi.fn((hostname: string) =>
-      hostname.endsWith(".vibrail.warpgateapi.com"),
+      hostname.endsWith(".vibrail.com"),
     ),
   };
 }
@@ -41,7 +41,7 @@ function dependencies() {
 describe("syncServiceRouteDns", () => {
   it("writes Cloudflare DNS for a newly-public deployed service before returning it for publish", async () => {
     const deps = dependencies();
-    const route = freeRoute("fastapi-template-zpfozy.vibrail.warpgateapi.com");
+    const route = freeRoute("fastapi-template-zpfozy.vibrail.com");
 
     const result = await syncServiceRouteDns(
       {
@@ -165,7 +165,7 @@ describe("syncServiceRouteDns", () => {
 
   it("deletes Cloudflare DNS for a removed free route", async () => {
     const deps = dependencies();
-    const oldRoute = freeRoute("old-api.vibrail.warpgateapi.com");
+    const oldRoute = freeRoute("old-api.vibrail.com");
 
     const result = await syncServiceRouteDns(
       {

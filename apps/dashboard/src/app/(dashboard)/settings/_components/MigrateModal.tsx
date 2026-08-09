@@ -6,7 +6,7 @@
  *
  *   - Server (A) — SSH-deploy vibrail onto the operator's own VPS.
  *                  Triggers /migration/preflight then /migration/start.
- *   - Cloud  (B) — push dump to vibrail.warpgateapi.com. Triggers /start-cloud.
+ *   - Cloud  (B) — push dump to vibrail.com. Triggers /start-cloud.
  *   - Tunnel (C) — keep data local, expose via Oblien edge tunnel.
  *                  Triggers /start-tunnel.
  *
@@ -478,7 +478,7 @@ function ServerForm({
               className="w-full ps-3 pe-24 py-2 bg-muted/30 border border-border/50 rounded-xl text-sm text-foreground font-mono"
             />
             <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-mono">
-              .vibrail.warpgateapi.com
+              .vibrail.com
             </span>
           </div>
         ) : (

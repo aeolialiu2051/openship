@@ -347,7 +347,7 @@ export async function connectAuthorize(c: Context) {
     // browser cookie session token. The local instance later calls
     // POST /api/cloud/disconnect which deletes the session row by
     // id — handing over the cookie session would mean a "disconnect
-    // local from cloud" click logs the user out of vibrail.warpgateapi.com.
+    // local from cloud" click logs the user out of vibrail.com.
     //
     // Instead, mint a dedicated session row for the linked-instance
     // bearer flow. The cookie session stays untouched; disconnect
@@ -468,7 +468,7 @@ export async function syncEdgeProxy(c: Context) {
  * POST /api/cloud/edge-proxy/delete  { slug }
  *
  * Tear down the caller's managed edge proxy for a freed slug (a dropped free
- * *.vibrail.warpgateapi.com domain). Namespace-scoped, so a caller can only remove its own
+ * *.vibrail.com domain). Namespace-scoped, so a caller can only remove its own
  * proxy. Idempotent — an unknown slug returns `removed:false`, not an error.
  */
 export async function deleteEdgeProxy(c: Context) {
@@ -792,7 +792,7 @@ export async function exportSubgraphHandler(c: Context) {
 // ─── OAuth bridge (browser-session handoff for linkSocialAccount) ───────────
 //
 // SaaS-only OAuth flow. Self-hosted instances never hold GitHub OAuth
-// credentials — they redirect the user's browser to vibrail.warpgateapi.com
+// credentials — they redirect the user's browser to vibrail.com
 // where the real OAuth round-trip happens against the SaaS's Better
 // Auth instance. The browser starts with no SaaS session cookie (it
 // only has a local session), so we need a 2-hop handoff:
@@ -820,7 +820,7 @@ export async function exportSubgraphHandler(c: Context) {
 //
 // SaaS-only OAuth + install flow. Local self-hosted instances NEVER hold
 // GitHub OAuth credentials, GitHub App private keys, or the gitInstallation
-// table for the App. Everything flows through vibrail.warpgateapi.com.
+// table for the App. Everything flows through vibrail.com.
 //
 // Three independent identity envelopes chain together:
 //

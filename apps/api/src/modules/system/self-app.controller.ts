@@ -6,7 +6,7 @@
  * setup finishes, Vibrail itself shows up under the dashboard's **Apps** tab
  * with a real domain:
  *   - createProject({ isApp:true, appTemplateId:"vibrail" })  → the Apps row
- *   - free  domain → Oblien edge proxy (slug.vibrail.warpgateapi.com → this box), reusing
+ *   - free  domain → Oblien edge proxy (slug.vibrail.com → this box), reusing
  *     cloudClient().edgeProxy.sync — needs the owner connected to Vibrail Cloud
  *   - custom domain → external/shared Traefik ingress
  *
@@ -124,7 +124,7 @@ export async function cloudConnect(c: Context) {
     const email = (data.user as { email?: string | null }).email ?? null;
 
     // If this box ALREADY has a real local admin account, Vibrail Cloud is linked
-    // for SERVICES ONLY — the free .vibrail.warpgateapi.com domain and managed mail. Store the cloud
+    // for SERVICES ONLY — the free .vibrail.com domain and managed mail. Store the cloud
     // session against the existing owner so the edge-proxy has a token, and DO NOT
     // change the login method. Only a fresh box with NO local admin (the free-domain
     // wizard path) adopts cloud as its passwordless link-based login. Keying off a
@@ -217,14 +217,14 @@ export async function selfRegister(c: Context) {
       const result = await cloudClient({ organizationId }).edgeProxy.sync({ slug, target });
       if (!result) {
         return c.json(
-          { error: "Vibrail Cloud is not connected — connect it to use a free .vibrail.warpgateapi.com domain." },
+          { error: "Vibrail Cloud is not connected — connect it to use a free .vibrail.com domain." },
           409,
         );
       }
     } catch (err) {
       return c.json({ error: safeErrorMessage(err) }, 502);
     }
-    // Oblien's edge terminates TLS for *.vibrail.warpgateapi.com; the origin remains plain HTTP.
+    // Oblien's edge terminates TLS for *.vibrail.com; the origin remains plain HTTP.
     await repos.domain.findOrCreate({
       projectId,
       hostname,

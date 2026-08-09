@@ -53,8 +53,8 @@ export const APP_LOGO: Record<
   // they fall back to the monochrome Boxes glyph.
   // vibrail-native mail stack — its own brand mark, a full-bleed square icon.
   // Both the catalog id ("mail") and the installed-app id ("mail-webmail").
-  "mail-webmail": { src: "https://vibrail.warpgateapi.com/apple-touch-icon.png", fill: true },
-  mail: { src: "https://vibrail.warpgateapi.com/apple-touch-icon.png", fill: true },
+  "mail-webmail": { src: "https://vibrail.com/apple-touch-icon.png", fill: true },
+  mail: { src: "https://vibrail.com/apple-touch-icon.png", fill: true },
   // The control plane self-registered as an app (CLI self-deploy) — Vibrail's
   // own brand mark, a full-bleed square icon.
   vibrail: { src: "/apple-touch-icon.png", fill: true },

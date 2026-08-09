@@ -8,7 +8,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -52,7 +52,7 @@ vibrail
 
 无交互服务器或 CI 环境可改用 `vibrail up --public-url https://ops.example.com`。完整的登录、上下文、Git / 文件夹部署、JSON 输出、自托管运维和排错说明见 **[CLI 使用指南](../cli.md)**。
 
-也可以从 [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com) 下载桌面应用。
+也可以从 [vibrail.com](https://vibrail.com) 下载桌面应用。
 
 ---
 
@@ -101,7 +101,7 @@ vibrail
 - **Web 控制台** —— 浏览器中的同一套界面，为团队打造。
 - **CLI** —— 可脚本化、对 CI 友好。
 
-**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令说明见 [CLI 使用指南](../cli.md)，在线文档与 API 参考见 [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)。
+**REST API** 和 **MCP**（AI 智能体协议）为自动化和工具集成收尾。完整的命令说明见 [CLI 使用指南](../cli.md)，在线文档与 API 参考见 [docs.vibrail.com](https://docs.vibrail.com/)。
 
 > [!NOTE]
 > 文档仍在完善中 —— 我们正在积极补充。如果有缺失或不清楚的地方，非常欢迎[贡献](../../CONTRIBUTING.md)，这能帮助我们更快完善。

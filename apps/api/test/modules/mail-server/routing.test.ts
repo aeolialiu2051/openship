@@ -13,8 +13,8 @@ const baseInput: MailServerRouteInput = {
   userDomain: "acme.com",
   mailServerIp: "203.0.113.10",
   zeroServerOrigin: "https://zero-server.internal:3001",
-  zeroClientOrigin: "https://zero-client.vibrail.warpgateapi.com",
-  vibrailApiOrigin: "https://api.vibrail.warpgateapi.com",
+  zeroClientOrigin: "https://zero-client.vibrail.com",
+  vibrailApiOrigin: "https://api.vibrail.com",
 };
 
 describe("buildMailServerRoutes", () => {
@@ -112,7 +112,7 @@ describe("buildMailServerRoutes", () => {
     expect(byId["mail-client-cname"]).toMatchObject({
       type: "CNAME",
       name: "mail.acme.com",
-      value: "zero-client.vibrail.warpgateapi.com",
+      value: "zero-client.vibrail.com",
       required: true,
     });
     expect(byId["mail-api-cname"]).toMatchObject({
@@ -124,7 +124,7 @@ describe("buildMailServerRoutes", () => {
     expect(byId["autodiscover-cname"]).toMatchObject({
       type: "CNAME",
       name: "autodiscover.acme.com",
-      value: "api.vibrail.warpgateapi.com",
+      value: "api.vibrail.com",
       required: false,
     });
   });
@@ -145,14 +145,14 @@ describe("buildMailServerRoutes", () => {
     const plan = buildMailServerRoutes({
       ...baseInput,
       zeroServerOrigin: "https://mail-vps-1.internal:3001/some/path",
-      zeroClientOrigin: "https://zero-client.vibrail.warpgateapi.com:443",
+      zeroClientOrigin: "https://zero-client.vibrail.com:443",
     });
     expect(
       plan.dns.find((r) => r.id === "mail-api-cname")?.value,
     ).toBe("mail-vps-1.internal");
     expect(
       plan.dns.find((r) => r.id === "mail-client-cname")?.value,
-    ).toBe("zero-client.vibrail.warpgateapi.com");
+    ).toBe("zero-client.vibrail.com");
   });
 
   // ── Determinism ────────────────────────────────────────────────────────

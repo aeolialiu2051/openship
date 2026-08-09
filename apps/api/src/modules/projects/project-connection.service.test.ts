@@ -38,7 +38,7 @@ describe("toInternalUrl — rewrite a public connection URL to the internal serv
   });
 
   it("returns null for a portless (domain) URL — not an internal target", () => {
-    expect(toInternalUrl("https://studio.vibrail.warpgateapi.com", SUPABASE)).toBeNull();
+    expect(toInternalUrl("https://studio.vibrail.com", SUPABASE)).toBeNull();
   });
 
   it("returns null when no endpoint matches the URL's port", () => {
@@ -56,7 +56,7 @@ describe("toInternalUrl — service-aware (declared output.service is authoritat
     // `publicUrl:kong` resolves to a domain with no :8000; with the declared
     // service, internal mode still reaches kong:8000 — the old port-match
     // returned null for this and forced it to Public.
-    expect(toInternalUrl("https://abc.vibrail.warpgateapi.com", SUPABASE, "kong")).toBe("https://kong:8000/");
+    expect(toInternalUrl("https://abc.vibrail.com", SUPABASE, "kong")).toBe("https://kong:8000/");
   });
 
   it("uses the DECLARED service even when the URL port matches another service", () => {
@@ -68,7 +68,7 @@ describe("toInternalUrl — service-aware (declared output.service is authoritat
   });
 
   it("returns null when the declared service exposes no endpoint", () => {
-    expect(toInternalUrl("https://x.vibrail.warpgateapi.com", SUPABASE, "ghost")).toBeNull();
+    expect(toInternalUrl("https://x.vibrail.com", SUPABASE, "ghost")).toBeNull();
   });
 });
 

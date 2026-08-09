@@ -17,7 +17,7 @@ For a single operator this is the best model: the control plane lives **locally*
 **When this is the wrong choice:** the dashboard is only up while your machine is. No teammate access, no access from your phone, and push-to-deploy webhooks need a stable public endpoint your laptop isn't. If you need any of those, run Vibrail on a server (below).
 
 **Install:**
-- Download for your OS at [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com), or run `vibrail install` (fetches the desktop build).
+- Download for your OS at [vibrail.com](https://vibrail.com), or run `vibrail install` (fetches the desktop build).
 - On first launch, connect what you want to manage:
   - **This Machine** — manage the local box.
   - **Another Server** — add a remote server over SSH (host, user, key). Test Connection, then manage it.

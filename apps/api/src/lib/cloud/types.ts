@@ -1,7 +1,7 @@
 /**
  * Shared types for the cloud client layer (lib/cloud/*).
  *
- * The SaaS (vibrail.warpgateapi.com) is the source of truth. A self-hosted instance
+ * The SaaS (vibrail.com) is the source of truth. A self-hosted instance
  * stores only the per-user encrypted `cloud_session_token` (user_settings) and
  * talks to the SaaS through the transport → session → client layers here.
  */
@@ -24,7 +24,7 @@ export interface TokenCache {
 //
 // Self-hosted instances never hold GITHUB_APP_ID / GITHUB_PRIVATE_KEY.
 // All App-scoped operations (install URL, list installations, mint install
-// tokens, OAuth identity) are proxied through vibrail.warpgateapi.com which is the
+// tokens, OAuth identity) are proxied through vibrail.com which is the
 // sole holder of the App credentials. The local instance authenticates with
 // its cloud_session_token (same as every other cloud-proxied feature).
 

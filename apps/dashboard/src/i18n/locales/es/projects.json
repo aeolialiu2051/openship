@@ -272,7 +272,7 @@
   },
   "routingRetry": {
     "title": "El enrutamiento del dominio gratuito necesita atención",
-    "description": "La aplicación está en vivo en el servidor, pero su URL gratuita .vibrail.warpgateapi.com no se enrutó a través del edge de Vibrail Cloud. Reintenta cuando el servidor sea accesible desde la nube en el puerto 80.",
+    "description": "La aplicación está en vivo en el servidor, pero su URL gratuita .vibrail.com no se enrutó a través del edge de Vibrail Cloud. Reintenta cuando el servidor sea accesible desde la nube en el puerto 80.",
     "retry": "Reintentar enrutamiento",
     "retrying": "Reintentando…",
     "success": "Enrutamiento del dominio gratuito sincronizado.",

@@ -187,11 +187,11 @@ export function getCloudApiOrigin(rawUrl?: string) {
 
 /**
  * Origin of the public marketing site (apps/web), where docs and setup
- * guides live. In production: vibrail.warpgateapi.com → vibrail.warpgateapi.com. In dev:
+ * guides live. In production: vibrail.com → vibrail.com. In dev:
  * localhost:3001/3002 → localhost:3000. SSR falls back to production.
  */
 export function getMarketingOrigin() {
-  if (typeof window === "undefined") return "https://vibrail.warpgateapi.com";
+  if (typeof window === "undefined") return "https://vibrail.com";
   const { protocol, hostname, port } = window.location;
   if (hostname.startsWith("app.")) return `${protocol}//${hostname.slice(4)}`;
   if (
@@ -200,5 +200,5 @@ export function getMarketingOrigin() {
   ) {
     return `${protocol}//${hostname}:${DEFAULT_PORT.web}`;
   }
-  return "https://vibrail.warpgateapi.com";
+  return "https://vibrail.com";
 }

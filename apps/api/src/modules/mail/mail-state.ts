@@ -62,7 +62,7 @@ export interface MailWebmailState {
   /**
    * Where the webmail runs.
    *   "self"  - operator-managed server (this mail VPS or another vibrail server).
-   *   "cloud" - Vibrail Cloud-managed, behind an *.vibrail.warpgateapi.com URL.
+   *   "cloud" - Vibrail Cloud-managed, behind an *.vibrail.com URL.
    *
    * Defaults to "self" when missing.
    */
@@ -78,7 +78,7 @@ export interface MailWebmailState {
   /** Browser URL, e.g. https://mail.oblien.com/. */
   url: string;
   /**
-   * For target="cloud", the *.vibrail.warpgateapi.com URL Vibrail Cloud minted for this deploy.
+   * For target="cloud", the *.vibrail.com URL Vibrail Cloud minted for this deploy.
    * When `hostname` is the mail server's own `mail.<domain>` subdomain (DNS
    * already pinned to the mail VPS for IMAP/SMTP), the mail server's
    * Traefik proxies that hostname → this URL.

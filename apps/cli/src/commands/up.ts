@@ -147,7 +147,7 @@ export const upCommand = new Command("up")
   .option("--admin-password <password>", "Admin password (min 8). Prefer the VIBRAIL_ADMIN_PASSWORD env var to keep it out of shell history.")
   .option("--domain-kind <kind>", "Headless install domain: byo | free | none (default: byo if --public-url set, else none)")
   .option("--hostname <host>", "Domain/hostname for --domain-kind byo (or derived from --public-url)")
-  .option("--slug <slug>", "Free .vibrail.warpgateapi.com subdomain for --domain-kind free (box must already be Cloud-connected)")
+  .option("--slug <slug>", "Free .vibrail.com subdomain for --domain-kind free (box must already be Cloud-connected)")
   .action(async (opts: UpOpts & { yes?: boolean }) => {
     // From-source + foreground are bare-only (attached / dev preview).
     if (opts.fromSource || opts.source) return runFromSource(opts);

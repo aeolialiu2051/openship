@@ -176,9 +176,9 @@ export function NavMain({ items }: NavMainProps) {
         {isBottomNav ? (
           <NavItem
             key={'feedback'}
-            isActive={isUrlActive('https://vibrail.warpgateapi.com/issues')}
-            href={'https://vibrail.warpgateapi.com/issues'}
-            url={'https://vibrail.warpgateapi.com/issues'}
+            isActive={isUrlActive('https://vibrail.com/issues')}
+            href={'https://vibrail.com/issues'}
+            url={'https://vibrail.com/issues'}
             icon={MessageSquare}
             target={'_blank'}
             title={m['navigation.sidebar.feedback']()}

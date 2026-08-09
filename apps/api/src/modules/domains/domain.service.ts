@@ -90,7 +90,7 @@ async function addDomainUnlocked(ctx: RequestContext, data: TAddDomainBody) {
   // The TypeBox schema (route-level tbValidator) already enforces the
   // hostname regex + length, so anything reaching this point is shaped
   // like a valid DNS name. But the schema doesn't know about managed
-  // hostnames — those are free *.vibrail.warpgateapi.com subdomains that belong in
+  // hostnames — those are free *.vibrail.com subdomains that belong in
   // project.publicEndpoints (with domainType="free"), not in the custom-
   // domain table. Refuse them here so users don't accidentally claim a
   // managed slug via the "add custom domain" flow and bypass the free-
@@ -270,7 +270,7 @@ export async function getDomainRecords(ctx: RequestContext, domainId: string) {
 
 /**
  * Promote a custom domain to primary when no OTHER custom primary exists. Free
- * .vibrail.warpgateapi.com stays the always-on fallback; the custom domain becomes the "real"
+ * .vibrail.com stays the always-on fallback; the custom domain becomes the "real"
  * entry point for analytics + the "Visit" link. Shared by verify + cert-reuse.
  */
 async function promoteCustomDomainToPrimary(domain: Domain, domainId: string): Promise<void> {

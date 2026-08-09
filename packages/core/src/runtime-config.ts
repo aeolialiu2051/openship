@@ -27,7 +27,7 @@ const envUrl = (key: string): string | undefined => {
 
 const hostedOrigin = (() => {
   const configured = envUrl("HOST_DOMAIN");
-  if (!configured) return "https://vibrail.warpgateapi.com";
+  if (!configured) return "https://vibrail.com";
   const withoutTrailingSlash = configured.replace(/\/+$/, "");
   return /^[a-z][a-z\d+.-]*:\/\//i.test(withoutTrailingSlash)
     ? withoutTrailingSlash

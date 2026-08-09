@@ -129,7 +129,7 @@ export default function AppInstallPage() {
   // Desktop mode → the "open on localhost / forward the port" hints are relevant
   // (a VPS is already public; a local app is already localhost).
   const isDesktop = deployMode === "desktop";
-  // Free .vibrail.warpgateapi.com routing needs Vibrail Cloud; when it's not connected we
+  // Free .vibrail.com routing needs Vibrail Cloud; when it's not connected we
   // default the install to a port-only (no-domain) deploy instead of letting
   // preflight hard-fail. Forced true on SaaS/native (CloudContext).
   const { connected: cloudConnected, requireCloud } = useCloud();

@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "$id": "https://docs.vibrail.warpgateapi.com/vibrail.schema.json",
+  "$id": "https://docs.vibrail.com/vibrail.schema.json",
   "title": "Vibrail deploy config",
   "description": "vibrail.json — declarative deploy config for Vibrail. Auto-detection runs first; every field present here overrides it. Absent fields keep the detected value.",
   "type": "object",

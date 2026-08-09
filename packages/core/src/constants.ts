@@ -213,7 +213,7 @@ export const PLANS: Record<PlanTierId, PlanDefinition> = {
     ],
     popular: false,
     support: "dedicated",
-    contactSales: "mailto:sales@vibrail.warpgateapi.com",
+    contactSales: "mailto:sales@vibrail.com",
   },
 };
 

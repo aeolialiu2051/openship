@@ -1252,7 +1252,7 @@ export const DomainSettings = () => {
       showCustomDomainProjectLimit();
       return;
     }
-    // Free *.vibrail.warpgateapi.com routes only resolve behind the Vibrail Cloud edge — gate
+    // Free *.vibrail.com routes only resolve behind the Vibrail Cloud edge — gate
     // the add on a cloud connection, identical to handleSaveRoute /
     // handleSavePublicEndpoints. requireCloud opens the connect modal and
     // returns false when not connected, so the free route is never persisted.

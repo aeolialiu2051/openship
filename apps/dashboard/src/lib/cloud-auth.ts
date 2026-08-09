@@ -38,7 +38,7 @@ export function getCloudConnectHandoffUrl(
   callbackUrl: string,
   // cloudApiUrl: the API-provided cloud origin (respects VIBRAIL_CLOUD_TARGET).
   // Pass it so self-hosted → cloud connect hits the configured cloud, not the
-  // static table default (vibrail.warpgateapi.com).
+  // static table default (vibrail.com).
   options?: { state?: string | null; codeChallenge?: string | null; cloudApiUrl?: string },
 ) {
   const params = new URLSearchParams({ redirect: callbackUrl });

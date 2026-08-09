@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check, Languages, Moon, Sun } from "lucide-react";
 import { landingCopy, type LandingCopy, type LandingLocale, type LandingTheme } from "./landing-copy";
 
-const DOCS_URL = "https://docs.vibrail.warpgateapi.com/";
+const DOCS_URL = "https://docs.vibrail.com/";
 
 type NavbarProps = {
   copy?: LandingCopy["nav"];

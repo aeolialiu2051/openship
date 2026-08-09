@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { isNonPublicHost } from "./edge-target";
 
 /**
- * `isNonPublicHost` is the guard that stops a free `.vibrail.warpgateapi.com` route from being
+ * `isNonPublicHost` is the guard that stops a free `.vibrail.com` route from being
  * wired at a host Vibrail Cloud can't reach (the root cause of the 404: an
  * `isLocal` box's display `sshHost` is `127.0.0.1`, which Oblien would proxy to
  * its OWN loopback). A false negative here re-introduces the dead route, so the
@@ -28,7 +28,7 @@ describe("isNonPublicHost", () => {
   });
 
   it("allows real public hosts", () => {
-    for (const h of ["ops.example.com", "203.0.113.10", "8.8.8.8", "myapp.vibrail.warpgateapi.com", "172.32.0.1"]) {
+    for (const h of ["ops.example.com", "203.0.113.10", "8.8.8.8", "myapp.vibrail.com", "172.32.0.1"]) {
       expect(isNonPublicHost(h)).toBe(false);
     }
   });

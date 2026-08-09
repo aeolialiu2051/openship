@@ -6,7 +6,7 @@ import { getApiUrl, getDashboardUrl } from "../lib/config";
 
 export const openCommand = new Command("open")
   .description("Open the Vibrail dashboard in your browser")
-  .option("--cloud", "Open the hosted cloud dashboard (vibrail.warpgateapi.com/dashboard)")
+  .option("--cloud", "Open the hosted cloud dashboard (vibrail.com/dashboard)")
   .option("--dashboard-url <url>", "Dashboard base URL to open")
   .option("--context <name>", "Context whose dashboard URL to open")
   .option("--path <path>", "Path to open on the dashboard (e.g. /settings)")

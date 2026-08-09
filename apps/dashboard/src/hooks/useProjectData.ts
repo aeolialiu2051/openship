@@ -50,7 +50,7 @@ const initialProjectData = {
   domains: [
     {
       id: 1,
-      domain: "my-awesome-app.vibrail.warpgateapi.com",
+      domain: "my-awesome-app.vibrail.com",
       primary: true,
       verified: true,
     },

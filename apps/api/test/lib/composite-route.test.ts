@@ -79,12 +79,12 @@ describe("buildCompositeRegistration", () => {
   };
   const resolveTargetUrl = (id: string) => targets[id] ?? null;
   const resolveDomain = (id: string) =>
-    id === "web" ? { hostname: "app.vibrail.warpgateapi.com", isCustomDomain: false } : null;
+    id === "web" ? { hostname: "app.vibrail.com", isCustomDomain: false } : null;
 
   it("builds a single-domain register: frontend at /, backend at /api (default)", () => {
     const out = buildCompositeRegistration({ services: [web, api], resolveTargetUrl, resolveDomain });
     expect(out).not.toBeNull();
-    expect(out!.register.hostname).toBe("app.vibrail.warpgateapi.com");
+    expect(out!.register.hostname).toBe("app.vibrail.com");
     expect(out!.register.targetUrl).toBe("http://10.0.0.4:8080");
     expect(out!.register.proxyLocations).toEqual([
       { pathPrefix: "/api/", targetUrl: "http://10.0.0.5:3000" },

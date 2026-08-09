@@ -14,7 +14,7 @@ const dbMocks = vi.hoisted(() => ({
 
 vi.mock("../../src/config/env", () => ({
   env: {
-    VIBRAIL_MANAGED_DOMAIN: "vibrail.warpgateapi.com",
+    VIBRAIL_MANAGED_DOMAIN: "vibrail.com",
     VIBRAIL_CLOUDFLARE_API_TOKEN: "backend-only-token",
     VIBRAIL_CLOUDFLARE_ZONE_ID: "zone-1",
     VIBRAIL_CLOUDFLARE_PROXY: true,
@@ -117,7 +117,7 @@ describe("Vibrail Cloudflare DNS", () => {
 
     await expect(
       upsertDeploymentDnsRecord({
-        hostname: "demo-oo198w.vibrail.warpgateapi.com",
+        hostname: "demo-oo198w.vibrail.com",
         organizationId: "org-1",
         serverId: "server-1",
       }),
@@ -143,7 +143,7 @@ describe("Vibrail Cloudflare DNS", () => {
 
     await expect(
       upsertDeploymentDnsRecord({
-        hostname: "demo-oo198w.vibrail.warpgateapi.com",
+        hostname: "demo-oo198w.vibrail.com",
         organizationId: "org-1",
       }),
     ).resolves.toBe("updated");
@@ -167,7 +167,7 @@ describe("Vibrail Cloudflare DNS", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await deleteDeploymentDnsRecord({
-      hostname: "demo-oo198w.vibrail.warpgateapi.com",
+      hostname: "demo-oo198w.vibrail.com",
       organizationId: "org-1",
     });
     expect(fetchMock.mock.calls.slice(1).map((call) => call[0])).toEqual([

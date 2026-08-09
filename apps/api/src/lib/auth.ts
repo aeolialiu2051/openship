@@ -84,7 +84,7 @@ export const isSaasDeployment = runtimeTargetId === "vibrail-saas" || env.CLOUD_
 function getSharedCookieDomain() {
   // A localhost / single-label host (dev — including the local SaaS on :4100)
   // can ONLY use host-only cookies: a browser rejects a `Domain=.foo` cookie
-  // (e.g. a leftover BETTER_AUTH_COOKIE_DOMAIN=.vibrail.warpgateapi.com) on a `localhost`
+  // (e.g. a leftover BETTER_AUTH_COOKIE_DOMAIN=.vibrail.com) on a `localhost`
   // page, which silently drops the session and makes login loop. Force
   // host-only there, IGNORING any configured domain, so a local SaaS always
   // "treats itself as localhost". Real multi-label hosts fall through.
@@ -108,8 +108,8 @@ function getSharedCookieDomain() {
   for (const value of urls) {
     try {
       const hostname = new URL(value).hostname;
-      if (hostname === "vibrail.warpgateapi.com" || hostname.endsWith(".vibrail.warpgateapi.com")) {
-        return ".vibrail.warpgateapi.com";
+      if (hostname === "vibrail.com" || hostname.endsWith(".vibrail.com")) {
+        return ".vibrail.com";
       }
     } catch {
       // Ignore invalid URLs and fall back to host-only cookies.

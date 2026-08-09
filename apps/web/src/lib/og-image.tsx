@@ -137,7 +137,7 @@ export function renderOgImage({
                 background: accent.solid,
               }}
             />
-            vibrail.warpgateapi.com
+            vibrail.com
           </div>
           <div style={{ display: "flex", gap: 28 }}>
             <span>github.com/aeolialiu2051/vibrail</span>

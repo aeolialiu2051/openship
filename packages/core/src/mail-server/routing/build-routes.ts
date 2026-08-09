@@ -185,11 +185,11 @@ function normalizeInput(input: MailServerRouteInput): MailServerRouteInput {
  * Used to convert proxy targets (which may include a scheme + port) into
  * the bare hostname suitable for a CNAME record value.
  *
- *   "https://api.vibrail.warpgateapi.com:443"  → "api.vibrail.warpgateapi.com"
+ *   "https://api.vibrail.com:443"  → "api.vibrail.com"
  *   "10.0.5.12:3001"           → "10.0.5.12"  (won't work as CNAME, but
  *                                              caller's responsibility - they
  *                                              should supply a hostname not an IP)
- *   "api.vibrail.warpgateapi.com"              → "api.vibrail.warpgateapi.com"
+ *   "api.vibrail.com"              → "api.vibrail.com"
  */
 function hostnameFromUrl(value: string): string {
   // Strip scheme if present.

@@ -174,7 +174,7 @@ export default function ErrorState({ error = {}, type = "repo-not-found" }: Erro
                 </p>
                 <div className="flex gap-4">
                   <a
-                    href="https://docs.vibrail.warpgateapi.com/"
+                    href="https://docs.vibrail.com/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="text-xs font-medium text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"

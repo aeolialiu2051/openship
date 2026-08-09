@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-كما يمكنك تنزيل تطبيق سطح المكتب من <a href="https://vibrail.warpgateapi.com"><bdi dir="ltr">vibrail.warpgateapi.com</bdi></a>.
+كما يمكنك تنزيل تطبيق سطح المكتب من <a href="https://vibrail.com"><bdi dir="ltr">vibrail.com</bdi></a>.
 
 ---
 
@@ -96,7 +96,7 @@ docker compose up -d
 
 كما يوفر <bdi dir="ltr">Vibrail</bdi> واجهتي <strong><bdi dir="ltr">REST API</bdi></strong> و<strong><bdi dir="ltr">MCP (Model Context Protocol)</bdi></strong> لدعم الأتمتة والتكامل مع الأدوات الأخرى.
 
-للاطلاع على جميع الأوامر ومرجع <bdi dir="ltr">API</bdi>، راجع <a href="https://docs.vibrail.warpgateapi.com/"><bdi dir="ltr">docs.vibrail.warpgateapi.com</bdi></a>.
+للاطلاع على جميع الأوامر ومرجع <bdi dir="ltr">API</bdi>، راجع <a href="https://docs.vibrail.com/"><bdi dir="ltr">docs.vibrail.com</bdi></a>.
 
 > **ملاحظة:** لا تزال الوثائق قيد التطوير. إذا وجدت أي جزء غير مكتمل أو غير واضح، فإن [مساهماتك](../../CONTRIBUTING.md) مرحب بها وستساعد في تحسين المشروع.
 

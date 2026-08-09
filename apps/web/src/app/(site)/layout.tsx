@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "../globals.css";
 
-const SITE_URL = "https://vibrail.warpgateapi.com";
+const SITE_URL = "https://vibrail.com";
 const SITE_NAME = "Vibrail";
 const TITLE_DEFAULT = "Vibrail — Ship Software on Your Infrastructure";
 const TITLE_TEMPLATE = "%s - Vibrail";
@@ -125,7 +125,7 @@ const organizationLd = {
     {
       "@type": "ContactPoint",
       contactType: "customer support",
-      email: "hello@vibrail.warpgateapi.com",
+      email: "hello@vibrail.com",
       availableLanguage: ["English"],
     },
   ],

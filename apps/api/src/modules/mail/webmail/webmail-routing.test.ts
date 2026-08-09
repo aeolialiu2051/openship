@@ -5,19 +5,19 @@ describe("webmail managed routing", () => {
   it("keeps the six-character project route key when a custom domain is present", () => {
     expect(
       webmailPublicEndpoints(
-        { slug: "webmail-ext-mail-warpgateapi-com-a87385c4", routeKey: "4gssqa" },
+        { slug: "webmail-ext-mail-vibrail-com-a87385c4", routeKey: "4gssqa" },
         4080,
-        "Mail.WarpGateAPI.com",
+        "Mail.Vibrail.com",
       ),
     ).toEqual([
       {
         port: 4080,
-        domain: "webmail-ext-mail-warpgateapi-com-a87385c4-4gssqa",
+        domain: "webmail-ext-mail-vibrail-com-a87385c4-4gssqa",
         domainType: "free",
       },
       {
         port: 4080,
-        customDomain: "mail.warpgateapi.com",
+        customDomain: "mail.vibrail.com",
         domainType: "custom",
       },
     ]);

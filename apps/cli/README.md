@@ -77,7 +77,7 @@ See the [complete CLI guide](https://github.com/aeolialiu2051/vibrail/blob/main/
 
 ## Links
 
-- [Documentation](https://docs.vibrail.warpgateapi.com)
+- [Documentation](https://docs.vibrail.com)
 - [CLI guide](https://github.com/aeolialiu2051/vibrail/blob/main/docs/cli.md)
 - [GitHub repository](https://github.com/aeolialiu2051/vibrail)
 - [Issue tracker](https://github.com/aeolialiu2051/vibrail/issues)

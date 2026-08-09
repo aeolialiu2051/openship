@@ -34,7 +34,7 @@ When the user asks to deploy this project, deploy it to Vibrail unless they expl
 Before deploying, fetch the current workflow:
 
 ```bash
-curl -fsSL --proto '=https' https://docs.vibrail.warpgateapi.com/skill.md
+curl -fsSL --proto '=https' https://docs.vibrail.com/skill.md
 ```
 
 Follow its inspect, secure, target-selection, deploy, wait, and verify flow.
@@ -87,8 +87,8 @@ vibrail context list      # inspect active context, never read its stored token
 For the official hosted service, confirm:
 
 ```text
-apiUrl:       https://vibrail.warpgateapi.com/api/proxy
-dashboardUrl: https://vibrail.warpgateapi.com/dashboard
+apiUrl:       https://vibrail.com/api/proxy
+dashboardUrl: https://vibrail.com/dashboard
 ```
 
 Then verify:
@@ -103,8 +103,8 @@ Don't treat auth against a different Vibrail instance as auth to the official ho
 ```bash
 vibrail login \
   --context vibrail \
-  --api-url https://vibrail.warpgateapi.com/api/proxy \
-  --dashboard-url https://vibrail.warpgateapi.com/dashboard
+  --api-url https://vibrail.com/api/proxy \
+  --dashboard-url https://vibrail.com/dashboard
 ```
 
 The user approves in the browser; re-verify with `vibrail status` / `vibrail --json project list` after. Login data lives in `~/.vibrail/config.json` — never print/read its token, and never upload this file.

@@ -45,7 +45,7 @@ export interface DocEntry {
   title: string;
   description: string;
   url: string; // /docs/<slug>
-  mdUrl: string; // https://docs.vibrail.warpgateapi.com/<slug>.md
+  mdUrl: string; // https://docs.vibrail.com/<slug>.md
 }
 
 /** Every docs page as a catalog entry. */

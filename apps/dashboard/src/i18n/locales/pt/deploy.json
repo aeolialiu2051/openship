@@ -291,7 +291,7 @@
     "notAvailable": "Não disponível",
     "domainTitle": "Domínio",
     "domainHintProxy": "O seu servidor de e-mail já possui este hostname - vamos fazer proxy dele através do seu VPS de e-mail até a carga de trabalho do Vibrail Cloud. Nenhuma alteração de DNS necessária.",
-    "domainHintCloud": "Aponte um CNAME para a URL *.vibrail.warpgateapi.com que provisionamos (você a verá após a implantação).",
+    "domainHintCloud": "Aponte um CNAME para a URL *.vibrail.com que provisionamos (você a verá após a implantação).",
     "domainHintDefault": "A URL que os operadores visitarão. O DNS deve apontar para o destino da implantação.",
     "summary": "Resumo",
     "summaryTarget": "Destino",

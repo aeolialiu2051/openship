@@ -3,7 +3,7 @@ import { requireCloud } from "./cloud/require-cloud";
 import { storedPublicEndpointsNeedCloud, type StoredPublicEndpoint } from "./public-endpoints";
 
 /**
- * Atomic gate for free (*.vibrail.warpgateapi.com) routes. A free managed subdomain only
+ * Atomic gate for free (*.vibrail.com) routes. A free managed subdomain only
  * resolves behind the Vibrail Cloud edge, so persisting one on a self-hosted
  * instance that isn't connected to Cloud creates a dead "Pending" route that
  * can never register. Call this at every user-facing write that can INTRODUCE a

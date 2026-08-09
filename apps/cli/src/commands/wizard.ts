@@ -6,7 +6,7 @@
  * Vibrail as a boot service, create the first admin, and — reusing Vibrail's
  * OWN app + domain pipeline — register the control plane as an **app** (it shows
  * up under Apps) with a domain:
- *   - Free   name.vibrail.warpgateapi.com  → Vibrail Cloud edge (Oblien); connects Cloud in-flow
+ *   - Free   name.vibrail.com  → Vibrail Cloud edge (Oblien); connects Cloud in-flow
  *   - Custom your-domain   → Traefik + a free Let's Encrypt cert on this box
  *   - BYO    your-domain   → you run your own reverse proxy in front
  *
@@ -347,7 +347,7 @@ export async function runWizard(): Promise<void> {
           message: "How do you want a domain + HTTPS?",
           initialValue: "free",
           options: [
-            { value: "free", label: "Free domain", hint: "name.vibrail.warpgateapi.com via Vibrail Cloud — HTTPS handled for you" },
+            { value: "free", label: "Free domain", hint: "name.vibrail.com via Vibrail Cloud — HTTPS handled for you" },
             { value: "byo", label: "Bring your own", hint: "your domain, behind your own reverse proxy" },
             { value: BACK, label: "← Back" },
           ],
@@ -374,7 +374,7 @@ export async function runWizard(): Promise<void> {
         .toLowerCase();
       const host = await resolvePublicHost();
       note(
-        `${chalk.cyan(`https://${slug}.vibrail.warpgateapi.com`)}\n\n` +
+        `${chalk.cyan(`https://${slug}.vibrail.com`)}\n\n` +
           `  ${chalk.dim("served via")}  Vibrail Cloud edge  ${chalk.dim("→")}  ${chalk.cyan(host)}\n\n` +
           chalk.dim("Vibrail Cloud terminates HTTPS and forwards to this server."),
         "Confirm free domain",
@@ -392,7 +392,7 @@ export async function runWizard(): Promise<void> {
         stage = "type";
         continue;
       }
-      publicUrl = `https://${slug}.vibrail.warpgateapi.com`;
+      publicUrl = `https://${slug}.vibrail.com`;
       behindProxy = true; // Oblien's edge sets a trusted XFF
       domainPlan = { type: "free", slug, publicHost: host };
       break planning;
@@ -609,7 +609,7 @@ export async function runWizard(): Promise<void> {
 
   if (domainPlan.type === "free") {
     // Connect Vibrail Cloud — a SEPARATE step from login. Authorize in the browser
-    // (link printed on the terminal); it only attaches the free .vibrail.warpgateapi.com domain +
+    // (link printed on the terminal); it only attaches the free .vibrail.com domain +
     // mail. The backend links it to the local admin already created above WITHOUT
     // changing the login method. If declined, the box still works on your local
     // login — we just skip the free domain.
@@ -626,7 +626,7 @@ export async function runWizard(): Promise<void> {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const s2 = spinner();
-        s2.start(`Registering ${chalk.bold(`${regSlug}.vibrail.warpgateapi.com`)} with Vibrail Cloud`);
+        s2.start(`Registering ${chalk.bold(`${regSlug}.vibrail.com`)} with Vibrail Cloud`);
         const res = await internalPost(port, "/api/system/self-register", {
           domainType: "free",
           slug: regSlug,
@@ -638,7 +638,7 @@ export async function runWizard(): Promise<void> {
           s2.stop(`Free domain live: ${res.data.url}`);
           break;
         }
-        s2.stop(`Couldn't register ${regSlug}.vibrail.warpgateapi.com: ${res.data?.error || "failed"}`, 1);
+        s2.stop(`Couldn't register ${regSlug}.vibrail.com: ${res.data?.error || "failed"}`, 1);
         const next = ensure(
           await select({
             message: "Try a different subdomain?",

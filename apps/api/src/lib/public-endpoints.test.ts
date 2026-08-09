@@ -29,19 +29,19 @@ describe("storedPublicEndpointsNeedCloud", () => {
     // the exact bug: migrated custom domain, domainType not stamped
     expect(
       storedPublicEndpointsNeedCloud([
-        { customDomain: "vibrail.warpgateapi.com", domainType: undefined as never },
+        { customDomain: "vibrail.com", domainType: undefined as never },
       ]),
     ).toBe(false);
     // even if a stale row (wrongly) marked it free — the hostname is the truth
     expect(
       storedPublicEndpointsNeedCloud([
-        { customDomain: "vibrail.warpgateapi.com", domainType: "free" as never },
+        { customDomain: "vibrail.com", domainType: "free" as never },
       ]),
     ).toBe(false);
     // ...or the host was misfiled into the free `domain` field as a full host
     expect(
       storedPublicEndpointsNeedCloud([
-        { domain: "vibrail.warpgateapi.com", domainType: undefined as never },
+        { domain: "vibrail.com", domainType: undefined as never },
       ]),
     ).toBe(false);
   });
@@ -57,13 +57,13 @@ describe("storedPublicEndpointsNeedCloud", () => {
   test("mixed set → Cloud needed iff any endpoint is a managed free subdomain", () => {
     expect(
       storedPublicEndpointsNeedCloud([
-        { customDomain: "vibrail.warpgateapi.com", domainType: "custom" },
+        { customDomain: "vibrail.com", domainType: "custom" },
         { domain: "dash", domainType: "free" },
       ]),
     ).toBe(true);
     expect(
       storedPublicEndpointsNeedCloud([
-        { customDomain: "vibrail.warpgateapi.com", domainType: "custom" },
+        { customDomain: "vibrail.com", domainType: "custom" },
         { customDomain: "app.clincai.com", domainType: "custom" },
       ]),
     ).toBe(false);
@@ -83,7 +83,7 @@ describe("inheritSoleProjectRouteForService", () => {
     publicEndpoints: [],
   };
   const projectRoute = {
-    hostname: "3x-ui-jgq7ab.vibrail.warpgateapi.com",
+    hostname: "3x-ui-jgq7ab.vibrail.com",
     isPrimary: true,
     verified: true,
     serviceId: null,

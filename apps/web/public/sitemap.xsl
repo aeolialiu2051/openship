@@ -179,7 +179,7 @@
               </div>
               <h1>Sitemap Index<span class="count"><xsl:value-of select="count(sm:sitemapindex/sm:sitemap)"/> sub-sitemaps</span></h1>
               <p class="lede">
-                This file lists every sub-sitemap on vibrail.warpgateapi.com. Crawlers fetch each child below to discover the full URL set.
+                This file lists every sub-sitemap on vibrail.com. Crawlers fetch each child below to discover the full URL set.
               </p>
               <table>
                 <thead>

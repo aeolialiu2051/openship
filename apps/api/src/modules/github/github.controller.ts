@@ -131,7 +131,7 @@ export async function getHome(c: Context) {
 
 /**
  * Returned with HTTP 503 when a cloud-app connect step needs the SaaS
- * (OAuth handoff or install URL) but vibrail.warpgateapi.com is unreachable. The
+ * (OAuth handoff or install URL) but vibrail.com is unreachable. The
  * dashboard surfaces `message` via getApiErrorMessage → toast, so the
  * user learns the real cause instead of being handed a dead install link.
  */
@@ -208,7 +208,7 @@ export async function connect(c: Context) {
   // ── Cloud-app (self-hosted + cloud-connected) ────────────────────
   // SaaS-only architecture: the local instance never holds GitHub OAuth
   // credentials and never runs the OAuth round-trip itself. All GitHub
-  // auth flows through vibrail.warpgateapi.com.
+  // auth flows through vibrail.com.
   //
   // Two-step flow:
   //   1. If the SaaS doesn't yet have a `account` row with
@@ -238,7 +238,7 @@ export async function connect(c: Context) {
           step: "oauth" as const,
         });
       }
-      // SaaS-only mode: the OAuth handoff URL comes from vibrail.warpgateapi.com. A
+      // SaaS-only mode: the OAuth handoff URL comes from vibrail.com. A
       // null here means the SaaS is unreachable. We must NOT degrade to a
       // stateless github.com install link — that skips the OAuth step the
       // webhook needs and orphans the install. Tell the user the truth.

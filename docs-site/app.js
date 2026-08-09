@@ -1,5 +1,5 @@
-const DASHBOARD_URL = 'https://vibrail.warpgateapi.com/dashboard'
-const API_URL = 'https://vibrail.warpgateapi.com/api/proxy/api'
+const DASHBOARD_URL = 'https://vibrail.com/dashboard'
+const API_URL = 'https://vibrail.com/api/proxy/api'
 const MCP_URL = `${API_URL}/mcp`
 
 const sectionsByLocale = {
@@ -343,7 +343,7 @@ projects|post_projects_by_id_output_check|POST /api/projects/:id/output-check|re
 projects|post_projects_by_id_port_check|POST /api/projects/:id/port-check|read|Live%20port-reachability%20check%20for%20the%20project's%20active%20deployment%20(advisory).
 projects|get_projects_by_id_resources|GET /api/projects/:id/resources|read|Get%20the%20project's%20CPU%2FRAM%2Fdisk%20resource%20config.
 projects|patch_projects_by_id_resources|PATCH /api/projects/:id/resources|write|Update%20the%20project's%20CPU%2FRAM%2Fdisk%2C%20sleep%20mode%2C%20or%20port.
-projects|post_projects_by_id_routing_retry|POST /api/projects/:id/routing/retry|write|Retry%20syncing%20the%20project's%20free%20.vibrail.warpgateapi.com%20edge%20route%20(no%20rebuild)%3B%20clears%20the%20routing%20'Action%20Required'%20warning%20on%20success.
+projects|post_projects_by_id_routing_retry|POST /api/projects/:id/routing/retry|write|Retry%20syncing%20the%20project's%20free%20.vibrail.com%20edge%20route%20(no%20rebuild)%3B%20clears%20the%20routing%20'Action%20Required'%20warning%20on%20success.
 projects|get_projects_by_id_server_logs_recent|GET /api/projects/:id/server-logs/recent|read|Fetch%20recent%20HTTP%20request%20logs%20for%20the%20project.
 projects|post_projects_by_id_sleep_mode|POST /api/projects/:id/sleep-mode|write|Set%20the%20project's%20sleep%20mode%20(auto_sleep%20%2F%20always_on).
 projects|get_projects_by_id_webhook_deliveries|GET /api/projects/:id/webhook-deliveries|read|List%20a%20project's%20webhook%20delivery%20feed%20%E2%80%94%20GitHub%20pushes%20%2B%20custom%20hooks%20(paginated).
@@ -436,7 +436,7 @@ const pagesZh = {
     eyebrow: '开始使用',
     title: '快速开始',
     lead: '通过 GitHub 仓库创建项目，并在几分钟内获得第一个可访问的部署地址。',
-    body: `<ol class="steps"><li><strong>登录控制台</strong>访问 <a href="${DASHBOARD_URL}" target="_blank" rel="noreferrer">vibrail.warpgateapi.com</a>，完成登录并选择组织。</li><li><strong>创建项目</strong>点击新建项目，选择 GitHub 仓库或本地文件夹作为代码来源。</li><li><strong>选择运行位置</strong>使用 Vibrail Cloud，或选择已连接的自有服务器。</li><li><strong>确认构建配置</strong>检查框架、包管理器、构建命令、启动命令和端口。</li><li><strong>开始部署</strong>提交后实时查看构建日志，成功后打开项目地址。</li></ol><h2 id="verify">验证部署</h2><p>Web 服务必须监听 <code>0.0.0.0</code> 和平台提供的端口。项目页面会展示部署状态与运行日志。</p><div class="callout warning"><strong>不要把密钥提交到仓库</strong><p>数据库连接、API Key 和密码应添加到项目环境变量中。</p></div>${cards([
+    body: `<ol class="steps"><li><strong>登录控制台</strong>访问 <a href="${DASHBOARD_URL}" target="_blank" rel="noreferrer">vibrail.com</a>，完成登录并选择组织。</li><li><strong>创建项目</strong>点击新建项目，选择 GitHub 仓库或本地文件夹作为代码来源。</li><li><strong>选择运行位置</strong>使用 Vibrail Cloud，或选择已连接的自有服务器。</li><li><strong>确认构建配置</strong>检查框架、包管理器、构建命令、启动命令和端口。</li><li><strong>开始部署</strong>提交后实时查看构建日志，成功后打开项目地址。</li></ol><h2 id="verify">验证部署</h2><p>Web 服务必须监听 <code>0.0.0.0</code> 和平台提供的端口。项目页面会展示部署状态与运行日志。</p><div class="callout warning"><strong>不要把密钥提交到仓库</strong><p>数据库连接、API Key 和密码应添加到项目环境变量中。</p></div>${cards([
       ['环境变量与项目配置', '配置构建命令、启动命令、端口和敏感变量。', '/docs/projects'],
       ['日志与故障排查', '构建失败或服务无法访问时从这里开始。', '/docs/logs'],
     ])}`,
@@ -668,7 +668,7 @@ const pagesEn = {
     eyebrow: 'Get started',
     title: 'Quickstart',
     lead: 'Create a project from GitHub and get your first deployment URL in a few minutes.',
-    body: `<ol class="steps"><li><strong>Sign in</strong>Open <a href="${DASHBOARD_URL}" target="_blank" rel="noreferrer">vibrail.warpgateapi.com</a> and select an organization.</li><li><strong>Create a project</strong>Choose a GitHub repository or local folder.</li><li><strong>Choose where it runs</strong>Use Vibrail Cloud or a connected server.</li><li><strong>Review the build plan</strong>Confirm the framework, commands, and port.</li><li><strong>Deploy</strong>Watch the logs and open the generated URL.</li></ol><h2 id="verify">Verify the service</h2><p>Web applications must listen on <code>0.0.0.0</code> and the platform-provided port.</p><div class="callout warning"><strong>Keep secrets out of Git</strong><p>Add database URLs, API keys, and passwords as project environment variables.</p></div>${cards([
+    body: `<ol class="steps"><li><strong>Sign in</strong>Open <a href="${DASHBOARD_URL}" target="_blank" rel="noreferrer">vibrail.com</a> and select an organization.</li><li><strong>Create a project</strong>Choose a GitHub repository or local folder.</li><li><strong>Choose where it runs</strong>Use Vibrail Cloud or a connected server.</li><li><strong>Review the build plan</strong>Confirm the framework, commands, and port.</li><li><strong>Deploy</strong>Watch the logs and open the generated URL.</li></ol><h2 id="verify">Verify the service</h2><p>Web applications must listen on <code>0.0.0.0</code> and the platform-provided port.</p><div class="callout warning"><strong>Keep secrets out of Git</strong><p>Add database URLs, API keys, and passwords as project environment variables.</p></div>${cards([
       ['Project configuration', 'Set commands, ports, and environment variables.', '/docs/projects'],
       ['Logs and troubleshooting', 'Start here when a build fails or a service is unreachable.', '/docs/logs'],
     ])}`,

@@ -292,7 +292,7 @@
     "notAvailable": "不可用",
     "domainTitle": "域名",
     "domainHintProxy": "你的邮件服务器已拥有此主机名——我们会通过你的邮件 VPS 将其代理到 Vibrail Cloud 工作负载。无需更改 DNS。",
-    "domainHintCloud": "将 CNAME 指向我们预置的 *.vibrail.warpgateapi.com URL（部署后你会看到它）。",
+    "domainHintCloud": "将 CNAME 指向我们预置的 *.vibrail.com URL（部署后你会看到它）。",
     "domainHintDefault": "操作员将访问的 URL。DNS 必须指向部署目标。",
     "summary": "摘要",
     "summaryTarget": "目标",

@@ -205,7 +205,7 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  SMTP_FROM: z.string().default("Vibrail <noreply@vibrail.warpgateapi.com>"),
+  SMTP_FROM: z.string().default("Vibrail <noreply@vibrail.com>"),
 
   /* ---------- Network (self-hosted) ---------- */
   /**
@@ -237,7 +237,7 @@ const envSchema = z.object({
    */
   HOST_DOMAIN: z.string().optional(),
   /** Managed Vibrail zone. It becomes the routing base when Cloudflare DNS is configured. */
-  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrail.warpgateapi.com"),
+  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrail.com"),
   /** Backend-only Cloudflare credentials; never injected into deployed workloads. */
   VIBRAIL_CLOUDFLARE_API_TOKEN: z.string().optional(),
   VIBRAIL_CLOUDFLARE_ZONE_ID: z.string().optional(),
@@ -511,7 +511,7 @@ function validateCookieDomain(raw: string): void {
 
   // Compute the runtime target's eTLD+1 (rightmost 2 labels) and
   // require the cookie domain ends with it. Avoids cross-product
-  // leaks (".vibrail.warpgateapi.com" on an instance whose API runs at
+  // leaks (".vibrail.com" on an instance whose API runs at
   // "api.example.com").
   let apiHostname: string;
   try {
@@ -537,7 +537,7 @@ function validateCookieDomain(raw: string): void {
 
 // ─── Self-hosted GitHub App creds are deprecated ────────────────────────────
 //
-// The GitHub App private key now lives exclusively in vibrail.warpgateapi.com
+// The GitHub App private key now lives exclusively in vibrail.com
 // (CLOUD_MODE=true). Self-hosted instances proxy all App-scoped operations
 // through cloud-client.ts. Setting these on a self-hosted instance has no
 // effect but suggests the operator hasn't seen the new flow — warn so they
@@ -549,7 +549,7 @@ if (!env.CLOUD_MODE) {
   // listed: it's no longer REQUIRED (webhooks now mint + persist a
   // per-project signing secret), but it stays a valid LEGACY FALLBACK the
   // webhook verifier still accepts — so we don't nag operators to remove it.
-  // The vars below ARE App-private credentials that moved to vibrail.warpgateapi.com.
+  // The vars below ARE App-private credentials that moved to vibrail.com.
   const stale = [
     env.GITHUB_APP_ID && "GITHUB_APP_ID",
     (env.GITHUB_PRIVATE_KEY || env.GITHUB_PRIVATE_KEY_BASE64) && "GITHUB_PRIVATE_KEY",

@@ -8,14 +8,14 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="../../LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
   <a href="#schnellstart">Schnellstart</a> ·
   <a href="#funktionen">Funktionen</a> ·
   <a href="#drei-oberflächen">Oberflächen</a> ·
-  <a href="https://docs.vibrail.warpgateapi.com/">Dokumentation</a> ·
+  <a href="https://docs.vibrail.com/">Dokumentation</a> ·
   <a href="../../CONTRIBUTING.md">Mitwirken</a>
 </p>
 
@@ -60,7 +60,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Oder hol dir die Desktop-App (`vibrail install` oder Download von [vibrail.warpgateapi.com](https://vibrail.warpgateapi.com)).
+Oder hol dir die Desktop-App (`vibrail install` oder Download von [vibrail.com](https://vibrail.com)).
 
 ---
 
@@ -109,7 +109,7 @@ Dieselbe Oberfläche, egal wo du deployst.
 - **Web-Dashboard** — dieselbe UI im Browser, für Teams gemacht.
 - **CLI** — skriptfähig und CI-freundlich.
 
-Eine **REST-API** und **MCP** (KI-Agenten-Protokoll) runden das Ganze für Automatisierung und Tool-Integration ab. Vollständige Befehls- und API-Referenz unter [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
+Eine **REST-API** und **MCP** (KI-Agenten-Protokoll) runden das Ganze für Automatisierung und Tool-Integration ab. Vollständige Befehls- und API-Referenz unter [docs.vibrail.com](https://docs.vibrail.com/).
 
 > [!NOTE]
 > Die Dokumentation ist noch in Arbeit — wir füllen sie aktiv auf. Wenn etwas fehlt oder unklar ist, sind [Beiträge](../../CONTRIBUTING.md) sehr willkommen und helfen uns, schneller ans Ziel zu kommen.

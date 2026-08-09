@@ -30,8 +30,8 @@ describe("forceMcpConsent", () => {
     expect(location).toMatch(/^\/api\/auth\/mcp\/authorize\?/);
     expect(location).not.toContain("api:4000");
 
-    const redirected = new URL(location!, "https://vibrail.warpgateapi.com");
-    expect(redirected.origin).toBe("https://vibrail.warpgateapi.com");
+    const redirected = new URL(location!, "https://vibrail.com");
+    expect(redirected.origin).toBe("https://vibrail.com");
     expect(redirected.searchParams.get("prompt")).toBe("consent");
     expect(redirected.searchParams.get("client_id")).toBe("test-client");
     expect(redirected.searchParams.get("state")).toBe("test-state");

@@ -1,6 +1,6 @@
 /**
  * Cloud transport — the authenticated wire from a self-hosted instance to
- * vibrail.warpgateapi.com. Auth is fully server-side: the user's Vibrail Cloud
+ * vibrail.com. Auth is fully server-side: the user's Vibrail Cloud
  * session lives (encrypted) in `user_settings.cloud_session_token`; this layer
  * reads it, presents it as a Bearer, and forwards the call.
  *

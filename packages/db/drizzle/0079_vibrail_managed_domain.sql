@@ -5,7 +5,7 @@ SET
   "hostname" = regexp_replace(
     "hostname",
     '\.opsh\.io$',
-    '.vibrail.warpgateapi.com'
+    '.vibrail.com'
   ),
   "updated_at" = now()
 WHERE

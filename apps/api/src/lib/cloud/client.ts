@@ -1,6 +1,6 @@
 /**
  * The cloud client facade — the single typed surface the rest of the app uses
- * to talk to vibrail.warpgateapi.com. Construction takes the scope (userId or
+ * to talk to vibrail.com. Construction takes the scope (userId or
  * organizationId) once; every method dispatches through the matching transport
  * primitive (cloudFetch vs cloudFetchAsOrgOwner) based on that scope:
  *

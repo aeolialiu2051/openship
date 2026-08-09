@@ -251,7 +251,7 @@ export async function getAppConnectionView(
   const services = await repos.service.listByProject(projectId);
   const byName = new Map(services.map((s) => [s.name, s]));
   // Live domain rows are authoritative for what the dashboard's project card
-  // opens. Service config can still contain the originally generated `.vibrail.warpgateapi.com`
+  // opens. Service config can still contain the originally generated `.vibrail.com`
   // slug after a custom/base-domain route has become the active address.
   const domainRows = await repos.domain.listByProject(projectId);
 

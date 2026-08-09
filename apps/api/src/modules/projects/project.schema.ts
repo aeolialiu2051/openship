@@ -179,7 +179,7 @@ const ReleaseSourceSchema = Type.Object({
 
 export const CreateProjectBody = Type.Object({
   name: Type.String({ minLength: 1, maxLength: 100 }),
-  /** Override the auto-generated slug (used as free subdomain: slug.vibrail.warpgateapi.com) */
+  /** Override the auto-generated slug (used as free subdomain: slug.vibrail.com) */
   slug: Type.Optional(
     Type.String({ minLength: 1, maxLength: 63, pattern: "^[a-z0-9]([a-z0-9-]*[a-z0-9])?$" }),
   ),

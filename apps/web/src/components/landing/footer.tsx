@@ -30,15 +30,15 @@ export function Footer({ copy = landingCopy.en.footer, supportEmail, dashboardLo
           </div>
           <div>
             <span>{copy.developers}</span>
-            <a href="https://docs.vibrail.warpgateapi.com/">{copy.documentation}</a>
-            <a href="https://docs.vibrail.warpgateapi.com/#/docs/cli">{copy.cliReference}</a>
-            <a href="https://docs.vibrail.warpgateapi.com/#/docs/mcp">{copy.mcpServer}</a>
+            <a href="https://docs.vibrail.com/">{copy.documentation}</a>
+            <a href="https://docs.vibrail.com/#/docs/cli">{copy.cliReference}</a>
+            <a href="https://docs.vibrail.com/#/docs/mcp">{copy.mcpServer}</a>
           </div>
           <div>
             <span>{copy.deploy}</span>
             <DashboardLink href={dashboardLoginUrl} theme={theme}>{copy.cloud}</DashboardLink>
-            <a href="https://docs.vibrail.warpgateapi.com/#/docs/deploy/server">{copy.connectVps}</a>
-            <a href="https://docs.vibrail.warpgateapi.com/#/docs/quickstart">{copy.quickstart}</a>
+            <a href="https://docs.vibrail.com/#/docs/deploy/server">{copy.connectVps}</a>
+            <a href="https://docs.vibrail.com/#/docs/quickstart">{copy.quickstart}</a>
           </div>
         </div>
       </div>

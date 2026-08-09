@@ -12,14 +12,14 @@
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
-  <a href="https://vibrail.warpgateapi.com"><img src="https://img.shields.io/badge/website-vibrail.warpgateapi.com-0b7285" alt="Website" /></a>
+  <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
   <a href="#how-it-works">How It Works</a> ·
   <a href="#interfaces">Interfaces</a> ·
-  <a href="https://docs.vibrail.warpgateapi.com/">Docs</a> ·
+  <a href="https://docs.vibrail.com/">Docs</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
@@ -110,7 +110,7 @@ vibrail init            # link this directory to a project
 vibrail deploy
 ```
 
-Full guides: **[CLI reference](docs/cli.md)** · **[Installation and self-hosting](docs/installation.md)** · **[docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/)**.
+Full guides: **[CLI reference](docs/cli.md)** · **[Installation and self-hosting](docs/installation.md)** · **[docs.vibrail.com](https://docs.vibrail.com/)**.
 
 <details>
 <summary>Self-host with raw Docker Compose (no CLI)</summary>
@@ -155,7 +155,7 @@ Three ways to drive the same backend:
 - **Web dashboard** — the same UI in the browser, built for teams.
 - **CLI** — scriptable and CI-friendly; also how you install and manage a self-hosted instance.
 
-An **MCP** endpoint (for AI agents) and a **REST API** round it out for automation. Only routes that opt in are exposed as MCP tools, every call re-checks your permissions, and credential/token routes can never become tools. Full reference at [docs.vibrail.warpgateapi.com](https://docs.vibrail.warpgateapi.com/).
+An **MCP** endpoint (for AI agents) and a **REST API** round it out for automation. Only routes that opt in are exposed as MCP tools, every call re-checks your permissions, and credential/token routes can never become tools. Full reference at [docs.vibrail.com](https://docs.vibrail.com/).
 
 > [!NOTE]
 > The docs are actively being filled out. If something's missing or unclear, [contributions](CONTRIBUTING.md) are hugely welcome.

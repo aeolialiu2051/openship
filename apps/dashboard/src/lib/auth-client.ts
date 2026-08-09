@@ -6,7 +6,7 @@ import { getAuthBaseUrl } from "@/lib/api/urls";
  * API base URL - auth requests go directly to the selected API origin.
  *
  * Local SaaS uses localhost:4100. Public-host dev and production use
- * vibrail.warpgateapi.com so Better Auth can share cookies with vibrail.warpgateapi.com.
+ * vibrail.com so Better Auth can share cookies with vibrail.com.
  */
 const AUTH_BASE_URL = getAuthBaseUrl();
 

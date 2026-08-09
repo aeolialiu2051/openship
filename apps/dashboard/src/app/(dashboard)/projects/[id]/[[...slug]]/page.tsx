@@ -859,7 +859,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.contactSupport,
       icon: <HelpCircle className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://vibrail.warpgateapi.com/about", "_blank");
+        window.open("https://vibrail.com/about", "_blank");
       },
     },
     {
@@ -867,7 +867,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.reportIssue,
       icon: <Bug className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://vibrail.warpgateapi.com/about", "_blank");
+        window.open("https://vibrail.com/about", "_blank");
       },
     },
     {
@@ -875,7 +875,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.sendFeedback,
       icon: <MessageSquare className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://vibrail.warpgateapi.com/about", "_blank");
+        window.open("https://vibrail.com/about", "_blank");
       },
     },
     {
@@ -887,7 +887,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.documentation,
       icon: <BookOpen className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://docs.vibrail.warpgateapi.com/", "_blank");
+        window.open("https://docs.vibrail.com/", "_blank");
       },
     },
     {

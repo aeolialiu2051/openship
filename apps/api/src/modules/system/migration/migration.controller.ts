@@ -158,10 +158,10 @@ export async function start(c: Context) {
  *
  * Path B — migrate to Vibrail Cloud. Body: { allowNonEmptyTarget? }.
  *
- * Dumps the local DB, uploads it to vibrail.warpgateapi.com/api/cloud/ingest-subgraph
+ * Dumps the local DB, uploads it to vibrail.com/api/cloud/ingest-subgraph
  * (authenticated as the org owner via the stored cloud session token),
  * flips local teamMode to "cloud_hosted". Dashboard launcher then
- * points at vibrail.warpgateapi.com.
+ * points at vibrail.com.
  */
 export async function startCloud(c: Context) {
   const ctx = getRequestContext(c);

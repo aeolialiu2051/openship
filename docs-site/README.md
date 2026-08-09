@@ -1,8 +1,8 @@
 # Vibrail documentation site
 
-Static documentation for [Vibrail](https://vibrail.warpgateapi.com), published at:
+Static documentation for [Vibrail](https://vibrail.com), published at:
 
-- https://docs.vibrail.warpgateapi.com/
+- https://docs.vibrail.com/
 
 The site intentionally has no build step. GitHub Pages serves the files in this directory directly.
 
