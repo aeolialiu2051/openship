@@ -109,7 +109,10 @@ export async function getDockerOverview(c: Context) {
       collectedAt: new Date().toISOString(),
     });
   } catch (err) {
-    const message = safeErrorMessage(err);
+    const rawMessage = safeErrorMessage(err);
+    const message = /aborted|abortsignal|timed?\s*out/i.test(rawMessage)
+      ? "Docker metrics collection timed out. Retry after checking the Docker daemon."
+      : rawMessage;
     if (isSshAuthError(err)) {
       return c.json({ error: "auth_failed", message }, 400);
     }

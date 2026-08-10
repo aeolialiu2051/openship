@@ -1020,6 +1020,7 @@ async function publishBareRuntimeTraefikRoutes(
     port: number;
     tls: boolean;
     targetPath?: string;
+    managedOrigin?: boolean;
   }>,
 ): Promise<void> {
   const executor = phase.targetExecutor;
@@ -1607,6 +1608,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         hostname: route.hostname,
         port: route.effectivePort,
         tls: route.tls,
+        managedOrigin: route.domainType === "free",
         ...(route.targetPath ? { targetPath: route.targetPath } : {}),
       }));
     if (traefikRoutes.length > 0) {
@@ -1760,6 +1762,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         hostname: route.hostname,
         port: route.effectivePort,
         tls: route.tls,
+        managedOrigin: route.domainType === "free",
         ...(route.targetPath ? { targetPath: route.targetPath } : {}),
       }));
     try {

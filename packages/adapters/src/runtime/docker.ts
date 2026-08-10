@@ -795,12 +795,38 @@ export class DockerRuntime implements RuntimeAdapter {
         )
       ).filter((container): container is NonNullable<typeof container> => !!container);
 
+      // One-time migration from the former two-proxy topology. Stop the exact
+      // legacy Gateway only after the replacement image and its secret are
+      // available; remove it after the single edge has started successfully.
+      const legacyGateway = details.find(
+        (container) => container.name === "vibrail-origin-gateway" && container.state === "running",
+      );
       let owned = details.find((container) => container.name === VIBRAIL_EDGE_CONTAINER);
       if (owned && !isTraefikContainer(owned)) {
         throw new Error(
           `A non-Traefik container already uses the reserved name "${VIBRAIL_EDGE_CONTAINER}". ` +
             "Vibrail did not replace or remove it.",
         );
+      }
+      if (legacyGateway) {
+        if (!owned || owned.labels[VIBRAIL_EDGE_MANAGED_LABEL] !== "true") {
+          throw new Error(
+            "The legacy origin Gateway is running without a Vibrail-managed edge; automatic migration was refused",
+          );
+        }
+        await this.pullImage(VIBRAIL_EDGE_IMAGE).catch((error) => {
+          throw new Error(`Could not pull ${VIBRAIL_EDGE_IMAGE}: ${safeErrorMessage(error)}`);
+        });
+        const executor = this.connectionOptions?.executor ?? this.systemManager?.executor;
+        const secret = executor
+          ? await executor.readFile("/etc/vibrail/edge/server-secret").catch(() => null)
+          : null;
+        if (!secret?.trim()) {
+          throw new Error(
+            "Cannot migrate to the single Vibrail edge: /etc/vibrail/edge/server-secret is missing",
+          );
+        }
+        await this.stop(legacyGateway.id);
       }
       if (owned) {
         const vibrailManaged = owned.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true";
@@ -830,6 +856,7 @@ export class DockerRuntime implements RuntimeAdapter {
         }
         if (owned.state !== "running") await this.start(owned.id);
         const refreshed = (await this.inspectContainer(owned.id)) ?? owned;
+        if (legacyGateway) await this.destroy(legacyGateway.id);
         return this.resolveInspectedTraefik(refreshed, manual);
       }
 
@@ -878,6 +905,7 @@ export class DockerRuntime implements RuntimeAdapter {
         `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
         `--providers.file.directory=${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}`,
         "--providers.file.watch=true",
+        "--experimental.localplugins.vibrail-origin-auth.modulename=github.com/vibrail/vibrail-origin-auth",
         "--entrypoints.web.address=:80",
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.http.tls.certresolver=${VIBRAIL_EDGE_CERT_RESOLVER}`,
@@ -910,6 +938,8 @@ export class DockerRuntime implements RuntimeAdapter {
           `--volume ${sq(`${socketPath}:/var/run/docker.sock:ro`)}`,
           `--volume ${sq("vibrail-edge-acme:/letsencrypt")}`,
           `--volume ${sq(`${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`)}`,
+          `--volume ${sq("/etc/vibrail/edge:/etc/vibrail/edge:ro")}`,
+          `--volume ${sq("/etc/vibrail/edge-routes:/etc/vibrail/edge-routes:ro")}`,
           `--restart ${sq("unless-stopped")}`,
           sq(VIBRAIL_EDGE_IMAGE),
           ...args.map(sq),
@@ -917,6 +947,7 @@ export class DockerRuntime implements RuntimeAdapter {
         try {
           containerId = await this.remoteDockerExec(command, { timeout: 2 * 60_000 });
         } catch (error) {
+          if (legacyGateway) await this.start(legacyGateway.id).catch(() => undefined);
           throw new Error(
             `Could not create the shared Vibrail Traefik edge without taking over ports 80/443: ${safeErrorMessage(error)}`,
           );
@@ -935,6 +966,8 @@ export class DockerRuntime implements RuntimeAdapter {
                 "/var/run/docker.sock:/var/run/docker.sock:ro",
                 "vibrail-edge-acme:/letsencrypt",
                 `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`,
+                "/etc/vibrail/edge:/etc/vibrail/edge:ro",
+                "/etc/vibrail/edge-routes:/etc/vibrail/edge-routes:ro",
               ],
               // Host networking lets file-provider routes reach Bare processes
               // at 127.0.0.1 while Docker-provider routes still resolve the
@@ -945,11 +978,14 @@ export class DockerRuntime implements RuntimeAdapter {
           await container.start();
           containerId = container.id;
         } catch (error) {
+          if (legacyGateway) await this.start(legacyGateway.id).catch(() => undefined);
           throw new Error(
             `Could not create the shared Vibrail Traefik edge without taking over ports 80/443: ${safeErrorMessage(error)}`,
           );
         }
       }
+
+      if (legacyGateway) await this.destroy(legacyGateway.id);
 
       return {
         network: VIBRAIL_EDGE_NETWORK,
@@ -1009,7 +1045,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * itself uses Traefik's noop@internal service. */
   async publishSuspendedRoutes(opts: {
     projectId: string;
-    routes: Array<{ hostname: string; redirectUrl: string }>;
+    routes: Array<{ hostname: string; redirectUrl: string; managedOriginHost?: string }>;
     manual?: TraefikManualConfig;
   }): Promise<void> {
     await this.removeSuspendedRoutes(opts.projectId);

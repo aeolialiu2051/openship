@@ -1,6 +1,7 @@
 name: Docker images
 
-# Publishes the official pull-based images (vibrail-api + vibrail-dashboard)
+# Publishes the official pull-based images (API, Dashboard, and the single
+# authenticated vibrail-edge reverse proxy)
 # to GHCR. Deliberately SEPARATE from release.yml (the bun
 # binary / npm CLI / desktop installers / GitHub release) so image publishing
 # can be iterated + tested on its own.
@@ -39,7 +40,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard]
+        image: [api, dashboard, edge]
         platform: [amd64, arm64]
         include:
           - platform: amd64
@@ -102,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard]
+        image: [api, dashboard, edge]
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8

@@ -22,8 +22,8 @@ import {
 
 describe("managed Traefik compatibility", () => {
   it("uses a Docker-29-compatible image and migrates older managed edges", () => {
-    expect(VIBRAIL_EDGE_IMAGE).toBe("traefik:v3.6");
-    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(5);
+    expect(VIBRAIL_EDGE_IMAGE).toContain("vibrail-edge");
+    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(6);
   });
 
   it("does not mistake a suspension label carrier for the shared edge", () => {
@@ -216,6 +216,49 @@ describe("Traefik static config detection", () => {
 });
 
 describe("buildTraefikLabels", () => {
+  it("routes a Worker origin request directly through the authenticated edge", () => {
+    const labels = buildTraefikLabels({
+      network: "vibrail-edge",
+      entrypoint: "websecure",
+      httpEntrypoint: "web",
+      tls: true,
+      certResolver: "letsencrypt",
+      managedOriginAuth: true,
+      managedOriginHost: "server-001.vibrail.app",
+      routes: [
+        {
+          routerName: "managed-app",
+          hostname: "app-k3m9x2ab.vibrail.app",
+          port: 3000,
+          managedOrigin: true,
+        },
+      ],
+    });
+
+    expect(labels).toMatchObject({
+      "traefik.http.routers.managed-app.rule":
+        "Host(`server-001.vibrail.app`) && Header(`x-vibrail-hostname`, `app-k3m9x2ab.vibrail.app`)",
+      "traefik.http.routers.managed-app.middlewares": "managed-app-origin-auth@docker",
+      "traefik.http.middlewares.managed-app-origin-auth.plugin.vibrail-origin-auth.hostname":
+        "app-k3m9x2ab.vibrail.app",
+      "traefik.http.services.managed-app.loadbalancer.server.port": "3000",
+    });
+    expect(labels["traefik.http.routers.managed-app-redirect.rule"]).toBeUndefined();
+  });
+
+  it("rejects managed routes on an edge without the auth plugin", () => {
+    expect(() =>
+      buildTraefikLabels({
+        network: "proxy",
+        entrypoint: "websecure",
+        tls: true,
+        routes: [
+          { routerName: "managed", hostname: "app.vibrail.app", port: 3000, managedOrigin: true },
+        ],
+      }),
+    ).toThrow(/Vibrail-owned edge image/);
+  });
+
   it("builds stable per-route labels and selects the shared edge network", () => {
     expect(
       buildTraefikLabels({
@@ -292,6 +335,36 @@ describe("buildTraefikLabels", () => {
         "https://ops.example.com/suspended?site=app.example.com",
       [`traefik.http.middlewares.${name}-redirect.redirectregex.permanent`]: "false",
     });
+  });
+
+  it("matches managed suspension routes by origin host and trusted hostname header", () => {
+    const labels = buildTraefikSuspensionLabels(
+      {
+        network: "vibrail-edge",
+        entrypoint: "websecure",
+        httpEntrypoint: "web",
+        tls: true,
+        source: "vibrail",
+        containerId: "edge",
+      },
+      "project-1",
+      [{
+        hostname: "app.vibrail.app",
+        managedOriginHost: "server-001.vibrail.app",
+        redirectUrl: "https://vibrail.com/suspended?site=app.vibrail.app",
+      }],
+    );
+    const rule = Object.values(labels).find((value) => value.includes("x-vibrail-hostname"));
+    expect(rule).toBe(
+      "Host(`server-001.vibrail.app`) && Header(`x-vibrail-hostname`, `app.vibrail.app`)",
+    );
+    const routerName = Object.keys(labels)
+      .find((key) => key.endsWith(".rule") && labels[key] === rule)!
+      .split(".")[3]!;
+    expect(labels[`traefik.http.routers.${routerName}.middlewares`]).toContain("origin-auth@docker");
+    expect(labels[`traefik.http.middlewares.${routerName}-origin-auth.plugin.vibrail-origin-auth.hostname`])
+      .toBe("app.vibrail.app");
+    expect(Object.keys(labels).some((key) => key.includes(`${routerName}-http`))).toBe(false);
   });
 
   it("prefixes static requests with the selected document-root path", () => {

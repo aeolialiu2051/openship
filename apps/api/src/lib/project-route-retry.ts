@@ -127,6 +127,7 @@ export async function retryProjectApplicationRoutes(opts: {
       hostname: route.hostname,
       port: route.effectivePort,
       tls: route.tls,
+      managedOrigin: route.domainType === "free",
       ...(route.targetPath ? { targetPath: route.targetPath } : {}),
     }));
   if (traefikRoutes.length === 0) {

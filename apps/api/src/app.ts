@@ -305,16 +305,20 @@ if (USER_SERVERS_ENABLED) {
     void import("./modules/migration/migration.orchestrator")
       .then(({ migrationOrchestrator }) => migrationOrchestrator.recoverInterruptedMigrations())
       .catch((err) => console.warn("[boot] migration recovery failed:", err));
-    void import("./modules/admin/admin.service")
-      .then(({ reconcileSuspendedApplicationRoutes }) => reconcileSuspendedApplicationRoutes())
-      .then(({ total, applied, warnings }) => {
-        if (total > 0) {
-          console.log(`[boot] suspension routes: ${applied}/${total} applied`);
-        }
-        for (const warning of warnings) console.warn(`[boot] suspension route: ${warning}`);
-      })
-      .catch((err) => console.warn("[boot] suspension route reconcile failed:", err));
   }
+  // Moderation routes are deployment infrastructure, not a self-host-only
+  // concern. Rebuild them in cloud mode too so an edge/router upgrade repairs
+  // projects that were already suspended without requiring a resume+suspend
+  // cycle from an administrator.
+  void import("./modules/admin/admin.service")
+    .then(({ reconcileSuspendedApplicationRoutes }) => reconcileSuspendedApplicationRoutes())
+    .then(({ total, applied, warnings }) => {
+      if (total > 0) {
+        console.log(`[boot] suspension routes: ${applied}/${total} applied`);
+      }
+      for (const warning of warnings) console.warn(`[boot] suspension route: ${warning}`);
+    })
+    .catch((err) => console.warn("[boot] suspension route reconcile failed:", err));
 
   const runner = await getJobRunner();
   await runner.start({
