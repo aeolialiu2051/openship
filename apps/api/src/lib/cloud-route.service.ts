@@ -15,7 +15,7 @@
  * involved.
  *
  * KNOWN LIMITATION: the workspace SDK has no clean per-domain teardown
- * primitive, so removing an old *managed* (`*.vibrail.com`) subdomain on a *dynamic*
+ * primitive, so removing an old *managed* (`*.vibrail.app`) subdomain on a *dynamic*
  * cloud project can't be re-applied on edit — it clears on the next
  * redeploy/destroy. Custom-domain teardown (static pages) and every apply path
  * do re-apply. `removeCloudProjectRoute` logs the unsupported case rather than
@@ -37,7 +37,7 @@ export interface CloudRouteProject {
 }
 
 export interface CloudRouteInput {
-  /** Full hostname — `slug.vibrail.com` (managed) or `app.example.com` (custom). */
+  /** Full hostname — `slug.vibrail.app` (managed) or `app.example.com` (custom). */
   hostname: string;
   /** Target port on the workspace (dynamic projects). Ignored for static pages. */
   port?: number;
@@ -89,7 +89,7 @@ export async function reapplyCloudProjectRoute(
 
   try {
     if (containerId.startsWith(PAGE_CONTAINER_PREFIX)) {
-      // Static page: the free *.vibrail.com subdomain IS the page slug (set at
+      // Static page: the free *.vibrail.app subdomain IS the page slug (set at
       // create time), so only a custom domain needs an explicit attach.
       if (input.isCustomDomain) {
         await client.pages.connectDomain(containerId.slice(PAGE_CONTAINER_PREFIX.length), {
@@ -104,7 +104,7 @@ export async function reapplyCloudProjectRoute(
     if (input.isCustomDomain) {
       // KNOWN LIMITATION (multi-port): network.update replaces ingress_ports, so
       // applying several custom-domain routes on ONE workspace one-at-a-time
-      // leaves only the last port's ingress open. Managed (*.vibrail.com) routes
+      // leaves only the last port's ingress open. Managed (*.vibrail.app) routes
       // don't hit this — publicAccess.expose below is additive per port, which is
       // the path multi-port apps like Convex use by default. Multi-port CUSTOM
       // domains on cloud need a live-Oblien fix to accumulate ingress_ports.

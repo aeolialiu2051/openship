@@ -13,13 +13,13 @@ describe("managed domain editing", () => {
       "seekpeace-backend-1lci64",
       "free",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("seekpeace-backend");
     expect(managedDomainFromEditing(
       "renamed-backend",
       "free",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("renamed-backend-1lci64");
   });
 
@@ -28,7 +28,7 @@ describe("managed domain editing", () => {
       "",
       "free",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("project-1lci64");
   });
 
@@ -37,13 +37,13 @@ describe("managed domain editing", () => {
       "renamed-1lci64",
       "free",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("renamed-1lci64");
     expect(managedDomainFromEditing(
-      "renamed-1lci64.vibrail.com",
+      "renamed-1lci64.vibrail.app",
       "free",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("renamed-1lci64");
   });
 
@@ -52,13 +52,13 @@ describe("managed domain editing", () => {
       "app.example.com",
       "custom",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("app.example.com");
     expect(managedDomainFromEditing(
       "app.example.com",
       "custom",
       "1lci64",
-      "vibrail.com",
+      "vibrail.app",
     )).toBe("app.example.com");
   });
 

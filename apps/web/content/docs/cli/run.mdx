@@ -45,7 +45,7 @@ email, and password** — this is your instance login, created before anything e
 settings that hang off that account: whether the instance is private (this machine only) or public (a domain +
 HTTPS, reachable from anywhere), and — on the public path — the domain and whether an HTTPS reverse proxy is in
 front. It then deploys via the same pipeline as `vibrail up`, creates your admin account, and prints the URL
-to sign in. Connecting Vibrail Cloud (for a free `.vibrail.com` domain + mail) is a separate link step that never
+to sign in. Connecting Vibrail Cloud (for a free `.vibrail.app` domain + mail) is a separate link step that never
 becomes your sign-in. This is the recommended way to stand up a new instance.
 
 ```bash
@@ -103,7 +103,7 @@ vibrail up --dry-run
 | `--admin-password <pw>` | Admin password (min 8). Prefer the `VIBRAIL_ADMIN_PASSWORD` env var (keeps it out of shell history). | — |
 | `--domain-kind <kind>` | Headless domain: `byo` · `custom` · `free` · `none`. | `byo` if `--public-url`, else `none` |
 | `--hostname <host>` | Hostname for `byo`/`custom` (or derived from `--public-url`). | — |
-| `--slug <slug>` | Free `.vibrail.com` subdomain for `--domain-kind free` (box must already be Cloud-connected). | — |
+| `--slug <slug>` | Free `.vibrail.app` subdomain for `--domain-kind free` (box must already be Cloud-connected). | — |
 
 <Callout title="The dashboard is downloaded on first run">
 Unless you pass `--no-ui`, the dashboard bundle is lazy-downloaded from GitHub releases the first time you run

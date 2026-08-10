@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useCallback } from "react";
 import { CLOUD_DASHBOARD_URL, CLOUD_API_URL } from "@repo/core/runtime-config";
 
 /** Default deployment domain - matches SYSTEM.DOMAINS.CLOUD_DOMAIN in @repo/core. */
-const DEFAULT_MANAGED_DOMAIN = "vibrailapp.com";
+const DEFAULT_MANAGED_DOMAIN = "vibrail.app";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 

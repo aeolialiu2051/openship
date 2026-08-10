@@ -680,7 +680,7 @@
       "pickServer": "Bir sunucu seçin",
       "domain": "Alan Adı",
       "freeSubdomain": "Ücretsiz alt alan adı",
-      "freeSubdomainHint": "adiniz.vibrail.com",
+      "freeSubdomainHint": "adiniz.vibrail.app",
       "customDomain": "Özel alan adı",
       "customDomainHint": "Sunucuya yönlendirilmiş DNS",
       "freeSlugPlaceholder": "ekibim",

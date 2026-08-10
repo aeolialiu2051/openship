@@ -6,7 +6,7 @@
  * Vibrail as a boot service, create the first admin, and — reusing Vibrail's
  * OWN app + domain pipeline — register the control plane as an **app** (it shows
  * up under Apps) with a domain:
- *   - Free   name.vibrail.com  → Vibrail Cloud edge (Oblien); connects Cloud in-flow
+ *   - Free   name.vibrail.app  → Vibrail Cloud edge (Oblien); connects Cloud in-flow
  *   - Custom your-domain   → Traefik + a free Let's Encrypt cert on this box
  *   - BYO    your-domain   → you run your own reverse proxy in front
  *
@@ -610,7 +610,7 @@ export async function runWizard(): Promise<void> {
 
   if (domainPlan.type === "free") {
     // Connect Vibrail Cloud — a SEPARATE step from login. Authorize in the browser
-    // (link printed on the terminal); it only attaches the free .vibrail.com domain +
+    // (link printed on the terminal); it only attaches the free .vibrail.app domain +
     // mail. The backend links it to the local admin already created above WITHOUT
     // changing the login method. If declined, the box still works on your local
     // login — we just skip the free domain.

@@ -37,7 +37,7 @@ describe("resolveRecords", () => {
         ? dnsResponse()
         : dnsResponse([
             {
-              name: "3x-ui-y3hrwo.vibrail.com.",
+              name: "3x-ui-y3hrwo.vibrail.app.",
               type: 1,
               data: "136.118.60.116",
             },
@@ -46,7 +46,7 @@ describe("resolveRecords", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      resolveRecords("3x-ui-y3hrwo.vibrail.com", "A", { timeoutMs: 100 }),
+      resolveRecords("3x-ui-y3hrwo.vibrail.app", "A", { timeoutMs: 100 }),
     ).resolves.toEqual(["136.118.60.116"]);
 
     expect(fetchMock).toHaveBeenCalledTimes(2);

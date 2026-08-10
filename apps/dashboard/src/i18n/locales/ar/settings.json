@@ -610,7 +610,7 @@
       "pickServer": "اختر خادمًا",
       "domain": "النطاق",
       "freeSubdomain": "نطاق فرعي مجاني",
-      "freeSubdomainHint": "name.vibrail.com",
+      "freeSubdomainHint": "name.vibrail.app",
       "customDomain": "نطاق مخصّص",
       "customDomainHint": "‏DNS موجَّه إلى الخادم",
       "freeSlugPlaceholder": "myteam",

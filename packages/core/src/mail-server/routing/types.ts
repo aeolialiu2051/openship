@@ -42,7 +42,7 @@ export interface MailServerRouteInput {
 
   /**
    * Where the Zero web client is served from. Could be:
-   *   - A Vibrail app deployment URL ("https://zero-client-xyz.vibrail.com")
+   *   - A Vibrail app deployment URL ("https://zero-client-xyz.vibrail.app")
    *   - A Cloudflare Workers URL
    *   - A static-asset CDN URL
    *

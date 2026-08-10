@@ -21,7 +21,7 @@ type ProjectStatusSource = {
    *  operator's keep/reject decision — surfaced as "Action Required", never
    *  "Live". */
   awaitingDecision?: boolean | null;
-  /** True when the live release deployed fine but its free .vibrail.com edge route
+  /** True when the live release deployed fine but its free .vibrail.app edge route
    *  didn't sync — also surfaced as "Action Required", with a Retry routing
    *  action (distinct from the keep/reject decision above). */
   routingUnsynced?: boolean | null;

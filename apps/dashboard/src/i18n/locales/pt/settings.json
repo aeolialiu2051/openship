@@ -610,7 +610,7 @@
       "pickServer": "Escolha um servidor",
       "domain": "Domínio",
       "freeSubdomain": "Subdomínio gratuito",
-      "freeSubdomainHint": "nome.vibrail.com",
+      "freeSubdomainHint": "nome.vibrail.app",
       "customDomain": "Domínio personalizado",
       "customDomainHint": "DNS apontado para o servidor",
       "freeSlugPlaceholder": "minhaequipe",

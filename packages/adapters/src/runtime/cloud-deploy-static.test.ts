@@ -65,11 +65,11 @@ describe("CloudRuntime.deployStatic output path (regression #66)", () => {
 
     await rt.deployStatic({
       ...baseConfig,
-      managedDomain: "vibrail.com",
+      managedDomain: "vibrail.app",
       outputDirectory: "dist",
     });
 
-    expect(created[0].domain).toBe("vibrail.com");
+    expect(created[0].domain).toBe("vibrail.app");
   });
 
   test("a ../ traversal that escapes /app is rejected", async () => {

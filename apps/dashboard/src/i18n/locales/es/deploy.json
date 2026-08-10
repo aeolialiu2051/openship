@@ -291,7 +291,7 @@
     "notAvailable": "No disponible",
     "domainTitle": "Dominio",
     "domainHintProxy": "Tu servidor de correo ya es propietario de este nombre de host; lo enrutaremos a través de tu VPS de correo hacia la carga de trabajo de Vibrail Cloud. No se necesitan cambios de DNS.",
-    "domainHintCloud": "Apunta un CNAME a la URL *.vibrail.com que aprovisionamos (la verás después del despliegue).",
+    "domainHintCloud": "Apunta un CNAME a la URL *.vibrail.app que aprovisionamos (la verás después del despliegue).",
     "domainHintDefault": "La URL que visitarán los operadores. El DNS debe apuntar al destino de despliegue.",
     "summary": "Resumen",
     "summaryTarget": "Destino",

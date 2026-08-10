@@ -680,7 +680,7 @@ export const ServicesTab = () => {
 
           // Monorepo sub-app subtitle assembled from the metadata each
           // row already carries: rootDirectory (apps/dashboard) · framework
-          // (Next.js) · port (3202) → resolved URL (example.vibrail.com).
+          // (Next.js) · port (3202) → resolved URL (example.vibrail.app).
           // Each segment is shown only if present - keeps the line short
           // for sub-apps that haven't been fully filled in yet.
           const monorepoBits: string[] = [];
@@ -741,7 +741,7 @@ export const ServicesTab = () => {
                 </div>
                 <p className="text-[12px] text-muted-foreground truncate mt-1">
                   {isMonorepo ? (
-                    // Monorepo: "apps/dashboard · Next.js · port 3202 → my-app.vibrail.com"
+                    // Monorepo: "apps/dashboard · Next.js · port 3202 → my-app.vibrail.app"
                     <>
                       {subtitle}
                       {urlHost && (

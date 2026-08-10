@@ -289,7 +289,7 @@ export async function retryProjectRouting(
 }
 
 /**
- * Core managed free-domain (*.vibrail.com) edge reconciler, shared by the deploy
+ * Core managed free-domain (*.vibrail.app) edge reconciler, shared by the deploy
  * "retry routing" action and the live domain edit path — both need the SAME
  * idempotent slug→target upsert plus routing-warning bookkeeping.
  *
@@ -326,7 +326,7 @@ export async function syncProjectManagedEdge(
     .filter((m) => m.isManaged && m.subdomain)
     .map((m) => ({ hostname: m.hostname, subdomain: m.subdomain! }));
 
-  // No free .vibrail.com routes → nothing to sync; treat as resolved.
+  // No free .vibrail.app routes → nothing to sync; treat as resolved.
   if (targets.length === 0) {
     if (opts.clearOnSuccess !== false) await clearRoutingWarning(dep);
     return { ok: true, failures: [] };

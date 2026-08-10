@@ -87,7 +87,7 @@ export interface CapacityMeter {
  *   routes/workspaces/vcpus → whole counts · ramMb → MB · diskGb/bandwidthGb → GB.
  */
 export interface BillingCapacity {
-  /** Free *.vibrail.com edge routes the org is using vs its allowed maximum. */
+  /** Free *.vibrail.app edge routes the org is using vs its allowed maximum. */
   routes?: CapacityMeter;
   workspaces?: CapacityMeter;
   vcpus?: CapacityMeter;

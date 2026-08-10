@@ -83,7 +83,7 @@ describe("inheritSoleProjectRouteForService", () => {
     publicEndpoints: [],
   };
   const projectRoute = {
-    hostname: "3x-ui-jgq7ab.vibrail.com",
+    hostname: "3x-ui-jgq7ab.vibrail.app",
     isPrimary: true,
     verified: true,
     serviceId: null,

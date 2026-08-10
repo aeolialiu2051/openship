@@ -610,7 +610,7 @@
       "pickServer": "サーバーを選択",
       "domain": "ドメイン",
       "freeSubdomain": "無料のサブドメイン",
-      "freeSubdomainHint": "name.vibrail.com",
+      "freeSubdomainHint": "name.vibrail.app",
       "customDomain": "カスタムドメイン",
       "customDomainHint": "サーバーを指す DNS",
       "freeSlugPlaceholder": "myteam",

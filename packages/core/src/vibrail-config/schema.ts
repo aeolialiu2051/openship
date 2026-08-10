@@ -47,7 +47,7 @@ export type VibrailEnvValue = { value: string; secret?: boolean };
 export type VibrailEnv = Record<string, string | VibrailEnvValue>;
 
 export interface VibrailDomain {
-  /** Hostname. A `.vibrail.com`-style label = a free subdomain; anything with a dot = custom. */
+  /** Hostname. A `.vibrail.app`-style label = a free subdomain; anything with a dot = custom. */
   domain: string;
   /** Which service/exposed port this hostname routes to (defaults to the app port). */
   port?: number;

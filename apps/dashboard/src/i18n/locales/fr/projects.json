@@ -287,7 +287,7 @@
     "deploymentDescription": "L’application fonctionne, mais la route de son domaine public nécessite encore une intervention. Ouvrez Domaines et routage pour l’examiner et la réparer.",
     "manage": "Ouvrir les domaines et le routage",
     "title": "Le routage du domaine gratuit nécessite votre attention",
-    "description": "L'application est en ligne sur le serveur, mais son URL gratuite .vibrail.com n'a pas été routée via l'edge d'Vibrail Cloud. Réessayez une fois que le serveur est accessible depuis le cloud sur le port 80.",
+    "description": "L'application est en ligne sur le serveur, mais son URL gratuite .vibrail.app n'a pas été routée via l'edge d'Vibrail Cloud. Réessayez une fois que le serveur est accessible depuis le cloud sur le port 80.",
     "retry": "Réessayer le routage",
     "retrying": "Nouvelle tentative…",
     "success": "Routage du domaine gratuit synchronisé.",

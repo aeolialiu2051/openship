@@ -143,7 +143,7 @@ export function buildProjectRouteDomains(opts: {
       }
 
       // Attach EITHER the operator's custom domain OR a free
-      // <slug>.vibrail.com fallback — never both. The free managed URL is
+      // <slug>.vibrail.app fallback — never both. The free managed URL is
       // served by Vibrail Cloud's edge (runPostDeploySync →
       // ensureManagedEdgeProxy), so a self-hosted box can't serve it
       // alone; once the operator points their own domain at the box, that
@@ -379,7 +379,7 @@ export async function ensureRouteDomainRecord(opts: {
     // isPrimary intentionally NOT patched — preserve the user's stored selection.
     // Custom domains must pass the DNS challenge — the deploy must NOT force
     // them verified/active (that's the bug that left service routes stuck with
-    // no Verify option). Only host-managed (free / *.vibrail.com) routes, which
+    // no Verify option). Only host-managed (free / *.vibrail.app) routes, which
     // need no challenge, auto-activate here.
     const isCustom = expectedDomainType === "custom";
     if (!isCustom) {

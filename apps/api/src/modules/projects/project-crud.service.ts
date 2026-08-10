@@ -131,7 +131,7 @@ function readActiveDeploymentSummary(dep: Deployment | null | undefined): {
     // time is the stable, cross-runtime anchor the dashboard uses for uptime.
     activeDeploymentCreatedAt: dep?.createdAt?.toISOString() ?? null,
     awaitingDecision: meta?.composeDeployment?.decision === "pending",
-    // Live, but the free .vibrail.com edge route didn't sync — surfaced as
+    // Live, but the free .vibrail.app edge route didn't sync — surfaced as
     // "Action Required" with a Retry routing action (see routing/retry).
     routingUnsynced: meta?.edgeUnsynced === true || typeof meta?.deployWarning === "string",
   };
@@ -414,7 +414,7 @@ async function createProductionProject(
   organizationId: string,
 ) {
   // Atomic free-domain gate — same rule and shape as updateProject. When the
-  // caller EXPLICITLY sends endpoints, a free (*.vibrail.com) route only resolves
+  // caller EXPLICITLY sends endpoints, a free (*.vibrail.app) route only resolves
   // behind the Vibrail Cloud edge, so refuse BEFORE any group/project row is
   // written on a disconnected instance (no dead "Pending" route persisted). The
   // auto-derived default (data.publicEndpoints undefined) is deliberately NOT
@@ -1084,7 +1084,7 @@ export async function updateProject(
     const beforeState = await resolveProjectRouteState(p).catch(() => null);
     const previousHostnames = beforeState?.projectDomains.map((d) => d.hostname) ?? [];
 
-    // Atomic gate: a free (*.vibrail.com) route only resolves behind the Vibrail
+    // Atomic gate: a free (*.vibrail.app) route only resolves behind the Vibrail
     // Cloud edge — refuse before any write so a disconnected instance can't
     // INTRODUCE a dead route. Only gate endpoints whose hostname isn't already
     // live: re-validating the WHOLE set blocked removing/editing a route whenever
@@ -1137,7 +1137,7 @@ export async function updateProject(
             `[updateProject] live route re-apply failed (non-fatal): ${safeErrorMessage(err)}`,
           ),
         );
-        // A free (*.vibrail.com) domain resolves only through Vibrail Cloud's edge.
+        // A free (*.vibrail.app) domain resolves only through Vibrail Cloud's edge.
         // reapplyProjectLiveRoutes handles the self-hosted Traefik side; the
         // managed edge must be re-registered too or an edited/added free URL
         // 404s with no signal. Only meaningful once deployed (no live target

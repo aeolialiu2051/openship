@@ -194,7 +194,7 @@ export async function headlessProvision(opts: {
     liveUrl = res.data?.url;
     if (!res.ok) {
       warnings.push(
-        `Free .vibrail.com domain not registered: ${res.data?.error || "failed"}. ` +
+        `Free .vibrail.app domain not registered: ${res.data?.error || "failed"}. ` +
           `A free domain needs the box connected to Vibrail Cloud first — connect it, or use --domain-kind byo.`,
       );
     }

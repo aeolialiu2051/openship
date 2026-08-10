@@ -234,7 +234,7 @@ const envSchema = z.object({
   /** Public IP of the server - used for A record instructions in self-hosted mode. */
   SERVER_IP: z.string().optional(),
   /** Base domain for generated user deployment hostnames. */
-  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrailapp.com"),
+  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrail.app"),
   /** Backend-only Cloudflare credentials; never injected into deployed workloads. */
   VIBRAIL_CLOUDFLARE_API_TOKEN: z.string().optional(),
   VIBRAIL_CLOUDFLARE_ZONE_ID: z.string().optional(),

@@ -50,7 +50,7 @@ const initialProjectData = {
   domains: [
     {
       id: 1,
-      domain: "my-awesome-app.vibrail.com",
+      domain: "my-awesome-app.vibrail.app",
       primary: true,
       verified: true,
     },

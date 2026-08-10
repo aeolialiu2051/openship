@@ -275,7 +275,7 @@ export async function reapplyProjectLiveRoutes(
     .filter((h) => !currentHostnames.has(h.toLowerCase()))
     .map((hostname) => ({ hostname, isCustomDomain: !managedHostnameToSlug(hostname) }));
 
-  // Self-hosted: a dropped free (*.vibrail.com) hostname leaves a stale slug→target
+  // Self-hosted: a dropped free (*.vibrail.app) hostname leaves a stale slug→target
   // route on Vibrail Cloud's edge. Deregister it (best-effort) so the freed
   // slug is reusable and the old URL stops resolving. Cloud projects route their
   // managed subdomain INTERNALLY (page/workspace), reconciled by the cloud
@@ -326,7 +326,7 @@ export async function reapplyProjectLiveRoutes(
   const { routing, runtime, effectiveTarget, serverId } =
     await resolveDeploymentRuntime(deployment);
 
-  // Register the managed (*.vibrail.com) hostnames that are NEW in this edit on
+  // Register the managed (*.vibrail.app) hostnames that are NEW in this edit on
   // Vibrail Cloud's edge — the "add" half. Oblien's edge has NO route EDIT
   // (only sync + deregister), so a slug change is drop-old (deregistered above)
   // + add-new (here). PER-ROUTE by design: only hostnames absent from

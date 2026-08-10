@@ -643,7 +643,7 @@
       "pickServer": "选择一个服务器",
       "domain": "域名",
       "freeSubdomain": "免费子域名",
-      "freeSubdomainHint": "name.vibrail.com",
+      "freeSubdomainHint": "name.vibrail.app",
       "customDomain": "自定义域名",
       "customDomainHint": "DNS 已指向服务器",
       "freeSlugPlaceholder": "myteam",
