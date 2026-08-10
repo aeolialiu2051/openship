@@ -10,6 +10,7 @@ import { DomainSwitcher } from "@/components/routing/DomainSwitcher";
 import { formatDate } from "@/utils/date";
 import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
+import { projectHostPort } from "@/lib/project-display-port";
 import {
   LayoutDashboard,
   Activity,
@@ -74,13 +75,14 @@ export const ProjectSidebar = () => {
     selectedDomain,
     setSelectedDomain,
     setPendingDomainAction,
+    servicesData,
   } = useProjectSettings();
   const { t } = useI18n();
   const { selfHosted } = usePlatform();
   const status = getProjectStatus(projectData);
   const meta = PROJECT_STATUS_META[status];
   const domainsAttention = domainsNeedAttention(projectData, domainsData);
-  const localPort = projectData.port || 3000;
+  const localPort = projectHostPort(servicesData.services, projectData.port);
   const localUrl = `localhost:${localPort}`;
 
   // Route switch: pick which domain the Production line shows/opens (shared via
@@ -259,7 +261,8 @@ export const ProjectSidebar = () => {
 
 /** Mobile horizontal scroll tabs - rendered above content in left column */
 export const ProjectMobileTabs = () => {
-  const { projectData, projectNotFound, activeTab, tabs, setActiveTab, domainsData } = useProjectSettings();
+  const { projectData, projectNotFound, activeTab, tabs, setActiveTab, domainsData } =
+    useProjectSettings();
   const domainsAttention = domainsNeedAttention(projectData, domainsData);
 
   const handleTabChange = (tabId: string) => {
