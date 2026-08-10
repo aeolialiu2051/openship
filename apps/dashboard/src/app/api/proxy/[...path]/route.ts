@@ -126,6 +126,10 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
 
   const upstream = buildUpstreamUrl(req, pathSegments);
   const headers = buildForwardedHeaders(req, upstream);
+  const upstreamAbort = new AbortController();
+  const abortUpstream = () => upstreamAbort.abort(req.signal.reason);
+  if (req.signal.aborted) abortUpstream();
+  else req.signal.addEventListener("abort", abortUpstream, { once: true });
 
   // Body: pass through directly. fetch accepts a ReadableStream and
   // won't double-buffer it.  duplex:'half' lets the body stream upstream
@@ -141,12 +145,17 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
     // auto-decompress or buffer, and we DO want HTTP/1.1.
     redirect: "manual",
     duplex: "half",
+    // A browser leaving an SSE/log page must tear down the dashboard -> API
+    // request too. Without this signal the proxy kept the upstream fetch alive
+    // forever, so every visit leaked an API stream and its background worker.
+    signal: upstreamAbort.signal,
   };
 
   let upstreamRes: Response;
   try {
     upstreamRes = await fetch(upstream, init);
   } catch (err) {
+    req.signal.removeEventListener("abort", abortUpstream);
     const message = err instanceof Error ? err.message : String(err);
     return new Response(
       JSON.stringify({
@@ -155,6 +164,46 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
       { status: 502, headers: { "content-type": "application/json" } },
     );
   }
+
+  const upstreamBody = upstreamRes.body;
+  const reader = upstreamBody?.getReader();
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    req.signal.removeEventListener("abort", abortUpstream);
+  };
+  const responseBody = reader
+    ? new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          try {
+            const { done, value } = await reader.read();
+            if (done) {
+              finish();
+              controller.close();
+              return;
+            }
+            controller.enqueue(value);
+          } catch (err) {
+            finish();
+            if (!upstreamAbort.signal.aborted) controller.error(err);
+            else controller.close();
+          }
+        },
+        // ReadableStream.cancel() is invoked when the downstream browser
+        // disconnects after the route already returned its Response. Request
+        // signals alone are not reliable enough for long-lived responses in
+        // every Next/Node proxy path, so cancellation explicitly reaches the
+        // upstream fetch and body reader as well.
+        async cancel(reason) {
+          finish();
+          upstreamAbort.abort(reason);
+          await reader.cancel(reason).catch(() => {});
+        },
+      })
+    : null;
+
+  if (!reader) req.signal.removeEventListener("abort", abortUpstream);
 
   // Mirror response headers, minus the hop-by-hop ones that the runtime
   // will recompute on the OUTGOING response anyway.
@@ -178,7 +227,7 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
   // Stream the body straight through — for SSE (text/event-stream)
   // and large JSON / file responses alike. Next + fetch handle the
   // chunked-encoding plumbing on the outgoing side.
-  return new Response(upstreamRes.body, {
+  return new Response(responseBody, {
     status: upstreamRes.status,
     statusText: upstreamRes.statusText,
     headers: responseHeaders,

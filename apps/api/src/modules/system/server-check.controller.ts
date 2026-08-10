@@ -837,8 +837,15 @@ export async function monitorStream(c: Context) {
         // Abort-aware sleep
         await new Promise<void>((resolve) => {
           if (ac.signal.aborted) return resolve();
-          const timer = setTimeout(resolve, POLL_INTERVAL);
-          ac.signal.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
+          const onAbort = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+          const timer = setTimeout(() => {
+            ac.signal.removeEventListener("abort", onAbort);
+            resolve();
+          }, POLL_INTERVAL);
+          ac.signal.addEventListener("abort", onAbort, { once: true });
         });
       }
     } finally {
