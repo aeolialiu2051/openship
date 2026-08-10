@@ -95,7 +95,7 @@ export async function resumeApplication(c: Context) {
     resourceType: "project",
     resourceId: projectId,
     before: { moderationStatus: result.beforeStatus },
-    after: { moderationStatus: "active" },
+    after: { moderationStatus: "active", warning: result.warning },
   });
   return c.json({ data: result });
 }

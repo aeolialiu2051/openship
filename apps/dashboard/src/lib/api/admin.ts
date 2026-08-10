@@ -198,7 +198,7 @@ export const adminApi = {
   },
 
   resumeApplication(projectId: string) {
-    return api.post<{ data: unknown }>(`admin/apps/${projectId}/resume`);
+    return api.post<{ data: { warning: string | null } }>(`admin/apps/${projectId}/resume`);
   },
 
   accessLogs(input: {

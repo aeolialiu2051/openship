@@ -33,6 +33,8 @@ import { buildServiceRouteDomain } from "../../lib/routing-domains";
 import { createReachabilityProbe } from "../../lib/server-reachability";
 import { resolveLiveServiceState } from "../services/live-state";
 import { deleteDeploymentDnsRecord } from "../../lib/cloudflare-dns";
+import { disableManagedDomainRoute, edgeRouteStore, removeManagedDomainRoute } from "../../lib/edge-route-projection";
+import { env } from "../../config/env";
 
 /** Hard ceiling on a docker-over-SSH volume inspect during manifest/preview.
  *  These calls `.catch(() => [])` on ERROR, but a half-open SSH socket never
@@ -52,6 +54,8 @@ export interface CleanupResource {
     | "volume"
     | "network"
     | "managed_dns"
+    | "edge_route"
+    | "edge_route_delete"
     | "cloud_workspace"
     /**
      * A resource we KNOW exists but can't reach right now (cloud down, or a
@@ -531,7 +535,12 @@ export async function collectProjectManifest(
         runtime: null, // routes use routing adapter, not runtime
       });
     }
-    dnsHostnames.add(d.hostname.toLowerCase());
+    if (d.domainType === "free" && edgeRouteStore()) {
+      resources.push({ type: "edge_route", ref: d.hostname, label: `edge route ${d.hostname}`, runtime: null });
+      resources.push({ type: "edge_route_delete", ref: d.hostname, label: `edge route deletion ${d.hostname}`, runtime: null });
+    } else {
+      dnsHostnames.add(d.hostname.toLowerCase());
+    }
   }
 
   // ── Service routes ─────────────────────────────────────────────────
@@ -570,6 +579,9 @@ export async function collectProjectManifest(
   // batched executor runs resources in order, so a stable sort here is
   // enough - no need for explicit phases.
   const TYPE_ORDER: Record<CleanupResource["type"], number> = {
+    // Fail closed at the edge before stopping any workload. The disabled
+    // projection propagates while the later container cleanup runs.
+    edge_route: -1,
     container: 0,
     artifact: 0,
     host_file: 0,
@@ -577,6 +589,7 @@ export async function collectProjectManifest(
     unreachable: 0,
     image: 1,
     route: 2,
+    edge_route_delete: 2,
     managed_dns: 2,
     volume: 3,
     network: 4,
@@ -822,9 +835,22 @@ export async function executeCleanup(
   const { routing } = platform();
   const result: CleanupResult = { total: manifest.resources.length, succeeded: 0, failed: [] };
 
+  const edgeResources = manifest.resources.filter((resource) => resource.type === "edge_route");
+  const edgeDeleteResources = manifest.resources.filter((resource) => resource.type === "edge_route_delete");
+  const remainingResources = manifest.resources.filter((resource) => resource.type !== "edge_route" && resource.type !== "edge_route_delete");
+
+  await executeEdgeRouteCleanupPhases({
+    disableResources: edgeResources,
+    deleteResources: edgeDeleteResources,
+    result,
+    destroy: (resource) => destroyResource(resource, routing),
+    propagationDelayMs: (env.VIBRAIL_ROUTE_CACHE_TTL + 1) * 1_000,
+  });
+  if (result.failed.length > 0) return result;
+
   // Process in bounded batches
-  for (let i = 0; i < manifest.resources.length; i += concurrency) {
-    const batch = manifest.resources.slice(i, i + concurrency);
+  for (let i = 0; i < remainingResources.length; i += concurrency) {
+    const batch = remainingResources.slice(i, i + concurrency);
     const settled = await Promise.allSettled(
       batch.map((resource) => destroyResource(resource, routing)),
     );
@@ -846,6 +872,39 @@ export async function executeCleanup(
   }
 
   return result;
+}
+
+/** Explicitly separated for regression testing: KV disable must complete for
+ * every hostname, then a full cache window must pass, before KV deletion or
+ * any runtime resource is touched. */
+export async function executeEdgeRouteCleanupPhases(input: {
+  disableResources: CleanupResource[];
+  deleteResources: CleanupResource[];
+  result: CleanupResult;
+  destroy: (resource: CleanupResource) => Promise<void>;
+  propagationDelayMs: number;
+  delay?: (milliseconds: number) => Promise<void>;
+}): Promise<void> {
+  for (const resource of input.disableResources) {
+    try {
+      await input.destroy(resource);
+      input.result.succeeded += 1;
+    } catch (error) {
+      input.result.failed.push({ ref: resource.ref, label: resource.label, error: safeErrorMessage(error), type: resource.type });
+    }
+  }
+  if (input.result.failed.length > 0) return;
+  if (input.disableResources.length > 0) {
+    await (input.delay ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))))(input.propagationDelayMs);
+  }
+  for (const resource of input.deleteResources) {
+    try {
+      await input.destroy(resource);
+      input.result.succeeded += 1;
+    } catch (error) {
+      input.result.failed.push({ ref: resource.ref, label: resource.label, error: safeErrorMessage(error), type: resource.type });
+    }
+  }
 }
 
 /** Destroy a single resource with one retry on failure. */
@@ -910,6 +969,16 @@ async function destroyResourceOnce(
         hostname: resource.ref,
         organizationId: resource.organizationId,
       });
+      return;
+    }
+    case "edge_route": {
+      const domain = await repos.domain.findByHostname(resource.ref);
+      if (domain) await disableManagedDomainRoute(domain);
+      return;
+    }
+    case "edge_route_delete": {
+      const domain = await repos.domain.findByHostname(resource.ref);
+      if (domain) await removeManagedDomainRoute(domain);
       return;
     }
     case "volume": {

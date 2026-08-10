@@ -1518,7 +1518,7 @@ async function executeServerDeploy(phase: DeployPhaseInputs): Promise<void> {
         logger.log(`Created domain record for "${route.hostname}".\n`);
       }
       let routeToPublish = route;
-      if (usesManagedRouting && !created?.externalIngress) {
+      if (usesManagedRouting && !created?.externalIngress && !route.isCloud) {
         const action = await upsertDeploymentDnsRecord({
           hostname: route.hostname,
           organizationId: dep.organizationId,
@@ -1906,14 +1906,27 @@ async function runPostDeploySync(opts: {
   // deploy that comes up locally but whose cloud edge route didn't wire is
   // surfaced as a deployment warning — not just a buried log line that leaves
   // the operator with a green deploy and a dead URL.
-  // Best-effort: this only wires the free .vibrail.app URL through cloud edge.
-  // Containers are up and custom domains route locally, so a cloud failure
-  // (403, slug taken, unreachable) must not fail the deploy. Shared with the
-  // standalone "retry routing" action via syncManagedEdgeRoutes.
+  // Direct KV publication is a deployment commit barrier. The legacy cloud
+  // edge fallback remains best-effort and reports warnings for installations
+  // that have not enabled direct KV. Shared with the standalone retry action.
   const edgeFailures: string[] = [];
   const dnsFailures: string[] = [];
 
-  if (usesManagedRouting && managedDomainsUseCloudEdge()) {
+  const { edgeRouteStore, publishManagedDomainRoute } = await import("../../lib/edge-route-projection");
+  if (usesManagedRouting && edgeRouteStore()) {
+    if (!serverId) throw new Error("Managed edge routing requires a target server");
+    for (const planned of plannedDomains.filter((domain) => domain.isCloud)) {
+      const record = await repos.domain.findByHostname(planned.hostname);
+      if (!record) throw new Error(`Managed domain record missing for ${planned.hostname}`);
+      try {
+        await publishManagedDomainRoute(record, serverId);
+        logger.log(`Published edge route for ${planned.hostname} (version ${record.routeVersion}).\n`);
+      } catch (error) {
+        await repos.domain.updateRouteState(record.id, record.routeVersion, "failed").catch(() => undefined);
+        throw error;
+      }
+    }
+  } else if (usesManagedRouting && managedDomainsUseCloudEdge()) {
     const managedTargets = plannedDomains
       .filter((d) => d.isCloud && d.managedSubdomain)
       .map((d) => ({ hostname: d.hostname, subdomain: d.managedSubdomain! }));
@@ -1926,7 +1939,7 @@ async function runPostDeploySync(opts: {
   }
 
   if (usesManagedRouting) {
-    for (const domain of plannedDomains) {
+    for (const domain of plannedDomains.filter((route) => !route.isCloud)) {
       try {
         const action = await upsertDeploymentDnsRecord({
           hostname: domain.hostname,

@@ -332,6 +332,8 @@
       "teamNameRequired": "اسم الفريق مطلوب",
       "teamCreated": "تم إنشاء الفريق \"{name}\" — جارٍ التبديل الآن…",
       "createFailed": "تعذّر إنشاء الفريق",
+      "freeWorkspaceLimit": "يمكن للمستخدمين المجانيين إنشاء مساحة عمل واحدة فقط.",
+      "proWorkspaceLimit": "يمكن لمستخدمي Pro إنشاء ما يصل إلى 10 مساحات عمل.",
       "loadFailed": "تعذّر تحميل الفريق",
       "updateRoleFailed": "تعذّر تحديث الدور",
       "removeFailed": "تعذّرت الإزالة",

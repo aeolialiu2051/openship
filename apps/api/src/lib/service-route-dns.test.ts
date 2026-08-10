@@ -39,7 +39,7 @@ function dependencies() {
 }
 
 describe("syncServiceRouteDns", () => {
-  it("writes Cloudflare DNS for a newly-public deployed service before returning it for publish", async () => {
+  it("does not create project-level DNS for a managed Worker route", async () => {
     const deps = dependencies();
     const route = freeRoute("fastapi-template-zpfozy.vibrail.app");
 
@@ -58,19 +58,15 @@ describe("syncServiceRouteDns", () => {
     expect(deps.ensureRouteDomainRecord).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: "proj_1", route }),
     );
-    expect(deps.upsertDeploymentDnsRecord).toHaveBeenCalledWith({
-      hostname: route.hostname,
-      organizationId: "org_1",
-      serverId: "server_1",
-    });
+    expect(deps.upsertDeploymentDnsRecord).not.toHaveBeenCalled();
     expect(result.publishableRoutes).toEqual([route]);
     expect(result.failures).toEqual([]);
   });
 
-  it("keeps a DNS-failed route out of the live publish set and reports the failure", async () => {
+  it("keeps a DNS-failed custom route out of the live publish set and reports the failure", async () => {
     const deps = dependencies();
     deps.upsertDeploymentDnsRecord.mockRejectedValue(new Error("Cloudflare unavailable"));
-    const route = freeRoute();
+    const route = pendingCustomRoute();
 
     const result = await syncServiceRouteDns(
       {
@@ -163,7 +159,7 @@ describe("syncServiceRouteDns", () => {
     expect(result.failures).toEqual([]);
   });
 
-  it("deletes Cloudflare DNS for a removed free route", async () => {
+  it("does not delete wildcard DNS when a managed route is removed", async () => {
     const deps = dependencies();
     const oldRoute = freeRoute("old-api.vibrail.app");
 
@@ -178,14 +174,11 @@ describe("syncServiceRouteDns", () => {
       deps,
     );
 
-    expect(deps.deleteDeploymentDnsRecord).toHaveBeenCalledWith({
-      hostname: oldRoute.hostname,
-      organizationId: "org_1",
-    });
+    expect(deps.deleteDeploymentDnsRecord).not.toHaveBeenCalled();
     expect(result.failures).toEqual([]);
   });
 
-  it("treats a skipped managed-domain write as an error", async () => {
+  it("publishes a managed route independently of per-project DNS credentials", async () => {
     const deps = dependencies();
     deps.upsertDeploymentDnsRecord.mockResolvedValue("skipped");
 
@@ -200,7 +193,7 @@ describe("syncServiceRouteDns", () => {
       deps,
     );
 
-    expect(result.publishableRoutes).toEqual([]);
-    expect(result.failures[0]?.message).toContain("Managed DNS credentials are unavailable");
+    expect(result.publishableRoutes).toEqual([freeRoute()]);
+    expect(result.failures).toEqual([]);
   });
 });

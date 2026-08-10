@@ -25,6 +25,10 @@
     "./starter-templates": {
       "types": "./src/starter-templates.ts",
       "import": "./src/starter-templates.ts"
+    },
+    "./managed-routing": {
+      "types": "./src/managed-routing.ts",
+      "import": "./src/managed-routing.ts"
     }
   },
   "scripts": {

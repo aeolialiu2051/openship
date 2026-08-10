@@ -860,6 +860,29 @@ export async function suspendApplication(projectId: string, reason?: string) {
   };
 }
 
+export async function resumeModeratedWorkload(opts: {
+  containerIds: string[];
+  start: (containerId: string) => Promise<void>;
+  stop: (containerId: string) => Promise<void>;
+  removeSuspendedRoutes?: () => Promise<void>;
+}): Promise<string[]> {
+  const warnings: string[] = [];
+  for (const containerId of opts.containerIds) {
+    await opts.start(containerId).catch((err) => {
+      warnings.push(`could not start ${containerId.slice(0, 12)}: ${safeErrorMessage(err)}`);
+    });
+  }
+  if (opts.removeSuspendedRoutes) {
+    try {
+      await opts.removeSuspendedRoutes();
+    } catch (err) {
+      for (const containerId of opts.containerIds) await opts.stop(containerId).catch(() => {});
+      throw err;
+    }
+  }
+  return warnings;
+}
+
 export async function resumeApplication(projectId: string) {
   const project = await repos.project.findById(projectId);
   if (!project) throw new NotFoundError("Project", projectId);
@@ -868,17 +891,26 @@ export async function resumeApplication(projectId: string) {
     project.id,
     project.activeDeploymentId,
   );
+  let runtimeWarnings: string[] = [];
   if (deployment) {
     const { runtime } = await resolveDeploymentRuntime(deployment);
-    for (const containerId of containerIds) await runtime.start(containerId);
-    if (runtime instanceof DockerRuntime) {
-      try {
-        await runtime.removeSuspendedRoutes(project.id);
-      } catch (err) {
-        for (const containerId of containerIds) await runtime.stop(containerId).catch(() => {});
-        throw err;
-      }
-    }
+    // Starting an old deployment is best-effort. Containers can legitimately
+    // disappear while a project is suspended (host cleanup, migration, or an
+    // interrupted replacement). That must not permanently trap the project in
+    // moderation: once the suspension route is safely gone, the owner must be
+    // able to redeploy it.
+    runtimeWarnings = await resumeModeratedWorkload({
+      containerIds,
+      start: (containerId) => runtime.start(containerId),
+      stop: (containerId) => runtime.stop(containerId),
+      // The moderation override is the security boundary. If it cannot be
+      // removed, keep the DB state suspended and roll back any starts so the
+      // operation is safe and retryable.
+      removeSuspendedRoutes:
+        runtime instanceof DockerRuntime
+          ? () => runtime.removeSuspendedRoutes(project.id)
+          : undefined,
+    });
   }
 
   await repos.project.update(project.id, {
@@ -889,6 +921,10 @@ export async function resumeApplication(projectId: string) {
   return {
     beforeStatus: project.moderationStatus,
     project: { ...project, moderationStatus: "active", suspendedAt: null, suspendedReason: null },
+    warning:
+      runtimeWarnings.length > 0
+        ? `The project was restored and can be redeployed, but its previous workload could not be fully restarted: ${runtimeWarnings.join("; ")}`
+        : null,
   };
 }
 

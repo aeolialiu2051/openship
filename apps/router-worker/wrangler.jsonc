@@ -1,0 +1,8 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vibrail-router",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-10",
+  "kv_namespaces": [{ "binding": "ROUTING", "id": "045c3624f961493c8d93f56341811752" }],
+  "vars": { "VIBRAIL_MANAGED_DOMAIN": "vibrail.app", "VIBRAIL_ROUTE_CACHE_TTL": "30", "VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL": "2" }
+}

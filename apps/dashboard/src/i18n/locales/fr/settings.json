@@ -356,6 +356,8 @@
       "teamNameRequired": "Le nom de l'équipe est requis",
       "teamCreated": "Équipe « {name} » créée — basculement en cours…",
       "createFailed": "Échec de la création de l'équipe",
+      "freeWorkspaceLimit": "Les utilisateurs gratuits ne peuvent créer qu’un espace de travail.",
+      "proWorkspaceLimit": "Les utilisateurs Pro peuvent créer jusqu’à 10 espaces de travail.",
       "loadFailed": "Échec du chargement de l'équipe",
       "updateRoleFailed": "Échec de la mise à jour du rôle",
       "removeFailed": "Échec de la suppression",

@@ -56,15 +56,18 @@ export async function syncServiceRouteDns(
         route,
         domainByHostname: opts.domainByHostname,
       });
-      const action = domainRecord?.externalIngress
+      const action = route.isCloud || domainRecord?.externalIngress
         ? "skipped"
         : await dependencies.upsertDeploymentDnsRecord({
             hostname: route.hostname,
             organizationId: opts.organizationId,
             serverId: opts.serverId,
           });
-      if (action === "skipped" && dependencies.isVibrailManagedHostname(route.hostname)) {
-        throw new Error(`Managed DNS credentials are unavailable for ${route.hostname}`);
+      // Managed routes use the wildcard Worker entry and never create a
+      // project-level DNS record. Custom domains retain the existing flow.
+      if (route.isCloud && domainRecord && opts.serverId) {
+        const { edgeRouteStore, publishManagedDomainRoute } = await import("./edge-route-projection");
+        if (edgeRouteStore()) await publishManagedDomainRoute(domainRecord, opts.serverId);
       }
 
       // A newly-added custom domain starts unverified, but a successful write
@@ -72,7 +75,7 @@ export async function syncServiceRouteDns(
       // ownership proof (upsertDeploymentDnsRecord persists that verification).
       // Try the provider before applying the manual-TXT publish gate so the
       // advertised one-click custom-domain flow can work on the first deploy.
-      if (!isRoutePublishable(route) && action === "skipped") continue;
+      if (!isRoutePublishable(route) && action === "skipped" && !route.isCloud) continue;
       if (!isRoutePublishable(route) && domainRecord) {
         opts.domainByHostname.set(route.hostname.toLowerCase(), {
           ...domainRecord,
@@ -91,6 +94,7 @@ export async function syncServiceRouteDns(
   }
 
   for (const route of opts.removedRoutes) {
+    if (route.isCloud) continue;
     try {
       await dependencies.deleteDeploymentDnsRecord({
         hostname: route.hostname,

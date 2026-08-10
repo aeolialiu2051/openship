@@ -133,6 +133,14 @@ export {
 export { compileRoutingToOblien, type OblienRoutingContext } from "./runtime/oblien-routing";
 export { CloudInfraProvider } from "./infra/cloud";
 export { NoopInfraProvider } from "./infra/noop";
+export { CloudflareRouterInfra, type CloudflareRouterInfraOptions } from "./infra/cloudflare-router";
+export {
+  CloudflareKvEdgeRouteStore,
+  MemoryEdgeRouteStore,
+  StaleEdgeRouteWriteError,
+  type EdgeRouteStore,
+  type CloudflareKvOptions,
+} from "./routing/edge-route-store";
 
 // ─── System layer ────────────────────────────────────────────────────────────
 export type {

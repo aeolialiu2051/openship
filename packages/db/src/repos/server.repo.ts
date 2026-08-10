@@ -1,6 +1,7 @@
 import { eq, and, inArray, ne, sql } from "drizzle-orm";
 import type { Database } from "../client";
 import { servers } from "../schema";
+import { assertValidServerRoutingId, randomManagedKey } from "@repo/core";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -94,11 +95,18 @@ export function createServerRepo(db: Database) {
 
     /** Create a new server */
     async create(data: Omit<NewServer, "id" | "createdAt" | "updatedAt">): Promise<Server> {
-      const [row] = await db
-        .insert(servers)
-        .values(data)
-        .returning();
-      return row;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          const [row] = await db.insert(servers).values({
+            ...data,
+            routingId: data.routingId ? assertValidServerRoutingId(data.routingId) : randomManagedKey(),
+          }).returning();
+          return row;
+        } catch (error: any) {
+          if (data.routingId || (error?.code !== "23505" && !String(error?.message).toLowerCase().includes("unique"))) throw error;
+        }
+      }
+      throw new Error("Unable to allocate a unique server routing ID after 8 attempts");
     },
 
     /** Update an existing server */

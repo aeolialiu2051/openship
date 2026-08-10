@@ -1,4 +1,5 @@
-import { pgTable, text, timestamp, boolean, integer, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, boolean, integer, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
 import { project } from "./project";
 import { service } from "./service";
 import { webhookSource } from "./webhook-source";
@@ -37,6 +38,14 @@ export const domain = pgTable(
     targetPath: text("target_path"),
     /** Route kind: managed/free subdomain or custom domain */
     domainType: text("domain_type"),
+    /** Stable random base36 key for managed/free hostnames; null for custom domains. */
+    managedKey: text("managed_key"),
+    /** Monotonic generation of the database-authoritative edge projection. */
+    routeVersion: integer("route_version").notNull().default(1),
+    /** Edge projection lifecycle, independent from custom-domain verification status. */
+    routeStatus: text("route_status").notNull().default("pending"),
+    /** Last time DB/KV/server placement was successfully reconciled. */
+    routeReconciledAt: timestamp("route_reconciled_at"),
     /** Is this the primary domain for the project? */
     isPrimary: boolean("is_primary").notNull().default(false),
 
@@ -108,5 +117,8 @@ export const domain = pgTable(
     index("idx_domain_project").on(t.projectId),
     index("idx_domain_project_hostname").on(t.projectId, t.hostname),
     index("idx_domain_webhook_source").on(t.webhookSourceId),
+    uniqueIndex("uq_domain_hostname_lower").on(sql`lower(${t.hostname})`),
+    uniqueIndex("uq_domain_managed_key").on(t.managedKey),
+    index("idx_domain_route_reconcile").on(t.domainType, t.routeStatus, t.updatedAt),
   ],
 );

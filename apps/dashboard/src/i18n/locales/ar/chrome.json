@@ -10,7 +10,9 @@
     "create": "إنشاء",
     "toastTitle": "المؤسسة",
     "switchFailed": "فشل التبديل",
-    "createFailed": "فشل الإنشاء"
+    "createFailed": "فشل الإنشاء",
+    "freeLimitReached": "يمكن للمستخدمين المجانيين إنشاء مساحة عمل واحدة فقط.",
+    "proLimitReached": "يمكن لمستخدمي Pro إنشاء ما يصل إلى 10 مساحات عمل."
   },
   "sidebar": {
     "workspaceFallback": "مساحة العمل",

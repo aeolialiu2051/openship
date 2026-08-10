@@ -332,6 +332,8 @@
       "teamNameRequired": "Teamname ist erforderlich",
       "teamCreated": "Team \"{name}\" erstellt — es wird jetzt gewechselt…",
       "createFailed": "Team konnte nicht erstellt werden",
+      "freeWorkspaceLimit": "Kostenlose Benutzer können nur einen Arbeitsbereich erstellen.",
+      "proWorkspaceLimit": "Pro-Benutzer können bis zu 10 Arbeitsbereiche erstellen.",
       "loadFailed": "Team konnte nicht geladen werden",
       "updateRoleFailed": "Rolle konnte nicht aktualisiert werden",
       "removeFailed": "Entfernen fehlgeschlagen",

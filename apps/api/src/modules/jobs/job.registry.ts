@@ -24,6 +24,8 @@ import { runImageGcSweep } from "../deployments/image-gc";
 import { verifyPendingDomains } from "../domains/domain.service";
 import { scanInstanceUpdates } from "../updates/updates.service";
 import { runDueOnceJobs } from "./job-command";
+import { runEdgeRouteReconcileSweep } from "../domains/edge-route-reconcile.service";
+import { edgeRouteStore } from "../../lib/edge-route-projection";
 import type { JobSummary } from "../../lib/system-jobs";
 
 export interface SystemJobDef {
@@ -98,6 +100,13 @@ export const SYSTEM_JOB_DEFS: SystemJobDef[] = [
     label: "Deployment reconcile",
     defaultCron: "*/10 * * * *",
     run: async () => runReconcileSweep(),
+  },
+  {
+    key: "domains:edge-route-reconcile",
+    label: "Managed edge route reconcile",
+    defaultCron: "*/5 * * * *",
+    available: () => edgeRouteStore() !== null,
+    run: async () => ({ ...(await runEdgeRouteReconcileSweep()) }),
   },
   {
     key: "domains:verify-pending",

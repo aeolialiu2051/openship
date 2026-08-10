@@ -22,6 +22,7 @@ export interface PlannedRouteDomain {
   targetPath?: string;
   domainType?: "free" | "custom";
   managedSubdomain?: string;
+  managedKey?: string;
   serviceId?: string;
   isPrimary?: boolean;
   createIfMissing?: boolean;
@@ -124,6 +125,9 @@ export function buildProjectRouteDomains(opts: {
       ...(route.destination?.targetPath ? { targetPath: route.destination.targetPath } : {}),
       domainType: route.domainType,
       managedSubdomain: managed.subdomain,
+      ...(route.domainType === "free" && opts.project.routeKey?.length === 8
+        ? { managedKey: opts.project.routeKey }
+        : {}),
       isPrimary: route.isPrimary ?? planned.length === 0,
       createIfMissing: true,
       verified: isVerified,
@@ -255,6 +259,7 @@ export function buildServiceRouteDomains(opts: {
       targetPort: endpoint.port,
       domainType: endpoint.domainType,
       managedSubdomain: managed.subdomain,
+      ...(project.routeKey?.length === 8 ? { managedKey: project.routeKey } : {}),
       serviceId: service.id,
       isPrimary: false,
       createIfMissing: true,
@@ -371,11 +376,13 @@ export async function ensureRouteDomainRecord(opts: {
     const expectedTargetPort = route.targetPort ?? null;
     const expectedTargetPath = route.targetPath ?? null;
     const expectedServiceId = route.serviceId ?? null;
+    const expectedManagedKey = route.managedKey ?? null;
 
     if ((existing.domainType ?? null) !== expectedDomainType) patch.domainType = expectedDomainType;
     if ((existing.targetPort ?? null) !== expectedTargetPort) patch.targetPort = expectedTargetPort;
     if ((existing.targetPath ?? null) !== expectedTargetPath) patch.targetPath = expectedTargetPath;
     if ((existing.serviceId ?? null) !== expectedServiceId) patch.serviceId = expectedServiceId;
+    if ((existing.managedKey ?? null) !== expectedManagedKey) patch.managedKey = expectedManagedKey;
     // isPrimary intentionally NOT patched — preserve the user's stored selection.
     // Custom domains must pass the DNS challenge — the deploy must NOT force
     // them verified/active (that's the bug that left service routes stuck with
@@ -414,6 +421,9 @@ export async function ensureRouteDomainRecord(opts: {
     targetPort: route.targetPort,
     targetPath: route.targetPath,
     domainType: route.domainType,
+    managedKey: route.managedKey,
+    routeStatus: "pending",
+    routeVersion: 1,
     isPrimary: hasExistingPrimary
       ? false
       : (route.isPrimary ?? (!route.serviceId && domainByHostname.size === 0)),

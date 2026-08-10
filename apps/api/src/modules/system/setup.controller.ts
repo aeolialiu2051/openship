@@ -37,6 +37,7 @@ import { ensureLocalUser, invalidateLocalUserCache } from "../../lib/local-user"
 import { provisionUser } from "../../lib/provision-user";
 import { COOKIE_PREFIX } from "../../lib/auth";
 import { mintSession } from "../../lib/cloud-auth-proxy";
+import { provisionServerOrigin } from "../../lib/server-origin-infra";
 
 const VALID_AUTH_MODES = ["none", "local", "cloud"] as const;
 type AuthMode = (typeof VALID_AUTH_MODES)[number];
@@ -199,7 +200,7 @@ export async function setup(c: Context) {
     const encryptedKeyPassphrase = encryptSecretField(body.sshKeyPassphrase);
 
     if (existing) {
-      await repos.server.update(existing.id, {
+      const updated = await repos.server.update(existing.id, {
         name: body.serverName || null,
         sshHost: body.sshHost,
         sshPort: body.sshPort || 22,
@@ -211,6 +212,7 @@ export async function setup(c: Context) {
         sshJumpHost: body.sshJumpHost || null,
         sshArgs: body.sshArgs || null,
       });
+      await provisionServerOrigin(updated);
       serverId = existing.id;
     } else {
       // Setup runs through internalAuth / onboarding (no user session), so
@@ -233,6 +235,12 @@ export async function setup(c: Context) {
         sshJumpHost: body.sshJumpHost || null,
         sshArgs: body.sshArgs || null,
       });
+      try {
+        await provisionServerOrigin(created);
+      } catch (error) {
+        await repos.server.delete(created.id).catch(() => undefined);
+        throw error;
+      }
       serverId = created.id;
     }
     sshManager.invalidate(serverId);

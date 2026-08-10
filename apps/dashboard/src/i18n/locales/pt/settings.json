@@ -332,6 +332,8 @@
       "teamNameRequired": "O nome da equipe é obrigatório",
       "teamCreated": "Equipe \"{name}\" criada — trocando agora…",
       "createFailed": "Falha ao criar a equipe",
+      "freeWorkspaceLimit": "Usuários gratuitos só podem criar um espaço de trabalho.",
+      "proWorkspaceLimit": "Usuários Pro podem criar até 10 espaços de trabalho.",
       "loadFailed": "Falha ao carregar a equipe",
       "updateRoleFailed": "Falha ao atualizar o perfil",
       "removeFailed": "Falha ao remover",
