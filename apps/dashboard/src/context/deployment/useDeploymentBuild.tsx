@@ -24,8 +24,17 @@ import { DeployCredentialModal } from "@/components/deployments/DeployCredential
 import { useI18n } from "@/components/i18n-provider";
 import { useServerGitHubConnectModal } from "@/components/github/ServerGitHubConnect";
 import { parseCloudRequiredCode, removeProjectRouteKey } from "@repo/core";
-import type { DeploymentConfig, DeploymentState, DeploymentStatus, ServiceDeployStatus } from "./types";
-import { canonicalizeDeploymentRouteKey, managedDomainForApi } from "./project-route-key";
+import type {
+  DeploymentConfig,
+  DeploymentState,
+  DeploymentStatus,
+  ServiceDeployStatus,
+} from "./types";
+import {
+  canonicalizeDeploymentRouteKey,
+  canonicalRouteKeyFromApi,
+  managedDomainForApi,
+} from "./project-route-key";
 import { syncActiveModeSnapshot } from "./mode-config";
 import { diffProjectEnvironment, serializeComposeServices } from "./config-save";
 import {
@@ -106,7 +115,9 @@ function serializeProjectPublicEndpoint(
 ) {
   return {
     ...(hasServer
-      ? (endpoint.port ? { port: Number(endpoint.port) } : {})
+      ? endpoint.port
+        ? { port: Number(endpoint.port) }
+        : {}
       : { targetPath: endpoint.targetPath || "/" }),
     domain:
       endpoint.domainType === "custom" || !endpoint.domain || !routeKey
@@ -124,7 +135,9 @@ function serializeBuildPublicEndpoint(
 ) {
   return {
     ...(hasServer
-      ? (endpoint.port ? { port: endpoint.port } : {})
+      ? endpoint.port
+        ? { port: endpoint.port }
+        : {}
       : { targetPath: endpoint.targetPath || "/" }),
     domain:
       endpoint.domainType === "custom" || !endpoint.domain || !routeKey
@@ -269,15 +282,18 @@ export function useDeploymentBuild(
 
   // ── Terminal helpers ──────────────────────────────────────────────────────
 
-  const writeToTerminal = useCallback((data: Uint8Array) => {
-    if (terminalRef.current && isTerminalReady.current) {
-      terminalRef.current.write(data);
-    } else if (usesServiceDeployment(config)) {
-      return;
-    } else {
-      pendingLogsBuffer.current.push(data);
-    }
-  }, [config]);
+  const writeToTerminal = useCallback(
+    (data: Uint8Array) => {
+      if (terminalRef.current && isTerminalReady.current) {
+        terminalRef.current.write(data);
+      } else if (usesServiceDeployment(config)) {
+        return;
+      } else {
+        pendingLogsBuffer.current.push(data);
+      }
+    },
+    [config],
+  );
 
   const flushPendingLogs = useCallback(() => {
     if (terminalRef.current && pendingLogsBuffer.current.length > 0) {
@@ -288,52 +304,59 @@ export function useDeploymentBuild(
 
   // ── Stream event handlers ─────────────────────────────────────────────────
 
-  const handleSuccessMessage = useCallback((data?: any) => {
-    const warningMessage = typeof data?.warningMessage === "string" ? data.warningMessage : "";
-    const now = Date.now();
+  const handleSuccessMessage = useCallback(
+    (data?: any) => {
+      const warningMessage = typeof data?.warningMessage === "string" ? data.warningMessage : "";
+      const now = Date.now();
 
-    setState((prev) => {
-      // The final phase (deploy) completes via this success event, not a
-      // currentStep transition — finalize its live duration here.
-      const nextDurations = { ...prev.phaseDurations };
-      const id = BUILD_PHASES[prev.currentStepIndex]?.id;
-      const startedAt = phaseStartRef.current[prev.currentStepIndex];
-      if (id && startedAt != null && nextDurations[id] == null) {
-        nextDurations[id] = Math.max(0, now - startedAt);
+      setState((prev) => {
+        // The final phase (deploy) completes via this success event, not a
+        // currentStep transition — finalize its live duration here.
+        const nextDurations = { ...prev.phaseDurations };
+        const id = BUILD_PHASES[prev.currentStepIndex]?.id;
+        const startedAt = phaseStartRef.current[prev.currentStepIndex];
+        if (id && startedAt != null && nextDurations[id] == null) {
+          nextDurations[id] = Math.max(0, now - startedAt);
+        }
+        return {
+          ...prev,
+          deploymentSuccess: true,
+          deploymentFailed: false,
+          deploymentCanceled: false,
+          currentProgress: 100,
+          currentStepIndex: 5,
+          isDeploying: false,
+          failureMessage: "",
+          warningMessage,
+          // A warning on success means a partial failure (some services failed):
+          // hold it for an explicit keep/reject decision. The server flag takes
+          // over on refresh (loadBuildSession) — false once the user keeps it.
+          decisionPending: data?.decisionPending ?? !!warningMessage,
+          decisionFailedServiceIds: data?.partial?.failed ?? prev.decisionFailedServiceIds,
+          // Advisory port-check rides the `complete` event; skips only ever arrive
+          // via refresh (build-status), so keep the prior skip list here.
+          portCheck: data?.portCheck ?? prev.portCheck,
+          screenshots: data?.screenshots || prev.screenshots,
+          projectId: data?.project_id || prev.projectId,
+          phaseDurations: nextDurations,
+        };
+      });
+
+      // Deploy changed the live release — drop cached project info so the project
+      // view re-reads fresh (clears the "New commit"/"Action Required" banners).
+      if (data?.project_id) invalidateProjectCaches(data.project_id);
+
+      if (warningMessage) {
+        const textEncoder = new TextEncoder();
+        writeToTerminal(
+          textEncoder.encode(
+            `\r\n\x1b[33m Deployment completed with warnings: ${warningMessage}\x1b[0m\r\n`,
+          ),
+        );
       }
-      return {
-        ...prev,
-        deploymentSuccess: true,
-        deploymentFailed: false,
-        deploymentCanceled: false,
-        currentProgress: 100,
-        currentStepIndex: 5,
-        isDeploying: false,
-        failureMessage: "",
-        warningMessage,
-        // A warning on success means a partial failure (some services failed):
-        // hold it for an explicit keep/reject decision. The server flag takes
-        // over on refresh (loadBuildSession) — false once the user keeps it.
-        decisionPending: data?.decisionPending ?? !!warningMessage,
-        decisionFailedServiceIds: data?.partial?.failed ?? prev.decisionFailedServiceIds,
-        // Advisory port-check rides the `complete` event; skips only ever arrive
-        // via refresh (build-status), so keep the prior skip list here.
-        portCheck: data?.portCheck ?? prev.portCheck,
-        screenshots: data?.screenshots || prev.screenshots,
-        projectId: data?.project_id || prev.projectId,
-        phaseDurations: nextDurations,
-      };
-    });
-
-    // Deploy changed the live release — drop cached project info so the project
-    // view re-reads fresh (clears the "New commit"/"Action Required" banners).
-    if (data?.project_id) invalidateProjectCaches(data.project_id);
-
-    if (warningMessage) {
-      const textEncoder = new TextEncoder();
-      writeToTerminal(textEncoder.encode(`\r\n\x1b[33m Deployment completed with warnings: ${warningMessage}\x1b[0m\r\n`));
-    }
-  }, [writeToTerminal]);
+    },
+    [writeToTerminal],
+  );
 
   const handleFailureMessage = useCallback(
     (message?: string, errorCode?: string, errorDetails?: Record<string, unknown>) => {
@@ -360,7 +383,9 @@ export function useDeploymentBuild(
       }));
 
       const textEncoder = new TextEncoder();
-      writeToTerminal(textEncoder.encode(`\r\n\x1b[31m Deployment Failed: ${errorMessage}\x1b[0m\r\n`));
+      writeToTerminal(
+        textEncoder.encode(`\r\n\x1b[31m Deployment Failed: ${errorMessage}\x1b[0m\r\n`),
+      );
       showToast(errorMessage, "error", "Deployment Failed");
     },
     [showToast, writeToTerminal],
@@ -393,32 +418,29 @@ export function useDeploymentBuild(
     });
   }, []);
 
-  const handleCanceled = useCallback(
-    (message?: string) => {
-      const cancelMessage = message || "Deployment cancelled by user";
-      const now = Date.now();
+  const handleCanceled = useCallback((message?: string) => {
+    const cancelMessage = message || "Deployment cancelled by user";
+    const now = Date.now();
 
-      if (lastErrorRef.current) {
-        const elapsed = now - lastErrorRef.current.timestamp;
-        if (lastErrorRef.current.message === cancelMessage && elapsed < ERROR_DEBOUNCE_MS) {
-          return;
-        }
+    if (lastErrorRef.current) {
+      const elapsed = now - lastErrorRef.current.timestamp;
+      if (lastErrorRef.current.message === cancelMessage && elapsed < ERROR_DEBOUNCE_MS) {
+        return;
       }
-      lastErrorRef.current = { message: cancelMessage, timestamp: now };
+    }
+    lastErrorRef.current = { message: cancelMessage, timestamp: now };
 
-      setState((prev) => ({
-        ...prev,
-        deploymentCanceled: true,
-        deploymentFailed: false,
-        deploymentSuccess: false,
-        isDeploying: false,
-        isStopping: false,
-        failureMessage: cancelMessage,
-        warningMessage: "",
-      }));
-    },
-    [],
-  );
+    setState((prev) => ({
+      ...prev,
+      deploymentCanceled: true,
+      deploymentFailed: false,
+      deploymentSuccess: false,
+      isDeploying: false,
+      isStopping: false,
+      failureMessage: cancelMessage,
+      warningMessage: "",
+    }));
+  }, []);
 
   // ── Build stream (SSE) ────────────────────────────────────────────────────
 
@@ -428,10 +450,7 @@ export function useDeploymentBuild(
     callbacks: {
       onLog: (message, rawText, rawBytes) => {
         if (message.eventId !== undefined) {
-          if (
-            lastEventIdRef.current !== undefined &&
-            message.eventId <= lastEventIdRef.current
-          ) {
+          if (lastEventIdRef.current !== undefined && message.eventId <= lastEventIdRef.current) {
             return;
           }
           lastEventIdRef.current = message.eventId;
@@ -578,7 +597,12 @@ export function useDeploymentBuild(
                 openGithubConnect(config.serverId, {
                   onConnected:
                     onResolved ??
-                    (() => showToast("GitHub connected — deploy again to continue.", "success", "GitHub")),
+                    (() =>
+                      showToast(
+                        "GitHub connected — deploy again to continue.",
+                        "success",
+                        "GitHub",
+                      )),
                 });
               }
             }}
@@ -589,11 +613,21 @@ export function useDeploymentBuild(
       });
       return true;
     },
-    [config, installUrl, selfHosted, githubState, showModal, hideModal, openGithubConnect, setConfig, showToast],
+    [
+      config,
+      installUrl,
+      selfHosted,
+      githubState,
+      showModal,
+      hideModal,
+      openGithubConnect,
+      setConfig,
+      showToast,
+    ],
   );
 
-  const startDeployment = useCallback(async (
-    overrides?: {
+  const startDeployment = useCallback(
+    async (overrides?: {
       runtimeMode?: "docker";
       // Applied to THIS deploy's payload directly, bypassing async React state
       // — lets the clone-strategy gate flip build-local for the in-flight
@@ -601,401 +635,414 @@ export function useDeploymentBuild(
       // seen by this closure).
       buildStrategy?: DeploymentConfig["buildStrategy"];
       saveConfigOnly?: boolean;
-    },
-  ): Promise<string | null> => {
-    const saveConfigOnly = overrides?.saveConfigOnly === true;
-    const isLocal = !!config.localPath;
-    const isUpload = !!config.uploadSessionId;
-    const isTemplate = config.sourceProvider === "template";
-    const isServiceDeployment = usesServiceDeployment(config);
-    // A one-click app is a repo-less services project — no git/local source (its
-    // prebuilt images are the source), so skip the git-completeness guard and the
-    // git fields on ensure, exactly like local/upload.
-    const isSourceless = isLocal || isUpload || isTemplate || !!config.isApp;
-    if (!isSourceless && (!config.repo || !config.owner || !config.branch)) {
-      showToast("Repository data is incomplete", "error", "Error");
-      return null;
-    }
-
-    // Framework is only meaningful for a single framework app. Docker, compose
-    // "services", and monorepo projects carry a project-level framework of
-    // "unknown" by design (the real stack lives on each service / sub-app row),
-    // so don't block Save/Deploy on it there — that wrongly rejected migrated
-    // and compose projects with "Please select a framework".
-    if (config.projectType === "app" && (!config.framework || config.framework === "unknown")) {
-      showToast("Please select a framework", "error", "Error");
-      return null;
-    }
-
-    if (!saveConfigOnly && isServiceDeployment) {
-      const missingRequiredEnv = missingRequiredComposeEnvironment(config);
-      if (missingRequiredEnv.length > 0) {
-        showToast(
-          `Fill the required Docker Compose variables before deploying: ${missingRequiredEnv.join(", ")}`,
-          "error",
-          "Missing environment variables",
-        );
+    }): Promise<string | null> => {
+      const saveConfigOnly = overrides?.saveConfigOnly === true;
+      const isLocal = !!config.localPath;
+      const isUpload = !!config.uploadSessionId;
+      const isTemplate = config.sourceProvider === "template";
+      const isServiceDeployment = usesServiceDeployment(config);
+      // A one-click app is a repo-less services project — no git/local source (its
+      // prebuilt images are the source), so skip the git-completeness guard and the
+      // git fields on ensure, exactly like local/upload.
+      const isSourceless = isLocal || isUpload || isTemplate || !!config.isApp;
+      if (!isSourceless && (!config.repo || !config.owner || !config.branch)) {
+        showToast("Repository data is incomplete", "error", "Error");
         return null;
       }
-    }
 
-    lastErrorRef.current = null;
+      // Framework is only meaningful for a single framework app. Docker, compose
+      // "services", and monorepo projects carry a project-level framework of
+      // "unknown" by design (the real stack lives on each service / sub-app row),
+      // so don't block Save/Deploy on it there — that wrongly rejected migrated
+      // and compose projects with "Please select a framework".
+      if (config.projectType === "app" && (!config.framework || config.framework === "unknown")) {
+        showToast("Please select a framework", "error", "Error");
+        return null;
+      }
 
-    const localBuildStartedAt = new Date().toISOString();
-    // Save-only (Edit from the Runtime page) persists config and stops — it
-    // never builds, so skip resetting the build/progress state.
-    if (!saveConfigOnly) {
-      phaseStartRef.current = {};
-      setState((prev) => ({
-        ...prev,
-        isDeploying: true,
-        isStopping: false,
-        buildLogs: [],
-        currentProgress: 0,
-        currentStepIndex: 0,
-        phaseDurations: {},
-        deploymentSuccess: false,
-        deploymentFailed: false,
-        deploymentCanceled: false,
-        failureMessage: "",
-        warningMessage: "",
-        decisionPending: false,
-        decisionFailedServiceIds: [],
-        portCheck: [],
-        portCheckSkipped: [],
-        errorCode: "",
-        errorDetails: null,
-        pendingPrompt: null,
-        screenshots: [],
-        serviceStatuses: [],
-        buildStartedAt: localBuildStartedAt,
-        buildDurationMs: null,
-        buildRetryCarryMs:
-          prev.deploymentFailed || prev.deploymentCanceled ? resolveBuildElapsedMs(prev) : 0,
-      }));
-    }
-
-    // Hoisted so the catch block can show the credential modal with the
-    // freshly-ensured project id — for first deploys, config.projectId is
-    // still null at this point, which would disable the "Add a project
-    // clone token" option.
-    let ensuredProjectId: string | null = config.projectId ?? null;
-
-    try {
-      // ── Save-only (Edit from the Runtime page): persist every section the
-      // wizard exposes, but do not create a deployment. Project env uses a
-      // masked-secret-safe diff; compose rows use the same name-stable sync path
-      // as import/deploy, so ports, volumes, env, and routing survive reloads.
-      if (saveConfigOnly) {
-        const projectId = config.projectId;
-        if (!projectId) {
-          showToast("Missing project — open this from the project's Runtime tab", "error", "Error");
-          return null;
-        }
-        try {
-          const savedEnv = await projectsApi.getEnv(projectId);
-          const envPatch = diffProjectEnvironment(savedEnv.data ?? [], config.envVars ?? []);
-          const writes: Promise<unknown>[] = [
-            projectsApi.setOptions(projectId, {
-              framework: config.framework,
-              packageManager: config.packageManager,
-              buildImage: config.buildImage,
-              installCommand: config.options.installCommand,
-              buildCommand: config.options.buildCommand,
-              startCommand: config.options.startCommand,
-              outputDirectory: config.options.outputDirectory,
-              productionPaths: config.options.productionPaths,
-              rootDirectory: config.options.rootDirectory,
-              productionPort:
-                config.options.hasServer && config.options.productionPort
-                  ? Number(config.options.productionPort)
-                  : undefined,
-              hasServer: config.options.hasServer,
-              hasBuild: config.options.hasBuild,
-              runtimeMode: "docker",
-            }),
-          ];
-
-          if (envPatch.upserts.length > 0 || envPatch.deletes.length > 0) {
-            writes.push(projectsApi.mergeEnv(projectId, envPatch));
-          }
-
-          if (config.projectType === "services") {
-            if (config.services.length > 0) {
-              writes.push(servicesApi.sync(projectId, serializeComposeServices(config.services)));
-            } else {
-              const existing = await servicesApi.list(projectId);
-              writes.push(...existing.services
-                .filter((service) => serviceKind(service) === "compose")
-                .map((service) => servicesApi.delete(projectId, service.id)));
-            }
-          }
-
-          await Promise.all(writes);
-          showToast("Configuration saved", "success", "Saved");
-          return projectId;
-        } catch (err) {
-          // Surface the REAL error (no more opaque "some settings failed").
-          const limitError = getLocalizedCustomDomainProjectLimitError(
-            err,
-            t.projectSettings.domains.add,
-          );
+      if (!saveConfigOnly && isServiceDeployment) {
+        const missingRequiredEnv = missingRequiredComposeEnvironment(config);
+        if (missingRequiredEnv.length > 0) {
           showToast(
-            limitError?.message ?? getApiErrorMessage(err, "Failed to save configuration"),
+            `Fill the required Docker Compose variables before deploying: ${missingRequiredEnv.join(", ")}`,
             "error",
-            limitError?.title ?? "Save failed",
+            "Missing environment variables",
           );
           return null;
         }
       }
 
-      const isMonorepoDeployment = config.projectType === "monorepo";
+      lastErrorRef.current = null;
 
-      // Step 1: Ensure project exists
-      const projectData = await projectsApi.ensure({
-        projectId: config.projectId || undefined,
-        routeKey: config.routeKey,
-        name: config.projectName || config.repo || config.localPath?.split("/").pop() || "project",
-        gitOwner: isSourceless ? undefined : config.owner || undefined,
-        gitRepo: isSourceless ? undefined : config.repo || undefined,
-        gitBranch: isSourceless ? undefined : config.branch || undefined,
-        localPath: config.localPath || undefined,
-        // Folder-upload projects: mark the source so it renders correctly and
-        // can later be switched to a GitHub repo (Source tab / linkRepo).
-        gitProvider: isTemplate ? "template" : isUpload ? "upload" : undefined,
-        framework: config.framework,
-        packageManager: config.packageManager,
-        buildImage: config.buildImage,
-        buildCommand: config.options.buildCommand,
-        outputDirectory: config.options.outputDirectory,
-        productionPaths: config.options.productionPaths || undefined,
-        installCommand: config.options.installCommand,
-        startCommand: config.options.startCommand,
-        rootDirectory: config.options.rootDirectory,
-        port: config.options.hasServer && config.options.productionPort
-          ? Number(config.options.productionPort)
-          : undefined,
-        // "None" routing → explicit [] so ensure() doesn't PERSIST a stale free
-        // subdomain onto the project row (this runs before the buildAccess
-        // payload below, which already handles None the same way).
-        publicEndpoints: !isServiceDeployment && !isMonorepoDeployment
-          ? config.noPublicRoute
-            ? []
-            : config.publicEndpoints.map((endpoint) => (
-                serializeProjectPublicEndpoint(
-                  endpoint,
-                  config.options.hasServer,
-                  config.routeKey,
-                )
-              ))
-          : undefined,
-        hasServer: config.options.hasServer,
-        hasBuild: config.options.hasBuild,
-        // Monorepo: persist the per-sub-app slices + shared workspace install.
-        projectType: isMonorepoDeployment ? "monorepo" : undefined,
-        monorepoApps: isMonorepoDeployment
-          ? (config.monorepoApps ?? []).map((app) => ({
-              name: app.name,
-              rootDirectory: app.rootDirectory,
-              framework: app.framework,
-              packageManager: app.packageManager,
-              buildImage: app.buildImage,
-              installCommand: app.installCommand || undefined,
-              buildCommand: app.buildCommand || undefined,
-              startCommand: app.startCommand || undefined,
-              outputDirectory: app.outputDirectory || undefined,
-              port: app.port ? Number(app.port) : undefined,
-              enabled: app.enabled,
-              exposed: true,
-            }))
-          : undefined,
-        monorepoWorkspace: isMonorepoDeployment && config.monorepoWorkspace
-          ? {
-              packageManager: config.monorepoWorkspace.packageManager,
-              prepareCommand: config.monorepoWorkspace.prepareCommand,
-            }
-          : undefined,
-        // Persist the repo's vercel.json routing so the backend compiles it to
-        // Traefik at deploy (single-domain rewrites, redirects, headers).
-        routingConfig: config.routingConfig ?? undefined,
-      });
-
-      if (!projectData.success || !projectData.project_id) {
-        showToast(projectData.error || "Failed to create project", "error", "Error");
-        setState((prev) => ({ ...prev, isDeploying: false }));
-        return null;
-      }
-
-      const hasCanonicalRouteKey = Object.prototype.hasOwnProperty.call(projectData, "route_key");
-      const canonicalRouteKey =
-        typeof projectData.route_key === "string" && /^[a-z0-9]{6}$/.test(projectData.route_key)
-          ? projectData.route_key
-          : undefined;
-      if (hasCanonicalRouteKey && canonicalRouteKey !== config.routeKey) {
-        setConfig((prev) => canonicalizeDeploymentRouteKey(prev, canonicalRouteKey));
-      }
-
-      // Capture for the catch block — buildAccess may throw preflight
-      // errors but the project row already exists at this point.
-      ensuredProjectId = projectData.project_id;
-
-      // Step 2: Create deployment with config snapshot + env vars
-      const envVarsMap: Record<string, string> = {};
-      if (config.envVars && config.envVars.length > 0) {
-        for (const ev of config.envVars) {
-          if (ev.key.trim()) {
-            envVarsMap[ev.key] = ev.value;
-          }
-        }
-      }
-
-      const data = await deployApi.buildAccess({
-        projectId: projectData.project_id,
-        branch: config.branch || undefined,
-        // Folder-upload: adopt the uploaded source (workspace or staging dir).
-        uploadSessionId: config.uploadSessionId || undefined,
-        envVars: Object.keys(envVarsMap).length > 0 ? envVarsMap : undefined,
-        // "None" routing → explicit [] (no public URL). Must be [], not
-        // undefined: undefined makes the backend auto-derive a free subdomain.
-        publicEndpoints: !isServiceDeployment
-          ? config.noPublicRoute
-            ? []
-            : config.publicEndpoints.map((endpoint) => (
-                serializeBuildPublicEndpoint(
-                  endpoint,
-                  config.options.hasServer,
-                  config.routeKey,
-                )
-              ))
-          : undefined,
-        buildStrategy:
-          config.projectType === "docker" || isServiceDeployment
-            ? "server"
-            : (overrides?.buildStrategy ?? config.buildStrategy),
-        deployTarget: config.deployTarget,
-        // Only a server target uses serverId — never let a stale id ride along
-        // with a cloud/local deploy (backend gates it too, but be explicit).
-        serverId: config.deployTarget === "server" ? config.serverId : undefined,
-        // Git-credential forwarding is no longer a per-deploy choice — it's a
-        // generic per-operator setting (Settings → GitHub) the API reads directly.
-        // Clone location — only meaningful for a server target. Clone-on-server
-        // is now the DEFAULT (secure, atomic: credential forwarded over the SSH
-        // relay for the clone, never stored). Only an explicit "api-host" pick
-        // (the advanced "clone on your device, then upload" option) sends
-        // undefined so the backend clones on the orchestrator. The backend
-        // degrades a server clone back to api-host if no credential can reach
-        // the build host, so this default can never block a deploy.
-        cloneStrategy:
-          config.deployTarget === "server" && config.cloneStrategy !== "api-host"
-            ? "server"
-            : undefined,
-        runtimeMode: "docker",
-        // Send the mode for BOTH multi-app shapes so the operator's per-app vs
-        // single choice reaches the backend. Monorepo was previously omitted,
-        // leaving the backend to guess via shouldUseProjectServicePipeline.
-        serviceDeploymentMode:
-          config.projectType === "services" || config.projectType === "monorepo"
-            ? config.serviceDeploymentMode
-            : undefined,
-        // Cloud resource tier only matters for a server-backed Oblien deploy.
-        // Static (Pages) deploys and non-cloud targets ignore it.
-        cloudResourceTier:
-          config.deployTarget === "cloud" && config.options.hasServer
-            ? config.cloudResourceTier
-            : undefined,
-        cloudResourceCustom:
-          config.deployTarget === "cloud" &&
-          config.options.hasServer &&
-          config.cloudResourceTier === "custom"
-            ? config.cloudResourceCustom
-            : undefined,
-        services: isServiceDeployment
-          ? config.services.map((service) => ({
-              name: service.name,
-              image: service.image,
-              build: service.build,
-              dockerfile: service.dockerfile,
-              ports: service.ports,
-              dependsOn: service.dependsOn,
-              environment: service.environment,
-              volumes: service.volumes,
-              command: service.command,
-              advanced: service.advanced,
-              restart: service.restart,
-              exposed: service.exposed,
-              exposedPort: service.exposedPort,
-              domain: managedDomainForApi(
-                service.domain,
-                service.domainType,
-                config.routeKey,
-              ),
-              customDomain: service.customDomain,
-              domainType: service.domainType,
-              // Multi-route: one entry per public port. Drop the UI-only id/
-              // targetPath; the backend mirrors entry[0] → the scalar fields.
-              publicEndpoints: service.publicEndpoints?.map((endpoint) => ({
-                port: endpoint.port,
-                domain:
-                  endpoint.domainType === "custom"
-                    ? undefined
-                    : managedDomainForApi(
-                        endpoint.domain,
-                        endpoint.domainType,
-                        config.routeKey,
-                      ),
-                customDomain: endpoint.domainType === "custom" ? endpoint.customDomain : undefined,
-                domainType: endpoint.domainType,
-              })),
-            }))
-          : undefined,
-      });
-
-      if (data.success && data.deployment_id) {
+      const localBuildStartedAt = new Date().toISOString();
+      // Save-only (Edit from the Runtime page) persists config and stops — it
+      // never builds, so skip resetting the build/progress state.
+      if (!saveConfigOnly) {
+        phaseStartRef.current = {};
         setState((prev) => ({
           ...prev,
-          deploymentId: data.deployment_id,
-          projectId: data.project_id || projectData.project_id || prev.projectId,
+          isDeploying: true,
+          isStopping: false,
+          buildLogs: [],
+          currentProgress: 0,
+          currentStepIndex: 0,
+          phaseDurations: {},
+          deploymentSuccess: false,
+          deploymentFailed: false,
+          deploymentCanceled: false,
+          failureMessage: "",
+          warningMessage: "",
+          decisionPending: false,
+          decisionFailedServiceIds: [],
+          portCheck: [],
+          portCheckSkipped: [],
+          errorCode: "",
+          errorDetails: null,
+          pendingPrompt: null,
+          screenshots: [],
+          serviceStatuses: [],
+          buildStartedAt: localBuildStartedAt,
+          buildDurationMs: null,
+          buildRetryCarryMs:
+            prev.deploymentFailed || prev.deploymentCanceled ? resolveBuildElapsedMs(prev) : 0,
         }));
-        return data.deployment_id;
-      } else {
-        showToast(data.message || "Deployment failed", "error", "Error");
+      }
+
+      // Hoisted so the catch block can show the credential modal with the
+      // freshly-ensured project id — for first deploys, config.projectId is
+      // still null at this point, which would disable the "Add a project
+      // clone token" option.
+      let ensuredProjectId: string | null = config.projectId ?? null;
+
+      try {
+        // ── Save-only (Edit from the Runtime page): persist every section the
+        // wizard exposes, but do not create a deployment. Project env uses a
+        // masked-secret-safe diff; compose rows use the same name-stable sync path
+        // as import/deploy, so ports, volumes, env, and routing survive reloads.
+        if (saveConfigOnly) {
+          const projectId = config.projectId;
+          if (!projectId) {
+            showToast(
+              "Missing project — open this from the project's Runtime tab",
+              "error",
+              "Error",
+            );
+            return null;
+          }
+          try {
+            const savedEnv = await projectsApi.getEnv(projectId);
+            const envPatch = diffProjectEnvironment(savedEnv.data ?? [], config.envVars ?? []);
+            const writes: Promise<unknown>[] = [
+              projectsApi.setOptions(projectId, {
+                framework: config.framework,
+                packageManager: config.packageManager,
+                buildImage: config.buildImage,
+                installCommand: config.options.installCommand,
+                buildCommand: config.options.buildCommand,
+                startCommand: config.options.startCommand,
+                outputDirectory: config.options.outputDirectory,
+                productionPaths: config.options.productionPaths,
+                rootDirectory: config.options.rootDirectory,
+                productionPort:
+                  config.options.hasServer && config.options.productionPort
+                    ? Number(config.options.productionPort)
+                    : undefined,
+                hasServer: config.options.hasServer,
+                hasBuild: config.options.hasBuild,
+                runtimeMode: "docker",
+              }),
+            ];
+
+            if (envPatch.upserts.length > 0 || envPatch.deletes.length > 0) {
+              writes.push(projectsApi.mergeEnv(projectId, envPatch));
+            }
+
+            if (config.projectType === "services") {
+              if (config.services.length > 0) {
+                writes.push(servicesApi.sync(projectId, serializeComposeServices(config.services)));
+              } else {
+                const existing = await servicesApi.list(projectId);
+                writes.push(
+                  ...existing.services
+                    .filter((service) => serviceKind(service) === "compose")
+                    .map((service) => servicesApi.delete(projectId, service.id)),
+                );
+              }
+            }
+
+            await Promise.all(writes);
+            showToast("Configuration saved", "success", "Saved");
+            return projectId;
+          } catch (err) {
+            // Surface the REAL error (no more opaque "some settings failed").
+            const limitError = getLocalizedCustomDomainProjectLimitError(
+              err,
+              t.projectSettings.domains.add,
+            );
+            showToast(
+              limitError?.message ?? getApiErrorMessage(err, "Failed to save configuration"),
+              "error",
+              limitError?.title ?? "Save failed",
+            );
+            return null;
+          }
+        }
+
+        const isMonorepoDeployment = config.projectType === "monorepo";
+
+        // Step 1: Ensure project exists
+        const projectData = await projectsApi.ensure({
+          projectId: config.projectId || undefined,
+          routeKey: config.routeKey,
+          name:
+            config.projectName || config.repo || config.localPath?.split("/").pop() || "project",
+          gitOwner: isSourceless ? undefined : config.owner || undefined,
+          gitRepo: isSourceless ? undefined : config.repo || undefined,
+          gitBranch: isSourceless ? undefined : config.branch || undefined,
+          localPath: config.localPath || undefined,
+          // Folder-upload projects: mark the source so it renders correctly and
+          // can later be switched to a GitHub repo (Source tab / linkRepo).
+          gitProvider: isTemplate ? "template" : isUpload ? "upload" : undefined,
+          framework: config.framework,
+          packageManager: config.packageManager,
+          buildImage: config.buildImage,
+          buildCommand: config.options.buildCommand,
+          outputDirectory: config.options.outputDirectory,
+          productionPaths: config.options.productionPaths || undefined,
+          installCommand: config.options.installCommand,
+          startCommand: config.options.startCommand,
+          rootDirectory: config.options.rootDirectory,
+          port:
+            config.options.hasServer && config.options.productionPort
+              ? Number(config.options.productionPort)
+              : undefined,
+          // "None" routing → explicit [] so ensure() doesn't PERSIST a stale free
+          // subdomain onto the project row (this runs before the buildAccess
+          // payload below, which already handles None the same way).
+          publicEndpoints:
+            !isServiceDeployment && !isMonorepoDeployment
+              ? config.noPublicRoute
+                ? []
+                : config.publicEndpoints.map((endpoint) =>
+                    serializeProjectPublicEndpoint(
+                      endpoint,
+                      config.options.hasServer,
+                      config.routeKey,
+                    ),
+                  )
+              : undefined,
+          hasServer: config.options.hasServer,
+          hasBuild: config.options.hasBuild,
+          // Monorepo: persist the per-sub-app slices + shared workspace install.
+          projectType: isMonorepoDeployment ? "monorepo" : undefined,
+          monorepoApps: isMonorepoDeployment
+            ? (config.monorepoApps ?? []).map((app) => ({
+                name: app.name,
+                rootDirectory: app.rootDirectory,
+                framework: app.framework,
+                packageManager: app.packageManager,
+                buildImage: app.buildImage,
+                installCommand: app.installCommand || undefined,
+                buildCommand: app.buildCommand || undefined,
+                startCommand: app.startCommand || undefined,
+                outputDirectory: app.outputDirectory || undefined,
+                port: app.port ? Number(app.port) : undefined,
+                enabled: app.enabled,
+                exposed: true,
+              }))
+            : undefined,
+          monorepoWorkspace:
+            isMonorepoDeployment && config.monorepoWorkspace
+              ? {
+                  packageManager: config.monorepoWorkspace.packageManager,
+                  prepareCommand: config.monorepoWorkspace.prepareCommand,
+                }
+              : undefined,
+          // Persist the repo's vercel.json routing so the backend compiles it to
+          // Traefik at deploy (single-domain rewrites, redirects, headers).
+          routingConfig: config.routingConfig ?? undefined,
+        });
+
+        if (!projectData.success || !projectData.project_id) {
+          showToast(projectData.error || "Failed to create project", "error", "Error");
+          setState((prev) => ({ ...prev, isDeploying: false }));
+          return null;
+        }
+
+        const hasCanonicalRouteKey = Object.prototype.hasOwnProperty.call(projectData, "route_key");
+        const canonicalRouteKey = canonicalRouteKeyFromApi(projectData.route_key);
+        // An absent/malformed identity must never erase the key already reserved
+        // in deployment state. Only a valid canonical value may replace it.
+        if (hasCanonicalRouteKey && canonicalRouteKey && canonicalRouteKey !== config.routeKey) {
+          setConfig((prev) => canonicalizeDeploymentRouteKey(prev, canonicalRouteKey));
+        }
+
+        // Capture for the catch block — buildAccess may throw preflight
+        // errors but the project row already exists at this point.
+        ensuredProjectId = projectData.project_id;
+
+        // Step 2: Create deployment with config snapshot + env vars
+        const envVarsMap: Record<string, string> = {};
+        if (config.envVars && config.envVars.length > 0) {
+          for (const ev of config.envVars) {
+            if (ev.key.trim()) {
+              envVarsMap[ev.key] = ev.value;
+            }
+          }
+        }
+
+        const data = await deployApi.buildAccess({
+          projectId: projectData.project_id,
+          branch: config.branch || undefined,
+          // Folder-upload: adopt the uploaded source (workspace or staging dir).
+          uploadSessionId: config.uploadSessionId || undefined,
+          envVars: Object.keys(envVarsMap).length > 0 ? envVarsMap : undefined,
+          // "None" routing → explicit [] (no public URL). Must be [], not
+          // undefined: undefined makes the backend auto-derive a free subdomain.
+          publicEndpoints: !isServiceDeployment
+            ? config.noPublicRoute
+              ? []
+              : config.publicEndpoints.map((endpoint) =>
+                  serializeBuildPublicEndpoint(endpoint, config.options.hasServer, config.routeKey),
+                )
+            : undefined,
+          buildStrategy:
+            config.projectType === "docker" || isServiceDeployment
+              ? "server"
+              : (overrides?.buildStrategy ?? config.buildStrategy),
+          deployTarget: config.deployTarget,
+          // Only a server target uses serverId — never let a stale id ride along
+          // with a cloud/local deploy (backend gates it too, but be explicit).
+          serverId: config.deployTarget === "server" ? config.serverId : undefined,
+          // Git-credential forwarding is no longer a per-deploy choice — it's a
+          // generic per-operator setting (Settings → GitHub) the API reads directly.
+          // Clone location — only meaningful for a server target. Clone-on-server
+          // is now the DEFAULT (secure, atomic: credential forwarded over the SSH
+          // relay for the clone, never stored). Only an explicit "api-host" pick
+          // (the advanced "clone on your device, then upload" option) sends
+          // undefined so the backend clones on the orchestrator. The backend
+          // degrades a server clone back to api-host if no credential can reach
+          // the build host, so this default can never block a deploy.
+          cloneStrategy:
+            config.deployTarget === "server" && config.cloneStrategy !== "api-host"
+              ? "server"
+              : undefined,
+          runtimeMode: "docker",
+          // Send the mode for BOTH multi-app shapes so the operator's per-app vs
+          // single choice reaches the backend. Monorepo was previously omitted,
+          // leaving the backend to guess via shouldUseProjectServicePipeline.
+          serviceDeploymentMode:
+            config.projectType === "services" || config.projectType === "monorepo"
+              ? config.serviceDeploymentMode
+              : undefined,
+          // Cloud resource tier only matters for a server-backed Oblien deploy.
+          // Static (Pages) deploys and non-cloud targets ignore it.
+          cloudResourceTier:
+            config.deployTarget === "cloud" && config.options.hasServer
+              ? config.cloudResourceTier
+              : undefined,
+          cloudResourceCustom:
+            config.deployTarget === "cloud" &&
+            config.options.hasServer &&
+            config.cloudResourceTier === "custom"
+              ? config.cloudResourceCustom
+              : undefined,
+          services: isServiceDeployment
+            ? config.services.map((service) => ({
+                name: service.name,
+                image: service.image,
+                build: service.build,
+                dockerfile: service.dockerfile,
+                ports: service.ports,
+                dependsOn: service.dependsOn,
+                environment: service.environment,
+                volumes: service.volumes,
+                command: service.command,
+                advanced: service.advanced,
+                restart: service.restart,
+                exposed: service.exposed,
+                exposedPort: service.exposedPort,
+                domain: managedDomainForApi(service.domain, service.domainType, config.routeKey),
+                customDomain: service.customDomain,
+                domainType: service.domainType,
+                // Multi-route: one entry per public port. Drop the UI-only id/
+                // targetPath; the backend mirrors entry[0] → the scalar fields.
+                publicEndpoints: service.publicEndpoints?.map((endpoint) => ({
+                  port: endpoint.port,
+                  domain:
+                    endpoint.domainType === "custom"
+                      ? undefined
+                      : managedDomainForApi(endpoint.domain, endpoint.domainType, config.routeKey),
+                  customDomain:
+                    endpoint.domainType === "custom" ? endpoint.customDomain : undefined,
+                  domainType: endpoint.domainType,
+                })),
+              }))
+            : undefined,
+        });
+
+        if (data.success && data.deployment_id) {
+          setState((prev) => ({
+            ...prev,
+            deploymentId: data.deployment_id,
+            projectId: data.project_id || projectData.project_id || prev.projectId,
+          }));
+          return data.deployment_id;
+        } else {
+          showToast(data.message || "Deployment failed", "error", "Error");
+          setState((prev) => ({ ...prev, isDeploying: false }));
+          return null;
+        }
+      } catch (err) {
+        console.error("Deployment error:", err);
+        const limitError = getLocalizedCustomDomainProjectLimitError(
+          err,
+          t.projectSettings.domains.add,
+        );
+        const projectLimitError = getLocalizedProjectLimitError(err, t.projects.quota);
+        const message =
+          projectLimitError?.message ??
+          limitError?.message ??
+          getApiErrorMessage(err, "Failed to start deployment");
+        const errorCode = extractErrorCode(err);
+
+        const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
+        // Backend defense-in-depth: a cloud-requiring preflight failure carries a
+        // shared CLOUD_REQUIRED_* code. Map it → capability → the ONE connect modal
+        // (copy from the shared registry — no hardcoded strings). The up-front
+        // Sidebar gate handles the happy path; this is the fallback. On dismiss,
+        // surface the original error; on connect, the user re-deploys.
+        const cloudCapability = parseCloudRequiredCode(errorCode);
+        if (cloudCapability && canConnectCloud) {
+          const connected = await requireCloud(cloudCapability, { domain: baseDomain });
+          if (!connected) {
+            showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
+          }
+        } else if (!maybeOpenCredentialModal(errorCode)) {
+          // Clone-token / credential preflight failures open the missing-credential
+          // modal (concrete recovery) instead of a dead-end toast.
+          showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
+        }
         setState((prev) => ({ ...prev, isDeploying: false }));
         return null;
       }
-    } catch (err) {
-      console.error("Deployment error:", err);
-      const limitError = getLocalizedCustomDomainProjectLimitError(
-        err,
-        t.projectSettings.domains.add,
-      );
-      const projectLimitError = getLocalizedProjectLimitError(err, t.projects.quota);
-      const message =
-        projectLimitError?.message ??
-        limitError?.message ??
-        getApiErrorMessage(err, "Failed to start deployment");
-      const errorCode = extractErrorCode(err);
-
-      const canConnectCloud = canUseCloudConnection({ selfHosted, deployMode });
-      // Backend defense-in-depth: a cloud-requiring preflight failure carries a
-      // shared CLOUD_REQUIRED_* code. Map it → capability → the ONE connect modal
-      // (copy from the shared registry — no hardcoded strings). The up-front
-      // Sidebar gate handles the happy path; this is the fallback. On dismiss,
-      // surface the original error; on connect, the user re-deploys.
-      const cloudCapability = parseCloudRequiredCode(errorCode);
-      if (cloudCapability && canConnectCloud) {
-        const connected = await requireCloud(cloudCapability, { domain: baseDomain });
-        if (!connected) {
-          showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
-        }
-      } else if (!maybeOpenCredentialModal(errorCode)) {
-        // Clone-token / credential preflight failures open the missing-credential
-        // modal (concrete recovery) instead of a dead-end toast.
-        showToast(message, "error", projectLimitError?.title ?? limitError?.title ?? "Error");
-      }
-      setState((prev) => ({ ...prev, isDeploying: false }));
-      return null;
-    }
-  }, [baseDomain, config, deployMode, hideModal, installUrl, maybeOpenCredentialModal, openGithubConnect, requireCloud, selfHosted, setConfig, showModal, showToast, t]);
+    },
+    [
+      baseDomain,
+      config,
+      deployMode,
+      hideModal,
+      installUrl,
+      maybeOpenCredentialModal,
+      openGithubConnect,
+      requireCloud,
+      selfHosted,
+      setConfig,
+      showModal,
+      showToast,
+      t,
+    ],
+  );
 
   // `startBuild` controls which SSE endpoint to hit:
   //   - true  → POST /:id/build, which ALSO kicks off the build. Now only
@@ -1009,13 +1056,16 @@ export function useDeploymentBuild(
   //             after redeploy (where `redeployBuildSession` did), and on
   //             page refresh via `loadBuildSession`.
   // Defaults to true for back-compat; new call sites should pass `false`.
-  const connectToBuild = useCallback(async (deploymentId?: string, startBuild: boolean = true) => {
-    const id = deploymentId || state.deploymentId;
-    if (!id) {
-      throw new Error("No deployment ID available");
-    }
-    await buildStream.connect(id, startBuild);
-  }, [state.deploymentId, buildStream]);
+  const connectToBuild = useCallback(
+    async (deploymentId?: string, startBuild: boolean = true) => {
+      const id = deploymentId || state.deploymentId;
+      if (!id) {
+        throw new Error("No deployment ID available");
+      }
+      await buildStream.connect(id, startBuild);
+    },
+    [state.deploymentId, buildStream],
+  );
 
   // Self-heal the services view when the live stream drops mid-deploy. The build
   // SSE can go terminal (a transient reconnect miss, a premature terminal event)
@@ -1123,86 +1173,93 @@ export function useDeploymentBuild(
         // Restore config from session
         if (data.config) {
           const apiConfig = data.config;
-          const apiHasServer = apiConfig.hasServer !== undefined
-            ? apiConfig.hasServer
-            : config.options.hasServer;
+          const apiHasServer =
+            apiConfig.hasServer !== undefined ? apiConfig.hasServer : config.options.hasServer;
           const normalizedEndpoints = ensurePublicEndpoints(
-            apiConfig.publicEndpoints?.map((endpoint: {
-              port?: string;
-              targetPath?: string;
-              domain?: string;
-              customDomain?: string;
-              domainType?: "free" | "custom";
-            }) => {
-              let cleanDomain = endpoint.domain || "";
-              const dotIdx = cleanDomain.indexOf(".");
-              if (dotIdx > 0) {
-                cleanDomain = cleanDomain.slice(0, dotIdx);
-              }
+            apiConfig.publicEndpoints?.map(
+              (endpoint: {
+                port?: string;
+                targetPath?: string;
+                domain?: string;
+                customDomain?: string;
+                domainType?: "free" | "custom";
+              }) => {
+                let cleanDomain = endpoint.domain || "";
+                const dotIdx = cleanDomain.indexOf(".");
+                if (dotIdx > 0) {
+                  cleanDomain = cleanDomain.slice(0, dotIdx);
+                }
 
-              return {
-                id: randomUUID(),
-                port: endpoint.port || "",
-                targetPath: endpoint.targetPath || "",
-                domain: cleanDomain,
-                customDomain: endpoint.customDomain || "",
-                domainType: endpoint.domainType || "free",
-              };
-            }),
+                return {
+                  id: randomUUID(),
+                  port: endpoint.port || "",
+                  targetPath: endpoint.targetPath || "",
+                  domain: cleanDomain,
+                  customDomain: endpoint.customDomain || "",
+                  domainType: endpoint.domainType || "free",
+                };
+              },
+            ),
             apiHasServer ? undefined : { targetPath: "/" },
           );
 
-          setConfig((prev) => syncActiveModeSnapshot(syncPublicEndpointState({
-            ...prev,
-            projectId: data.project_id || prev.projectId,
-            publicEndpoints: normalizedEndpoints,
-            repo: apiConfig.repo || prev.repo,
-            owner: apiConfig.owner || prev.owner,
-            projectName: apiConfig.projectName || prev.projectName,
-            framework: apiConfig.framework || prev.framework,
-            packageManager: apiConfig.packageManager || prev.packageManager,
-            buildImage: apiConfig.buildImage || prev.buildImage,
-            branch: apiConfig.branch || prev.branch,
-            // Actual build/deploy target of THIS deployment (from the snapshot),
-            // so the detail UI reflects how it really ran, not the live default.
-            buildStrategy: apiConfig.buildStrategy || prev.buildStrategy,
-            deployTarget: apiConfig.deployTarget || prev.deployTarget,
-            // User workloads are always containerized. Ignore stale bare values
-            // returned by a pre-migration project/deployment snapshot.
-            runtimeMode: "docker",
-            serverId: apiConfig.serverId ?? prev.serverId,
-            serverName: apiConfig.serverName ?? prev.serverName,
-            envVars: apiConfig.envVars || prev.envVars,
-            projectType: data.projectType || prev.projectType,
-            modeSnapshots: (data.projectType || prev.projectType) === "services"
-              ? prev.modeSnapshots
-              : undefined,
-            serviceDeploymentMode:
-              apiConfig.serviceDeploymentMode ||
-              (data.projectType === "services" ? "services" : "single"),
-            // Full compose config from the deployment snapshot (getBuildStatus
-            // returns it as `composeServices`). Hydrating config.services here
-            // means the shared DeploymentProvider carries the real services into
-            // "Edit Configuration" — so the compose wizard shows them even when
-            // the service table is empty (e.g. a deploy that failed before its
-            // rows were persisted). Falls back to whatever's already loaded.
-            services: Array.isArray(data.composeServices)
-              ? (data.composeServices as RawComposeService[]).map(normalizeComposeService)
-              : prev.services,
-            options: {
-              buildCommand: apiConfig.buildCommand || prev.options.buildCommand,
-              outputDirectory: apiConfig.outputDirectory || prev.options.outputDirectory,
-              productionPaths: apiConfig.productionPaths || prev.options.productionPaths,
-              installCommand: apiConfig.installCommand || prev.options.installCommand,
-              startCommand: apiConfig.startCommand || prev.options.startCommand,
-              productionPort: apiHasServer
-                ? (normalizedEndpoints[0]?.port || prev.options.productionPort)
-                : prev.options.productionPort,
-              rootDirectory: apiConfig.rootDirectory || prev.options.rootDirectory,
-              hasServer: apiHasServer,
-              hasBuild: apiConfig.hasBuild !== undefined ? apiConfig.hasBuild : prev.options.hasBuild,
-            },
-          })));
+          setConfig((prev) =>
+            syncActiveModeSnapshot(
+              syncPublicEndpointState({
+                ...prev,
+                projectId: data.project_id || prev.projectId,
+                publicEndpoints: normalizedEndpoints,
+                repo: apiConfig.repo || prev.repo,
+                owner: apiConfig.owner || prev.owner,
+                projectName: apiConfig.projectName || prev.projectName,
+                framework: apiConfig.framework || prev.framework,
+                packageManager: apiConfig.packageManager || prev.packageManager,
+                buildImage: apiConfig.buildImage || prev.buildImage,
+                branch: apiConfig.branch || prev.branch,
+                // Actual build/deploy target of THIS deployment (from the snapshot),
+                // so the detail UI reflects how it really ran, not the live default.
+                buildStrategy: apiConfig.buildStrategy || prev.buildStrategy,
+                deployTarget: apiConfig.deployTarget || prev.deployTarget,
+                // User workloads are always containerized. Ignore stale bare values
+                // returned by a pre-migration project/deployment snapshot.
+                runtimeMode: "docker",
+                serverId: apiConfig.serverId ?? prev.serverId,
+                serverName: apiConfig.serverName ?? prev.serverName,
+                envVars: apiConfig.envVars || prev.envVars,
+                projectType: data.projectType || prev.projectType,
+                modeSnapshots:
+                  (data.projectType || prev.projectType) === "services"
+                    ? prev.modeSnapshots
+                    : undefined,
+                serviceDeploymentMode:
+                  apiConfig.serviceDeploymentMode ||
+                  (data.projectType === "services" ? "services" : "single"),
+                // Full compose config from the deployment snapshot (getBuildStatus
+                // returns it as `composeServices`). Hydrating config.services here
+                // means the shared DeploymentProvider carries the real services into
+                // "Edit Configuration" — so the compose wizard shows them even when
+                // the service table is empty (e.g. a deploy that failed before its
+                // rows were persisted). Falls back to whatever's already loaded.
+                services: Array.isArray(data.composeServices)
+                  ? (data.composeServices as RawComposeService[]).map(normalizeComposeService)
+                  : prev.services,
+                options: {
+                  buildCommand: apiConfig.buildCommand || prev.options.buildCommand,
+                  outputDirectory: apiConfig.outputDirectory || prev.options.outputDirectory,
+                  productionPaths: apiConfig.productionPaths || prev.options.productionPaths,
+                  installCommand: apiConfig.installCommand || prev.options.installCommand,
+                  startCommand: apiConfig.startCommand || prev.options.startCommand,
+                  productionPort: apiHasServer
+                    ? normalizedEndpoints[0]?.port || prev.options.productionPort
+                    : prev.options.productionPort,
+                  rootDirectory: apiConfig.rootDirectory || prev.options.rootDirectory,
+                  hasServer: apiHasServer,
+                  hasBuild:
+                    apiConfig.hasBuild !== undefined ? apiConfig.hasBuild : prev.options.hasBuild,
+                },
+              }),
+            ),
+          );
         }
 
         // Parse existing logs. Compose needs structured entries so service tabs
@@ -1230,14 +1287,14 @@ export function useDeploymentBuild(
           deploymentFailed: !isActive && status === "failed",
           deploymentCanceled: !isActive && status === "cancelled",
           isDeploying: isLive,
-          screenshots: !isActive ? (data.screenshots || []) : [],
-          failureMessage: !isActive ? (data.failureMessage || "") : "",
-          warningMessage: !isActive ? (data.warningMessage || "") : "",
+          screenshots: !isActive ? data.screenshots || [] : [],
+          failureMessage: !isActive ? data.failureMessage || "" : "",
+          warningMessage: !isActive ? data.warningMessage || "" : "",
           decisionPending: !isActive ? !!data.decisionPending : false,
           decisionFailedServiceIds: !isActive ? (data.partial?.failed ?? []) : [],
           portCheck: !isActive ? (data.portCheck ?? []) : [],
           portCheckSkipped: !isActive ? (data.portCheckSkipped ?? []) : [],
-          errorCode: !isActive ? (data.errorCode || "") : "",
+          errorCode: !isActive ? data.errorCode || "" : "",
           errorDetails: null,
           buildLogs,
           // Authoritative per-phase durations computed server-side from the
@@ -1317,7 +1374,15 @@ export function useDeploymentBuild(
         return { success: false, error: errorMessage };
       }
     },
-    [buildStream, setConfig, showToast, writeToTerminal, handleSuccessMessage, handleFailureMessage, handleCanceled],
+    [
+      buildStream,
+      setConfig,
+      showToast,
+      writeToTerminal,
+      handleSuccessMessage,
+      handleFailureMessage,
+      handleCanceled,
+    ],
   );
 
   const stopDeployment = useCallback(async () => {
@@ -1341,7 +1406,14 @@ export function useDeploymentBuild(
     } finally {
       setState((prev) => ({ ...prev, isStopping: false }));
     }
-  }, [buildStream, canStreamContainer, state.deploymentId, state.isStopping, showToast, handleCanceled]);
+  }, [
+    buildStream,
+    canStreamContainer,
+    state.deploymentId,
+    state.isStopping,
+    showToast,
+    handleCanceled,
+  ]);
 
   const redeploy = useCallback(
     async (deploymentId: string): Promise<string | null> => {
@@ -1476,16 +1548,19 @@ export function useDeploymentBuild(
     }));
   }, []);
 
-  const respondToPrompt = useCallback(async (action: string) => {
-    if (!state.deploymentId) return;
-    setState((prev) => ({ ...prev, pendingPrompt: null }));
-    try {
-      await deployApi.buildRespond(state.deploymentId, action);
-    } catch (err) {
-      console.error("[Deployment] Failed to respond to prompt:", err);
-      showToast("Failed to respond to prompt", "error", "Error");
-    }
-  }, [state.deploymentId, showToast]);
+  const respondToPrompt = useCallback(
+    async (action: string) => {
+      if (!state.deploymentId) return;
+      setState((prev) => ({ ...prev, pendingPrompt: null }));
+      try {
+        await deployApi.buildRespond(state.deploymentId, action);
+      } catch (err) {
+        console.error("[Deployment] Failed to respond to prompt:", err);
+        showToast("Failed to respond to prompt", "error", "Error");
+      }
+    },
+    [state.deploymentId, showToast],
+  );
 
   return {
     state,

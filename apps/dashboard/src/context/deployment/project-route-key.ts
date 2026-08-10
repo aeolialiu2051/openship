@@ -1,10 +1,22 @@
 import {
   appendProjectRouteKey,
+  normalizeProjectRouteKey,
   removeProjectRouteKey,
   replaceProjectRouteKey,
 } from "@repo/core";
 import { normalizeSubdomainInput } from "../../utils/subdomain";
 import type { DeploymentConfig } from "./types";
+
+/** Parse the canonical identity returned by projects.ensure. New projects use
+ * eight characters; six-character values remain valid for legacy projects. */
+export function canonicalRouteKeyFromApi(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  try {
+    return normalizeProjectRouteKey(value);
+  } catch {
+    return undefined;
+  }
+}
 
 function stripManagedBaseDomain(domain: string, baseDomain?: string): string {
   const value = domain.trim().toLowerCase().replace(/\.$/, "");
@@ -26,8 +38,10 @@ export function managedDomainForEditing(
   baseDomain?: string,
 ): string {
   if (domainType === "custom" || !routeKey) return domain;
-  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain))
-    .replace(/^-+|-+$/g, "");
+  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain)).replace(
+    /^-+|-+$/g,
+    "",
+  );
   return label ? removeProjectRouteKey(label, routeKey) : "";
 }
 
@@ -39,8 +53,10 @@ export function managedDomainFromEditing(
   baseDomain?: string,
 ): string {
   if (domainType === "custom" || !routeKey) return domain;
-  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain))
-    .replace(/^-+|-+$/g, "");
+  const label = normalizeSubdomainInput(stripManagedBaseDomain(domain, baseDomain)).replace(
+    /^-+|-+$/g,
+    "",
+  );
   return appendProjectRouteKey(label, routeKey);
 }
 
@@ -61,9 +77,7 @@ function canonicalManagedDomain(
 ): string {
   if (!domain || domainType === "custom") return domain;
   if (!nextRouteKey) {
-    return currentRouteKey
-      ? removeProjectRouteKey(domain, currentRouteKey)
-      : domain;
+    return currentRouteKey ? removeProjectRouteKey(domain, currentRouteKey) : domain;
   }
   return currentRouteKey
     ? replaceProjectRouteKey(domain, currentRouteKey, nextRouteKey)
@@ -87,9 +101,10 @@ export function canonicalizeDeploymentRouteKey(
     }));
   const mapSnapshot = <T extends NonNullable<DeploymentConfig["modeSnapshots"]>["services"]>(
     snapshot: T,
-  ): T => snapshot
-    ? ({ ...snapshot, publicEndpoints: mapEndpoints(snapshot.publicEndpoints) } as T)
-    : snapshot;
+  ): T =>
+    snapshot
+      ? ({ ...snapshot, publicEndpoints: mapEndpoints(snapshot.publicEndpoints) } as T)
+      : snapshot;
 
   return {
     ...config,
@@ -97,12 +112,13 @@ export function canonicalizeDeploymentRouteKey(
     publicEndpoints: mapEndpoints(config.publicEndpoints),
     services: config.services.map((service) => ({
       ...service,
-      domain: canonicalManagedDomain(
-        service.domain ?? "",
-        service.domainType === "custom" ? "custom" : "free",
-        currentRouteKey,
-        nextRouteKey,
-      ) || undefined,
+      domain:
+        canonicalManagedDomain(
+          service.domain ?? "",
+          service.domainType === "custom" ? "custom" : "free",
+          currentRouteKey,
+          nextRouteKey,
+        ) || undefined,
       publicEndpoints: service.publicEndpoints?.map((endpoint) => ({
         ...endpoint,
         domain: canonicalManagedDomain(

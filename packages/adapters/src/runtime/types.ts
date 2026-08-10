@@ -423,6 +423,7 @@ export interface ResolvedTraefikEdge {
   network: string;
   entrypoint: string;
   httpEntrypoint?: string;
+  cloudflareEntrypoint?: string;
   tls: boolean;
   certResolver?: string;
   source: "vibrail" | "existing";

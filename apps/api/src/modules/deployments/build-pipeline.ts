@@ -1915,7 +1915,8 @@ async function runPostDeploySync(opts: {
   const edgeFailures: string[] = [];
   const dnsFailures: string[] = [];
 
-  const { edgeRouteStore, publishManagedDomainRoute } = await import("../../lib/edge-route-projection");
+  const { edgeRouteStore, publishManagedDomainRoute } =
+    await import("../../lib/edge-route-projection");
   if (usesManagedRouting && edgeRouteStore()) {
     if (!serverId) throw new Error("Managed edge routing requires a target server");
     for (const planned of plannedDomains.filter((domain) => domain.isCloud)) {
@@ -1923,9 +1924,13 @@ async function runPostDeploySync(opts: {
       if (!record) throw new Error(`Managed domain record missing for ${planned.hostname}`);
       try {
         await publishManagedDomainRoute(record, serverId);
-        logger.log(`Published edge route for ${planned.hostname} (version ${record.routeVersion}).\n`);
+        logger.log(
+          `Published edge route for ${planned.hostname} (version ${record.routeVersion}).\n`,
+        );
       } catch (error) {
-        await repos.domain.updateRouteState(record.id, record.routeVersion, "failed").catch(() => undefined);
+        await repos.domain
+          .updateRouteState(record.id, record.routeVersion, "failed")
+          .catch(() => undefined);
         throw error;
       }
     }

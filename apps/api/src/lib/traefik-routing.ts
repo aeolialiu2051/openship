@@ -75,11 +75,6 @@ export async function prepareTraefikConfig(opts: {
       : Promise.resolve(null),
   ]);
   const edge: ResolvedTraefikEdge = await opts.runtime.ensureSharedTraefik(manual);
-  if (opts.routes.some((route) => route.managedOrigin) && edge.source !== "vibrail") {
-    throw new Error(
-      "Managed .vibrail.app routes require Vibrail's authenticated single-container edge; an external Traefik cannot safely terminate these routes.",
-    );
-  }
   opts.onLog?.(
     edge.source === "existing"
       ? `Reusing existing Traefik on network "${edge.network}" (entrypoint "${edge.entrypoint}").\n`
@@ -102,8 +97,7 @@ export async function prepareTraefikConfig(opts: {
   return {
     network: edge.network,
     entrypoint: edge.entrypoint,
-    tls: edge.tls,
-    managedOriginAuth: edge.source === "vibrail",
+    ...(edge.cloudflareEntrypoint ? { cloudflareEntrypoint: edge.cloudflareEntrypoint } : {}),
     ...(server?.routingId
       ? {
           managedOriginHost: originHostnameForServer(
@@ -112,6 +106,7 @@ export async function prepareTraefikConfig(opts: {
           ),
         }
       : {}),
+    tls: edge.tls,
     ...(edge.certResolver ? { certResolver: edge.certResolver } : {}),
     routes: opts.routes,
     ...(Object.keys(routeRules).length > 0 ? { routeRules } : {}),

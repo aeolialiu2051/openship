@@ -1319,14 +1319,23 @@ export async function deployComposeServices(
       // authority and KV route are both durable. The legacy cloud-edge fallback
       // below remains best-effort for installations without direct KV.
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);
-      const { edgeRouteStore, publishManagedDomainRoute } = await import("../../../lib/edge-route-projection");
+      const { edgeRouteStore, publishManagedDomainRoute } =
+        await import("../../../lib/edge-route-projection");
       if (routeContext?.usesManagedRouting && edgeRouteStore() && managedRoutes.length > 0) {
-        if (!routeContext.serverId) throw new Error("Managed edge routing requires a target server");
+        if (!routeContext.serverId)
+          throw new Error("Managed edge routing requires a target server");
         for (const managedRoute of managedRoutes) {
-          const domainRecord = routeContext.domainByHostname.get(managedRoute.hostname.toLowerCase());
-          if (!domainRecord) throw new Error(`Managed domain record missing for ${managedRoute.hostname}`);
+          const domainRecord = routeContext.domainByHostname.get(
+            managedRoute.hostname.toLowerCase(),
+          );
+          if (!domainRecord)
+            throw new Error(`Managed domain record missing for ${managedRoute.hostname}`);
           await publishManagedDomainRoute(domainRecord, routeContext.serverId);
-          logger.log(`Published edge route for ${managedRoute.hostname} (version ${domainRecord.routeVersion}).\n`, "info", { serviceName: svc.name });
+          logger.log(
+            `Published edge route for ${managedRoute.hostname} (version ${domainRecord.routeVersion}).\n`,
+            "info",
+            { serviceName: svc.name },
+          );
         }
       } else if (
         routeContext?.usesManagedRouting &&

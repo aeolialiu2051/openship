@@ -1,8 +1,0 @@
-displayName: Vibrail Origin Authentication
-type: middleware
-import: github.com/vibrail/vibrail-origin-auth
-summary: Verifies Worker-signed managed-origin requests before routing them.
-testData:
-  secretFile: /etc/vibrail/edge/server-secret
-  manifestDirectory: /etc/vibrail/edge-routes
-

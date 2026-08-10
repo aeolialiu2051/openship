@@ -5,6 +5,7 @@ export const VIBRAIL_EDGE_CONTAINER = "vibrail-edge";
 export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
+export const VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT = "cloudflare-origin";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
 export const VIBRAIL_EDGE_DYNAMIC_HOST_DIR = "/var/lib/vibrail/traefik/dynamic";
 export const VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR = "/etc/traefik/dynamic";
@@ -12,9 +13,7 @@ export const VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR = "/etc/traefik/dynamic";
 // 29 rejects that client, leaving the Docker provider offline and every managed
 // domain on Traefik's default 404/self-signed certificate. Traefik 3.6 uses a
 // compatible Docker client and has been verified against Docker 29.
-export const VIBRAIL_EDGE_IMAGE =
-  process.env.VIBRAIL_EDGE_IMAGE ??
-  `${process.env.VIBRAIL_IMAGE_REGISTRY ?? "ghcr.io/aeolialiu2051"}/vibrail-edge:${process.env.VIBRAIL_VERSION ?? "latest"}`;
+export const VIBRAIL_EDGE_IMAGE = "traefik:v3.6";
 export const VIBRAIL_EDGE_MANAGED_LABEL = "vibrail.edge.managed";
 export const VIBRAIL_EDGE_CONFIG_VERSION_LABEL = "vibrail.edge.config-version";
 export const VIBRAIL_EDGE_CONFIG_VERSION = "6";
@@ -427,7 +426,7 @@ function stableRouteSuffix(value: string): string {
 export function buildTraefikSuspensionLabels(
   edge: ResolvedTraefikEdge,
   projectId: string,
-  routes: Array<{ hostname: string; redirectUrl: string; managedOriginHost?: string }>,
+  routes: Array<{ hostname: string; redirectUrl: string }>,
 ): Record<string, string> {
   const labels: Record<string, string> = {
     "traefik.enable": "true",
@@ -441,24 +440,17 @@ export function buildTraefikSuspensionLabels(
     const name = `vibrail-suspended-${suffix}`;
     const middleware = `${name}-redirect`;
     const router = `traefik.http.routers.${name}`;
-    const managedOrigin = !!route.managedOriginHost;
-    labels[`${router}.rule`] = managedOrigin
-      ? `Host(\`${safeLabelValue(route.managedOriginHost!)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`
-      : `Host(\`${safeLabelValue(route.hostname)}\`)`;
-    labels[`${router}.entrypoints`] = edge.entrypoint;
+    labels[`${router}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
+    labels[`${router}.entrypoints`] = [edge.entrypoint, edge.cloudflareEntrypoint]
+      .filter(Boolean)
+      .join(",");
     // Win even if a runtime stop partially failed and an old exact-Host router
     // is still advertised. Normal app routers rely on rule-length priority and
     // remain far below this explicit moderation override.
     labels[`${router}.priority`] = "100000";
     labels[`${router}.tls`] = "true";
     labels[`${router}.service`] = "noop@internal";
-    const originAuthMiddleware = managedOrigin
-      ? addOriginAuthLabels(labels, name, route.hostname)
-      : null;
-    labels[`${router}.middlewares`] = [originAuthMiddleware, middleware]
-      .filter((value): value is string => !!value)
-      .map((value) => `${value}@docker`)
-      .join(",");
+    labels[`${router}.middlewares`] = `${middleware}@docker`;
     labels[`traefik.http.middlewares.${middleware}.redirectregex.regex`] = "^https?://.*";
     labels[`traefik.http.middlewares.${middleware}.redirectregex.replacement`] = safeLabelValue(
       route.redirectUrl,
@@ -466,10 +458,7 @@ export function buildTraefikSuspensionLabels(
     // A suspension can be lifted; never let browsers cache this redirect.
     labels[`traefik.http.middlewares.${middleware}.redirectregex.permanent`] = "false";
 
-    // Managed Worker traffic always reaches the authenticated TLS origin.
-    // Publishing a second unauthenticated HTTP router would bypass that
-    // boundary, so only direct/custom domains receive the HTTP redirect route.
-    if (edge.httpEntrypoint && !managedOrigin) {
+    if (edge.httpEntrypoint) {
       const httpName = `${name}-http`;
       const httpRouter = `traefik.http.routers.${httpName}`;
       labels[`${httpRouter}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
@@ -489,25 +478,6 @@ function middlewareNames(rule: TraefikRouteRuleConfig): string[] {
     rule.ipAllowList ? `${rule.name}-ip` : null,
     rule.inFlightReq ? `${rule.name}-flight` : null,
   ].filter((name): name is string => !!name);
-}
-
-function originAuthMiddlewareName(routerName: string): string {
-  return `${routerName}-origin-auth`;
-}
-
-function addOriginAuthLabels(
-  labels: Record<string, string>,
-  routerName: string,
-  hostname: string,
-): string {
-  const name = originAuthMiddlewareName(routerName);
-  const plugin = `traefik.http.middlewares.${name}.plugin.vibrail-origin-auth`;
-  labels[`${plugin}.secretFile`] = "/etc/vibrail/edge/server-secret";
-  labels[`${plugin}.previousSecretFile`] = "/etc/vibrail/edge/previous-server-secret";
-  labels[`${plugin}.manifestDirectory`] = "/etc/vibrail/edge-routes";
-  labels[`${plugin}.timestampSkewSeconds`] = "60";
-  labels[`${plugin}.hostname`] = safeLabelValue(hostname);
-  return name;
 }
 
 function addMiddlewareLabels(labels: Record<string, string>, rule: TraefikRouteRuleConfig): void {
@@ -535,9 +505,6 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
     "traefik.docker.network": config.network,
   };
   for (const route of config.routes) {
-    if (route.managedOrigin && !config.managedOriginAuth) {
-      throw new Error("Managed origin authentication requires the Vibrail-owned edge image");
-    }
     if (!SAFE_NAME.test(route.routerName)) {
       throw new Error(`Invalid Traefik router name: ${route.routerName}`);
     }
@@ -553,21 +520,16 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
         `Traefik route ${route.hostname} requires a plain-HTTP entrypoint, but none was detected.`,
       );
     }
-    const routeHost = route.managedOrigin ? config.managedOriginHost : route.hostname;
-    if (!routeHost) throw new Error("Managed origin route requires a per-server origin hostname");
-    labels[`${router}.rule`] = route.managedOrigin
-      ? `Host(\`${safeLabelValue(routeHost)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`
-      : `Host(\`${safeLabelValue(route.hostname)}\`)`;
-    labels[`${router}.entrypoints`] = entrypoint;
+    labels[`${router}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
+    labels[`${router}.entrypoints`] = [entrypoint, tls ? config.cloudflareEntrypoint : undefined]
+      .filter(Boolean)
+      .join(",");
     labels[`${router}.tls`] = String(tls);
     labels[`${router}.service`] = route.routerName;
     if (tls && config.certResolver) labels[`${router}.tls.certresolver`] = config.certResolver;
     labels[`${service}.loadbalancer.server.port`] = String(route.port);
-    const originAuthMiddleware = route.managedOrigin
-      ? addOriginAuthLabels(labels, route.routerName, route.hostname)
-      : null;
 
-    if (tls && config.httpEntrypoint && !route.managedOrigin) {
+    if (tls && config.httpEntrypoint) {
       const redirectRouter = `traefik.http.routers.${route.routerName}-redirect`;
       const redirectMiddleware = `traefik.http.middlewares.${route.routerName}-https.redirectscheme`;
       labels[`${redirectRouter}.rule`] = `Host(\`${safeLabelValue(route.hostname)}\`)`;
@@ -589,12 +551,34 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
 
     const hostRules = rules.filter((rule) => !rule.pathPrefix);
     const hostMiddlewares = [
-      ...(originAuthMiddleware ? [originAuthMiddleware] : []),
       ...(rootMiddleware ? [rootMiddleware] : []),
       ...hostRules.flatMap(middlewareNames),
     ];
     if (hostMiddlewares.length > 0) {
       labels[`${router}.middlewares`] = hostMiddlewares.map((name) => `${name}@docker`).join(",");
+    }
+
+    if (route.managedOrigin) {
+      if (!config.managedOriginHost || !config.cloudflareEntrypoint) {
+        throw new Error("Managed route requires a Cloudflare origin hostname and entrypoint");
+      }
+      const originRouter = `traefik.http.routers.${route.routerName}-origin`;
+      labels[`${originRouter}.rule`] =
+        `Host(\`${safeLabelValue(config.managedOriginHost)}\`) && ` +
+        `Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`;
+      // Keep :443 active until the Cloudflare Origin Rule rollout moves
+      // server-* traffic to the dedicated mTLS :8443 entrypoint.
+      labels[`${originRouter}.entrypoints`] = [config.entrypoint, config.cloudflareEntrypoint].join(
+        ",",
+      );
+      labels[`${originRouter}.tls`] = "true";
+      labels[`${originRouter}.service`] = route.routerName;
+      if (config.certResolver) labels[`${originRouter}.tls.certresolver`] = config.certResolver;
+      if (hostMiddlewares.length > 0) {
+        labels[`${originRouter}.middlewares`] = hostMiddlewares
+          .map((name) => `${name}@docker`)
+          .join(",");
+      }
     }
 
     const pathGroups = new Map<string, TraefikRouteRuleConfig[]>();
@@ -611,10 +595,14 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
         throw new Error(`Invalid Traefik path router name: ${pathRouterName}`);
       }
       const pathRouter = `traefik.http.routers.${pathRouterName}`;
-      labels[`${pathRouter}.rule`] = route.managedOrigin
-        ? `Host(\`${safeLabelValue(routeHost)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`
-        : `Host(\`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`;
-      labels[`${pathRouter}.entrypoints`] = entrypoint;
+      labels[`${pathRouter}.rule`] =
+        `Host(\`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`;
+      labels[`${pathRouter}.entrypoints`] = [
+        entrypoint,
+        tls ? config.cloudflareEntrypoint : undefined,
+      ]
+        .filter(Boolean)
+        .join(",");
       labels[`${pathRouter}.tls`] = String(tls);
       labels[`${pathRouter}.service`] = route.routerName;
       labels[`${pathRouter}.priority`] = String(10_000 + pathPrefix.length);
@@ -623,12 +611,32 @@ export function buildTraefikLabels(config: TraefikEdgeConfig): Record<string, st
       // A more-specific path router wins over the base host router, so repeat
       // host-wide middlewares here before the path-specific chain.
       const names = [
-        ...(originAuthMiddleware ? [originAuthMiddleware] : []),
         ...(rootMiddleware ? [rootMiddleware] : []),
         ...[...hostRules, ...pathRules].flatMap(middlewareNames),
       ];
       if (names.length > 0) {
         labels[`${pathRouter}.middlewares`] = names.map((name) => `${name}@docker`).join(",");
+      }
+      if (route.managedOrigin) {
+        const originPathRouter = `traefik.http.routers.${pathRouterName}-origin`;
+        labels[`${originPathRouter}.rule`] =
+          `Host(\`${safeLabelValue(config.managedOriginHost!)}\`) && ` +
+          `Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`) && ` +
+          `PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`;
+        labels[`${originPathRouter}.entrypoints`] = [
+          config.entrypoint,
+          config.cloudflareEntrypoint!,
+        ].join(",");
+        labels[`${originPathRouter}.tls`] = "true";
+        labels[`${originPathRouter}.service`] = route.routerName;
+        labels[`${originPathRouter}.priority`] = String(10_000 + pathPrefix.length);
+        if (config.certResolver)
+          labels[`${originPathRouter}.tls.certresolver`] = config.certResolver;
+        if (names.length > 0) {
+          labels[`${originPathRouter}.middlewares`] = names
+            .map((name) => `${name}@docker`)
+            .join(",");
+        }
       }
     }
   }
@@ -677,26 +685,7 @@ export function buildBareTraefikFileConfig(
     return names;
   };
 
-  const addOriginAuthMiddleware = (routerName: string, hostname: string): string => {
-    const name = originAuthMiddlewareName(routerName);
-    middlewares[name] = {
-      plugin: {
-        "vibrail-origin-auth": {
-          secretFile: "/etc/vibrail/edge/server-secret",
-          previousSecretFile: "/etc/vibrail/edge/previous-server-secret",
-          manifestDirectory: "/etc/vibrail/edge-routes",
-          timestampSkewSeconds: 60,
-          hostname,
-        },
-      },
-    };
-    return name;
-  };
-
   for (const route of config.routes) {
-    if (route.managedOrigin && !config.managedOriginAuth) {
-      throw new Error("Managed origin authentication requires the Vibrail-owned edge image");
-    }
     if (!SAFE_NAME.test(route.routerName)) {
       throw new Error(`Invalid Traefik router name: ${route.routerName}`);
     }
@@ -723,28 +712,38 @@ export function buildBareTraefikFileConfig(
     const ruleMiddlewareNames = new Map<TraefikRouteRuleConfig, string[]>();
     for (const rule of rules) ruleMiddlewareNames.set(rule, addRuleMiddlewares(rule));
     const hostRules = rules.filter((rule) => !rule.pathPrefix);
-    const originAuthMiddleware = route.managedOrigin
-      ? addOriginAuthMiddleware(route.routerName, route.hostname)
-      : null;
     const hostMiddlewares = [
-      ...(originAuthMiddleware ? [originAuthMiddleware] : []),
       ...(rootMiddleware ? [rootMiddleware] : []),
       ...hostRules.flatMap((rule) => ruleMiddlewareNames.get(rule) ?? []),
     ];
 
-    const routeHost = route.managedOrigin ? config.managedOriginHost : route.hostname;
-    if (!routeHost) throw new Error("Managed origin route requires a per-server origin hostname");
     routers[route.routerName] = {
-      rule: route.managedOrigin
-        ? `Host(\`${safeLabelValue(routeHost)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`
-        : `Host(\`${safeLabelValue(route.hostname)}\`)`,
-      entryPoints: [entrypoint],
+      rule: `Host(\`${safeLabelValue(route.hostname)}\`)`,
+      entryPoints: [
+        entrypoint,
+        ...(tls && config.cloudflareEntrypoint ? [config.cloudflareEntrypoint] : []),
+      ],
       service: route.routerName,
       ...(tls ? { tls: config.certResolver ? { certResolver: config.certResolver } : {} } : {}),
       ...(hostMiddlewares.length > 0 ? { middlewares: hostMiddlewares } : {}),
     };
 
-    if (tls && config.httpEntrypoint && !route.managedOrigin) {
+    if (route.managedOrigin) {
+      if (!config.managedOriginHost || !config.cloudflareEntrypoint) {
+        throw new Error("Managed route requires a Cloudflare origin hostname and entrypoint");
+      }
+      routers[`${route.routerName}-origin`] = {
+        rule:
+          `Host(\`${safeLabelValue(config.managedOriginHost)}\`) && ` +
+          `Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`,
+        entryPoints: [config.entrypoint, config.cloudflareEntrypoint],
+        service: route.routerName,
+        tls: config.certResolver ? { certResolver: config.certResolver } : {},
+        ...(hostMiddlewares.length > 0 ? { middlewares: hostMiddlewares } : {}),
+      };
+    }
+
+    if (tls && config.httpEntrypoint) {
       const redirectName = `${route.routerName}-https`;
       middlewares[redirectName] = { redirectScheme: { scheme: "https", permanent: true } };
       routers[`${route.routerName}-redirect`] = {
@@ -766,20 +765,35 @@ export function buildBareTraefikFileConfig(
     for (const [pathPrefix, pathRules] of pathGroups) {
       const name = `${route.routerName}-rule-${pathIndex++}`;
       const names = [
-        ...(originAuthMiddleware ? [originAuthMiddleware] : []),
         ...(rootMiddleware ? [rootMiddleware] : []),
         ...[...hostRules, ...pathRules].flatMap((rule) => ruleMiddlewareNames.get(rule) ?? []),
       ];
       routers[name] = {
-        rule: route.managedOrigin
-          ? `Host(\`${safeLabelValue(routeHost)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`
-          : `Host(\`${safeLabelValue(route.hostname)}\`) && PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`,
-        entryPoints: [entrypoint],
+        rule:
+          `Host(\`${safeLabelValue(route.hostname)}\`) && ` +
+          `PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`,
+        entryPoints: [
+          entrypoint,
+          ...(tls && config.cloudflareEntrypoint ? [config.cloudflareEntrypoint] : []),
+        ],
         service: route.routerName,
         priority: 10_000 + pathPrefix.length,
         ...(tls ? { tls: config.certResolver ? { certResolver: config.certResolver } : {} } : {}),
         ...(names.length > 0 ? { middlewares: names } : {}),
       };
+      if (route.managedOrigin) {
+        routers[`${name}-origin`] = {
+          rule:
+            `Host(\`${safeLabelValue(config.managedOriginHost!)}\`) && ` +
+            `Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`) && ` +
+            `PathPrefix(\`${safeLabelValue(pathPrefix)}\`)`,
+          entryPoints: [config.entrypoint, config.cloudflareEntrypoint!],
+          service: route.routerName,
+          priority: 10_000 + pathPrefix.length,
+          tls: config.certResolver ? { certResolver: config.certResolver } : {},
+          ...(names.length > 0 ? { middlewares: names } : {}),
+        };
+      }
     }
   }
 

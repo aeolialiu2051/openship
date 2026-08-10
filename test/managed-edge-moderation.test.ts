@@ -23,14 +23,7 @@ describe("managed-edge project moderation", () => {
         containerId: "traefik",
       },
       projectId,
-      [{
-        hostname,
-        managedOriginHost: "server-001.vibrail.app",
-        redirectUrl: `https://vibrail.com/suspended?site=${hostname}`,
-      }],
-    );
-    expect(Object.values(labels)).toContain(
-      `Host(\`server-001.vibrail.app\`) && Header(\`x-vibrail-hostname\`, \`${hostname}\`)`,
+      [{ hostname, redirectUrl: `https://vibrail.com/suspended?site=${hostname}` }],
     );
     const redirectLocation = String(
       Object.entries(labels).find(([key]) => key.endsWith(".redirectregex.replacement"))?.[1],

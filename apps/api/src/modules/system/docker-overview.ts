@@ -5,10 +5,9 @@ export const DOCKER_OVERVIEW_COMMAND = [
   `printf '${PS_MARKER}\\n'`,
   "docker ps -a --no-trunc --format '{{json .}}'",
   `printf '${STATS_MARKER}\\n'`,
-  // `--all` asks the daemon for stats from stopped containers too. Some Docker
-  // versions block while opening those stale collectors until our SSH command
-  // is aborted. Running containers have metrics; stopped containers still come
-  // from `docker ps -a` and intentionally render with empty gauges.
+  // Stopped-container collectors can block on some Docker versions. Their
+  // state still comes from `docker ps -a`; metrics are only useful while a
+  // container is running.
   "docker stats --no-stream --format '{{json .}}'",
 ].join("; ");
 
@@ -132,7 +131,9 @@ function healthFromStatus(status: string): DockerHealth {
 function uptimeSecondsFromStatus(status: string, running: boolean): number | null {
   if (!running) return null;
   if (/^up\s+less than a second/i.test(status)) return 0;
-  const match = status.match(/^up\s+(?:about\s+)?(\d+)\s+(second|minute|hour|day|week|month|year)s?/i);
+  const match = status.match(
+    /^up\s+(?:about\s+)?(\d+)\s+(second|minute|hour|day|week|month|year)s?/i,
+  );
   if (!match) return null;
   const value = Number.parseInt(match[1]!, 10);
   const unitSeconds: Record<string, number> = {

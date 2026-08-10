@@ -84,7 +84,7 @@ function IoMetric({
 
 function ContainerCard({ container }: { container: DockerContainerOverview }) {
   return (
-    <article className="rounded-2xl border border-border/50 bg-card/75 px-4 py-4 transition-colors hover:border-border">
+    <article className="min-w-0 rounded-2xl border border-border/50 bg-card/75 px-4 py-4 transition-colors hover:border-border">
       <div className="flex min-w-0 items-start gap-3">
         <span
           className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
@@ -119,7 +119,7 @@ function ContainerCard({ container }: { container: DockerContainerOverview }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/40 pt-4 sm:max-w-4xl sm:grid-cols-[3rem_minmax(12rem,18rem)_minmax(7rem,10rem)_minmax(7rem,10rem)] sm:justify-between sm:gap-x-8">
+      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/40 pt-4 sm:max-w-4xl sm:grid-cols-[3rem_minmax(0,18rem)_minmax(0,10rem)_minmax(0,10rem)] sm:justify-between sm:gap-x-8">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex shrink-0 flex-col items-center">
             <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/70">

@@ -1,7 +1,17 @@
 import type { Terminal } from "@xterm/xterm";
 import type { FrameworkId, EnvironmentVariable } from "@/components/import-project/types";
 import type { PrepareComposeService, PrepareSingleAppCandidate } from "@/lib/api/deploy";
-import { getBuildImage, STACKS, type ProjectType, type BuildStrategy, type DeployTarget, type RuntimeMode, type StackId, type RoutingConfig, type SourceProvider } from "@repo/core";
+import {
+  getBuildImage,
+  STACKS,
+  type ProjectType,
+  type BuildStrategy,
+  type DeployTarget,
+  type RuntimeMode,
+  type StackId,
+  type RoutingConfig,
+  type SourceProvider,
+} from "@repo/core";
 import type { BuildLog } from "@/utils/deploymentPhaseDetector";
 import { randomUUID } from "../../lib/random-uuid";
 
@@ -109,16 +119,13 @@ const INTERNAL_SERVICE_NAME_RE =
 const INTERNAL_IMAGE_RE =
   /(^|\/)(postgres|postgresql|postgis\/postgis|ankane\/pgvector|pgvector\/pgvector|mysql|mariadb|mongo|mongodb|redis|valkey|memcached|rabbitmq|kafka|zookeeper|nats|pulsar|redpanda|clickhouse|cassandra|couchdb|influxdb|elasticsearch|opensearchproject\/opensearch|qdrant\/qdrant|semitechnologies\/weaviate|milvusdb\/milvus|chromadb\/chroma)(:|@|\/|$)/i;
 const INTERNAL_PORTS = new Set([
-  2181, 3306, 4222, 5432, 5672, 5984, 6379, 6380, 8086, 9042, 9092, 9200,
-  9300, 11211, 15672, 27017,
+  2181, 3306, 4222, 5432, 5672, 5984, 6379, 6380, 8086, 9042, 9092, 9200, 9300, 11211, 15672, 27017,
 ]);
 const WEB_SERVICE_NAME_RE =
   /(^|[-_.])(web|www|frontend|front|api|app|server|dashboard|ui|admin|gateway|proxy)([-_.]|$)/i;
-const WEB_IMAGE_RE =
-  /(^|\/)(nginx|caddy|httpd|apache|traefik|haproxy)(:|@|\/|$)/i;
+const WEB_IMAGE_RE = /(^|\/)(nginx|caddy|httpd|apache|traefik|haproxy)(:|@|\/|$)/i;
 const COMMON_HTTP_PORTS = new Set([
-  80, 443, 3000, 3001, 4000, 4173, 4200, 5000, 5173, 8000, 8001, 8080, 8081,
-  8888,
+  80, 443, 3000, 3001, 4000, 4173, 4200, 5000, 5173, 8000, 8001, 8080, 8081, 8888,
 ]);
 
 function composeContainerPorts(ports: string[] | null | undefined): number[] {
@@ -285,7 +292,7 @@ export interface CloudResourceCustom {
 export interface DeploymentConfig {
   /** Existing deployable environment to update/deploy, when launched from a project page. */
   projectId?: string;
-  /** Stable six-character Base36 suffix reserved for managed hostnames. */
+  /** Stable eight-character Base36 suffix (legacy six-character keys remain valid). */
   routeKey?: string;
   /** One-click catalog app (repo-less services project). Deploys from its saved
    *  rows with no git source — treated like local/upload in the deploy guards. */
@@ -422,9 +429,7 @@ export const DEFAULT_CONFIG: DeploymentConfig = {
 
 function isSingleFlowAppStack(framework: string | undefined): framework is StackId {
   return Boolean(
-    framework &&
-    framework in STACKS &&
-    !NON_APP_SINGLE_FLOW_STACKS.has(framework as FrameworkId),
+    framework && framework in STACKS && !NON_APP_SINGLE_FLOW_STACKS.has(framework as FrameworkId),
   );
 }
 
@@ -451,7 +456,10 @@ export function getRecommendedSingleAppBuildImage(
 }
 
 export function resolveBuildImageForDeploymentMode(
-  config: Pick<DeploymentConfig, "projectType" | "serviceDeploymentMode" | "framework" | "packageManager" | "buildImage">,
+  config: Pick<
+    DeploymentConfig,
+    "projectType" | "serviceDeploymentMode" | "framework" | "packageManager" | "buildImage"
+  >,
   nextMode: DeploymentConfig["serviceDeploymentMode"] = config.serviceDeploymentMode,
 ): string {
   if (config.projectType !== "services") {
@@ -489,9 +497,7 @@ export function resolveBuildImageForDeploymentMode(
 // importers are unchanged and client + server share one definition.
 export { servicesNeedCloud, endpointsNeedCloud as publicEndpointsNeedCloud } from "@repo/core";
 
-export function createPublicEndpoint(
-  overrides: Partial<PublicEndpoint> = {},
-): PublicEndpoint {
+export function createPublicEndpoint(overrides: Partial<PublicEndpoint> = {}): PublicEndpoint {
   return {
     id: overrides.id ?? randomUUID(),
     port: overrides.port ?? "",
@@ -535,8 +541,8 @@ function normalizePublicEndpointForMode(
     return createPublicEndpoint({
       ...endpoint,
       port: opts.isPrimary
-        ? (opts.runtimePort || endpoint.port || "")
-        : (endpoint.port || opts.runtimePort || ""),
+        ? opts.runtimePort || endpoint.port || ""
+        : endpoint.port || opts.runtimePort || "",
       targetPath: "",
     });
   }
@@ -548,15 +554,9 @@ function normalizePublicEndpointForMode(
   });
 }
 
-export function syncPublicEndpointState(
-  config: DeploymentConfig,
-): DeploymentConfig {
+export function syncPublicEndpointState(config: DeploymentConfig): DeploymentConfig {
   const linkedRuntimePort = config.options.hasServer
-    ? (
-        config.options.productionPort ||
-        config.publicEndpoints[0]?.port ||
-        ""
-      )
+    ? config.options.productionPort || config.publicEndpoints[0]?.port || ""
     : config.options.productionPort;
   const endpoints = ensurePublicEndpoints(
     config.publicEndpoints,
@@ -567,11 +567,13 @@ export function syncPublicEndpointState(
       : {
           targetPath: "/",
         },
-  ).map((endpoint, index) => normalizePublicEndpointForMode(endpoint, {
-    hasServer: config.options.hasServer,
-    runtimePort: linkedRuntimePort,
-    isPrimary: index === 0,
-  }));
+  ).map((endpoint, index) =>
+    normalizePublicEndpointForMode(endpoint, {
+      hasServer: config.options.hasServer,
+      runtimePort: linkedRuntimePort,
+      isPrimary: index === 0,
+    }),
+  );
   const primary = endpoints[0];
 
   return {
@@ -580,7 +582,7 @@ export function syncPublicEndpointState(
     options: {
       ...config.options,
       productionPort: config.options.hasServer
-        ? (linkedRuntimePort || primary?.port || "")
+        ? linkedRuntimePort || primary?.port || ""
         : config.options.productionPort,
     },
   };
@@ -601,19 +603,19 @@ export function getPublicEndpointHosts(
     domain: fallbackDomain,
     domainType: "free",
   })
-    .map((endpoint) => (
+    .map((endpoint) =>
       endpoint.domainType === "custom"
         ? endpoint.customDomain
         : endpoint.domain
           ? `${endpoint.domain}.${baseDomain}`
           : fallbackDomain
             ? `${fallbackDomain}.${baseDomain}`
-            : ""
-    ))
-    .filter((hostname, index, hostnames) => Boolean(hostname) && hostnames.indexOf(hostname) === index);
+            : "",
+    )
+    .filter(
+      (hostname, index, hostnames) => Boolean(hostname) && hostnames.indexOf(hostname) === index,
+    );
 }
-
-
 
 // ─── State ───────────────────────────────────────────────────────────────────
 
@@ -787,7 +789,13 @@ export interface DeploymentContextType {
    *  (no auto-detection); falls back to the session scan when no stack given. */
   initializeFromUpload: (
     sessionId: string,
-    context?: { projectId?: string; stack?: string; packageManager?: string; name?: string; serverId?: string },
+    context?: {
+      projectId?: string;
+      stack?: string;
+      packageManager?: string;
+      name?: string;
+      serverId?: string;
+    },
   ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
   /** Built-in starter hydration — no network or workspace allocation. */
   initializeFromTemplate: (
@@ -800,7 +808,11 @@ export interface DeploymentContextType {
   ) => Promise<{ success: boolean; error?: string; errorType?: string }>;
 
   // Build lifecycle
-  startDeployment: (overrides?: { runtimeMode?: "docker"; buildStrategy?: BuildStrategy; saveConfigOnly?: boolean }) => Promise<string | null>;
+  startDeployment: (overrides?: {
+    runtimeMode?: "docker";
+    buildStrategy?: BuildStrategy;
+    saveConfigOnly?: boolean;
+  }) => Promise<string | null>;
   connectToBuild: (deploymentId?: string, startBuild?: boolean) => Promise<void>;
   loadBuildSession: (deploymentId: string) => Promise<{ success: boolean; error?: string }>;
   stopDeployment: () => Promise<void>;
