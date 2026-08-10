@@ -2,6 +2,28 @@
 @import "../styles/fonts.css";
 @import "../styles/theme.css";
 
+/* Docker cards can be narrowed independently by the sidebar, page grid, or
+ * browser zoom. Base their metric layout on the card itself, not the viewport. */
+.docker-overview-group,
+.docker-overview-card {
+  container-type: inline-size;
+}
+
+@container (min-width: 40rem) {
+  .docker-overview-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 42rem) {
+  .docker-overview-metrics {
+    grid-template-columns: 3rem minmax(12rem, 18rem) minmax(7rem, 10rem) minmax(7rem, 10rem);
+    column-gap: 2rem;
+    justify-content: space-between;
+    max-width: 56rem;
+  }
+}
+
 /* Tailwind v4 - selector-based dark mode via data-theme */
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 /* The third theme — lets `dim:` utilities target the neutral medium-dark. */

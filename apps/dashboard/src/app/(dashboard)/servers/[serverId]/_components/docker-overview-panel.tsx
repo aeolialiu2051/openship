@@ -84,7 +84,7 @@ function IoMetric({
 
 function ContainerCard({ container }: { container: DockerContainerOverview }) {
   return (
-    <article className="min-w-0 rounded-2xl border border-border/50 bg-card/75 px-4 py-4 transition-colors hover:border-border">
+    <article className="docker-overview-card min-w-0 rounded-2xl border border-border/50 bg-card/75 px-4 py-4 transition-colors hover:border-border">
       <div className="flex min-w-0 items-start gap-3">
         <span
           className={`mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border ${
@@ -119,7 +119,7 @@ function ContainerCard({ container }: { container: DockerContainerOverview }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/40 pt-4 sm:max-w-4xl sm:grid-cols-[3rem_minmax(0,18rem)_minmax(0,10rem)_minmax(0,10rem)] sm:justify-between sm:gap-x-8">
+      <div className="docker-overview-metrics mt-4 grid grid-cols-2 gap-x-6 gap-y-4 border-t border-border/40 pt-4">
         <div className="flex min-w-0 items-start gap-3">
           <div className="flex shrink-0 flex-col items-center">
             <p className="text-[9px] font-medium uppercase tracking-wider text-muted-foreground/70">
@@ -189,7 +189,7 @@ function ContainerGroup({
         : projectLabel;
 
   return (
-    <section>
+    <section className="docker-overview-group">
       <div className="mb-3 flex min-w-0 items-baseline gap-2 px-0.5">
         <h3 className="truncate text-sm font-semibold text-foreground">{name}</h3>
         <span className="shrink-0 text-xs text-muted-foreground">
@@ -197,7 +197,7 @@ function ContainerGroup({
           <span className="tabular-nums">{group.containers.length}</span>
         </span>
       </div>
-      <div className="grid gap-3 xl:grid-cols-2">
+      <div className="docker-overview-card-grid grid grid-cols-1 gap-3">
         {group.containers.map((container) => (
           <ContainerCard key={container.id || container.name} container={container} />
         ))}
