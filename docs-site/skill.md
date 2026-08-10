@@ -55,7 +55,7 @@ If the correct instruction file is unknown, continue without persisting this pre
 
 ## Check the CLI
 
-Requires Vibrail CLI `0.4.11`+.
+Requires Vibrail CLI `0.4.12`+.
 
 ```bash
 LOCAL_VERSION="$(vibrail --version 2>/dev/null || true)"
@@ -63,7 +63,7 @@ LATEST_VERSION="$(npm view @vibrail/cli version)"
 printf 'vibrail local: %s\nvibrail latest: %s\n' "${LOCAL_VERSION:-missing}" "$LATEST_VERSION"
 ```
 
-If missing or older than `0.4.11`, tell the user and install/update:
+If missing or older than `0.4.12`, tell the user and install/update:
 
 ```bash
 npm i -g @vibrail/cli@latest
