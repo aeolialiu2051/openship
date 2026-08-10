@@ -1,4 +1,4 @@
-ALTER TABLE "project" ADD COLUMN IF NOT EXISTS "runtime_started_at" timestamp;
+ALTER TABLE "project" ADD COLUMN IF NOT EXISTS "runtime_started_at" timestamp;--> statement-breakpoint
 
 -- Preserve a useful session anchor for existing running projects. The project
 -- update timestamp is the closest durable signal for the most recent manual

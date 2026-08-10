@@ -68,6 +68,10 @@ import {
 import { isMovableBind } from "./migration-preflight";
 import { migrationRunBus } from "./migration.sse";
 import { CUSTOM_DOMAIN_PROJECT_LIMIT_CODE } from "../domains/custom-domain-project-quota";
+import { edgeRouteStore } from "../../lib/edge-route-projection";
+import { cutoverManagedRoutes } from "./edge-route-cutover";
+import { env } from "../../config/env";
+import { installServerAuthorityRoute, removeServerAuthorityRoute } from "../../lib/server-route-authority";
 
 /** Per-service volume ownership for a same-server migration.
  *  "reuse" (default) = seize the original volume in place (zero copy).
@@ -351,6 +355,8 @@ class MigrationOrchestratorImpl {
     // Set only when adopt CREATED the project (not when it reused an existing
     // same-name one) — so rollback tears down our own draft, never the user's.
     let createdProjectId: string | undefined;
+    let edgeRoutesSwitched = false;
+    let edgeCutoverDomains: Awaited<ReturnType<typeof repos.domain.listByProject>> = [];
     // Data paths that didn't transfer — non-empty ⇒ the run parks `partial`.
     let pendingItems: PendingItem[] = [];
 
@@ -696,6 +702,39 @@ class MigrationOrchestratorImpl {
         log,
       );
 
+      // Existing Vibrail projects moving across servers already have a live
+      // edge projection on the source. Switch it only after target health and
+      // route publication, while source containers remain available. New
+      // imports have no trustworthy source Gateway placement to roll back to.
+      if (!sameServer && !createdProjectId) {
+        const store = edgeRouteStore();
+        if (store) {
+          const [sourceServer, targetServer, domains] = await Promise.all([
+            repos.server.get(sourceServerId),
+            repos.server.get(targetServerId),
+            repos.domain.listByProject(projectId),
+          ]);
+          if (!sourceServer?.routingId || !targetServer?.routingId) {
+            throw new Error("Cross-server edge cutover requires routing IDs on both servers");
+          }
+          const cutover = await cutoverManagedRoutes({
+            domains,
+            sourceRoutingId: sourceServer.routingId,
+            targetRoutingId: targetServer.routingId,
+            store,
+            beforeTargetPublish: (domain, version) => installServerAuthorityRoute(targetServerId, domain, version),
+            beforeSourceRollback: (domain, version) => installServerAuthorityRoute(sourceServerId, domain, version),
+            rollbackRetentionMs: (env.VIBRAIL_ROUTE_CACHE_TTL + 5) * 1_000,
+            afterRollbackRetention: (domain) => removeServerAuthorityRoute(targetServerId, domain.hostname),
+          });
+          edgeCutoverDomains = domains.filter((domain) => domain.domainType === "free");
+          if (cutover.switched.length > 0) {
+            edgeRoutesSwitched = true;
+            log(`edge cutover published ${cutover.switched.length} route(s); source retained through cache window`);
+          }
+        }
+      }
+
       // Read back what the migration actually produced: one line per service
       // naming the container it resolves to on the host, how it was identified,
       // and any leftover duplicate. Without this, a service whose container was
@@ -721,6 +760,14 @@ class MigrationOrchestratorImpl {
         if (run?.killOriginals) {
           this.throwIfCancelled(id);
           await this.transition(id, "cutover");
+          if (edgeRoutesSwitched && !sameServer) {
+            const propagationMs = (env.VIBRAIL_ROUTE_CACHE_TTL + 5) * 1_000;
+            log(`waiting ${Math.ceil(propagationMs / 1_000)}s for edge cache propagation before source teardown`);
+            await new Promise((resolve) => setTimeout(resolve, propagationMs));
+            for (const domain of edgeCutoverDomains) {
+              await removeServerAuthorityRoute(sourceServerId, domain.hostname);
+            }
+          }
           log(`cutover: stopping + removing the source originals`);
           await this.cutover(sourceServerId, organizationId, scannedContainerIds);
           await this.transition(id, "succeeded");
@@ -1683,6 +1730,14 @@ class MigrationOrchestratorImpl {
 
     if (kill && run.sourceServerId) {
       await this.transition(id, "cutover");
+      if (run.targetServerId && run.sourceServerId !== run.targetServerId && edgeRouteStore()) {
+        await new Promise((resolve) => setTimeout(resolve, (env.VIBRAIL_ROUTE_CACHE_TTL + 5) * 1_000));
+        if (run.projectId) {
+          for (const domain of await repos.domain.listByProject(run.projectId)) {
+            if (domain.domainType === "free") await removeServerAuthorityRoute(run.sourceServerId, domain.hostname);
+          }
+        }
+      }
       await this.cutover(
         run.sourceServerId,
         organizationId,
@@ -1864,6 +1919,14 @@ class MigrationOrchestratorImpl {
         const scanned = (run.scannedContainerIds ?? {}) as Record<string, string>;
         if (run.killOriginals && run.sourceServerId) {
           await this.transition(id, "cutover");
+          if (run.targetServerId && run.sourceServerId !== run.targetServerId && edgeRouteStore()) {
+            await new Promise((resolve) => setTimeout(resolve, (env.VIBRAIL_ROUTE_CACHE_TTL + 5) * 1_000));
+            if (run.projectId) {
+              for (const domain of await repos.domain.listByProject(run.projectId)) {
+                if (domain.domainType === "free") await removeServerAuthorityRoute(run.sourceServerId, domain.hostname);
+              }
+            }
+          }
           await this.cutover(run.sourceServerId, organizationId, scanned);
           await this.transition(id, "succeeded");
           log(`resume complete — all paths moved; cutover done`);

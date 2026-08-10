@@ -10,7 +10,9 @@
     "create": "Oluştur",
     "toastTitle": "Organizasyon",
     "switchFailed": "Organizasyon değiştirilemedi",
-    "createFailed": "Organizasyon oluşturulamadı"
+    "createFailed": "Organizasyon oluşturulamadı",
+    "freeLimitReached": "Ücretsiz kullanıcılar yalnızca bir çalışma alanı oluşturabilir.",
+    "proLimitReached": "Pro kullanıcılar en fazla 10 çalışma alanı oluşturabilir."
   },
   "sidebar": {
     "workspaceFallback": "Çalışma Alanı",

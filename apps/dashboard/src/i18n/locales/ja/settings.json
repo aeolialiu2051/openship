@@ -332,6 +332,8 @@
       "teamNameRequired": "チーム名は必須です",
       "teamCreated": "チーム \"{name}\" を作成しました — 切り替え中…",
       "createFailed": "チームの作成に失敗しました",
+      "freeWorkspaceLimit": "無料ユーザーが作成できるワークスペースは1つだけです。",
+      "proWorkspaceLimit": "Proユーザーは最大10個のワークスペースを作成できます。",
       "loadFailed": "チームの読み込みに失敗しました",
       "updateRoleFailed": "ロールの更新に失敗しました",
       "removeFailed": "削除に失敗しました",

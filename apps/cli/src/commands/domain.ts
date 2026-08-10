@@ -22,12 +22,14 @@ import { printJson, printTable, isJsonMode, ok, err, info } from "../lib/output"
 interface DomainRow {
   id: string;
   hostname: string;
+  url?: string;
   domainType?: string;
   isPrimary?: boolean;
   verified?: boolean;
   status?: string;
   sslStatus?: string | null;
   sslExpiresAt?: string | null;
+  routeStatus?: string;
 }
 
 interface DnsRecord {
@@ -62,10 +64,12 @@ function domainRow(d: DomainRow): Record<string, unknown> {
   return {
     id: d.id,
     hostname: d.hostname,
+    url: d.url ?? `https://${d.hostname}`,
     type: d.domainType ?? "",
     primary: d.isPrimary ? "yes" : "",
     verified: d.verified ? "yes" : "no",
     status: d.status ?? "",
+    route: d.routeStatus ?? "",
     ssl: d.sslStatus ?? "",
   };
 }
@@ -98,7 +102,7 @@ const listCmd = new Command("list")
         printJson(rows);
         return;
       }
-      printTable(rows.map(domainRow), ["id", "hostname", "type", "primary", "verified", "status", "ssl"]);
+      printTable(rows.map(domainRow), ["id", "hostname", "url", "type", "primary", "verified", "status", "route", "ssl"]);
     } catch (e) {
       fail(e);
     }

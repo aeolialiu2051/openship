@@ -399,6 +399,8 @@
       "teamNameRequired": "Ekip adı gereklidir",
       "teamCreated": "\"{name}\" ekibi oluşturuldu — geçiş yapılıyor…",
       "createFailed": "Ekip oluşturulamadı",
+      "freeWorkspaceLimit": "Ücretsiz kullanıcılar yalnızca bir çalışma alanı oluşturabilir.",
+      "proWorkspaceLimit": "Pro kullanıcılar en fazla 10 çalışma alanı oluşturabilir.",
       "loadFailed": "Ekip yüklenemedi",
       "updateRoleFailed": "Rol güncellenemedi",
       "removeFailed": "Kaldırma işlemi başarısız oldu",

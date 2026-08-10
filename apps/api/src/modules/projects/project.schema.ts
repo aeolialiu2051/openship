@@ -185,7 +185,7 @@ export const CreateProjectBody = Type.Object({
   ),
   /** Stable Base36 suffix reserved by the deployment wizard for managed hostnames. */
   routeKey: Type.Optional(
-    Type.String({ minLength: 6, maxLength: 6, pattern: "^[a-z0-9]{6}$" }),
+    Type.String({ minLength: 6, maxLength: 8, pattern: "^(?:[a-z0-9]{6}|[a-z0-9]{8})$" }),
   ),
   // Local source
   localPath: Type.Optional(Type.String({ maxLength: 1000 })),

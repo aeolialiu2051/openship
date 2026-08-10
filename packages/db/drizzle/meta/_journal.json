@@ -610,6 +610,13 @@
       "when": 1893456000011,
       "tag": "0086_vibrail_domain_cutover",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1893456000012,
+      "tag": "0087_edge_router_projection",
+      "breakpoints": true
     }
   ]
 }

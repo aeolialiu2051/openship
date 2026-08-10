@@ -239,6 +239,14 @@ const envSchema = z.object({
   VIBRAIL_CLOUDFLARE_API_TOKEN: z.string().optional(),
   VIBRAIL_CLOUDFLARE_ZONE_ID: z.string().optional(),
   VIBRAIL_CLOUDFLARE_PROXY: envBool("true"),
+  /** Cloudflare account/KV projection credentials used by the API only. */
+  VIBRAIL_CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
+  VIBRAIL_ROUTING_KV_NAMESPACE_ID: z.string().optional(),
+  VIBRAIL_ROUTING_KV_API_TOKEN: z.string().optional(),
+  VIBRAIL_ROUTER_WORKER_NAME: z.string().default("vibrail-router"),
+  VIBRAIL_ROUTE_CACHE_TTL: z.coerce.number().int().min(1).max(60).default(30),
+  VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL: z.coerce.number().int().min(1).max(30).default(10),
+  VIBRAIL_ORIGIN_TIMESTAMP_SKEW: z.coerce.number().int().min(10).max(300).default(60),
   /* ---------- Oblien Cloud ---------- */
   OBLIEN_CLIENT_ID: z.string().optional(),
   OBLIEN_CLIENT_SECRET: z.string().optional(),
@@ -361,6 +369,30 @@ const envSchema = z.object({
 type Env = z.infer<typeof envSchema>;
 
 export const env: Env = envSchema.parse(process.env);
+
+const edgeRoutingConfig = {
+  VIBRAIL_CLOUDFLARE_ACCOUNT_ID: env.VIBRAIL_CLOUDFLARE_ACCOUNT_ID,
+  VIBRAIL_ROUTING_KV_NAMESPACE_ID: env.VIBRAIL_ROUTING_KV_NAMESPACE_ID,
+  VIBRAIL_ROUTING_KV_API_TOKEN: env.VIBRAIL_ROUTING_KV_API_TOKEN,
+  VIBRAIL_CLOUDFLARE_ZONE_ID: env.VIBRAIL_CLOUDFLARE_ZONE_ID,
+  VIBRAIL_CLOUDFLARE_API_TOKEN: env.VIBRAIL_CLOUDFLARE_API_TOKEN,
+};
+if (
+  env.VIBRAIL_CLOUDFLARE_ACCOUNT_ID ||
+  env.VIBRAIL_ROUTING_KV_NAMESPACE_ID ||
+  env.VIBRAIL_ROUTING_KV_API_TOKEN
+) {
+  const missing = Object.entries(edgeRoutingConfig).filter(([, value]) => !value).map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(`Managed edge routing is partially configured; missing: ${missing.join(", ")}`);
+  }
+}
+if (env.NODE_ENV === "production") {
+  const missing = Object.entries(edgeRoutingConfig).filter(([, value]) => !value).map(([name]) => name);
+  if (missing.length > 0) {
+    throw new Error(`Managed edge routing is required in production; missing: ${missing.join(", ")}`);
+  }
+}
 
 // Print resolution at MODULE LOAD, before any handler runs. If
 // boot crashes (e.g. EADDRINUSE on listen), this still shows. The

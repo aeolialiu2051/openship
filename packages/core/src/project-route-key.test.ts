@@ -9,8 +9,8 @@ import {
 } from "./project-route-key";
 
 describe("project route keys", () => {
-  it("generates DNS-safe six-character Base36 keys", () => {
-    expect(generateProjectRouteKey()).toMatch(/^[a-z0-9]{6}$/);
+  it("generates DNS-safe eight-character Base36 keys while accepting legacy keys", () => {
+    expect(generateProjectRouteKey()).toMatch(/^[a-z0-9]{8}$/);
     expect(normalizeProjectRouteKey("OO198W")).toBe("oo198w");
     expect(() => normalizeProjectRouteKey("too-long")).toThrow();
   });

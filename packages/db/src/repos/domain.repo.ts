@@ -1,5 +1,5 @@
-import { eq, and, lt, inArray, isNull, or } from "drizzle-orm";
-import { generateId } from "@repo/core";
+import { eq, and, lt, inArray, isNull, or, sql, asc } from "drizzle-orm";
+import { generateId, generateManagedDomain } from "@repo/core";
 import type { Database } from "../client";
 import { domain, project } from "../schema";
 
@@ -134,6 +134,75 @@ export function createDomainRepo(db: Database) {
       };
       await db.insert(domain).values(row);
       return { ...row, createdAt: new Date(), updatedAt: new Date() } as Domain;
+    },
+
+    /** Allocate a stable managed hostname. Unique collisions are retried and the
+     * resulting key is persisted, so project renames/redeploys never change it. */
+    async createManaged(input: {
+      projectId: string;
+      serviceId?: string | null;
+      name: string;
+      baseDomain?: string;
+      targetPort?: number | null;
+      targetPath?: string | null;
+      isPrimary?: boolean;
+    }): Promise<Domain> {
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        const managed = generateManagedDomain(input.name, { baseDomain: input.baseDomain });
+        try {
+          return await this.create({
+            projectId: input.projectId,
+            serviceId: input.serviceId,
+            hostname: managed.hostname,
+            managedKey: managed.key,
+            domainType: "free",
+            targetPort: input.targetPort,
+            targetPath: input.targetPath,
+            isPrimary: input.isPrimary ?? false,
+            verified: true,
+            verifiedAt: new Date(),
+            status: "active",
+            routeStatus: "pending",
+            routeVersion: 1,
+          });
+        } catch (error: any) {
+          if (error?.code !== "23505" && !String(error?.message).toLowerCase().includes("unique")) throw error;
+        }
+      }
+      throw new Error("Unable to allocate a unique managed domain after 8 attempts");
+    },
+
+    /** Move an edge route state forward. A stale writer can never lower version. */
+    async updateRouteState(id: string, version: number, routeStatus: string): Promise<boolean> {
+      const rows = await db
+        .update(domain)
+        .set({ routeVersion: version, routeStatus, updatedAt: new Date() })
+        .where(and(eq(domain.id, id), sql`${domain.routeVersion} <= ${version}`))
+        .returning();
+      return rows.length === 1;
+    },
+
+    async nextRouteVersion(id: string): Promise<number> {
+      const [row] = await db
+        .update(domain)
+        .set({ routeVersion: sql`${domain.routeVersion} + 1`, routeStatus: "pending", updatedAt: new Date() })
+        .where(eq(domain.id, id))
+        .returning();
+      if (!row) throw new Error(`Domain ${id} not found`);
+      return row.routeVersion;
+    },
+
+    async listManagedForReconcile(limit = 100, offset = 0): Promise<Domain[]> {
+      return db.query.domain.findMany({
+        where: and(eq(domain.ownerType, "project"), eq(domain.domainType, "free")),
+        orderBy: [asc(domain.id)],
+        limit: Math.min(Math.max(limit, 1), 500),
+        offset: Math.max(offset, 0),
+      });
+    },
+
+    async markRouteReconciled(id: string, at = new Date()): Promise<void> {
+      await db.update(domain).set({ routeReconciledAt: at, updatedAt: new Date() }).where(eq(domain.id, id));
     },
 
     /**

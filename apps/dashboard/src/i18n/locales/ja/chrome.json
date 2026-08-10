@@ -10,7 +10,9 @@
     "create": "作成",
     "toastTitle": "組織",
     "switchFailed": "切り替えに失敗しました",
-    "createFailed": "作成に失敗しました"
+    "createFailed": "作成に失敗しました",
+    "freeLimitReached": "無料ユーザーが作成できるワークスペースは1つだけです。",
+    "proLimitReached": "Proユーザーは最大10個のワークスペースを作成できます。"
   },
   "sidebar": {
     "workspaceFallback": "ワークスペース",

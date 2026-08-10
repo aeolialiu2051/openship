@@ -1,4 +1,4 @@
-import { pgTable, text, integer, timestamp, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, timestamp, boolean, uniqueIndex } from "drizzle-orm/pg-core";
 import { organization } from "./organization";
 
 // ─── Servers ─────────────────────────────────────────────────────────────────
@@ -27,6 +27,9 @@ export const servers = pgTable("servers", {
 
   /** Human-readable label - defaults to sshHost when not set */
   name: text("name"),
+
+  /** Stable DNS-safe identifier used only for server-{routingId}.vibrail.app origins. */
+  routingId: text("routing_id"),
 
   /**
    * True for the single auto-registered row that IS the Vibrail host (VPS /
@@ -64,4 +67,4 @@ export const servers = pgTable("servers", {
 
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("uq_servers_routing_id").on(t.routingId)]);

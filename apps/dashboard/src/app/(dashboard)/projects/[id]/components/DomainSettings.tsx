@@ -193,6 +193,15 @@ function resolveProjectEndpointHostname(
 
 function resolveDomainStatus(domain: any, t: Dictionary): { label: string; tone: DomainTone } {
   const s = t.projectSettings.domains.status;
+  if (domain?.domainType === "free" && domain?.routeStatus) {
+    switch (domain.routeStatus) {
+      case "active": return { label: s.active, tone: "success" };
+      case "failed": return { label: s.failed, tone: "danger" };
+      case "disabled":
+      case "deleting": return { label: s.removing, tone: "neutral" };
+      default: return { label: s.pending, tone: "warning" };
+    }
+  }
   if (domain?.verified) {
     return { label: s.verified, tone: "success" };
   }
@@ -1024,6 +1033,7 @@ export const DomainSettings = () => {
             isPrimary: index === 0,
             verified: existing?.verified ?? !isCustom,
             status: existing?.status ?? (isCustom ? "pending" : "active"),
+            routeStatus: existing?.routeStatus ?? "pending",
             sslStatus: existing?.sslStatus ?? (endpoint.domainType === "free" ? "active" : "none"),
             targetPort: endpoint.port ?? null,
             targetPath: endpoint.targetPath ?? null,

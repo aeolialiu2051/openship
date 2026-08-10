@@ -15,6 +15,7 @@ import { env } from "../../config/env";
 import { repos } from "@repo/db";
 import { foundingAdminId } from "../../modules/system/self-app.controller";
 import { registerStartupHook } from "./index";
+import { provisionServerOrigin } from "../server-origin-infra";
 
 export function registerSelfServerReconcile(): void {
   registerStartupHook({
@@ -33,12 +34,18 @@ export function registerSelfServerReconcile(): void {
       // real address so the servers list reads truthfully.
       const displayHost = env.SERVER_IP || env.VIBRAIL_SITE_DOMAIN || "127.0.0.1";
 
-      await repos.server.create({
+      const server = await repos.server.create({
         organizationId,
         name: "This Server",
         sshHost: displayHost,
         isLocal: true,
       });
+      try {
+        await provisionServerOrigin(server);
+      } catch (error) {
+        await repos.server.delete(server.id).catch(() => undefined);
+        throw error;
+      }
       console.log(`[self-server] registered this host as a deploy target (${displayHost})`);
     },
   });

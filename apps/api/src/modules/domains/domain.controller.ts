@@ -13,6 +13,11 @@ import { maybeProxyCloudProject } from "../../lib/cloud/project-router";
 import type { TAddDomainBody } from "./domain.schema";
 import { getCustomDomainProjectQuota } from "./custom-domain-project-quota";
 
+export const serializeDomain = <T extends { hostname: string }>(domain: T) => ({
+  ...domain,
+  url: `https://${domain.hostname}`,
+});
+
 // ─── Handlers ────────────────────────────────────────────────────────────────
 
 export async function list(c: Context) {
@@ -29,7 +34,7 @@ export async function list(c: Context) {
   const proxied = await maybeProxyCloudProject(c, projectId, getRequestContext(c).organizationId);
   if (proxied) return proxied;
   const domains = await domainService.listDomains(ctx, projectId);
-  return c.json({ data: domains });
+  return c.json({ data: domains.map(serializeDomain) });
 }
 
 export async function quota(c: Context) {
@@ -68,7 +73,7 @@ export async function add(c: Context) {
       isPrimary: result.domain.isPrimary,
     },
   });
-  return c.json({ data: result.domain, records: result.records }, 201);
+  return c.json({ data: serializeDomain(result.domain), records: result.records }, 201);
 }
 
 export async function remove(c: Context) {
@@ -168,7 +173,7 @@ export async function setPrimary(c: Context) {
     resourceId: id,
     after: { projectId: domain.projectId, hostname: domain.hostname, isPrimary: true },
   });
-  return c.json({ data: domain });
+  return c.json({ data: serializeDomain(domain) });
 }
 
 /** POST /domains/preview - get DNS records for a hostname (no DB write) */

@@ -10,7 +10,9 @@
     "create": "Erstellen",
     "toastTitle": "Organisation",
     "switchFailed": "Wechsel fehlgeschlagen",
-    "createFailed": "Erstellen fehlgeschlagen"
+    "createFailed": "Erstellen fehlgeschlagen",
+    "freeLimitReached": "Kostenlose Benutzer können nur einen Arbeitsbereich erstellen.",
+    "proLimitReached": "Pro-Benutzer können bis zu 10 Arbeitsbereiche erstellen."
   },
   "sidebar": {
     "workspaceFallback": "Arbeitsbereich",

@@ -361,7 +361,7 @@ export async function startMigration(c: Context) {
     try {
       routeKey = normalizeProjectRouteKey(body.routeKey);
     } catch {
-      return c.json({ error: "routeKey must be a six-character Base36 value" }, 400);
+      return c.json({ error: "routeKey must be an eight-character Base36 value (legacy six-character keys are accepted)" }, 400);
     }
   }
 

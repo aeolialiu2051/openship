@@ -156,7 +156,7 @@ export async function startExternalDeployAsProjectHandler(c: Context) {
     try {
       routeKey = normalizeProjectRouteKey(String(routingBody.routeKey));
     } catch {
-      return c.json({ error: "routing.routeKey must be a six-character Base36 value" }, 400);
+      return c.json({ error: "routing.routeKey must be an eight-character Base36 value (legacy six-character keys are accepted)" }, 400);
     }
   }
   if (managedDomain && !MANAGED_LABEL_RE.test(managedDomain)) {

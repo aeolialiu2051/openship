@@ -1,0 +1,9 @@
+[Unit]
+Description=Refresh Cloudflare-only ingress rules for Vibrail Gateway
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+Environment=VIBRAIL_ENFORCE_CLOUDFLARE_FIREWALL=true
+ExecStart=/usr/local/lib/vibrail/update-cloudflare-firewall.sh

@@ -32,6 +32,7 @@
     "db:heal-orphans": "bun scripts/heal-orphan-tables.ts",
     "db:dump": "bun scripts/dump.ts",
     "db:restore": "bun scripts/restore.ts",
+    "db:migrate-managed-domains": "bun scripts/migrate-managed-domains.ts",
     "clean": "rm -rf dist .turbo node_modules"
   },
   "dependencies": {

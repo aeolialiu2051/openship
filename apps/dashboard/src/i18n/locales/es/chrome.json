@@ -10,7 +10,9 @@
     "create": "Crear",
     "toastTitle": "Organización",
     "switchFailed": "No se pudo cambiar",
-    "createFailed": "No se pudo crear"
+    "createFailed": "No se pudo crear",
+    "freeLimitReached": "Los usuarios gratuitos solo pueden crear un espacio de trabajo.",
+    "proLimitReached": "Los usuarios Pro pueden crear hasta 10 espacios de trabajo."
   },
   "sidebar": {
     "workspaceFallback": "Espacio de trabajo",

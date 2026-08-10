@@ -30,3 +30,4 @@ export * from "./starter-templates";
 export * from "./project-route-key";
 export * from "./updates";
 export * from "./proxy-settings";
+export * from "./managed-routing";

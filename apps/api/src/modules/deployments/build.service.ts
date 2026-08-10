@@ -301,6 +301,21 @@ export interface DeploymentConfigSnapshot {
  */
 export type BuildAccessInput = TBuildAccessBody;
 
+/**
+ * The dashboard's Compose wizard already scanned the selected revision and
+ * sends that frozen service plan with build/access. Re-scanning GitHub here is
+ * both redundant and user-visible (the caller cannot navigate to the build
+ * page until this request returns). Keep reconciliation for API/MCP/redeploy
+ * callers that omit services, where the repository is still the source of
+ * truth for discovering newly-added Compose entries.
+ *
+ * An explicitly empty array is authoritative too: it must not unexpectedly
+ * repopulate services from the repository after the user removed them.
+ */
+export function shouldReconcileComposeBeforeBuild(input: BuildAccessInput): boolean {
+  return input.services === undefined;
+}
+
 /** Build a config snapshot from the project - pure pass-through, no fallbacks.
  *  All values must be set by prepare / ensureProject before this is called. */
 export function buildConfigSnapshot(project: Project, branch?: string): DeploymentConfigSnapshot {
@@ -1009,13 +1024,15 @@ export async function requestBuildAccess(ctx: RequestContext, input: BuildAccess
   // null), bootstraps their baseline while KEEPING the adopted image — so mapped
   // services reuse their running image (no rebuild) and everything else in the
   // compose is taken from the repo. Best-effort; self-guards to Compose sources.
-  await reconcileComposeDrift(
-    ctx,
-    project,
-    resolvedBranch,
-    undefined,
-    uploadSession?.mode === "api-relay" ? uploadSession.stagingDir : undefined,
-  );
+  if (shouldReconcileComposeBeforeBuild(input)) {
+    await reconcileComposeDrift(
+      ctx,
+      project,
+      resolvedBranch,
+      undefined,
+      uploadSession?.mode === "api-relay" ? uploadSession.stagingDir : undefined,
+    );
+  }
 
   const projectDomains = await listProjectRouteRows(project.id);
   let routeState = await resolveProjectRouteState(project, { projectDomains });

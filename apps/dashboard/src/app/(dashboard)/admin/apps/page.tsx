@@ -217,8 +217,16 @@ export default function AdminApplicationsPage() {
     setNotice(null);
     try {
       if (selected.moderationStatus === "suspended") {
-        await adminApi.resumeApplication(selected.id);
-        setNotice(zh ? "应用已恢复上线。" : "Application restored.");
+        const response = await adminApi.resumeApplication(selected.id);
+        setNotice(
+          response.data.warning
+            ? zh
+              ? `应用已解除下架并允许重新部署，但原部署未能完全启动：${response.data.warning}`
+              : `Application restored and redeployment is enabled, but the previous workload did not fully start: ${response.data.warning}`
+            : zh
+              ? "应用已恢复上线。"
+              : "Application restored.",
+        );
       } else {
         const response = await adminApi.suspendApplication(selected.id, reason || undefined);
         const warnings = [response.data.warning, response.data.emailWarning].filter(Boolean);

@@ -1,24 +1,16 @@
 import { slugify } from "./utils";
+import { randomManagedKey } from "./managed-routing";
 
-const ROUTE_KEY_WIDTH = 6;
-const ROUTE_KEY_SPACE = 36 ** ROUTE_KEY_WIDTH;
-const UINT32_RANGE = 2 ** 32;
-const ROUTE_KEY_LIMIT = Math.floor(UINT32_RANGE / ROUTE_KEY_SPACE) * ROUTE_KEY_SPACE;
-const ROUTE_KEY_PATTERN = /^[a-z0-9]{6}$/;
+const ROUTE_KEY_PATTERN = /^(?:[a-z0-9]{6}|[a-z0-9]{8})$/;
 
 export interface ProjectRouteIdentity {
   slug: string;
   routeKey?: string | null;
 }
 
-/** Generate a uniformly-distributed, DNS-safe six-character Base36 key. */
+/** Generate the canonical uniformly-distributed eight-character Base36 key. */
 export function generateProjectRouteKey(): string {
-  const value = new Uint32Array(1);
-  do {
-    crypto.getRandomValues(value);
-  } while (value[0]! >= ROUTE_KEY_LIMIT);
-
-  return (value[0]! % ROUTE_KEY_SPACE).toString(36).padStart(ROUTE_KEY_WIDTH, "0");
+  return randomManagedKey();
 }
 
 export function normalizeProjectRouteKey(routeKey: string): string {

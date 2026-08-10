@@ -75,7 +75,7 @@ export const project = pgTable(
     name: text("name").notNull(),
     /** URL-safe slug derived from name */
     slug: text("slug").notNull(),
-    /** Stable six-character Base36 suffix used by managed hostnames. */
+    /** Stable Base36 suffix used by managed hostnames (8 chars for new projects; legacy 6 accepted). */
     routeKey: text("route_key"),
 
     /* ── Environment identity ─────────────────────────────────────────── */

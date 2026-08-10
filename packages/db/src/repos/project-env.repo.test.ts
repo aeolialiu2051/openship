@@ -126,7 +126,7 @@ describe("project.repo env writes (PGlite)", () => {
 });
 
 describe("project route keys (PGlite)", () => {
-  it("allocates distinct six-character Base36 keys for new projects", async () => {
+  it("allocates distinct eight-character Base36 keys for new projects", async () => {
     const ctx = await freshRepo();
     const first = await ctx.repo.create({
       organizationId: "org_1",
@@ -141,8 +141,8 @@ describe("project route keys (PGlite)", () => {
       slug: "abc",
     });
 
-    expect(first.routeKey).toMatch(/^[a-z0-9]{6}$/);
-    expect(second.routeKey).toMatch(/^[a-z0-9]{6}$/);
+    expect(first.routeKey).toMatch(/^[a-z0-9]{8}$/);
+    expect(second.routeKey).toMatch(/^[a-z0-9]{8}$/);
     expect(second.routeKey).not.toBe(first.routeKey);
   }, 30_000);
 
@@ -164,7 +164,7 @@ describe("project route keys (PGlite)", () => {
     });
 
     expect(first.routeKey).toBe("oo198w");
-    expect(second.routeKey).toMatch(/^[a-z0-9]{6}$/);
+    expect(second.routeKey).toMatch(/^[a-z0-9]{8}$/);
     expect(second.routeKey).not.toBe(first.routeKey);
   }, 30_000);
 

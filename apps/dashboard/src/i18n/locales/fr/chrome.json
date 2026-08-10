@@ -10,7 +10,9 @@
     "create": "Créer",
     "toastTitle": "Organisation",
     "switchFailed": "Échec du changement",
-    "createFailed": "Échec de la création"
+    "createFailed": "Échec de la création",
+    "freeLimitReached": "Les utilisateurs gratuits ne peuvent créer qu’un espace de travail.",
+    "proLimitReached": "Les utilisateurs Pro peuvent créer jusqu’à 10 espaces de travail."
   },
   "sidebar": {
     "workspaceFallback": "Espace de travail",

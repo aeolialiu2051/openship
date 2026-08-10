@@ -22,6 +22,8 @@ import { audit, auditContextFrom } from "../../lib/audit";
 import { assertUserServersEnabled } from "../../lib/controller-helpers";
 import { primeGeo, countryForIp } from "@/lib/geo-ip";
 import { deleteMailDnsRecords } from "../mail/mail-dns.service";
+import { provisionServerOrigin, removeServerOrigin } from "../../lib/server-origin-infra";
+import { originHostnameForServer } from "@repo/core/managed-routing";
 
 const CONNECTION_FIELDS = new Set([
   "sshHost",
@@ -76,6 +78,8 @@ function serializeServer(s: Awaited<ReturnType<typeof repos.server.get>>) {
   if (!s) return null;
   return {
     id: s.id,
+    routingId: s.routingId,
+    originHostname: s.routingId ? originHostnameForServer(s.routingId) : null,
     name: s.name,
     // The auto-registered host row (VPS / server-host mode). The dashboard
     // badges it "This Server" and hides SSH-credential fields for it.
@@ -221,6 +225,16 @@ export async function createServer(c: Context) {
     traefikTls: typeof body.traefikTls === "boolean" ? body.traefikTls : null,
     traefikCertResolver: body.traefikCertResolver?.trim() || null,
   });
+
+  try {
+    await provisionServerOrigin(server);
+  } catch (error) {
+    // Provisioning is atomic from the product's perspective: don't retain a
+    // server that can never receive Worker traffic. Cloudflare methods are
+    // idempotent, so a partial external write is safe to retry/clean manually.
+    await repos.server.delete(server.id).catch(() => undefined);
+    return c.json({ error: `Could not provision server origin: ${safeErrorMessage(error)}` }, 502);
+  }
 
   sshManager.invalidate(server.id);
 
@@ -388,6 +402,10 @@ export async function deleteServer(c: Context) {
   if (existing.isLocal) {
     return c.json({ error: "This is the current host and can't be removed." }, 400);
   }
+  const activeProjectCounts = await repos.project.countActiveByServer(ctx.organizationId);
+  if ((activeProjectCounts[id] ?? 0) > 0) {
+    return c.json({ error: "Move or delete every active project on this server before removing it." }, 409);
+  }
 
   // DNS records created by the mail installer are tagged at the provider.
   // Remove those exact records before the server/mail row cascades away; if
@@ -406,6 +424,12 @@ export async function deleteServer(c: Context) {
         502,
       );
     }
+  }
+
+  try {
+    await removeServerOrigin(existing);
+  } catch (error) {
+    return c.json({ error: `Could not remove server origin: ${safeErrorMessage(error)}` }, 502);
   }
 
   await repos.server.delete(id);

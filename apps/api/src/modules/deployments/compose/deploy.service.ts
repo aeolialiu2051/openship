@@ -397,7 +397,7 @@ async function prepareServiceRoutes(opts: {
         });
       }
       let routeToPublish = route;
-      if (routeContext.usesManagedRouting && !domainRecord?.externalIngress) {
+      if (routeContext.usesManagedRouting && !domainRecord?.externalIngress && !route.isCloud) {
         const action = await upsertDeploymentDnsRecord({
           hostname: route.hostname,
           organizationId: routeContext.organizationId,
@@ -1148,6 +1148,24 @@ export async function deployComposeServices(
           return { containerId: result.containerId };
         },
         deactivate: (containerId) => runtime.destroy(containerId),
+        // A public Compose service is not ready merely because Docker accepted
+        // `run -d`. Gate route publication on the configured port actually
+        // listening so crash loops and bad commands cannot produce a green
+        // deployment with a dead public URL.
+        healthCheck:
+          proxyRoutes.length > 0
+            ? async (containerId) => {
+                const port = resolveServicePublicPort(svc);
+                if (port === undefined) return;
+                const checks = await auditPorts(runtime, containerId, [port], serviceLogger);
+                const failed = checks.find((check) => check.checked && !check.listening);
+                if (failed) {
+                  throw new Error(
+                    `Service "${svc.name}" did not start listening on port ${failed.port}`,
+                  );
+                }
+              }
+            : undefined,
         resolveTargetUrl:
           proxyRoutes.length > 0
             ? async (containerId, port) => {
@@ -1295,12 +1313,21 @@ export async function deployComposeServices(
       }
 
       // Sync the managed edge proxy for EACH free .vibrail.app route (a multi-port
-      // service has several). Best-effort: the container is already running and
-      // any custom domain is routed locally; the edge proxy only wires up the
-      // free URL via Vibrail Cloud, so a failure here (403, slug taken,
-      // unreachable) must not flip a healthy service to "failed".
+      // service has several). The direct KV projection is a deployment commit
+      // barrier: a managed URL must not be reported ready until its Gateway
+      // authority and KV route are both durable. The legacy cloud-edge fallback
+      // below remains best-effort for installations without direct KV.
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);
-      if (
+      const { edgeRouteStore, publishManagedDomainRoute } = await import("../../../lib/edge-route-projection");
+      if (routeContext?.usesManagedRouting && edgeRouteStore() && managedRoutes.length > 0) {
+        if (!routeContext.serverId) throw new Error("Managed edge routing requires a target server");
+        for (const managedRoute of managedRoutes) {
+          const domainRecord = routeContext.domainByHostname.get(managedRoute.hostname.toLowerCase());
+          if (!domainRecord) throw new Error(`Managed domain record missing for ${managedRoute.hostname}`);
+          await publishManagedDomainRoute(domainRecord, routeContext.serverId);
+          logger.log(`Published edge route for ${managedRoute.hostname} (version ${domainRecord.routeVersion}).\n`, "info", { serviceName: svc.name });
+        }
+      } else if (
         routeContext?.usesManagedRouting &&
         managedDomainsUseCloudEdge() &&
         managedRoutes.length > 0
@@ -1335,7 +1362,7 @@ export async function deployComposeServices(
           ? resolveServicePublicUrl(project, svc)
           : undefined;
 
-      for (const route of proxyRoutes) {
+      for (const route of proxyRoutes.filter((candidate) => !candidate.isCloud)) {
         try {
           const action = await upsertDeploymentDnsRecord({
             hostname: route.hostname,

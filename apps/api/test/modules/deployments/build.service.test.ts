@@ -85,6 +85,7 @@ vi.mock("../../../src/modules/deployments/smart-route", () => ({
 import {
   backfillComposeBaselinesFromActiveDeployment,
   reconcileComposeDrift,
+  shouldReconcileComposeBeforeBuild,
   triggerDeployment,
   type DeploymentConfigSnapshot,
 } from "../../../src/modules/deployments/build.service";
@@ -144,6 +145,20 @@ const composeServices = [
     domainType: "free",
   },
 ];
+
+describe("build/access Compose reconciliation", () => {
+  it("skips the repository scan when the wizard supplies a frozen service plan", () => {
+    expect(shouldReconcileComposeBeforeBuild({ services: composeServices } as any)).toBe(false);
+  });
+
+  it("treats an explicitly empty service plan as authoritative", () => {
+    expect(shouldReconcileComposeBeforeBuild({ services: [] } as any)).toBe(false);
+  });
+
+  it("keeps repository reconciliation for callers that omit services", () => {
+    expect(shouldReconcileComposeBeforeBuild({} as any)).toBe(true);
+  });
+});
 
 function baseSnapshot(): DeploymentConfigSnapshot {
   return {
