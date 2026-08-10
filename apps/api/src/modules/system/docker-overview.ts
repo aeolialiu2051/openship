@@ -5,7 +5,11 @@ export const DOCKER_OVERVIEW_COMMAND = [
   `printf '${PS_MARKER}\\n'`,
   "docker ps -a --no-trunc --format '{{json .}}'",
   `printf '${STATS_MARKER}\\n'`,
-  "docker stats --all --no-stream --format '{{json .}}'",
+  // `--all` asks the daemon for stats from stopped containers too. Some Docker
+  // versions block while opening those stale collectors until our SSH command
+  // is aborted. Running containers have metrics; stopped containers still come
+  // from `docker ps -a` and intentionally render with empty gauges.
+  "docker stats --no-stream --format '{{json .}}'",
 ].join("; ");
 
 export type DockerHealth = "healthy" | "unhealthy" | "starting" | null;

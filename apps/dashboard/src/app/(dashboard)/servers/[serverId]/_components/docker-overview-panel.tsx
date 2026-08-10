@@ -229,7 +229,12 @@ export function DockerOverviewPanel({ serverId }: { serverId: string }) {
         setError(null);
       } catch (err) {
         if (!alive.current) return;
-        setError(getApiErrorMessage(err, t.servers.overview.dockerLoadFailed));
+        const message = getApiErrorMessage(err, t.servers.overview.dockerLoadFailed);
+        setError(
+          /signal is aborted|aborterror/i.test(message)
+            ? t.servers.overview.dockerLoadFailed
+            : message,
+        );
       } finally {
         inFlight.current = false;
         if (alive.current) {

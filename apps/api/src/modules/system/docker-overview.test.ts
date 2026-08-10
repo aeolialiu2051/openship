@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { parseDockerOverview } from "./docker-overview";
+import { DOCKER_OVERVIEW_COMMAND, parseDockerOverview } from "./docker-overview";
+
+describe("DOCKER_OVERVIEW_COMMAND", () => {
+  it("does not request stats collectors for stopped containers", () => {
+    expect(DOCKER_OVERVIEW_COMMAND).toContain("docker ps -a");
+    expect(DOCKER_OVERVIEW_COMMAND).toContain("docker stats --no-stream");
+    expect(DOCKER_OVERVIEW_COMMAND).not.toContain("docker stats --all");
+  });
+});
 
 describe("parseDockerOverview", () => {
   it("merges docker ps state with docker stats metrics", () => {

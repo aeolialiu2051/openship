@@ -227,6 +227,9 @@ export interface TraefikRouteConfig {
   tls?: boolean;
   /** Static document-root prefix exposed as this hostname's URL root. */
   targetPath?: string;
+  /** Managed Vibrail hostname whose Worker-signed origin request must be
+   * authenticated by the owned vibrail-edge before it reaches the workload. */
+  managedOrigin?: boolean;
 }
 
 export interface TraefikRouteRuleConfig {
@@ -250,6 +253,11 @@ export interface TraefikEdgeConfig {
   tls: boolean;
   /** Optional Traefik certificate resolver selected by the operator. */
   certResolver?: string;
+  /** True only for the Vibrail-owned edge image with the in-process origin
+   * authentication middleware. */
+  managedOriginAuth?: boolean;
+  /** Exact per-server origin hostname used by the Router Worker. */
+  managedOriginHost?: string;
   routes: TraefikRouteConfig[];
   /** Native middleware rules grouped by normalized hostname. */
   routeRules?: Record<string, TraefikRouteRuleConfig[]>;

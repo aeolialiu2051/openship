@@ -6,6 +6,7 @@ import type {
   TraefikRouteConfig,
 } from "@repo/adapters";
 import { DockerRuntime } from "@repo/adapters";
+import { originHostnameForServer } from "@repo/core/managed-routing";
 import { compileProjectTraefikRules } from "../modules/route-rules/route-rule.service";
 export { vibrailRouterName } from "./traefik-router-name";
 
@@ -74,6 +75,11 @@ export async function prepareTraefikConfig(opts: {
       : Promise.resolve(null),
   ]);
   const edge: ResolvedTraefikEdge = await opts.runtime.ensureSharedTraefik(manual);
+  if (opts.routes.some((route) => route.managedOrigin) && edge.source !== "vibrail") {
+    throw new Error(
+      "Managed .vibrail.app routes require Vibrail's authenticated single-container edge; an external Traefik cannot safely terminate these routes.",
+    );
+  }
   opts.onLog?.(
     edge.source === "existing"
       ? `Reusing existing Traefik on network "${edge.network}" (entrypoint "${edge.entrypoint}").\n`
@@ -97,6 +103,15 @@ export async function prepareTraefikConfig(opts: {
     network: edge.network,
     entrypoint: edge.entrypoint,
     tls: edge.tls,
+    managedOriginAuth: edge.source === "vibrail",
+    ...(server?.routingId
+      ? {
+          managedOriginHost: originHostnameForServer(
+            server.routingId,
+            process.env.VIBRAIL_MANAGED_DOMAIN ?? "vibrail.app",
+          ),
+        }
+      : {}),
     ...(edge.certResolver ? { certResolver: edge.certResolver } : {}),
     routes: opts.routes,
     ...(Object.keys(routeRules).length > 0 ? { routeRules } : {}),

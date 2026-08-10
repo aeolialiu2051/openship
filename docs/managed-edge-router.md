@@ -7,7 +7,7 @@ retain the existing verification, DNS, and certificate flow.
 ## Request path
 
 `*.vibrail.app` → Router Worker → KV `route:<hostname>` →
-`server-{routingId}.vibrail.app` → Origin Auth Gateway → private Traefik → app.
+`server-{routingId}.vibrail.app` → authenticated `vibrail-edge` → app.
 
 The Worker derives the origin hostname from validated `server_id`; KV never
 contains an origin URL or secret. Managed projects create no DNS or certificates.
@@ -42,56 +42,55 @@ VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL=10
 VIBRAIL_ORIGIN_TIMESTAMP_SKEW=60
 ```
 
-Never supply Worker/Gateway secrets to apps or KV.
+Never supply Worker/Edge secrets to apps or KV.
 
-## Gateway and firewall
+## Single-container edge and firewall
 
-Derive `serverSecret = HMAC-SHA256(masterSecret, "v1:" + routingId)` offline.
-Install only that server's current/previous derived secret. Public 443 terminates
-at Gateway; Traefik and containers bind privately. Restrict 443 to Cloudflare's
-official IP ranges in production, with an idempotent updater; do not enforce it
-in development/tests. Direct IP/server-host traffic has no HMAC and is rejected.
+Derive `serverSecret = HMAC-SHA256(masterSecret, "v1:" + routingId)` offline and
+install only that server's current/previous derived secret. Public 443 terminates
+at the single `vibrail-edge` container. Its in-process Traefik middleware verifies
+the signature, timestamp, nonce and route authority before Traefik forwards the
+request to the application. Application containers bind only to the private edge
+network. Restrict 443 to Cloudflare's official IP ranges in production. Direct
+IP/server-host traffic has no valid route header/signature and is rejected.
 
-Build the Gateway from the repository root (the root context is required for
-the shared core package):
+Build the Edge from the repository root:
 
 ```bash
-docker build -f apps/origin-auth-gateway/Dockerfile \
-  -t registry.example/vibrail-origin-gateway:0.4.12 .
+docker build -f apps/edge/Dockerfile \
+  -t registry.example/vibrail-edge:0.4.12 .
 ```
 
-Run it with public TLS terminated only at the Gateway, mount the route authority
-directory read-only, and keep Traefik loopback-only:
+Install the secret files with mode `0600`. The runtime mounts them and the route
+authority directory read-only into the Edge:
 
 ```bash
-docker run -d --name vibrail-origin-gateway --restart unless-stopped \
+sudo install -d -m 0700 /etc/vibrail/edge /etc/vibrail/edge-routes
+sudo install -m 0600 ./server-secret /etc/vibrail/edge/server-secret
+
+docker run -d --name vibrail-edge --restart unless-stopped \
   --network host \
-  -e PORT=443 \
-  -e VIBRAIL_SERVER_ROUTING_ID=replace-routing-id \
-  -e VIBRAIL_SERVER_SECRET_FILE=/run/secrets/vibrail-server-secret \
-  -e VIBRAIL_TRAEFIK_ORIGIN=http://127.0.0.1:8080 \
-  -e VIBRAIL_EDGE_ROUTE_MANIFEST=/etc/vibrail/edge-routes \
-  -e VIBRAIL_GATEWAY_TLS_CERT_FILE=/run/secrets/origin-cert.pem \
-  -e VIBRAIL_GATEWAY_TLS_KEY_FILE=/run/secrets/origin-key.pem \
+  -v /var/run/docker.sock:/var/run/docker.sock:ro \
+  -v /etc/vibrail/edge:/etc/vibrail/edge:ro \
   -v /etc/vibrail/edge-routes:/etc/vibrail/edge-routes:ro \
-  registry.example/vibrail-origin-gateway:0.4.12
+  -v vibrail-edge-acme:/letsencrypt \
+  registry.example/vibrail-edge:0.4.12
 ```
 
-The Gateway supports mutually-exclusive `VIBRAIL_SERVER_SECRET` and
-`VIBRAIL_SERVER_SECRET_FILE` inputs (and the equivalent previous-secret pair).
-Prefer the file form from a container secret manager; never place the value in
-Compose YAML or shell history. Install the idempotent firewall updater:
+Never place the server secret in Compose YAML, Docker labels or shell history.
+During rotation, install the old value as
+`/etc/vibrail/edge/previous-server-secret`, replace `server-secret`, wait beyond
+the timestamp/cache TTLs, then remove the previous file. Install the idempotent
+firewall updater:
 
-Install one TLS certificate for the exact `server-{routingId}.vibrail.app`
-origin hostname (Cloudflare Origin CA or another operator-managed certificate)
-and mount its key read-only. This is server lifecycle infrastructure, not a
-per-project certificate. Gateway refuses plaintext by default; only local
-development may opt in with `VIBRAIL_GATEWAY_ALLOW_PLAINTEXT=true`. Use
-Cloudflare Full (strict) mode in production.
+Traefik obtains one certificate for the exact `server-{routingId}.vibrail.app`
+origin hostname. Managed application hostnames are selected by the signed
+`x-vibrail-hostname` header, so platform wildcard private keys are never copied
+to user servers. Use Cloudflare Full (strict) mode in production.
 
 ```bash
-sudo install -m 0755 apps/origin-auth-gateway/deploy/update-cloudflare-firewall.sh /usr/local/lib/vibrail/
-sudo install -m 0644 apps/origin-auth-gateway/deploy/vibrail-cloudflare-firewall.{service,timer} /etc/systemd/system/
+sudo install -m 0755 apps/edge/deploy/update-cloudflare-firewall.sh /usr/local/lib/vibrail/
+sudo install -m 0644 apps/edge/deploy/vibrail-cloudflare-firewall.{service,timer} /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now vibrail-cloudflare-firewall.timer
 sudo systemctl start vibrail-cloudflare-firewall.service
@@ -105,18 +104,19 @@ development and test environments.
 
 The API writes one authority document per hostname to
 `/etc/vibrail/edge-routes/{lowercase-hostname}.json`. Ensure the API's remote
-executor can create that directory while the Gateway has read-only access.
+executor can create that directory while the Edge has read-only access.
 
 ## Lifecycle
 
-- Deploy: health-check workload, install Traefik, publish KV, mark active.
+- Deploy: health-check workload, ensure the single Edge, publish its authenticated
+  route and authority manifest, publish KV, then mark active.
 - Migrate: keep old workload, start/check new, increment version, update KV,
   wait longer than the 30-second cache TTL, then remove old. Rollback publishes
   a newer version pointing back; never reuse a lower version.
-- Delete: remove Gateway authority and publish `enabled:false`, wait for a full
+- Delete: remove Edge authority and publish `enabled:false`, wait for a full
   cache window, remove KV, then remove Traefik/workload and DB state.
 
-Gateway accepts current/previous keys. Deploy the pair, rotate Worker master,
+Edge accepts current/previous keys. Deploy the pair, rotate Worker master,
 wait beyond timestamp/cache TTLs, then remove the previous key.
 
 The reconciler repairs missing, disabled, stale, and wrong-server projections.
@@ -150,12 +150,12 @@ the explicit command remains useful for reviewing hostname changes.
 
 1. Apply additive DB migrations and review the managed-domain dry-run report.
 2. Create KV, wildcard DNS, Worker secret, and wildcard Worker route.
-3. Deploy Gateway to every server, derive and install its current secret, mount
-   the authority directory, then enable the Cloudflare firewall timer.
+3. Deploy `vibrail-edge` to every server, derive and install its current secret,
+   mount the authority directory, then enable the Cloudflare firewall timer.
 4. Let server provisioning create each exact exclusion and proxied A record;
-   verify direct server-host requests return 403 before publishing routes.
+   verify unsigned requests return 403/404 before publishing routes.
 5. Deploy API/reconciler, apply the managed-domain migration, then deploy
-   Dashboard/CLI. Verify a canary through Worker → Gateway → Traefik.
+   Dashboard/CLI. Verify a canary through Worker → `vibrail-edge` → app.
 
 Rollback is forward-only: stop new publications, install source authority,
 publish a higher KV version pointing to the source, retain both workloads for

@@ -1091,6 +1091,7 @@ export async function deployComposeServices(
           hostname: route.hostname,
           port: route.targetPort!,
           tls: route.tls,
+          managedOrigin: route.domainType === "free",
         })),
       };
       serviceRuntimeConfig.ports = [];

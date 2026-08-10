@@ -3,6 +3,7 @@ import {
   ForbiddenError,
   NotFoundError,
   ValidationError,
+  originHostnameForServer,
   resolveDashboardPageUrl,
   safeErrorMessage,
 } from "@repo/core";
@@ -712,6 +713,13 @@ async function suspendedRouteOptions(
 ) {
   const domains = await repos.domain.listByProject(project.id);
   const dashboard = resolveDashboardPublicUrl();
+  const server = serverId ? await repos.server.get(serverId) : null;
+  const managedOriginHost = server?.routingId
+    ? originHostnameForServer(
+        server.routingId,
+        process.env.VIBRAIL_MANAGED_DOMAIN ?? "vibrail.app",
+      )
+    : undefined;
   return {
     projectId: project.id,
     manual: await resolveTraefikManualConfig(project.organizationId, serverId ?? undefined),
@@ -720,7 +728,11 @@ async function suspendedRouteOptions(
       .map((domain) => {
         const redirect = new URL(resolveDashboardPageUrl(dashboard, "/suspended"));
         redirect.searchParams.set("site", domain.hostname);
-        return { hostname: domain.hostname, redirectUrl: redirect.toString() };
+        return {
+          hostname: domain.hostname,
+          redirectUrl: redirect.toString(),
+          ...(domain.domainType === "free" && managedOriginHost ? { managedOriginHost } : {}),
+        };
       }),
   };
 }
