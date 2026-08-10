@@ -6,10 +6,33 @@
   background: #f5f4f0;
 }
 .collection-shell {
+  position: relative;
   min-height: 100vh;
-  background: #f5f4f0;
+  overflow: hidden;
+  isolation: isolate;
+  background-color: #f5f7fb;
+  background-image: radial-gradient(55% 35% at 18% 24%,rgba(79,120,226,.13),transparent 72%),radial-gradient(52% 35% at 82% 28%,rgba(148,94,220,.1),transparent 72%),radial-gradient(70% 34% at 50% 0%,rgba(97,132,230,.2),transparent 64%),linear-gradient(180deg,#f0f4fc 0%,#f5f7fb 52%);
   color: #171713;
   padding: 110px 34px 72px;
+}
+.collection-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: min(920px, 100vh);
+  opacity: .55;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(36,53,88,.065) 1px,transparent 1px),linear-gradient(90deg,rgba(36,53,88,.065) 1px,transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom,black,transparent 88%);
+}
+.collection-tools,
+.collection-hero,
+.collection-grid,
+.collection-empty {
+  position: relative;
+  z-index: 1;
 }
 .collection-tools {
   max-width: 1440px;
@@ -175,6 +198,10 @@
   gap: 10px;
   align-items: center;
 }
+.collection-title-row > div {
+  min-width: 0;
+  flex: 1;
+}
 .collection-title-row .collection-publisher {
   margin-top: 3px;
   color: #85847d;
@@ -202,12 +229,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 190px;
 }
 .collection-title-row p {
   font-size: 12px;
   color: #85847d;
   margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .collection-card-meta {
   display: flex;
@@ -426,9 +455,75 @@
   }
 }
 
+@media (max-width: 600px) {
+  .collection-shell {
+    padding-inline: 14px;
+  }
+  .collection-tools {
+    gap: 12px;
+  }
+  .collection-tools .collection-search {
+    width: 100%;
+    min-width: 0;
+  }
+  .collection-ship {
+    flex: 0 0 auto;
+  }
+  .collection-hero {
+    margin: 52px auto 30px;
+  }
+  .collection-hero h1 {
+    margin-block: 16px 14px;
+    font-size: clamp(40px, 13vw, 56px);
+    line-height: 1.02;
+  }
+  .collection-hero p {
+    margin-inline: auto;
+    max-width: 34ch;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+  .collection-grid {
+    columns: 1;
+  }
+  .collection-card {
+    width: 100%;
+    margin-bottom: 16px;
+    border-radius: 20px;
+  }
+  .collection-preview {
+    height: auto !important;
+    aspect-ratio: 16 / 10;
+  }
+  .collection-card-body {
+    padding: 16px;
+  }
+  .collection-title-row {
+    gap: 12px;
+  }
+  .collection-favicon {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+  .collection-title-row h2 {
+    font-size: 17px;
+  }
+  .collection-title-row p,
+  .collection-title-row .collection-publisher,
+  .collection-card-meta {
+    font-size: 13px;
+  }
+}
+
 .collection-site.vr-theme-dark .collection-shell {
-  background: #0f0f0f;
+  background-color: #090b0f;
+  background-image: radial-gradient(55% 35% at 18% 24%,rgba(50,95,215,.2),transparent 72%),radial-gradient(52% 35% at 82% 28%,rgba(130,65,218,.18),transparent 72%),radial-gradient(70% 34% at 50% 0%,rgba(83,116,210,.24),transparent 64%),linear-gradient(180deg,#0d1016 0%,#090b0f 52%);
   color: #f5f4ee;
+}
+.collection-site.vr-theme-dark .collection-shell::before {
+  opacity: .3;
+  background-image: linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
 }
 .collection-site.vr-theme-dark .collection-search,
 .collection-site.vr-theme-dark .collection-card,

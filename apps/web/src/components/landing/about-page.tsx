@@ -2,6 +2,7 @@
 
 import { Mail, MessageCircle } from "lucide-react";
 import { landingCopy, type LandingLocale } from "./landing-copy";
+import { Footer } from "./footer";
 import { Navbar } from "./navbar";
 import { useLandingPreferences } from "./use-landing-preferences";
 
@@ -24,10 +25,12 @@ export function AboutPage({
   initialLocale,
   supportEmail,
   wechatId,
+  dashboardLoginUrl,
 }: {
   initialLocale?: LandingLocale;
   supportEmail: string | null;
   wechatId: string | null;
+  dashboardLoginUrl: string;
 }) {
   const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
   const landing = landingCopy[locale];
@@ -63,6 +66,12 @@ export function AboutPage({
           </dl>
         </section>
       </main>
+      <Footer
+        copy={landing.footer}
+        supportEmail={supportEmail}
+        dashboardLoginUrl={dashboardLoginUrl}
+        theme={theme}
+      />
     </div>
   );
 }

@@ -6,6 +6,8 @@ export const landingCopy = {
     nav: {
       homeLabel: "Vibrail home",
       mainLabel: "Main navigation",
+      openMenuLabel: "Open menu",
+      closeMenuLabel: "Close menu",
       platform: "Platform",
       workflow: "Workflow",
       operations: "Operations",
@@ -146,6 +148,8 @@ export const landingCopy = {
     nav: {
       homeLabel: "Vibrail 首页",
       mainLabel: "主导航",
+      openMenuLabel: "打开菜单",
+      closeMenuLabel: "关闭菜单",
       platform: "平台",
       workflow: "工作流",
       operations: "运维",
