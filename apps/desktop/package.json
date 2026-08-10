@@ -1,7 +1,7 @@
 {
   "name": "@repo/desktop",
   "productName": "Vibrail",
-  "version": "0.4.12",
+  "version": "0.4.13",
   "private": true,
   "description": "Vibrail Desktop - Electron wrapper for the deployment dashboard",
   "author": "Oblien",
