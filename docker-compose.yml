@@ -145,6 +145,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: "${WEB_PORT:-3000}"
+      VIBRAIL_SITE_DOMAIN: "${VIBRAIL_SITE_DOMAIN:-vibrail.com}"
       VIBRAIL_API_URL: http://api:${API_PORT:-4000}
       VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:-https://vibrail.com/dashboard}"
       SMTP_FROM: "${SMTP_FROM:-Vibrail <support@vibrail.com>}"

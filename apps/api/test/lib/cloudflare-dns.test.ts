@@ -18,7 +18,7 @@ vi.mock("../../src/config/env", () => ({
     VIBRAIL_CLOUDFLARE_API_TOKEN: "backend-only-token",
     VIBRAIL_CLOUDFLARE_ZONE_ID: "zone-1",
     VIBRAIL_CLOUDFLARE_PROXY: true,
-    HOST_DOMAIN: "vibrail.example.com",
+    VIBRAIL_SITE_DOMAIN: "vibrail.example.com",
   },
 }));
 

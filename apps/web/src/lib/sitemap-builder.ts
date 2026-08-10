@@ -4,7 +4,7 @@
  * human-readable table in the browser while remaining valid for crawlers.
  */
 
-export const SITE_URL = "https://vibrail.com";
+export { SITE_URL } from "./site-url";
 export const STYLESHEET_PATH = "/sitemap.xsl";
 
 export type SitemapEntry = {

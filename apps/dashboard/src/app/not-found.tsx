@@ -43,7 +43,9 @@ export default async function NotFound() {
       cloudAuthUrl={deploymentInfo.cloudAuthUrl}
       cloudApiUrl={deploymentInfo.cloudApiUrl}
       machineName={deploymentInfo.machineName}
-      hostDomain={deploymentInfo.hostDomain}
+      siteDomain={deploymentInfo.siteDomain}
+      managedDomain={deploymentInfo.managedDomain}
+      managedDomainNeedsCloud={deploymentInfo.managedDomainNeedsCloud}
     >
       <div className="flex h-dvh">
         <Sidebar />

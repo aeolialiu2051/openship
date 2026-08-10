@@ -617,7 +617,7 @@ async function checkPublicEndpoints(
       return;
     }
     seenHostnames.add(hostname);
-    // User-VPS deployments under an operator-owned HOST_DOMAIN are routed by
+    // User-VPS deployments under an operator-owned VIBRAIL_MANAGED_DOMAIN are routed by
     // the operator, so there is no Vibrail Cloud shared-zone availability
     // lookup. Cloud-target deployments still ask their runtime provider.
     if (canBridgeCloud && (effectiveTarget === "cloud" || managedDomainsUseCloudEdge())) {
@@ -710,7 +710,7 @@ async function checkComposeServiceDomains(
       : serviceLabel;
     const fqdn = `${subdomain}.${baseDomain}`;
 
-    // HOST_DOMAIN means the operator owns this managed zone. Validate the
+    // A non-default VIBRAIL_MANAGED_DOMAIN means the operator owns this managed zone. Validate the
     // hostname locally and let the operator's wildcard DNS / ingress route it;
     // do not require or warn about Vibrail Cloud for a user-owned VPS.
     if (!managedDomainsUseCloudEdge() && effectiveTarget !== "cloud") {

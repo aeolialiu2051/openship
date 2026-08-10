@@ -120,7 +120,9 @@ export type DeploymentInfo = {
   /** Contact mailbox parsed by the API from SMTP_FROM. */
   supportEmail?: string;
   machineName?: string;
-  hostDomain?: string;
+  siteDomain: string;
+  managedDomain: string;
+  managedDomainNeedsCloud: boolean;
   /**
    * Multi-user migration state. When non-default, the dashboard
    * should render a launcher screen pointing at migrationTargetUrl

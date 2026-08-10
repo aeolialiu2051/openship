@@ -3,8 +3,8 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import { CLOUD_DASHBOARD_URL, CLOUD_API_URL } from "@repo/core/runtime-config";
 
-/** Default cloud domain - matches SYSTEM.DOMAINS.CLOUD_DOMAIN in @repo/core */
-const DEFAULT_CLOUD_DOMAIN = "vibrail.com";
+/** Default deployment domain - matches SYSTEM.DOMAINS.CLOUD_DOMAIN in @repo/core. */
+const DEFAULT_MANAGED_DOMAIN = "vibrailapp.com";
 
 /* ── Types ────────────────────────────────────────────────────────── */
 
@@ -20,8 +20,10 @@ interface PlatformContextValue {
   cloudAuthUrl: string;
   cloudApiUrl: string;
   machineName?: string;
-  hostDomain?: string;
-  /** Resolved base domain - hostDomain or the default cloud domain */
+  siteDomain: string;
+  managedDomain: string;
+  managedDomainNeedsCloud: boolean;
+  /** Resolved deployment base domain. */
   baseDomain: string;
   setSelfHosted: (v: boolean) => void;
 }
@@ -66,7 +68,9 @@ interface PlatformProviderProps {
   cloudAuthUrl?: string;
   cloudApiUrl?: string;
   machineName?: string;
-  hostDomain?: string;
+  siteDomain?: string;
+  managedDomain?: string;
+  managedDomainNeedsCloud?: boolean;
 }
 
 /**
@@ -88,10 +92,12 @@ export function PlatformProvider({
   cloudAuthUrl = CLOUD_DASHBOARD_URL,
   cloudApiUrl = CLOUD_API_URL,
   machineName,
-  hostDomain,
+  siteDomain = "vibrail.com",
+  managedDomain = DEFAULT_MANAGED_DOMAIN,
+  managedDomainNeedsCloud = true,
 }: PlatformProviderProps) {
   const [selfHosted, setSelfHostedState] = useState(initialSelfHosted);
-  const baseDomain = hostDomain || DEFAULT_CLOUD_DOMAIN;
+  const baseDomain = managedDomain;
   const setSelfHosted = useCallback((v: boolean) => setSelfHostedState(v), []);
 
   return (
@@ -106,7 +112,9 @@ export function PlatformProvider({
         cloudAuthUrl,
         cloudApiUrl,
         machineName,
-        hostDomain,
+        siteDomain,
+        managedDomain,
+        managedDomainNeedsCloud,
         baseDomain,
         setSelfHosted,
       }}

@@ -31,6 +31,7 @@ import { sealedRemoteImport } from "./db-migrate-remote.service";
 import { probeTarget, TargetIsCloudError } from "./target-probe";
 import { withMigration } from "./with-migration";
 import type { Context } from "hono";
+import { getRoutingBaseDomain } from "../../../lib/routing-domains";
 
 export interface MigrateInstanceInput {
   serverId: string;
@@ -66,7 +67,7 @@ function publicUrlFor(domain: DomainChoice): string {
   if (domain.kind === "custom") {
     return `https://${domain.hostname}`;
   }
-  return `https://${domain.slug}.vibrail.com`;
+  return `https://${domain.slug}.${getRoutingBaseDomain()}`;
 }
 
 export async function migrateInstanceToServer(

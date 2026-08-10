@@ -173,7 +173,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
       cloudAuthUrl={deploymentInfo.cloudAuthUrl}
       cloudApiUrl={deploymentInfo.cloudApiUrl}
       machineName={deploymentInfo.machineName}
-      hostDomain={deploymentInfo.hostDomain}
+      siteDomain={deploymentInfo.siteDomain}
+      managedDomain={deploymentInfo.managedDomain}
+      managedDomainNeedsCloud={deploymentInfo.managedDomainNeedsCloud}
     >
       {deploymentInfo.supportEmail ? (
         <script

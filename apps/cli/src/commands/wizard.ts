@@ -15,6 +15,7 @@
  */
 
 import chalk from "chalk";
+import { SYSTEM } from "@repo/core";
 import open from "open";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -347,7 +348,7 @@ export async function runWizard(): Promise<void> {
           message: "How do you want a domain + HTTPS?",
           initialValue: "free",
           options: [
-            { value: "free", label: "Free domain", hint: "name.vibrail.com via Vibrail Cloud — HTTPS handled for you" },
+            { value: "free", label: "Free domain", hint: `name.${SYSTEM.DOMAINS.CLOUD_DOMAIN} via Vibrail Cloud — HTTPS handled for you` },
             { value: "byo", label: "Bring your own", hint: "your domain, behind your own reverse proxy" },
             { value: BACK, label: "← Back" },
           ],
@@ -374,7 +375,7 @@ export async function runWizard(): Promise<void> {
         .toLowerCase();
       const host = await resolvePublicHost();
       note(
-        `${chalk.cyan(`https://${slug}.vibrail.com`)}\n\n` +
+        `${chalk.cyan(`https://${slug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}`)}\n\n` +
           `  ${chalk.dim("served via")}  Vibrail Cloud edge  ${chalk.dim("→")}  ${chalk.cyan(host)}\n\n` +
           chalk.dim("Vibrail Cloud terminates HTTPS and forwards to this server."),
         "Confirm free domain",
@@ -392,7 +393,7 @@ export async function runWizard(): Promise<void> {
         stage = "type";
         continue;
       }
-      publicUrl = `https://${slug}.vibrail.com`;
+      publicUrl = `https://${slug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}`;
       behindProxy = true; // Oblien's edge sets a trusted XFF
       domainPlan = { type: "free", slug, publicHost: host };
       break planning;
@@ -626,7 +627,7 @@ export async function runWizard(): Promise<void> {
       // eslint-disable-next-line no-constant-condition
       while (true) {
         const s2 = spinner();
-        s2.start(`Registering ${chalk.bold(`${regSlug}.vibrail.com`)} with Vibrail Cloud`);
+        s2.start(`Registering ${chalk.bold(`${regSlug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}`)} with Vibrail Cloud`);
         const res = await internalPost(port, "/api/system/self-register", {
           domainType: "free",
           slug: regSlug,
@@ -638,7 +639,7 @@ export async function runWizard(): Promise<void> {
           s2.stop(`Free domain live: ${res.data.url}`);
           break;
         }
-        s2.stop(`Couldn't register ${regSlug}.vibrail.com: ${res.data?.error || "failed"}`, 1);
+        s2.stop(`Couldn't register ${regSlug}.${SYSTEM.DOMAINS.CLOUD_DOMAIN}: ${res.data?.error || "failed"}`, 1);
         const next = ensure(
           await select({
             message: "Try a different subdomain?",

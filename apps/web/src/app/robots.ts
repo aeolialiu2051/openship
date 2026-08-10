@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
+import { SITE_URL } from "@/lib/site-url";
 
-const BASE_URL = "https://vibrail.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {
@@ -48,7 +48,7 @@ export default function robots(): MetadataRoute.Robots {
         disallow: ["/api/", "/login", "/dashboard/"],
       },
     ],
-    sitemap: `${BASE_URL}/sitemap.xml`,
-    host: BASE_URL,
+    sitemap: `${SITE_URL}/sitemap.xml`,
+    host: SITE_URL,
   };
 }

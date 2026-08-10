@@ -7,6 +7,7 @@ import { cloudRuntimeTarget, env, USER_SERVERS_ENABLED } from "../../config/env"
 import { rateLimiterFor } from "../../middleware/rate-limiter";
 import { APP_VERSION } from "../../lib/app-version";
 import { getSupportEmail } from "../../lib/support-email";
+import { managedDomainsUseCloudEdge } from "../../lib/routing-domains";
 
 /** Running server version (apps/api/package.json, via lib/app-version — the same
  *  value sent to the cloud on every call). Lets the dashboard tell a self-hosted
@@ -125,6 +126,8 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     cloudApiUrl: cloudRuntimeTarget.api,
     supportEmail: getSupportEmail(),
     ...(machineName && { machineName }),
-    ...(env.HOST_DOMAIN && { hostDomain: env.HOST_DOMAIN }),
+    siteDomain: env.VIBRAIL_SITE_DOMAIN,
+    managedDomain: env.VIBRAIL_MANAGED_DOMAIN,
+    managedDomainNeedsCloud: managedDomainsUseCloudEdge(),
   });
 });

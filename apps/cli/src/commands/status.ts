@@ -33,7 +33,8 @@ interface HealthEnv {
   cloudAuthUrl?: string | null;
   cloudApiUrl?: string | null;
   machineName?: string;
-  hostDomain?: string;
+  siteDomain?: string;
+  managedDomain?: string;
 }
 
 function readPorts(): { api?: number; dashboard?: number } {
@@ -114,7 +115,8 @@ export const statusCommand = new Command("status")
         // identity here without changing the protocol field consumed by the UI.
         row("Auth", envInfo.selfHosted ? envInfo.authMode : "cloud") +
         row("Team", envInfo.teamMode) +
-        (envInfo.hostDomain ? row("Host domain", envInfo.hostDomain) : "") +
+        (envInfo.siteDomain ? row("Site domain", envInfo.siteDomain) : "") +
+        (envInfo.managedDomain ? row("Managed domain", envInfo.managedDomain) : "") +
         (envInfo.machineName ? row("Machine", envInfo.machineName) : "");
     } else {
       out +=

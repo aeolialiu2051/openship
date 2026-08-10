@@ -31,7 +31,7 @@ export function registerSelfServerReconcile(): void {
 
       // ssh* fields are display-only for an isLocal row (never dialed). Prefer a
       // real address so the servers list reads truthfully.
-      const displayHost = env.SERVER_IP || env.HOST_DOMAIN || "127.0.0.1";
+      const displayHost = env.SERVER_IP || env.VIBRAIL_SITE_DOMAIN || "127.0.0.1";
 
       await repos.server.create({
         organizationId,

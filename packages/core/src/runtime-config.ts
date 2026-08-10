@@ -16,7 +16,7 @@ export const LOCAL_WEB_URL = localhost(DEFAULT_PORT.web);
 export const LOCAL_DASHBOARD_URL = localhost(DEFAULT_PORT.dashboard);
 export const LOCAL_API_URL = localhost(DEFAULT_PORT.api);
 
-// The production cloud endpoints. HOST_DOMAIN selects the shared public origin;
+// The production cloud endpoints. VIBRAIL_SITE_DOMAIN selects the shared public origin;
 // the hosted dashboard lives beneath /dashboard while the API keeps the clean
 // root-level /api/proxy contract. VIBRAIL_CLOUD_* remain the highest-priority
 // per-endpoint overrides for local development and custom installations.
@@ -26,7 +26,7 @@ const envUrl = (key: string): string | undefined => {
 };
 
 const hostedOrigin = (() => {
-  const configured = envUrl("HOST_DOMAIN");
+  const configured = envUrl("VIBRAIL_SITE_DOMAIN");
   if (!configured) return "https://vibrail.com";
   const withoutTrailingSlash = configured.replace(/\/+$/, "");
   return /^[a-z][a-z\d+.-]*:\/\//i.test(withoutTrailingSlash)

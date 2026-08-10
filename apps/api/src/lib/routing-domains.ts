@@ -29,25 +29,21 @@ export interface PlannedRouteDomain {
 }
 
 export function getRoutingBaseDomain(): string {
-  if (env.HOST_DOMAIN) return env.HOST_DOMAIN;
-  if (env.VIBRAIL_CLOUDFLARE_API_TOKEN && env.VIBRAIL_CLOUDFLARE_ZONE_ID) {
-    return env.VIBRAIL_MANAGED_DOMAIN;
-  }
-  return SYSTEM.DOMAINS.CLOUD_DOMAIN;
+  return env.VIBRAIL_MANAGED_DOMAIN || SYSTEM.DOMAINS.CLOUD_DOMAIN;
 }
 
 /**
  * Whether managed free subdomains need the legacy Vibrail Cloud edge bridge.
  *
- * With no HOST_DOMAIN, `*.vibrail.com` is owned by the Vibrail Cloud edge and a
- * user-VPS deploy must sync slug -> VPS through that service. A configured
- * HOST_DOMAIN belongs to the operator instead: DNS, wildcard TLS, and any
+ * The built-in managed domain is owned by the Vibrail Cloud edge and a
+ * user-VPS deploy must sync slug -> VPS through that service. A different
+ * VIBRAIL_MANAGED_DOMAIN belongs to the operator instead: DNS, wildcard TLS, and any
  * cross-VPS ingress are supplied by the operator's own infrastructure, while
  * Vibrail still installs the concrete hostname route on the target VPS.
  */
 export function managedDomainsUseCloudEdge(): boolean {
   return (
-    !env.HOST_DOMAIN?.trim() &&
+    env.VIBRAIL_MANAGED_DOMAIN.trim().toLowerCase() === SYSTEM.DOMAINS.CLOUD_DOMAIN &&
     !(env.VIBRAIL_CLOUDFLARE_API_TOKEN && env.VIBRAIL_CLOUDFLARE_ZONE_ID)
   );
 }

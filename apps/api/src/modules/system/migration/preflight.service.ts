@@ -25,6 +25,7 @@
 import { repos } from "@repo/db";
 import { sshManager } from "../../../lib/ssh-manager";
 import { resolveVibrailDistDirOrNull } from "./vibrail-dist";
+import { getRoutingBaseDomain } from "../../../lib/routing-domains";
 
 export type DomainChoice =
   | { kind: "custom"; hostname: string }
@@ -201,6 +202,6 @@ async function checkFreeSubdomainAvailable(
   // detected at deploy time and surfaces with a clean error.
   return {
     ok: true,
-    detail: `Slug "${slug}.vibrail.com" is structurally valid; availability confirmed at deploy time.`,
+    detail: `Slug "${slug}.${getRoutingBaseDomain()}" is structurally valid; availability confirmed at deploy time.`,
   };
 }

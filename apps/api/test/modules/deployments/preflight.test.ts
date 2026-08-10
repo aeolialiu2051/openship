@@ -204,7 +204,7 @@ describe("runPreflightChecks", () => {
     );
   });
 
-  it("does not call Vibrail Cloud for a user-owned VPS under HOST_DOMAIN", async () => {
+  it("does not call Vibrail Cloud for a user-owned VPS under VIBRAIL_MANAGED_DOMAIN", async () => {
     managedDomainsUseCloudEdge.mockReturnValue(false);
 
     const result = await runPreflightChecks({

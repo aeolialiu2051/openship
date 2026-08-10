@@ -125,7 +125,7 @@ export default function AppInstallPage() {
   const w = t.projectSettings.appInstall;
   const ap = t.dashboard.pages.apps;
   const { showToast } = useToast();
-  const { baseDomain, hostDomain, deployMode } = usePlatform();
+  const { baseDomain, managedDomainNeedsCloud, deployMode } = usePlatform();
   // Desktop mode → the "open on localhost / forward the port" hints are relevant
   // (a VPS is already public; a local app is already localhost).
   const isDesktop = deployMode === "desktop";
@@ -258,7 +258,7 @@ export default function AppInstallPage() {
         const mode =
           e.defaultMode === "domain" || e.defaultMode === "port"
             ? e.defaultMode
-            : cloudConnected || Boolean(hostDomain)
+            : cloudConnected || !managedDomainNeedsCloud
               ? "domain"
               : "port";
         out[endpointKey(e)] = { kind: "http", mode, ep: createPublicEndpoint({ domainType: "free" }) };
@@ -544,7 +544,7 @@ export default function AppInstallPage() {
     // returns false — bail so the user connects first, then re-clicks Install.
     if (
       httpStates.some((s) => s.mode === "domain" && s.ep.domainType === "free") &&
-      !hostDomain &&
+      managedDomainNeedsCloud &&
       !(await requireCloud("managed-project-domain"))
     ) {
       return;

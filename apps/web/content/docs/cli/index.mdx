@@ -71,7 +71,7 @@ The token is validated against the API and saved to `~/.vibrail/config.json`.
 | `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.com/dashboard` |
 | `--context <name>` | Name of the [context](#connection-contexts) to store this login under. | `default` |
 
-Set `HOST_DOMAIN` to change the shared hosted origin without rebuilding the CLI. A bare hostname is
+Set `VIBRAIL_SITE_DOMAIN` to change the shared hosted origin without rebuilding the CLI. A bare hostname is
 interpreted as HTTPS; the dashboard is mounted at `/dashboard` and the API stays at `/api/proxy`.
 `VIBRAIL_CLOUD_API_URL` and `VIBRAIL_CLOUD_DASHBOARD_URL` remain available as higher-priority overrides.
 

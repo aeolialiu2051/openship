@@ -169,7 +169,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
   const { config, state, updateConfig, initializeFromRepo, startDeployment } = useDeployment();
   const { t } = useI18n();
   const { requireCloud } = useCloud();
-  const { baseDomain, hostDomain, selfHosted, deployMode } = usePlatform();
+  const { baseDomain, managedDomainNeedsCloud, selfHosted, deployMode } = usePlatform();
   const { showModal, hideModal } = useModal();
   const { showToast } = useToast();
   const router = useRouter();
@@ -401,7 +401,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     if (
       !isServices &&
       !config.noPublicRoute &&
-      !hostDomain &&
+      managedDomainNeedsCloud &&
       canConnectCloud &&
       config.deployTarget !== "cloud" &&
       publicEndpointsNeedCloud(config.publicEndpoints)
@@ -410,7 +410,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     }
 
     // Compose services with free managed domains require cloud
-    if (!hostDomain && isServices && servicesNeedCloud(config.services)) {
+    if (managedDomainNeedsCloud && isServices && servicesNeedCloud(config.services)) {
       if (!(await requireCloud("managed-compose-domains", { domain: baseDomain }))) return;
     }
 
@@ -462,7 +462,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onBranchScanningChange }) => {
     }
 
     await continueDeploy(buildStrategyOverride ? { buildStrategy: buildStrategyOverride } : undefined);
-  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.noPublicRoute, config.publicEndpoints, config.services, continueDeploy, customDomainLimitBlocksDeploy, hideModal, hostDomain, isServices, requireCloud, selfHosted, showModal, t]);
+  }, [baseDomain, canConnectCloud, cloneGate.preference, config.buildStrategy, config.deployTarget, config.noPublicRoute, config.publicEndpoints, config.services, continueDeploy, customDomainLimitBlocksDeploy, hideModal, isServices, managedDomainNeedsCloud, requireCloud, selfHosted, showModal, t]);
 
   // Edit mode (opened from the project Runtime page with ?mode=config): the
   // finish button SAVES the config to the project and returns — no deploy, no

@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 import { LANDING_LOCALE_COOKIE, parseLandingLocale } from "@/lib/landing-locale";
 import { getSupportEmail } from "@/lib/support-email";
 import { CLOUD_DASHBOARD_URL, resolveDashboardPageUrl } from "@repo/core";
+import { SITE_URL } from "@/lib/site-url";
 
-const SITE_URL = "https://vibrail.com";
 
 const softwareLd = {
   "@context": "https://schema.org",

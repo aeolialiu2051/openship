@@ -18,7 +18,9 @@ interface DashboardProvidersProps {
   cloudAuthUrl: string;
   cloudApiUrl: string;
   machineName?: string;
-  hostDomain?: string;
+  siteDomain: string;
+  managedDomain: string;
+  managedDomainNeedsCloud: boolean;
   initialUser?: AuthUser | null;
   initialGithubData?: any;
 }
@@ -36,7 +38,9 @@ export function DashboardProviders({
   cloudAuthUrl,
   cloudApiUrl,
   machineName,
-  hostDomain,
+  siteDomain,
+  managedDomain,
+  managedDomainNeedsCloud,
 }: DashboardProvidersProps) {
   return (
     <AuthProvider initialUser={initialUser}>
@@ -50,7 +54,9 @@ export function DashboardProviders({
         cloudAuthUrl={cloudAuthUrl}
         cloudApiUrl={cloudApiUrl}
         machineName={machineName}
-        hostDomain={hostDomain}
+        siteDomain={siteDomain}
+        managedDomain={managedDomain}
+        managedDomainNeedsCloud={managedDomainNeedsCloud}
       >
         <GitHubProvider initialData={initialGithubData}>
           <CloudProvider>

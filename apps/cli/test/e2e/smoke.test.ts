@@ -70,9 +70,9 @@ describe("cli smoke", { timeout: 40_000 }, () => {
     expect(stdout).not.toContain("http://localhost:3001");
   });
 
-  it("derives the hosted login endpoint from HOST_DOMAIN", async () => {
+  it("derives the hosted login endpoint from VIBRAIL_SITE_DOMAIN", async () => {
     const { stdout, code } = await runCli(["login", "--help"], {
-      HOST_DOMAIN: "next.vibrail.example",
+      VIBRAIL_SITE_DOMAIN: "next.vibrail.example",
       VIBRAIL_CLOUD_API_URL: "",
       VIBRAIL_CLOUD_DASHBOARD_URL: "",
     });

@@ -294,7 +294,7 @@ migrationCommand
   .description("Read-only readiness check for the own-server migration")
   .requiredOption("--server-id <id>", "Target server id")
   .option("--hostname <host>", "Custom domain pointing at the server")
-  .option("--slug <slug>", "Free <slug>.vibrail.com subdomain")
+  .option("--slug <slug>", "Free managed subdomain slug")
   .action(async (opts) => {
     await guarded(async () => {
       const domain = buildDomain(opts);
@@ -324,7 +324,7 @@ migrationCommand
   .description("Migrate this instance onto your own server")
   .requiredOption("--server-id <id>", "Target server id")
   .option("--hostname <host>", "Custom domain pointing at the server")
-  .option("--slug <slug>", "Free <slug>.vibrail.com subdomain")
+  .option("--slug <slug>", "Free managed subdomain slug")
   .action(async (opts) => {
     await guarded(async () => {
       const domain = buildDomain(opts);

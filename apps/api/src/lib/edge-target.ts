@@ -9,7 +9,7 @@ import { getInstanceReachability } from "./public-url";
  *
  * This exists because the deploy server's `sshHost` is the WRONG source for an
  * `isLocal "This Server"` row: that field is display-only (self-server.ts sets it
- * to `SERVER_IP || HOST_DOMAIN || "127.0.0.1"`), so a box with no public URL set
+ * to `SERVER_IP || VIBRAIL_SITE_DOMAIN || "127.0.0.1"`), so a box with no public URL set
  * would make Oblien proxy `<slug>.vibrail.com` at `http://127.0.0.1` — its OWN
  * loopback — which 404s. For a real REMOTE server, `sshHost` IS the reachable
  * address, so we keep using it there.
@@ -75,7 +75,7 @@ function firstPublic(...candidates: (string | null | undefined)[]): string | nul
  * - Remote server (row is NOT `isLocal`): its `sshHost` is the reachable address.
  * - `isLocal "This Server"` / no server: this box runs the workload, so use the
  *   INSTANCE's public address — VIBRAIL_PUBLIC_URL host, SERVER_IP, the verified
- *   self-app domain, or HOST_DOMAIN — never the display `sshHost`.
+ *   self-app domain, or VIBRAIL_SITE_DOMAIN — never the display `sshHost`.
  */
 export async function resolveEdgeTargetHost(
   organizationId: string,
@@ -100,7 +100,7 @@ export async function resolveEdgeTargetHost(
   // No env seed — fall back to the verified self-app domain (the box's real
   // public URL once the operator added a domain in the Domains tab).
   const reach = await getInstanceReachability().catch(() => null);
-  const reachHost = firstPublic(reach?.url, env.HOST_DOMAIN);
+  const reachHost = firstPublic(reach?.url, env.VIBRAIL_SITE_DOMAIN);
   if (reachHost) return { host: reachHost };
 
   return { host: null, reason: NO_PUBLIC_HOST };

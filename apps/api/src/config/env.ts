@@ -59,6 +59,9 @@ const envSchema = z.object({
    */
   VIBRAIL_LOCAL_DASHBOARD_URL: z.string().optional(),
 
+  /** Public hostname (or URL in local development) for the Vibrail site/control plane. */
+  VIBRAIL_SITE_DOMAIN: z.string().default("vibrail.com"),
+
   /**
    * Set when this instance is served on a PUBLIC URL (e.g. `vibrail up
    * --public-url https://ops.example.com` on a VPS). Two security effects:
@@ -230,14 +233,8 @@ const envSchema = z.object({
   NOTIFY_WEBHOOK_ALLOW_INTERNAL: envBool("false"),
   /** Public IP of the server - used for A record instructions in self-hosted mode. */
   SERVER_IP: z.string().optional(),
-  /**
-   * Base domain for the self-hosted instance (e.g. "example.com").
-   * Deployments get a free subdomain: slug.HOST_DOMAIN (e.g. "myapp.example.com").
-   * SSL is NOT auto-provisioned for these - only for custom domains.
-   */
-  HOST_DOMAIN: z.string().optional(),
-  /** Managed Vibrail zone. It becomes the routing base when Cloudflare DNS is configured. */
-  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrail.com"),
+  /** Base domain for generated user deployment hostnames. */
+  VIBRAIL_MANAGED_DOMAIN: z.string().default("vibrailapp.com"),
   /** Backend-only Cloudflare credentials; never injected into deployed workloads. */
   VIBRAIL_CLOUDFLARE_API_TOKEN: z.string().optional(),
   VIBRAIL_CLOUDFLARE_ZONE_ID: z.string().optional(),
