@@ -49,7 +49,7 @@ If the correct instruction file is unknown, continue without persisting this pre
 - If Vibrail login is required, use the interactive command — it opens a browser authorization page and stores the credential itself. Never use `vibrail login --token ...` interactively (risks shell-history leakage).
 - If a server's `--auth-method` is `password`, let the CLI's interactive hidden prompt collect it — never pass `--password` as a visible argument or write it to a file.
 - Only send source archives and auth requests to the configured Vibrail API or an upload URL it returns. Never upload `.env`, credentials, private keys, cloud credential directories, source-control metadata, agent memory, local databases, or unrelated files.
-- Don't pass application secrets through visible CLI arguments — point the user to the Vibrail Console instead. Never write generated passwords/tokens/keys to a plaintext temp file; prefer server-side generation or a hidden prompt plus encrypted Vibrail storage.
+- Never put a user-supplied secret or a secret value already visible to the agent literally in a CLI command. For application-owned random secrets, generate the value inside the shell invocation and write it directly to Vibrail's encrypted environment store without printing it. Never write generated passwords/tokens/keys to a plaintext temp file.
 - Don't deploy dependencies, caches, coverage, logs, temp files, or old build output unless it's an intentionally checked-in artifact.
 - Before installing software, changing deployment config, or performing a real deployment, briefly tell the user what will happen.
 
@@ -119,7 +119,7 @@ If `vibrail.json` exists, validate it (`vibrail config validate`) and fix only w
 
 For a repo with a Compose file, these scan results are mandatory before `projects/ensure`: `framework` is `docker-compose`, `projectType` is `services`, detected service names exactly match the Compose file, and the exposed app port matches the Compose container port. If any fails, stop — don't compensate with an App Catalog project or by manually reducing the stack.
 
-If the app can't run as written, make only the smallest necessary deployment-readiness fix, proportional to risk. If a secret, domain, paid resource, external database, or target decision is missing, stop and ask — don't invent a value.
+If the app can't run as written, make only the smallest necessary deployment-readiness fix, proportional to risk. Classify missing configuration using the credential workflow below. Stop only for a value that cannot be safely inferred or generated, such as an external account credential, domain, paid resource, external database, or consequential target decision.
 
 ### Audit GitHub repositories and deployment configuration
 
@@ -129,11 +129,34 @@ Before creating a project or starting a deployment for any (not just the current
 2. Read the README, deployment docs, manifests, lockfiles, example env files, Docker/Compose files, CI config, and framework config — treat docs as hints, verify against source.
 3. Identify every required build/runtime variable, secret, external service, database, storage volume, callback URL, hostname, license key, and one-time init/migration command.
 4. Compare against the proposed Vibrail config: variable names, scopes, service ownership, ports, commands, paths, production-safe values. Confirm nothing required is missing/empty and no placeholder (`${KEY}`, `changeme`, example creds) will reach production.
-5. Infer only unambiguous non-secret values (e.g. `NODE_ENV=production`); route secrets and consequential values to the Vibrail Console — never in chat or visible CLI args.
+5. Infer unambiguous non-secret values (e.g. `NODE_ENV=production`), auto-generate application-owned random secrets, and request only credentials that must come from an external account or the user. Never request all environment variables as one undifferentiated bundle.
 6. Verify the app actually supports the chosen topology: `0.0.0.0` binding, platform `PORT`, writable/persistent paths, migrations, health checks, public callback URLs, Compose service relationships.
 7. Run available low-risk validation/build/config checks. If required config is unknown or contradictory, stop and give the user a concise list of what's needed.
 
 A successful framework scan is not proof the app is ready to deploy — environment/runtime config is a mandatory gate.
+
+### Classify and configure credentials
+
+Classify every missing secret before asking the user anything:
+
+1. **Application-owned random secret** — signing/encryption/session/auth secrets whose only requirement is sufficient entropy, such as `BETTER_AUTH_SECRET`, `AUTH_SECRET`, `NEXTAUTH_SECRET`, `JWT_SECRET`, `SESSION_SECRET`, `ENCRYPTION_KEY`, webhook/inngest signing keys, and internal database/cache passwords. Generate these automatically. Do not ask whether the user already has them and do not offer a Console detour.
+2. **Derived internal value** — a URL, username, or shared credential determined by another deployed service. Derive it from the confirmed topology; generate one shared secret when multiple services must use the same value.
+3. **External credential** — API keys, OAuth client secrets, app passwords, license keys, and database URLs issued by another provider/account (for example Finnhub, Gmail, Gemini, Stripe, or an external Postgres host). Never fabricate these. Ask only for the required external credential, explain where it comes from, and have the user enter it through the Console or another hidden/encrypted input path—not chat.
+4. **Optional credential** — omit it and deploy with the related feature disabled unless the user explicitly wants that feature. Do not block the base deployment.
+
+Read source validation and generation requirements before choosing a generator. Preserve documented formats and minimum lengths. Unless the application specifies otherwise, use at least 32 cryptographically random bytes encoded as hex. Generate once per logical secret, reuse the same value wherever the application requires equality, and never rotate an existing masked secret merely because its value cannot be read back.
+
+After the project exists and before its first start, write generated values directly to encrypted project environment variables without echoing or capturing them in agent output. With the current CLI, keep generation inside the shell expansion so the value is never embedded in the tool request:
+
+```bash
+vibrail project env set <project-id> --secret \
+  --set "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" \
+  --set "INNGEST_SIGNING_KEY=$(openssl rand -hex 32)"
+```
+
+Use the exact keys required by the repository, not the example names above. For service-scoped variables, use the corresponding service environment command and preserve existing masked secrets. If the installed CLI gains a server-side generate or stdin/hidden-input option, prefer it over shell expansion.
+
+Before prompting, present only unresolved external **required** credentials. For example, an app needing Finnhub plus internal Better Auth/Inngest secrets and optional Gmail/Gemini should prompt only for Finnhub; generate and configure the internal secrets, and leave Gmail/Gemini unset unless requested.
 
 ### Configure third-party project login
 
