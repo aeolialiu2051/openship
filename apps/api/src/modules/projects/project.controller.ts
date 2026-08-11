@@ -1495,17 +1495,6 @@ export async function linkRepo(c: Context) {
 
   if (!result.ok) {
     if (result.code === "not_found") return c.json({ error: "Project not found" }, 404);
-    if (result.code === "app_not_installed") {
-      return c.json(
-        {
-          success: false,
-          error: "GitHub App is not installed for this account",
-          install_url: result.installUrl,
-          owner: result.owner,
-        },
-        400,
-      );
-    }
     return c.json({ success: false, error: result.message }, 400);
   }
 

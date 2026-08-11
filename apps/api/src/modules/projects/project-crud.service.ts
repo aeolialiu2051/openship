@@ -35,11 +35,16 @@ import {
   resolveDefaultBranch,
   listBranches as listGitHubBranches,
   getLatestCommit,
+  getRepository,
   resolveWebhookStrategy,
 } from "../github/github.service";
-import { getInstallationIdByOrg, getInstallUrl } from "../github/github.auth";
+import { getInstallationIdByOrg } from "../github/github.auth";
 import { domainWebhookUrl } from "../../lib/public-url";
 import { ensureSharedWebhook } from "./project-git-webhook";
+import {
+  resolveAppGitLinkPolicy,
+  shouldEnableInitialAppAutoDeploy,
+} from "./project-git-link-policy";
 import {
   deriveEnvironmentPublicEndpoints,
   deriveNextProjectRouteState,
@@ -329,7 +334,14 @@ function buildProductionProjectInput(
     gitUrl: source.gitUrl,
     releaseSource: source.releaseSource,
     installationId: data.installationId,
-    autoDeploy: !!(env.CLOUD_MODE && source.gitOwner && source.gitRepo),
+    // A repository source is not proof of push authorization. Auto-deploy is
+    // enabled only when the server resolved an owner-matching App installation.
+    autoDeploy: shouldEnableInitialAppAutoDeploy({
+      cloudMode: env.CLOUD_MODE,
+      gitOwner: source.gitOwner,
+      gitRepo: source.gitRepo,
+      installationId: data.installationId,
+    }),
     framework: data.framework ?? "unknown",
     packageManager: data.packageManager ?? "npm",
     installCommand: data.installCommand,
@@ -531,16 +543,14 @@ export async function createServicesProjectWithId(opts: {
  * controller, callable WITHOUT a Hono Context (the migration orchestrator links
  * a repo to a freshly-adopted project, and it only has a RequestContext). Sets
  * the project's git fields, resolves the default branch, registers a push
- * webhook per the instance's strategy, and propagates the source to sibling
- * environments. Returns a discriminated outcome so each caller maps its own
- * response: the controller → HTTP JSON (incl. the app-not-installed install_url),
- * the orchestrator → best-effort log. Does NOT audit — the controller owns that.
+ * webhook when authorized, and propagates the source to sibling environments.
+ * A readable repository can always be linked; App installation controls only
+ * push-to-deploy. Does NOT audit — the controller owns that.
  */
 export type LinkProjectRepoOutcome =
   | { ok: true; owner: string; repo: string; branch: string; strategy: string; autoDeploy: boolean }
   | { ok: false; code: "not_found" }
-  | { ok: false; code: "invalid"; message: string }
-  | { ok: false; code: "app_not_installed"; owner: string; installUrl: string };
+  | { ok: false; code: "invalid"; message: string };
 
 export async function linkProjectRepo(
   ctx: RequestContext,
@@ -561,7 +571,10 @@ export async function linkProjectRepo(
   }
 
   const gitUrl = projectGitUrl(owner, repo);
-  const defaultBranch = await resolveDefaultBranch(ctx, owner, repo, input.branch);
+  // Fetch the repository once to prove the caller can read it and resolve the
+  // default branch. App installation is evaluated separately below.
+  const repository = await getRepository(ctx, owner, repo);
+  const defaultBranch = input.branch?.trim() || repository.default_branch;
 
   const gitFields: Record<string, unknown> = {
     gitProvider: "github",
@@ -569,25 +582,29 @@ export async function linkProjectRepo(
     gitRepo: repo,
     gitBranch: defaultBranch,
     gitUrl,
+    // Repointing must not retain credentials/webhooks from the old repository.
+    installationId: null,
+    webhookId: null,
+    autoDeploy: false,
   };
 
-  const strategy = await resolveWebhookStrategy(project!);
+  const configuredStrategy = await resolveWebhookStrategy(project!);
+  let effectiveStrategy = configuredStrategy;
 
-  if (strategy === "app") {
+  if (configuredStrategy === "app") {
     const resolvedInstId = await getInstallationIdByOrg(organizationId, owner);
-    if (!resolvedInstId) {
-      return { ok: false, code: "app_not_installed", owner, installUrl: getInstallUrl() };
-    }
-    gitFields.installationId = resolvedInstId;
-    gitFields.autoDeploy = true;
-  } else if (strategy === "domain" || strategy === "repo") {
+    const policy = resolveAppGitLinkPolicy(resolvedInstId);
+    gitFields.installationId = policy.installationId;
+    gitFields.autoDeploy = policy.autoDeploy;
+    effectiveStrategy = policy.strategy;
+  } else if (configuredStrategy === "domain" || configuredStrategy === "repo") {
     // Register/reuse the repo webhook via the SHARED reconciler (org+repo scoped,
     // deactivates a superseded hook, fans the webhookId across same-repo projects)
     // — the exact path setAutoDeploy uses, instead of a bespoke registerWebhook.
     // A failure just means no auto-deploy yet; the link still succeeds and the
     // user can enable it later.
     const webhookUrl =
-      strategy === "domain" ? domainWebhookUrl(project!.webhookDomain!) : undefined;
+      configuredStrategy === "domain" ? domainWebhookUrl(project!.webhookDomain!) : undefined;
     const hookId = await ensureSharedWebhook(ctx, project!, owner, repo, webhookUrl).catch(
       () => null,
     );
@@ -604,15 +621,16 @@ export async function linkProjectRepo(
       gitOwner: owner,
       gitRepo: repo,
       gitUrl,
-      installationId: (gitFields.installationId as number | undefined) ?? input.installationId,
-      ...(typeof gitFields.webhookId === "number" ? { webhookId: gitFields.webhookId } : {}),
+      installationId: gitFields.installationId as number | null,
+      webhookId: gitFields.webhookId as number | null,
+      autoDeploy: !!gitFields.autoDeploy,
     };
     await repos.projectGroup.update(project!.groupId, {
       gitProvider: "github",
       gitOwner: owner,
       gitRepo: repo,
       gitUrl,
-      installationId: (gitFields.installationId as number | undefined) ?? input.installationId,
+      installationId: gitFields.installationId as number | null,
     });
     const siblings = await repos.project.listByGroup(project!.groupId);
     await Promise.all(
@@ -627,7 +645,7 @@ export async function linkProjectRepo(
     owner,
     repo,
     branch: defaultBranch,
-    strategy,
+    strategy: effectiveStrategy,
     autoDeploy: !!gitFields.autoDeploy,
   };
 }

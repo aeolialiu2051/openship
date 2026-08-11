@@ -176,6 +176,11 @@ vibrail project git webhook-domain proj_123 app.example.com   # or: --clear
 Pass exactly one of `--enable` / `--disable`. `git webhook-domain` takes an optional `[domain]` argument or
 a `--clear` flag to unset it.
 
+`git link` and App auto-deploy are separate capabilities. If Vibrail can read a repository through
+an available credential, linking succeeds even when the repository owner has no Vibrail GitHub App
+installation; the project remains manually deployable with auto-deploy disabled. Enabling App
+auto-deploy requires an owner-matching installation that covers the repository.
+
 ### connect
 
 Attaches a custom domain and prints the DNS records to add. Verification then runs automatically once the

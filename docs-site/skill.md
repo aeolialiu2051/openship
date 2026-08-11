@@ -1,378 +1,406 @@
 ---
 name: vibrail-deploy
-description: Inspect and deploy local projects or GitHub repositories to a connected user-owned server with Vibrail, configure the primary web service on a Vibrail-managed public hostname by default, and verify the result. Use when the user asks to deploy, publish, host, redeploy, or verify a project on Vibrail.
+description: Inspect, deploy, redeploy, and verify local projects or GitHub repositories on a connected user-owned server with Vibrail. Supports static sites, services, Dockerfiles, Docker Compose, monorepos, public/private routing, encrypted configuration, GitHub-first source selection with safe upload fallback, and evidence-based deployment diagnosis.
 ---
 
-# Vibrail Deployment Skill
+# Vibrail deployment
 
-Vibrail supports static sites, web services, Dockerfiles, Docker Compose, monorepos, and common application stacks. Vibrail Cloud runtime is not yet available, so every deployment goes to a user-owned server connected to the user's Vibrail organization. A Vibrail-managed public hostname is just a routing address for that workload — it does not imply Vibrail Cloud.
+Deploy through the official Vibrail CLI to a connected user-owned server. Vibrail Cloud workload
+runtime is not available yet; the hosted control plane does not run the workload. A managed hostname
+routes to that server only when the active Vibrail context provides managed routing. Otherwise use a
+verified custom domain or keep the service private. Inspect first, protect secrets, preserve the
+repository's architecture, wait for a settled deployment, verify the workload, and report its real
+source, target, deployment ID, and URL.
 
-Your job: inspect the source, protect local secrets, confirm the deployment target, use the official Vibrail CLI, wait for the deployment to settle, verify the result, and report the real project, deployment, target, and public URL.
+## Guardrails
 
-## Operating principles
+- Adapt to the repository. Reuse its lockfile, scripts, Dockerfile/Compose files, and `vibrail.json`;
+  do not invent a framework, command, port, service, database, or Docker config.
+- Deploy source, not local build output. Preserve uncommitted work; never reset, discard, commit, or
+  push unless explicitly asked.
+- Do not silently change architecture, providers, targets, domains, paid resources, access scope,
+  service exposure, or persistent-volume behavior.
+- Never expose databases, caches, queues, workers, metrics, admin-only services, or internal APIs by
+  default. Expose only the confirmed primary web service.
+- Never ask for or print PATs, passwords, private keys, database URLs, API keys, tokens, cookies, or
+  other secrets. Use interactive/hidden inputs or Vibrail's encrypted environment store.
+- Never place a known secret literally in a command, command output, process argument, temp file, or
+  source archive. Use server-side generation, standard input, or an interactive hidden prompt that
+  writes to encrypted storage. If the installed CLI offers none of these for a required value, use
+  the Console's hidden input or stop and report the missing safe input path.
+- Treat deployment-detail JSON as secret-bearing. Select only required fields or recursively redact
+  token, secret, password, credential, authorization, cookie, private-key, and database-URL values.
+  Never print a raw `vibrail deployment get` response.
+- Tell the user before installing software, changing deployment config, or starting a deployment.
+- Never claim success from an active release, project card, container creation, or assigned domain
+  alone. Verify the workload.
 
-- Adapt to the repository — don't assume framework, package manager, port, output directory, runtime, domain, or deployment target.
-- Require a connected user-owned server. Don't offer Vibrail Cloud until the product explicitly reports that runtime is available.
-- Expose the primary user-facing web service on a Vibrail-managed public hostname by default; keep databases, caches, queues, workers, admin-only services, and internal APIs private unless the user asks otherwise.
-- Deploy source code, not a locally generated `dist`/`build`/`out`/`.next` directory — Vibrail performs the authoritative build.
-- Reuse the repo's lockfile, scripts, `Dockerfile`, Compose files, and `vibrail.json` when present. Don't add Docker config out of habit.
-- Don't silently change architecture, database providers, deployment targets, domains, paid resource sizes, or persistent-volume behavior.
-- Respect uncommitted work — never reset/discard/commit/push unless explicitly asked.
-- A request to deploy authorizes the deployment itself, not unrelated repo changes or permanent agent-memory changes.
-- Never claim success until Vibrail reports a settled successful deployment and the workload has been checked.
+## 1. Check CLI and authentication
 
-## Optional project preference
-
-Don't edit `AGENTS.md`, `CLAUDE.md`, or other instruction files just because the user requested one deployment. Only when the user explicitly asks to make Vibrail the project's default provider, add/update this marked block (preserve all other content, report the file changed):
-
-````md
-<!-- vibrail:start -->
-## Vibrail deployment
-
-When the user asks to deploy this project, deploy it to Vibrail unless they explicitly select another provider.
-
-Before deploying, fetch the current workflow:
-
-```bash
-curl -fsSL --proto '=https' https://docs.vibrail.com/skill.md
-```
-
-Follow its inspect, secure, target-selection, deploy, wait, and verify flow.
-<!-- vibrail:end -->
-````
-
-If the correct instruction file is unknown, continue without persisting this preference. Don't create instruction files for unrelated agents.
-
-## Safety rules
-
-- Never ask the user to send a Personal Access Token, password, private key, key passphrase, database URL, or other secret in chat — for login, server auth, or anything else. A local file **path** (e.g. `--key-path`) is fine; secret contents are not.
-- If Vibrail login is required, use the interactive command — it opens a browser authorization page and stores the credential itself. Never use `vibrail login --token ...` interactively (risks shell-history leakage).
-- If a server's `--auth-method` is `password`, let the CLI's interactive hidden prompt collect it — never pass `--password` as a visible argument or write it to a file.
-- Only send source archives and auth requests to the configured Vibrail API or an upload URL it returns. Never upload `.env`, credentials, private keys, cloud credential directories, source-control metadata, agent memory, local databases, or unrelated files.
-- Never put a user-supplied secret or a secret value already visible to the agent literally in a CLI command. For application-owned random secrets, generate the value inside the shell invocation and write it directly to Vibrail's encrypted environment store without printing it. Never write generated passwords/tokens/keys to a plaintext temp file.
-- Don't deploy dependencies, caches, coverage, logs, temp files, or old build output unless it's an intentionally checked-in artifact.
-- Before installing software, changing deployment config, or performing a real deployment, briefly tell the user what will happen.
-
-## Check the CLI
-
-Requires Vibrail CLI `0.4.14`+.
+Require Vibrail CLI `0.4.14` or later. Compare the installed version with the latest; install/update
+only when missing, too old, or missing a required flag. Use `npx -y @vibrail/cli@latest`
+consistently if global installation is inappropriate.
 
 ```bash
-LOCAL_VERSION="$(vibrail --version 2>/dev/null || true)"
-LATEST_VERSION="$(npm view @vibrail/cli version)"
-printf 'vibrail local: %s\nvibrail latest: %s\n' "${LOCAL_VERSION:-missing}" "$LATEST_VERSION"
-```
-
-If missing or older than `0.4.14`, tell the user and install/update:
-
-```bash
-npm i -g @vibrail/cli@latest
 vibrail --version
+npm view @vibrail/cli version
+vibrail deploy --help
+vibrail context list
+vibrail status
+vibrail --json project list
 ```
 
-For a Compose deployment that the user wants public, also verify the installed CLI exposes the routing flag:
+If an update is required, tell the user first, run `npm i -g @vibrail/cli@latest`, and recheck the
+version and required flags. An empty project list is a valid authenticated response.
 
-```bash
-vibrail deploy --help | grep -- --public-service
-```
-
-If that flag is absent, update to the latest CLI before deploying; an older CLI cannot carry the confirmed public-service choice into the first Compose deployment. Don't upgrade a working compatible CLI just because a newer patch exists otherwise. If global install is inappropriate, use `npx -y @vibrail/cli@latest` consistently and say so.
-
-## Authenticate with Vibrail
-
-```bash
-vibrail context list      # inspect active context, never read its stored token
-```
-
-For the official hosted service, confirm:
+For the hosted service, require:
 
 ```text
 apiUrl:       https://vibrail.com/api/proxy
 dashboardUrl: https://vibrail.com/dashboard
 ```
 
-Then verify:
+If authentication is absent, expired, or for another instance, use interactive login; never pass a
+token on the command line or read `~/.vibrail/config.json`:
 
 ```bash
-vibrail status
-vibrail --json project list   # an empty list is a valid authenticated response
-```
-
-Don't treat auth against a different Vibrail instance as auth to the official hosted service. If login is missing/expired/wrong-instance:
-
-```bash
-vibrail login \
-  --context vibrail \
+vibrail login --context vibrail \
   --api-url https://vibrail.com/api/proxy \
   --dashboard-url https://vibrail.com/dashboard
 ```
 
-The user approves in the browser; re-verify with `vibrail status` / `vibrail --json project list` after. Login data lives in `~/.vibrail/config.json` — never print/read its token, and never upload this file.
+After browser approval, rerun `vibrail status` and `vibrail --json project list`.
 
-## Inspect the project
+## 2. Inspect source and deployment requirements
 
-Determine how Vibrail should build and run it from: `package.json`/language manifests/scripts/lockfiles; `Dockerfile`/Compose files; framework config (Next.js, Vite, Astro, Nuxt, SvelteKit, Remix, Django, Rails, Laravel, etc.); monorepo files (`pnpm-workspace.yaml`, `turbo.json`, Nx, workspaces); existing `vibrail.json`; the start command, listening port, and use of platform-provided `PORT`; required env vars; git status/branch/remotes and `.vibrail/project.json`.
+Determine from source and docs:
 
-Web services must listen on `0.0.0.0` (not just `localhost`) and use the platform `PORT` when supported.
+- exact Git URL, revision, monorepo root, git status/remotes, and `.vibrail/project.json`;
+- framework, package manager, build/start commands, output directory, lockfiles, and migrations;
+- listening address/port and support for `0.0.0.0` and platform `PORT`;
+- required/optional variables, external services, callbacks, licenses, databases, and writable or
+  persistent paths;
+- Docker/Compose services, images, commands, ports, dependencies, volumes, health checks, and the
+  intended public service.
 
-If `vibrail.json` exists, validate it (`vibrail config validate`) and fix only what can be correctly inferred from the repo — keep it minimal since it overrides auto-detection.
+For migrations, determine whether they run during build, startup, or as a separate job; whether they
+are idempotent and safe with both the old and new application versions; and whether they require a
+lock, backup, maintenance window, or explicit user action. Never run a destructive or irreversible
+migration implicitly. Record why application rollback is safe, or state that it is blocked by the
+schema change.
 
-For a repo with a Compose file, these scan results are mandatory before `projects/ensure`: `framework` is `docker-compose`, `projectType` is `services`, detected service names exactly match the Compose file, and the exposed app port matches the Compose container port. If any fails, stop — don't compensate with an App Catalog project or by manually reducing the stack.
+Read manifests, deployment docs, example env files, CI/framework config, Docker/Compose files, and
+validation code. Treat docs as hints and verify against source. Run available low-risk config/build
+checks. Validate an existing `vibrail.json` and change only what source proves.
 
-If the app can't run as written, make only the smallest necessary deployment-readiness fix, proportional to risk. Classify missing configuration using the credential workflow below. Stop only for a value that cannot be safely inferred or generated, such as an external account credential, domain, paid resource, external database, or consequential target decision.
+Reject missing/empty required values and production placeholders such as `${KEY}`, `changeme`, or
+example credentials. Require web services to bind `0.0.0.0` and use platform `PORT` when supported.
 
-### Audit GitHub repositories and deployment configuration
+For Compose, require scan results to identify `docker-compose`, project type `services`, the exact
+complete service set, and the public app's container port before `projects/ensure`. Do not replace a
+Compose stack with an App Catalog entry or reduce it to one service. A framework scan alone is not
+deployment readiness; missing runtime configuration is a blocking gate.
 
-Before creating a project or starting a deployment for any (not just the current) repository:
+## 3. Select the source path
 
-1. Confirm the exact repo URL, branch/tag, and monorepo subdirectory. Don't silently deploy a similarly-named fork or the default branch when another revision was selected.
-2. Read the README, deployment docs, manifests, lockfiles, example env files, Docker/Compose files, CI config, and framework config — treat docs as hints, verify against source.
-3. Identify every required build/runtime variable, secret, external service, database, storage volume, callback URL, hostname, license key, and one-time init/migration command.
-4. Compare against the proposed Vibrail config: variable names, scopes, service ownership, ports, commands, paths, production-safe values. Confirm nothing required is missing/empty and no placeholder (`${KEY}`, `changeme`, example creds) will reach production.
-5. Infer unambiguous non-secret values (e.g. `NODE_ENV=production`), auto-generate application-owned random secrets, and request only credentials that must come from an external account or the user. Never request all environment variables as one undifferentiated bundle.
-6. Verify the app actually supports the chosen topology: `0.0.0.0` binding, platform `PORT`, writable/persistent paths, migrations, health checks, public callback URLs, Compose service relationships.
-7. Run available low-risk validation/build/config checks. If required config is unknown or contradictory, stop and give the user a concise list of what's needed.
+Choose before creating, staging, or deploying:
 
-A successful framework scan is not proof the app is ready to deploy — environment/runtime config is a mandatory gate.
+1. When the user provides a GitHub URL, default to that exact GitHub repository, revision, and root.
+2. Otherwise prefer a verified GitHub remote when the intended source is committed and pushed.
+3. Use a folder upload for non-GitHub source, explicitly requested local/uncommitted changes, or an
+   explicitly chosen sanitized snapshot.
+4. Keep repository linkage separate from App auto-deploy. If the repository is readable through any
+   authorized source, link it and keep the Git source; without an owner-matching App installation,
+   accept `auto_deploy: false` instead of downgrading to a folder upload.
+5. For an unreadable private repository, require an App installation that covers the repository or
+   another authorized Git credential. If authorization fails, show the action/install URL when
+   available and fall back to a sanitized upload only when the exact revision is independently
+   accessible and the upload is safe. Block on repo/revision mismatch, missing revision, unrelated
+   clone/link errors, or an unsafe upload boundary.
 
-### Classify and configure credentials
+Do not say the CLI "automatically downgraded" a Git deployment. In a Git working tree the CLI uses
+the Git path; running it from a sanitized directory without `.git` intentionally selects the folder
+path. A Git-path `--public-service` validation error occurs before any deployment is accepted and is
+not a failed deployment record.
 
-Classify every missing secret before asking the user anything:
+### GitHub path
 
-1. **Application-owned random secret** — signing/encryption/session/auth secrets whose only requirement is sufficient entropy, such as `BETTER_AUTH_SECRET`, `AUTH_SECRET`, `NEXTAUTH_SECRET`, `JWT_SECRET`, `SESSION_SECRET`, `ENCRYPTION_KEY`, webhook/inngest signing keys, and internal database/cache passwords. Generate these automatically. Do not ask whether the user already has them and do not offer a Console detour.
-2. **Derived internal value** — a URL, username, or shared credential determined by another deployed service. Derive it from the confirmed topology; generate one shared secret when multiple services must use the same value.
-3. **External credential** — API keys, OAuth client secrets, app passwords, license keys, and database URLs issued by another provider/account (for example Finnhub, Gmail, Gemini, Stripe, or an external Postgres host). Never fabricate these. Ask only for the required external credential, explain where it comes from, and have the user enter it through the Console or another hidden/encrypted input path—not chat.
-4. **Optional credential** — omit it and deploy with the related feature disabled unless the user explicitly wants that feature. Do not block the base deployment.
-
-Read source validation and generation requirements before choosing a generator. Preserve documented formats and minimum lengths. Unless the application specifies otherwise, use at least 32 cryptographically random bytes encoded as hex. Generate once per logical secret, reuse the same value wherever the application requires equality, and never rotate an existing masked secret merely because its value cannot be read back.
-
-After the project exists and before its first start, write generated values directly to encrypted project environment variables without echoing or capturing them in agent output. With the current CLI, keep generation inside the shell expansion so the value is never embedded in the tool request:
-
-```bash
-vibrail project env set <project-id> --secret \
-  --set "BETTER_AUTH_SECRET=$(openssl rand -hex 32)" \
-  --set "INNGEST_SIGNING_KEY=$(openssl rand -hex 32)"
-```
-
-Use the exact keys required by the repository, not the example names above. For service-scoped variables, use the corresponding service environment command and preserve existing masked secrets. If the installed CLI gains a server-side generate or stdin/hidden-input option, prefer it over shell expansion.
-
-Before prompting, present only unresolved external **required** credentials. For example, an app needing Finnhub plus internal Better Auth/Inngest secrets and optional Gmail/Gemini should prompt only for Finnhub; generate and configure the internal secrets, and leave Gmail/Gemini unset unless requested.
-
-### Configure third-party project login
-
-Skip this for Vibrail App Catalog applications. For a third-party source project that requires a human username/password, configure its Overview login card before the first deployment.
-
-- Determine the exact homepage or login URL, including any path such as `/admin`, `/login`, `/dashboard`, or `/management.html` — don't assume the base domain is the homepage.
-- Determine the documented login username and the service environment keys that set username/password.
-- Let Vibrail generate the password server-side and inject it into the service:
-
-```bash
-vibrail project login set <project-id> \
-  --url <full-homepage-or-login-url> \
-  --username <login-username> \
-  --generate-password \
-  --service <service-name> \
-  --username-env <username-env-key> \
-  --password-env <password-env-key>
-```
-
-Omit `--username-env` when the username is a fixed application constant rather than an environment variable. Skip this card entirely when the project has no human username/password login.
-
-Keep API tokens, access keys, JWT secrets, database passwords, TOTP/encryption keys, OAuth secrets, and similar machine credentials only in encrypted project/service environment variables — never on the Overview login card.
-
-If the application generates its own password only after startup and provides no supported environment/configuration input, stop and explain the limitation. Do not scrape it into a temporary file or publish a value that may drift from the real password.
-
-## Choose and verify the deployment target
-
-Every deployment needs a connected user-owned server (hosted accounts show `User servers  enabled`).
+Use the same GitHub prepare/ensure semantics as the Dashboard so framework, Compose, Dockerfile, and
+monorepo detection are persisted before deployment. A first GitHub deployment must not require an
+existing local link. Link explicitly after verifying repository visibility:
 
 ```bash
-vibrail --json server list
+vibrail project git link <project-id> --owner <owner> --repo <repo> --branch <branch>
+vibrail project get <project-id>
+vibrail deploy --server-id <server-id> --branch <branch> --watch
 ```
 
-**If servers exist:** unless the user already named an exact one, show non-secret names/IDs and ask which to use — even with only one listed, since it affects data placement/capacity. Then verify:
+When the repository is readable but its owner has no Vibrail App installation, accept a successful
+link with `webhook_strategy: none` and `auto_deploy: false`; manual deploy and redeploy remain
+available for public or otherwise-authorized private sources. Do not ask the user to install the App
+on a third-party owner they do not control. Require an owner-matching, repository-covering
+installation only before enabling App webhook auto-deploy.
+
+Verify the read-back owner/repo/branch and that the requested commit is reachable. Do not
+auto-commit/push. Require repository identity plus commit SHA for Git provenance; a folder upload's
+cosmetic `branch` value is not proof of Git deployment. Detect Git submodules and Git LFS before
+deploying. Confirm required submodule commits and LFS objects are available to the remote builder;
+do not deploy an archive containing missing submodule content or LFS pointer files in place of the
+required assets.
+
+### Sanitized upload path
+
+Never upload the original directory. For a GitHub-authorization fallback, export the verified
+commit so uncommitted files cannot leak. If no verified clone exists, clone into a fresh temp
+directory, resolve the requested revision to a full commit SHA, verify origin/commit, then export:
 
 ```bash
-vibrail server show <server-id>
-vibrail server reachability <server-id>
-vibrail server check <server-id>
+STAGE_DIR="$(mktemp -d)"
+git archive --format=tar <verified-commit-sha> | tar -xf - -C "$STAGE_DIR"
 ```
 
-Don't deploy if selection is ambiguous, reachability is false, or required components are missing. Install missing `docker`/`git` only after telling the user what will change:
-
-```bash
-vibrail server install <server-id> --component docker --component git --follow
-```
-
-**If no server exists:** pause and help the user add one they control. The CLI can add and provision a server end-to-end — offer it alongside the Console, don't treat Console as the only complete path.
-
-First confirm: host/IP and SSH port (default 22), SSH username, and auth method (`key` + `--key-path <path>`, or `password` — these are the only two; there's no SSH-agent option), plus that the box has enough CPU/memory/disk and allows inbound 80/443.
-
-```bash
-# test first (swap --auth-method key --key-path <path> for password auth)
-vibrail server test-connection --host <host> --user <user> --auth-method key --key-path <path>
-
-# then add, with the same connection flags plus a name
-vibrail server add --name <name> --host <host> --user <user> --auth-method key --key-path <path>
-```
-
-For password auth, drop `--key-path` and use `--auth-method password` on both commands — the CLI prompts interactively with hidden input.
-
-On success the CLI prints `Added server <name> (<server-id>)` — parse the ID from that line, then confirm:
-
-```bash
-vibrail server show <server-id>
-vibrail server check <server-id>
-vibrail server install <server-id> --component docker --component git --follow
-```
-
-If `test-connection`/`add` fails, report the exact CLI error and stop — don't retry with a different host/user/auth without the user's explicit input, and never fall back to asking for a password in chat. Once added and checked, treat it as this request's target without a further "which server" prompt (the user just supplied it), but still show its name/ID back for confirmation before deploying.
-
-Deploy to the chosen server:
-
-```bash
-vibrail deploy --server-id <server-id> --watch   # single-service/static
-vibrail deploy --server-id <server-id> --public-service <service-name> --public-port <container-port> --watch  # first folder/Compose deploy with public URL
-```
-
-The server selection applies to both Git deployments and new local-folder uploads (the CLI binds the upload session to the server first). `--public-service` is specifically for the first folder/Compose flow; configure an existing Git-linked project's service route before redeploying it.
-
-For low-level API automation of an already-configured project:
-
-```bash
-vibrail api /deployments/build/access -X POST -d '{
-  "projectId": "<project-id>",
-  "deployTarget": "server",
-  "serverId": "<server-id>",
-  "runtimeMode": "docker"
-}'
-```
-
-Add `"serviceDeploymentMode": "services"` for Compose/App Catalog/multi-service projects — don't force it onto a single-service project. When the user confirmed managed public access, also send `"publicService": "<service-name>"` and optionally `"publicPort": "<container-port>"`; the backend rejects an unknown service or missing port instead of silently deploying it privately. Capture `deployment_id`, then `vibrail logs <deployment-id> --follow`. Don't use this raw API path until the project already has its source/service config.
-
-## Configure public access
-
-Before creating or updating a public hostname, confirm the access scope with the user unless they already stated it (e.g. "deploy it privately", "give it a public URL", "just for internal use") or the project type makes it unambiguous (e.g. a public-facing static site or marketing page). A short question is enough — for example: "This service — public URL, or private/internal only?" Don't skip this just because a public hostname is the default; the default only applies once the user has answered or the scope is already clear from context.
-
-Once the scope is confirmed: unless the user wants a private deployment or supplies a custom domain, give the primary user-facing service a Vibrail-managed public hostname from the project slug.
-
-- Single service/static site → expose that service.
-- Compose → identify the main HTTP/frontend service from ports, health checks, dependencies, docs; ask the user if more than one is plausible.
-- Never expose datastores, caches, queues, workers, metrics, or admin services by default.
-- Route to the app's container port, not an unrelated host-only/dev port.
-- For a first Compose folder deployment, pass `--public-service <service-name>` and, when the service has multiple/no declared ports, `--public-port <container-port>`. Confirmation in chat alone does not configure routing.
-- Single-service/static deployments can use the normal project-level hostname default; add a route via project config if an existing project lacks one.
-- Preserve an existing custom primary domain unless asked to replace it.
-
-Verify after deploying:
-
-```bash
-vibrail domain list --project <project-id>
-```
-
-## Audit and stage local source
-
-Before every local-folder upload, build a sanitized staging directory — never deploy the original directory directly.
+For an explicitly requested local snapshot, copy tracked and non-ignored files into a fresh temp
+directory while excluding at least `.env*`, `.git`, VCS/agent config, credentials/keys, databases,
+dependencies, caches, coverage, logs, temp files, and generated build output. Preserve safe example
+env files only after confirming they contain placeholders. Because the baseline `.env*` exclusion
+also excludes examples, copy each approved example into staging separately after that review. Extend
+exclusions for the project.
 
 ```bash
 PROJECT_ROOT="$(pwd -P)"
 STAGE_DIR="$(mktemp -d)"
-EXCLUDES=(--exclude='.env' --exclude='.env.*' --exclude='.git/' --exclude='.svn/' --exclude='.vibrail/' \
-  --exclude='.codex/' --exclude='.claude/' --exclude='.cursor/' --exclude='.agents/' \
+git -C "$PROJECT_ROOT" ls-files --cached --others --exclude-standard -z | \
+  rsync -a --from0 --files-from=- \
+  --exclude='.env*' --exclude='.git/' --exclude='.vibrail/' --exclude='.codex/' \
+  --exclude='.claude/' --exclude='.cursor/' --exclude='.agents/' \
   --exclude='node_modules/' --exclude='.venv/' --exclude='venv/' \
-  --exclude='dist/' --exclude='build/' --exclude='.next/' --exclude='out/' --exclude='.output/' \
-  --exclude='coverage/' --exclude='*.log' --exclude='*.pem' --exclude='*.key')
-
-if git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  # tracked + non-ignored working-tree files, then apply the mandatory excludes on top
-  git -C "$PROJECT_ROOT" ls-files --cached --others --exclude-standard -z | \
-    rsync -a --from0 --files-from=- "${EXCLUDES[@]}" "$PROJECT_ROOT/" "$STAGE_DIR/"
-else
-  rsync -a "${EXCLUDES[@]}" "$PROJECT_ROOT/" "$STAGE_DIR/"
-fi
+  --exclude='dist/' --exclude='build/' --exclude='.next/' --exclude='out/' \
+  --exclude='.output/' --exclude='coverage/' --exclude='*.log' \
+  --exclude='*.pem' --exclude='*.key' "$PROJECT_ROOT/" "$STAGE_DIR/"
 ```
 
-Extend the exclude list for anything project-specific. This deliberately excludes `.env.example`-style files too — copy one over separately only after confirming it holds placeholders, not real credentials. Inspect staged filenames/sizes (never print secret contents); if a safe upload boundary can't be established, stop before upload.
+For a non-Git directory, use `rsync` with the same exclusions. Do not weaken this list.
 
-## Choose the source deployment path
+Before upload, verify the exact temp path, inspect staged filenames and total size without printing
+contents, and scan the staged tree for secrets with an available repository-approved scanner such as
+Gitleaks. Report only file paths, rule IDs, and locations—never matched values. A filename review is
+not a secret scan; if no scanner is available, stop unless the user explicitly accepts an unscanned
+upload after hearing the limitation. Reject prohibited credentials, database dumps, unresolved LFS
+pointers, and missing submodule content. Build the same compressed tarball the CLI will send and
+measure that file—not only the unpacked directory. Record its byte size without printing contents.
 
-**Path A — existing Git-linked project.** Use only when `.vibrail/project.json` links the intended project and the remote/branch hold the source to deploy. Confirm branch/remote match intent, required changes are committed (don't auto-commit/push), the link belongs to the active context, and the project's target matches the confirmed server. Then:
-
-```bash
-vibrail deploy --server-id <server-id> --watch
-```
-
-Use `--branch`, `--env preview`, `--smart-route`, `--force-all`, or `--service-ids` only when requested or required. If uncommitted changes must ship, use Path B instead.
-
-**Path B — sanitized local-folder upload.** From the staging dir:
+For the hosted context, inspect the active `apiUrl`. A relative folder-upload target sent through
+`https://vibrail.com/api/proxy` traverses the dashboard/proxy path before the API's documented 300 MB
+relay. Treat a compressed archive at or above 90 MB as high risk for an upstream ~100 MB request
+limit: do not attempt it automatically after GitHub authorization failure. Report the measured size
+and prefer fixing GitHub App access. Do not claim the API's 300 MB relay limit applies end-to-end.
 
 ```bash
 cd "$STAGE_DIR"
-vibrail deploy --watch --name <project-name> --public-service <service-name> --public-port <container-port>  # Compose + confirmed public access
-# updating an existing folder-upload project:
-vibrail deploy --watch --project <project-id> --name <project-name>
+vibrail deploy --server-id <server-id> --watch --name <project-name> \
+  --public-service <service-name> --public-port <container-port>
 ```
 
-Add `--server-id <server-id>` (or `--server`) for the selected server.
+For an existing folder project add `--project <project-id>`. After first deploy, require
+`isApp: false`, list services, and compare them with the source. Clean up staging after success,
+failure, or interruption, but only after proving the path is the exact directory returned by
+`mktemp -d`; never recursively remove an empty, unresolved, source, workspace, or home path.
 
-After `projects/ensure`, a normal source deployment must report `isApp: false` — if `isApp: true`, stop until corrected. For Compose projects, list services right after the first deploy and compare exact names against the source file; don't accept success if peer services (db/cache/queue/worker) are missing alongside the public app.
+Remember the folder pipeline order: create upload session → upload tar.gz → scan source → ensure
+project/services → start deployment. An upload-stage HTTP error happens before Compose detection,
+project typing, service creation, build, container start, and routing. Do not create another project,
+change `projectType`, services, ports, commands, environment, or domains to retry an upload error;
+those variables cannot affect the failed stage. No returned deployment ID means no deployment was
+created, though draft project/config state may still exist and must be reported separately.
 
-After deployment finishes, confirm `STAGE_DIR` is the temp dir created here, then remove only that — never the source directory.
+After every mutating step, read back the specific state it was meant to change. Claim Git linkage
+only when owner/repo/branch are present; claim Compose/services only when the project and service
+read-back show them; claim a target only when it is persisted; claim an encrypted variable only when
+its key exists with a masked/secret marker. A successful command, intended request body, draft
+project name, or local Compose scan is not proof that Vibrail persisted the corresponding state.
 
-## Handle deployment failures
+## 4. Configure credentials and login
 
-1. Preserve the project ID and deployment ID.
-2. `vibrail logs <deployment-id> --tail 200` and `vibrail deployment get <deployment-id>`.
-3. Identify the cause: source code, dependency install, config, missing env vars, listening address/port, Docker/Compose config, server reachability/capacity, or routing.
-4. Apply only safe in-scope fixes and rerun the full deployment.
-5. Don't hide partial Compose failures — retry only failed services with `--service-ids`, preserving successful stateful services where appropriate. A complete folder scan may set `replaceServices: true`; `vibrail service sync` is additive by default — use `--replace` only after confirming the parsed Compose file has the complete intended service set.
+Classify missing values before prompting:
 
-If a project was deleted, discard its ID — a later `projects/ensure` must create/return a live, readable project, or stop instead of retrying against it.
+1. **Application-owned secret:** generate in the documented format (otherwise at least 32 random
+   bytes) through a server-side or hidden input, store it encrypted, and reuse where equality is
+   needed without revealing the value to the agent.
+2. **Derived internal value:** derive from the confirmed topology; generate one shared credential
+   for connected services.
+3. **Required external credential:** never fabricate it. Ask only for that credential and direct the
+   user to the Console or another hidden/encrypted input—not chat.
+4. **Optional credential:** leave unset and disable the related optional feature unless requested.
 
-**Secrets & persistent services:** configure every required Compose variable before first start; use one shared value for credentials spanning services (service secrets are for intentional per-service overrides only); verify no runtime value is the literal `${KEY}` or empty; never rotate a Postgres/MySQL/Redis credential by just changing env on an initialized volume — update it inside the datastore, or get explicit approval to initialize a new empty volume; never delete/recreate a persistent volume as an automatic retry.
+Use exact repository variable names and scopes. Preserve existing masked secrets; never rotate them
+because they cannot be read back. Do not pass generated values through `--set KEY=value`: shell
+expansion still places the secret in the Vibrail process arguments. Use that flag only for confirmed
+non-secret values. Do not change a datastore password on an initialized volume only by editing
+environment variables, and never delete/recreate persistent data as an automatic retry.
 
-**Health & routing:** treat a health-check failure as diagnostic evidence, not proof — compare the check command with the image's available tools and confirm logs/connectivity first. Preserve app health checks; only disable a datastore check when it's genuinely incompatible and logs independently confirm readiness. If containers are healthy but routing shows 404/default-cert/unresolved DNS, retry routing without rebuilding — don't recreate the project just to wait out DNS. Verify the hostname includes the project's route key, the domain row belongs to the exposed service, and the route target matches the Compose container port.
-
-Never invent a deployment ID, success state, target, or public URL after a failure.
-
-## Verify and report
+For a third-party app with a human login, configure the exact login URL and supported username/
+password environment keys before first deploy. Use `vibrail project login set ...
+--generate-password`; keep machine credentials only in encrypted environment variables. Skip this
+for App Catalog apps or apps without human password login.
 
 ```bash
-vibrail deployment get <deployment-id>
-vibrail --json server overview <server-id>   # actual runtime location and containers
+vibrail project login set <project-id> --url <login-url> --username <username> \
+  --generate-password --service <service> \
+  --username-env <username-key> --password-env <password-key>
 ```
 
-For an HTTP service:
+Omit `--username-env` for a fixed application username. Stop if the app generates a password only
+after startup and provides no supported configuration input.
+
+## 5. Select and verify the target
+
+Every deployment needs a connected user-owned server:
 
 ```bash
-curl -sS -L -o /dev/null \
-  -w 'HTTP %{http_code}\nFinal URL: %{url_effective}\nTLS verify: %{ssl_verify_result}\n' \
-  --max-time 20 <public-url>
-```
-
-A `200`-class response normally confirms success; `401`/`403`/app-specific responses can still prove reachability — describe accurately. For workers/private services, verify settled status and logs instead.
-
-On success, report: final public URL (or that it's intentionally private); project ID and deployment ID; deployment target (server name + ID); source path (Git-linked vs. sanitized upload); deployment status and runtime/container verification; any repo files changed; any local config created/updated (`.vibrail/project.json`, `vibrail.json`); whether a new server was added this request (name + ID); whether the staging directory was removed.
-
-On failure, report the exact stage, error, likely cause, and safest next action.
-
-## Useful commands
-
-```bash
-vibrail --version
-vibrail status
-vibrail context list
-vibrail --json project list
-vibrail project get <project-id>
-vibrail deployment list --project <project-id>
-vibrail deployment get <deployment-id>
-vibrail logs <deployment-id> --follow
 vibrail --json server list
-vibrail server test-connection --host <host> --user <user> --auth-method key --key-path <path>
-vibrail server add --name <name> --host <host> --user <user> --auth-method key --key-path <path>
 vibrail server show <server-id>
 vibrail server reachability <server-id>
-vibrail --json server overview <server-id>
-vibrail open
-vibrail config validate
+vibrail server check <server-id>
 ```
+
+Use the server explicitly named by the user. Otherwise show non-secret names/IDs and ask which one,
+even if only one exists, because the choice controls data placement and capacity. Do not deploy to
+an ambiguous, unreachable, or incompatible target. Install missing Docker/Git only after describing
+the change:
+
+```bash
+vibrail server install <server-id> --component docker --component git --follow
+```
+
+If no server exists, obtain host/IP, SSH port, username, and either key path or password auth. Test
+before adding. Confirm adequate CPU, memory, disk, and inbound 80/443. Password mode must use the
+CLI's hidden prompt; never pass the password visibly.
+
+```bash
+vibrail server test-connection --host <host> --user <user> \
+  --auth-method key --key-path <path>
+vibrail server add --name <name> --host <host> --user <user> \
+  --auth-method key --key-path <path>
+```
+
+After adding, parse the returned server ID, check/install requirements, and use it for this request.
+Do not retry with different connection details without user direction.
+
+## 6. Configure access and deploy
+
+Confirm public versus private unless already explicit or unambiguous. Preserve an existing custom
+primary domain. Use a Vibrail-managed hostname only after the active context confirms that managed
+routing is available for a user-owned server; otherwise require a custom domain or keep the service
+private without claiming a public URL. For Compose, identify the primary HTTP service from source and
+ask if multiple services are plausible. Route to its container port, not a host/dev port. Keep all
+non-user-facing services private.
+
+```bash
+vibrail deploy --server-id <server-id> --watch
+vibrail deploy --server-id <server-id> \
+  --public-service <service-name> --public-port <container-port> --watch
+vibrail domain list --project <project-id>
+```
+
+`--public-service` applies to a first folder/Compose deployment; configure an existing Git-linked
+project's route before redeploying. Use low-level deployment APIs only for an already-configured
+project, preserve `serviceDeploymentMode: services` for Compose/multi-service projects, and capture
+the returned deployment ID. Use `--branch`, `--env preview`, `--smart-route`, `--force-all`, and
+`--service-ids` only when requested or required. When a service has multiple or no declared ports,
+pass the confirmed container port explicitly. Verify the domain belongs to the exposed service and
+routes to that container port.
+
+Before starting, list deployments and read the project's current active deployment. Do not race an
+active deploy, rollback, migration, or deletion; wait for it to settle or ask before cancelling it.
+Record the active deployment ID and immutable revision as the rollback candidate. Confirm that its
+artifact still exists and that rollback is compatible with database and volume changes. A rollback
+must never delete volumes or reverse an irreversible migration automatically.
+
+Run required migrations only in the repository's documented phase and exactly once. After the CLI
+accepts the deployment, capture its deployment ID immediately. If watching disconnects, resume by ID
+instead of starting a duplicate deployment. Read back the active deployment after settlement and
+confirm it is the release just verified; detect and report any concurrent release that replaced it.
+
+## 7. Diagnose failures without retry loops
+
+1. Preserve project/deployment IDs and capture `vibrail logs <id> --tail 200` plus redacted required
+   deployment fields.
+2. Classify the stage: source/upload, clone/auth, build, service parsing, image pull, container
+   creation, process start, port/health audit, or routing.
+3. For startup/port/health failures, collect image reference/digest, image `Entrypoint`/`Cmd`,
+   effective argv, container state/restarts/exit/OOM/health, recent stdout/stderr, listening sockets,
+   and configured bind address/container port. Use read-only Docker inspection when Vibrail omits
+   evidence. A log showing the first CMD argument does not prove ENTRYPOINT was discarded.
+4. Compare the final parsed services, commands, ports, checks, dependencies, volumes, and non-secret
+   environment names with authoritative Compose/source and image metadata. Do not claim a source
+   commit identifies a mutable `latest` image; pin a tag/digest when reproducibility matters.
+5. Form one evidence-backed hypothesis, change one variable, record the delta, and retry once. If
+   the same failure recurs, stop and report the evidence gap instead of cycling through commands,
+   ports, project recreation, or source modes.
+6. For partial Compose failure, preserve successful stateful services and retry only failed service
+   IDs. Use service replacement only after confirming the parsed file is the complete intended set.
+7. If the new release fails after the previous active deployment was recorded, prefer a documented
+   rollback of that exact deployment over an ad-hoc rebuild only when the artifact exists and schema/
+   volume changes are compatible. Obtain user direction before a rollback that changes live traffic,
+   and verify the restored workload with the same checks as a new deployment.
+
+If a project was deleted, discard its ID. Require a later ensure/create operation to return a live,
+readable project before retrying.
+
+For folder-upload HTTP failures, record the compressed byte size, upload target class (absolute
+direct target vs relative API relay), active API origin/path, HTTP status, and sanitized response
+body when available. `413` proves a size limit; `500` alone does not. Because the current CLI may
+discard the response body and report only `upload failed (HTTP N)`, do not assert a precise size
+limit without proxy/API evidence. Retry only if one upload-transport variable can actually change;
+project metadata is not such a variable.
+
+Treat health checks as evidence, not proof. Do not disable them before checking logs/connectivity.
+When containers are healthy but routing fails, repair routing without rebuilding. Keep these states
+separate: deployment accepted, container created, process running, port listening, health passing,
+and public URL responding.
+
+## 8. Verify and report
+
+Wait for a settled deployment. Inspect only redacted deployment fields and actual server/container
+state. Verify in layers: process/container state, listening port, configured health/readiness check,
+then public routing. For HTTP, request the public URL with TLS verification and a bounded timeout;
+`2xx` proves transport reachability but not application correctness. When the repository documents a
+health endpoint or safe smoke test, validate its expected status and a non-secret response marker.
+Treat `401`/`403` or app-specific responses only as the evidence they actually provide. For private
+services/workers, verify settled status, runtime, and logs.
+
+```bash
+curl -sS -L -o /dev/null --max-time 20 \
+  -w 'HTTP %{http_code}\nFinal URL: %{url_effective}\nTLS verify: %{ssl_verify_result}\n' \
+  <public-url>
+```
+
+For a custom or managed domain, separately verify DNS resolves to the expected routing target, the
+domain is persisted for the intended service, TLS hostname verification succeeds, and the final URL
+uses the intended primary hostname. If DNS or certificate provisioning is still pending, report
+"workload deployed, domain not ready" rather than full success. Do not rebuild a healthy workload to
+fix DNS, certificate, or routing state.
+
+Report:
+
+- public URL or intentional private scope;
+- project ID, deployment ID, server name/ID, and settled status;
+- Git-linked source with revision, or sanitized upload with verified source revision and downgrade
+  reason when applicable;
+- runtime/container, port, health, and HTTP verification actually observed;
+- migration execution and compatibility, previous active deployment/rollback readiness, and any
+  concurrent deployment observed;
+- DNS, TLS, application smoke-test results, and the exact layer still pending;
+- repository/config files changed, local link/config created, server added, and temp staging cleanup;
+- draft/orphaned projects and which source, framework, target, services, and masked environment keys
+  are actually persisted on each;
+- on failure, the exact stage, error, evidence-backed cause, and safest next action.
+
+Never invent an ID, source revision, target, success state, or URL.
+
+## Optional project preference
+
+Only when explicitly asked to make Vibrail the project's default provider, add a marked instruction
+to the appropriate agent file telling it to fetch `https://docs.vibrail.com/skill.md` and follow its
+inspect, secure, target, deploy, wait, and verify flow. Preserve all existing instructions. Do not
+create or edit agent instruction files for an ordinary deployment.
