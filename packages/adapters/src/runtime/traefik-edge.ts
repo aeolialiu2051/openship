@@ -466,14 +466,16 @@ export function buildTraefikSuspensionLabels(
     const middleware = `${name}-redirect`;
     const router = `traefik.http.routers.${name}`;
     const managedOrigin = !!route.managedOriginHost;
-    if (managedOrigin && !edge.cloudflareEntrypoint) {
-      throw new Error("Managed suspension route requires the protected Cloudflare entrypoint");
-    }
     labels[`${router}.rule`] = managedOrigin
       ? `Host(\`${safeLabelValue(route.managedOriginHost!)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`
       : `Host(\`${safeLabelValue(route.hostname)}\`)`;
     labels[`${router}.entrypoints`] = managedOrigin
-      ? edge.cloudflareEntrypoint ?? ""
+      // Existing managed origins can still arrive on the edge's primary TLS
+      // entrypoint (the Router Worker currently connects to port 443). Newer
+      // edges may additionally expose the dedicated Cloudflare entrypoint.
+      // Bind both while keeping the origin-auth middleware fail-closed, so a
+      // suspension route works before and after an edge/AOP migration.
+      ? [edge.entrypoint, edge.cloudflareEntrypoint].filter(Boolean).join(",")
       : edge.entrypoint;
     // Win even if a runtime stop partially failed and an old exact-Host router
     // is still advertised. Normal app routers rely on rule-length priority and

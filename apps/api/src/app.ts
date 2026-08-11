@@ -305,16 +305,20 @@ if (USER_SERVERS_ENABLED) {
     void import("./modules/migration/migration.orchestrator")
       .then(({ migrationOrchestrator }) => migrationOrchestrator.recoverInterruptedMigrations())
       .catch((err) => console.warn("[boot] migration recovery failed:", err));
-    void import("./modules/admin/admin.service")
-      .then(({ reconcileSuspendedApplicationRoutes }) => reconcileSuspendedApplicationRoutes())
-      .then(({ total, applied, warnings }) => {
-        if (total > 0) {
-          console.log(`[boot] suspension routes: ${applied}/${total} applied`);
-        }
-        for (const warning of warnings) console.warn(`[boot] suspension route: ${warning}`);
-      })
-      .catch((err) => console.warn("[boot] suspension route reconcile failed:", err));
   }
+  // Suspension carriers live beside their workloads, including user servers
+  // orchestrated by the cloud control plane. Rebuild them in every mode so an
+  // edge/router upgrade repairs already-suspended projects without requiring
+  // an unsafe resume+suspend cycle.
+  void import("./modules/admin/admin.service")
+    .then(({ reconcileSuspendedApplicationRoutes }) => reconcileSuspendedApplicationRoutes())
+    .then(({ total, applied, warnings }) => {
+      if (total > 0) {
+        console.log(`[boot] suspension routes: ${applied}/${total} applied`);
+      }
+      for (const warning of warnings) console.warn(`[boot] suspension route: ${warning}`);
+    })
+    .catch((err) => console.warn("[boot] suspension route reconcile failed:", err));
 
   const runner = await getJobRunner();
   await runner.start({

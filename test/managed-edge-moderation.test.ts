@@ -18,12 +18,25 @@ describe("managed-edge project moderation", () => {
       {
         network: "vibrail-edge",
         entrypoint: "websecure",
+        cloudflareEntrypoint: "cloudflare",
         tls: true,
         source: "vibrail",
         containerId: "traefik",
       },
       projectId,
-      [{ hostname, redirectUrl: `https://vibrail.com/suspended?site=${hostname}` }],
+      [
+        {
+          hostname,
+          managedOriginHost: "server-001.vibrail.app",
+          redirectUrl: `https://vibrail.com/suspended?site=${hostname}`,
+        },
+      ],
+    );
+    expect(Object.values(labels)).toContain(
+      `Host(\`server-001.vibrail.app\`) && Header(\`x-vibrail-hostname\`, \`${hostname}\`)`,
+    );
+    expect(Object.entries(labels).find(([key]) => key.endsWith(".entrypoints"))?.[1]).toBe(
+      "websecure,cloudflare",
     );
     const redirectLocation = String(
       Object.entries(labels).find(([key]) => key.endsWith(".redirectregex.replacement"))?.[1],

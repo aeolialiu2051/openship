@@ -1047,7 +1047,7 @@ export class DockerRuntime implements RuntimeAdapter {
    * itself uses Traefik's noop@internal service. */
   async publishSuspendedRoutes(opts: {
     projectId: string;
-    routes: Array<{ hostname: string; redirectUrl: string }>;
+    routes: Array<{ hostname: string; redirectUrl: string; managedOriginHost?: string }>;
     manual?: TraefikManualConfig;
   }): Promise<void> {
     await this.removeSuspendedRoutes(opts.projectId);

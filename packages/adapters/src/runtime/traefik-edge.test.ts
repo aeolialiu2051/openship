@@ -357,6 +357,41 @@ describe("buildTraefikLabels", () => {
     });
   });
 
+  it("matches managed suspension routes through the protected origin", () => {
+    const labels = buildTraefikSuspensionLabels(
+      {
+        network: "vibrail-edge",
+        entrypoint: "websecure",
+        cloudflareEntrypoint: "cloudflare",
+        tls: true,
+        source: "vibrail",
+        containerId: "edge",
+      },
+      "project-1",
+      [
+        {
+          hostname: "app.vibrail.app",
+          managedOriginHost: "server-001.vibrail.app",
+          redirectUrl: "https://vibrail.com/suspended?site=app.vibrail.app",
+        },
+      ],
+    );
+
+    const router = Object.keys(labels).find(
+      (key) =>
+        key.endsWith(".rule") &&
+        labels[key] ===
+          "Host(`server-001.vibrail.app`) && Header(`x-vibrail-hostname`, `app.vibrail.app`)",
+    )!;
+    const name = router.split(".")[3]!;
+    expect(labels).toMatchObject({
+      [`traefik.http.routers.${name}.entrypoints`]: "websecure,cloudflare",
+      [`traefik.http.routers.${name}.priority`]: "100000",
+      [`traefik.http.routers.${name}.middlewares`]:
+        `${name}-origin-auth@docker,${name}-redirect@docker`,
+    });
+  });
+
   it("prefixes static requests with the selected document-root path", () => {
     const labels = buildTraefikLabels({
       network: "proxy",
