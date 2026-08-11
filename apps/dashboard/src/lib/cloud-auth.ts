@@ -182,8 +182,17 @@ export function resolveReturnToDestination(returnTo: string, requestOrigin?: str
     (origin.hostname === "localhost" || origin.hostname === "127.0.0.1") &&
     (origin.port === String(DEFAULT_PORT.dashboard) ||
       origin.port === String(DEFAULT_PORT.vibrailSaasDashboard));
-  if (!isLocalDashboard) return returnTo;
-  return `${origin.protocol}//${origin.hostname}:${DEFAULT_PORT.web}${returnTo}`;
+  if (isLocalDashboard) {
+    return `${origin.protocol}//${origin.hostname}:${DEFAULT_PORT.web}${returnTo}`;
+  }
+  // An absolute URL is required even when Dashboard and Web share an origin:
+  // Next.js otherwise applies NEXT_PUBLIC_DASHBOARD_BASE_PATH and turns the
+  // intended `/collection` into the nonexistent `/dashboard/collection`.
+  const marketingHostname = origin.hostname.startsWith("app.")
+    ? origin.hostname.slice(4)
+    : origin.hostname;
+  const port = origin.port ? `:${origin.port}` : "";
+  return `${origin.protocol}//${marketingHostname}${port}${returnTo}`;
 }
 
 /**

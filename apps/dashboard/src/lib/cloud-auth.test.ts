@@ -34,9 +34,9 @@ describe("collection authentication return path", () => {
     ).toBe("http://localhost:3009/collection?project=project-1&intent=like");
   });
 
-  it("keeps the hosted same-origin return relative", () => {
+  it("uses an absolute hosted return so Dashboard basePath is not applied", () => {
     expect(resolveReturnToDestination("/collection", "https://vibrail.com")).toBe(
-      "/collection",
+      "https://vibrail.com/collection",
     );
   });
 });
