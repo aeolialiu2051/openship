@@ -346,11 +346,15 @@ async function readProjectSnapshot(
 
   await Promise.all(
     PREPARE_FILE_CONTENTS
-      .filter((name) => files.some((file) => file.name.toLowerCase() === name.toLowerCase()))
-      .map(async (name) => {
-        const content = await reader.readText(joinProjectPath(normalizedRootDirectory, name));
+      .map((name) => files.find((file) => file.name.toLowerCase() === name.toLowerCase()))
+      .filter((file): file is RepoFile => Boolean(file))
+      .map(async (file) => {
+        // Read the directory entry's real name. Using the normalized manifest
+        // name (for example "dockerfile") fails on case-sensitive filesystems
+        // when the repository contains the conventional "Dockerfile".
+        const content = await reader.readText(joinProjectPath(normalizedRootDirectory, file.name));
         if (content) {
-          fileContents[name] = content;
+          fileContents[file.name] = content;
         }
       }),
   );
