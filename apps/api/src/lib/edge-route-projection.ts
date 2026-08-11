@@ -3,6 +3,7 @@ import { repos, type Domain } from "@repo/db";
 import { parseEdgeRoute } from "@repo/core/managed-routing";
 import { env } from "../config/env";
 import { installServerAuthorityRoute, removeServerAuthorityRoute } from "./server-route-authority";
+import { provisionServerOrigin } from "./server-origin-infra";
 import { waitForManagedRoutePropagation } from "./edge-route-readiness";
 
 export { waitForManagedRoutePropagation } from "./edge-route-readiness";
@@ -28,6 +29,12 @@ export async function publishManagedDomainRoute(domain: Domain, serverId: string
   if (!store) throw new Error("Cloudflare routing KV is not configured");
   const server = await repos.server.get(serverId);
   if (!server?.routingId) throw new Error(`Server ${serverId} has no edge routing ID`);
+  // Server registration used to be the only place that created the managed
+  // origin A record. That leaves every route on the server broken when the
+  // initial write was skipped, the record was removed, or the server address
+  // changed. Provisioning is idempotent, so repair the origin before exposing
+  // a KV route that depends on it.
+  await provisionServerOrigin(server);
   const route = parseEdgeRoute({
     project_id: domain.projectId,
     service_id: domain.serviceId,

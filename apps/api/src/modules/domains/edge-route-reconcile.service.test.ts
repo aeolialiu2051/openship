@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { MemoryEdgeRouteStore } from "@repo/adapters";
+vi.mock("../../lib/edge-route-projection", () => ({ edgeRouteStore: vi.fn() }));
+vi.mock("../../lib/server-origin-infra", () => ({ provisionServerOrigin: vi.fn() }));
+vi.mock("../../lib/server-route-authority", () => ({
+  installServerAuthorityRoute: vi.fn(),
+  removeServerAuthorityRoute: vi.fn(),
+}));
 import { reconcileDomainProjection } from "./edge-route-reconcile.service";
 import type { Domain } from "@repo/db";
 

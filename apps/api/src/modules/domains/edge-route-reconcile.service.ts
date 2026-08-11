@@ -3,6 +3,7 @@ import type { EdgeRouteStore } from "@repo/adapters";
 import { parseEdgeRoute } from "@repo/core/managed-routing";
 import { edgeRouteStore } from "../../lib/edge-route-projection";
 import { installServerAuthorityRoute, removeServerAuthorityRoute } from "../../lib/server-route-authority";
+import { provisionServerOrigin } from "../../lib/server-origin-infra";
 
 export type RouteReconcileResult = "unchanged" | "published" | "disabled" | "ahead";
 
@@ -63,6 +64,7 @@ export async function runEdgeRouteReconcileSweep(options: { limit?: number; offs
   const projectCache = new Map<string, Awaited<ReturnType<typeof repos.project.findById>>>();
   const deploymentCache = new Map<string, Awaited<ReturnType<typeof repos.deployment.findById>>>();
   const serverCache = new Map<string, Awaited<ReturnType<typeof repos.server.get>>>();
+  const provisionedServers = new Set<string>();
 
   for (const domain of rows) {
     summary.scanned += 1;
@@ -91,6 +93,13 @@ export async function runEdgeRouteReconcileSweep(options: { limit?: number; offs
       if (!serverCache.has(serverId)) serverCache.set(serverId, await repos.server.get(serverId));
       const server = serverCache.get(serverId);
       if (!server?.routingId) { summary.skipped += 1; continue; }
+      // Reconcile the server-scoped origin once per sweep before repairing any
+      // domain projections on it. This makes a missing/stale server-*.vibrail.app
+      // record self-healing even when the KV route itself is already current.
+      if (!provisionedServers.has(serverId)) {
+        await provisionServerOrigin(server);
+        provisionedServers.add(serverId);
+      }
       const result = await reconcileDomainProjection(domain, server.routingId, store, {
         ensureAuthority: () => installServerAuthorityRoute(serverId, domain, domain.routeVersion),
         removeAuthority: () => removeServerAuthorityRoute(serverId, domain.hostname),
