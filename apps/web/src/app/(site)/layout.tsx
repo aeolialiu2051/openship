@@ -119,7 +119,7 @@ const organizationLd = {
   description: DESCRIPTION,
   sameAs: [
     "https://x.com/vibrailio",
-    "https://discord.gg/Q9eWNCeXjg",
+    "https://discord.gg/UD5YFsZz7W",
   ],
   contactPoint: [
     {

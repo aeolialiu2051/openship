@@ -26,11 +26,31 @@ type ConfigKey = keyof AdminRuntimeConfig;
 
 const ITEMS: Array<{
   key: ConfigKey;
-  group: "commercial" | "security" | "network";
+  group: "commercial" | "site" | "security" | "network";
   title: [string, string];
   description: [string, string];
-  kind: "boolean" | "number" | "pinning" | "secret" | "priceId" | "price" | "optionalPrice";
+  kind: "boolean" | "number" | "pinning" | "secret" | "priceId" | "text" | "url" | "price" | "optionalPrice";
 }> = [
+  {
+    key: "WECHAT_ID",
+    group: "site",
+    title: ["微信号", "WeChat ID"],
+    description: [
+      "About 页面显示的微信联系方式；保存后立即生效。",
+      "WeChat contact shown on the About page; applies immediately.",
+    ],
+    kind: "text",
+  },
+  {
+    key: "DISCORD_LINK",
+    group: "site",
+    title: ["Discord 邀请链接", "Discord invite link"],
+    description: [
+      "About 页面中 Vibrail 超链接的目标地址；保存后立即生效。",
+      "Destination of the Vibrail link on the About page; applies immediately.",
+    ],
+    kind: "url",
+  },
   {
     key: "STRIPE_SECRET_KEY",
     group: "commercial",
@@ -219,6 +239,7 @@ export default function AdminRuntimeConfigPage() {
 
   const groups = [
     { id: "commercial", title: zh ? "商业策略" : "Commercial policy" },
+    { id: "site", title: zh ? "站点联系信息" : "Site contact information" },
     { id: "security", title: zh ? "安全策略" : "Security policy" },
     { id: "network", title: zh ? "网络策略" : "Network policy" },
   ] as const;
@@ -389,6 +410,16 @@ export default function AdminRuntimeConfigPage() {
                           type="text"
                           value={values[item.key] as string}
                           placeholder="price_..."
+                          aria-label={item.title[zh ? 0 : 1]}
+                          onChange={(event) => setValue(item.key, event.target.value)}
+                          className="h-10 w-full rounded-xl border border-border/60 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"
+                        />
+                      )}
+                      {(item.kind === "text" || item.kind === "url") && (
+                        <input
+                          type={item.kind === "url" ? "url" : "text"}
+                          value={values[item.key] as string}
+                          placeholder={item.kind === "url" ? "https://discord.gg/..." : "vibrail"}
                           aria-label={item.title[zh ? 0 : 1]}
                           onChange={(event) => setValue(item.key, event.target.value)}
                           className="h-10 w-full rounded-xl border border-border/60 bg-background/70 px-3 text-sm text-foreground outline-none transition-colors focus:border-primary/50 focus:ring-2 focus:ring-primary/10"

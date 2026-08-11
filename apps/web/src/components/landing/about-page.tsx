@@ -1,6 +1,6 @@
 "use client";
 
-import { Mail, MessageCircle } from "lucide-react";
+import { Gamepad2, Mail, MessageCircle } from "lucide-react";
 import { landingCopy, type LandingLocale } from "./landing-copy";
 import { Footer } from "./footer";
 import { Navbar } from "./navbar";
@@ -11,12 +11,14 @@ const aboutCopy = {
     title: "Contact Vibrail",
     email: "Email",
     wechat: "WeChat",
+    discord: "Discord",
     contactLabel: "Vibrail contact information",
   },
   zh: {
     title: "联系 Vibrail",
     email: "邮箱",
     wechat: "微信",
+    discord: "Discord",
     contactLabel: "Vibrail 联系方式",
   },
 } as const;
@@ -25,11 +27,13 @@ export function AboutPage({
   initialLocale,
   supportEmail,
   wechatId,
+  discordUrl,
   dashboardLoginUrl,
 }: {
   initialLocale?: LandingLocale;
   supportEmail: string | null;
   wechatId: string | null;
+  discordUrl: string | null;
   dashboardLoginUrl: string;
 }) {
   const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
@@ -61,6 +65,16 @@ export function AboutPage({
               <div>
                 <dt><MessageCircle aria-hidden="true" />{copy.wechat}:</dt>
                 <dd>{wechatId}</dd>
+              </div>
+            )}
+            {discordUrl && (
+              <div>
+                <dt><Gamepad2 aria-hidden="true" />{copy.discord}:</dt>
+                <dd>
+                  <a href={discordUrl} target="_blank" rel="noreferrer">
+                    Vibrail
+                  </a>
+                </dd>
               </div>
             )}
           </dl>

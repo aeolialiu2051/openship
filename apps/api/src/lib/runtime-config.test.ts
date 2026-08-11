@@ -47,6 +47,20 @@ describe("runtime configuration", () => {
     );
   });
 
+  it("hot-updates public contact configuration", async () => {
+    const updated = await updateRuntimeConfig({
+      WECHAT_ID: "vibrail",
+      DISCORD_LINK: "https://discord.gg/UD5YFsZz7W",
+    });
+
+    expect(updated.values.WECHAT_ID).toBe("vibrail");
+    expect(updated.values.DISCORD_LINK).toBe("https://discord.gg/UD5YFsZz7W");
+    expect(store.runtimeConfig).toMatchObject({
+      WECHAT_ID: "vibrail",
+      DISCORD_LINK: "https://discord.gg/UD5YFsZz7W",
+    });
+  });
+
   it("rejects keys outside the runtime allowlist", async () => {
     await expect(
       updateRuntimeConfig({ DATABASE_URL: "nope" } as never),

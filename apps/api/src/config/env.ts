@@ -209,6 +209,8 @@ const envSchema = z.object({
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
   SMTP_FROM: z.string().default("Vibrail <noreply@vibrail.com>"),
+  WECHAT_ID: z.string().default(""),
+  DISCORD_LINK: z.string().default(""),
 
   /* ---------- Network (self-hosted) ---------- */
   /**

@@ -8,6 +8,7 @@ import { rateLimiterFor } from "../../middleware/rate-limiter";
 import { APP_VERSION } from "../../lib/app-version";
 import { getSupportEmail } from "../../lib/support-email";
 import { managedDomainsUseCloudEdge } from "../../lib/routing-domains";
+import { getRuntimeConfig } from "../../lib/runtime-config";
 
 /** Running server version (apps/api/package.json, via lib/app-version — the same
  *  value sent to the cloud on every call). Lets the dashboard tell a self-hosted
@@ -60,6 +61,7 @@ healthRoutes.get("/", (c) => {
  *  limited per-IP because it reads the DB (instanceSettings) while unauthenticated;
  *  the bare `/` liveness check stays unthrottled for load balancers. */
 healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
+  const runtimeConfig = await getRuntimeConfig();
   // authMode tells the dashboard which login flow to use:
   //   "none"   → zero-auth, auto-provisioned local user (desktop default)
   //   "cloud"  → external auth on Vibrail Cloud (cloud-connected desktop)
@@ -125,6 +127,8 @@ healthRoutes.get("/env", rateLimiterFor("default-anon"), async (c) => {
     cloudAuthUrl: cloudRuntimeTarget.dashboard,
     cloudApiUrl: cloudRuntimeTarget.api,
     supportEmail: getSupportEmail(),
+    wechatId: runtimeConfig.WECHAT_ID || null,
+    discordLink: runtimeConfig.DISCORD_LINK || null,
     ...(machineName && { machineName }),
     siteDomain: env.VIBRAIL_SITE_DOMAIN,
     managedDomain: env.VIBRAIL_MANAGED_DOMAIN,

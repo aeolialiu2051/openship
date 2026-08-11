@@ -132,6 +132,8 @@ export type AdminRuntimeConfig = {
   CLOUD_SESSION_PINNING: "off" | "warn" | "strict";
   NOTIFY_WEBHOOK_ALLOW_INTERNAL: boolean;
   VIBRAIL_CLOUDFLARE_PROXY: boolean;
+  WECHAT_ID: string;
+  DISCORD_LINK: string;
   STRIPE_SECRET_KEY: string;
   STRIPE_WEBHOOK_SECRET: string;
   STRIPE_PRICE_PRO_MONTHLY_ID: string;
