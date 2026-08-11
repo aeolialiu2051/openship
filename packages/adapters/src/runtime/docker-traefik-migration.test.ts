@@ -13,16 +13,9 @@ describe("DockerRuntime managed Traefik migration", () => {
     internals.traefikEdgePromise = undefined;
     internals.provisionLock = undefined;
     internals.connectionOptions = undefined;
-    const exec = vi.fn(async (command: string) => {
-      if (command === "id -u") return "0";
-      return "";
-    });
-    const writeFile = vi.fn().mockResolvedValue(undefined);
     internals.systemManager = {
       executor: {
-        exec,
         mkdir: vi.fn().mockResolvedValue(undefined),
-        writeFile,
       },
     };
     internals.listAllContainers = vi.fn().mockResolvedValue([
@@ -77,10 +70,6 @@ describe("DockerRuntime managed Traefik migration", () => {
     expect(internals.pullImage).toHaveBeenCalledWith(
       expect.stringContaining("vibrail-edge"),
       { force: true },
-    );
-    expect(writeFile).toHaveBeenCalledWith(
-      "/var/lib/vibrail/traefik/dynamic/cloudflare-aop.json",
-      expect.stringContaining("RequireAndVerifyClientCert"),
     );
     expect(start).toHaveBeenCalledOnce();
   });

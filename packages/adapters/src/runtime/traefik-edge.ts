@@ -5,7 +5,6 @@ export const VIBRAIL_EDGE_CONTAINER = "vibrail-edge";
 export const VIBRAIL_EDGE_NETWORK = "vibrail-edge";
 export const VIBRAIL_EDGE_ENTRYPOINT = "websecure";
 export const VIBRAIL_EDGE_HTTP_ENTRYPOINT = "web";
-export const VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT = "cloudflare-origin";
 export const VIBRAIL_EDGE_CERT_RESOLVER = "vibrail-letsencrypt";
 export const VIBRAIL_EDGE_DYNAMIC_HOST_DIR = "/var/lib/vibrail/traefik/dynamic";
 export const VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR = "/etc/traefik/dynamic";
@@ -392,31 +391,10 @@ export function resolveExistingTraefik(
   }
 
   const httpEntrypoint = httpEntrypointFromAddress(command, env) || detected.httpEntrypoint;
-  // A newly-created managed edge returns this field directly, but every later
-  // runtime instance reaches this inspection path. Preserve the protected
-  // entrypoint only when both managed/compatible labels and its static address
-  // are present; never infer it for an arbitrary user-owned Traefik.
-  const managedCloudflareEntrypoint =
-    container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" &&
-    container.labels[VIBRAIL_EDGE_COMPATIBLE_LABEL] === "true" &&
-    (commandValue(
-      command,
-      `--entrypoints.${VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT}.address`,
-    )?.trim() ||
-      env
-        .get(
-          `TRAEFIK_ENTRYPOINTS_${VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT.toUpperCase().replaceAll("-", "_")}_ADDRESS`,
-        )
-        ?.trim())
-      ? VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT
-      : undefined;
   return {
     network,
     entrypoint,
     ...(httpEntrypoint ? { httpEntrypoint } : {}),
-    ...(managedCloudflareEntrypoint
-      ? { cloudflareEntrypoint: managedCloudflareEntrypoint }
-      : {}),
     tls: manual.tls ?? detected.tls ?? true,
     ...(certResolver ? { certResolver } : {}),
     source: container.labels[VIBRAIL_EDGE_MANAGED_LABEL] === "true" ? "vibrail" : "existing",
@@ -469,14 +447,7 @@ export function buildTraefikSuspensionLabels(
     labels[`${router}.rule`] = managedOrigin
       ? `Host(\`${safeLabelValue(route.managedOriginHost!)}\`) && Header(\`x-vibrail-hostname\`, \`${safeLabelValue(route.hostname)}\`)`
       : `Host(\`${safeLabelValue(route.hostname)}\`)`;
-    labels[`${router}.entrypoints`] = managedOrigin
-      // Existing managed origins can still arrive on the edge's primary TLS
-      // entrypoint (the Router Worker currently connects to port 443). Newer
-      // edges may additionally expose the dedicated Cloudflare entrypoint.
-      // Bind both while keeping the origin-auth middleware fail-closed, so a
-      // suspension route works before and after an edge/AOP migration.
-      ? [edge.entrypoint, edge.cloudflareEntrypoint].filter(Boolean).join(",")
-      : edge.entrypoint;
+    labels[`${router}.entrypoints`] = edge.entrypoint;
     // Win even if a runtime stop partially failed and an old exact-Host router
     // is still advertised. Normal app routers rely on rule-length priority and
     // remain far below this explicit moderation override.

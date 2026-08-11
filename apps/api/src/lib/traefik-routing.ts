@@ -101,7 +101,6 @@ export async function prepareTraefikConfig(opts: {
   return {
     network: edge.network,
     entrypoint: edge.entrypoint,
-    ...(edge.cloudflareEntrypoint ? { cloudflareEntrypoint: edge.cloudflareEntrypoint } : {}),
     ...(server?.routingId
       ? {
           managedOriginHost: originHostnameForServer(

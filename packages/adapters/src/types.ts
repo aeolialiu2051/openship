@@ -248,8 +248,6 @@ export interface TraefikEdgeConfig {
   entrypoint: string;
   /** Plain-HTTP entrypoint used when TLS terminates upstream. */
   httpEntrypoint?: string;
-  /** Dedicated mTLS entrypoint used only for Cloudflare-to-origin traffic. */
-  cloudflareEntrypoint?: string;
   /** Exact server origin hostname used by the Router Worker. */
   managedOriginHost?: string;
   /** Whether the router enables TLS (normally true). */

@@ -50,6 +50,7 @@ type middleware struct {
 	config *Config
 	mu sync.Mutex
 	nonces map[string]time.Time
+	lastNonceCleanup time.Time
 }
 
 func New(_ context.Context, next http.Handler, config *Config, _ string) (http.Handler, error) {
@@ -109,7 +110,13 @@ func (m *middleware) claimNonce(nonce string, expires time.Time) bool {
 	now := time.Now()
 	if previous, exists := m.nonces[nonce]; exists && previous.After(now) { return false }
 	m.nonces[nonce] = expires
-	if len(m.nonces) > 10000 { for key, expiry := range m.nonces { if !expiry.After(now) { delete(m.nonces, key) } } }
+	// Avoid an O(n) sweep on every request once a busy route crosses 10k
+	// in-flight nonce records. One sweep per second still removes entries soon
+	// after the replay window while keeping request cost predictable.
+	if len(m.nonces) > 10000 && now.Sub(m.lastNonceCleanup) >= time.Second {
+		for key, expiry := range m.nonces { if !expiry.After(now) { delete(m.nonces, key) } }
+		m.lastNonceCleanup = now
+	}
 	return true
 }
 

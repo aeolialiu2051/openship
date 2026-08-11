@@ -116,7 +116,6 @@ import {
   VIBRAIL_EDGE_CONTAINER,
   VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR,
   VIBRAIL_EDGE_DYNAMIC_HOST_DIR,
-  VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT,
   VIBRAIL_EDGE_ENTRYPOINT,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
   VIBRAIL_EDGE_HTTP_ENTRYPOINT,
@@ -136,9 +135,6 @@ import {
   traefikConfigFromLabels,
   traefikStaticConfigSources,
 } from "./traefik-edge";
-import { CLOUDFLARE_AOP_CA, CLOUDFLARE_AOP_DYNAMIC_CONFIG } from "./cloudflare-aop";
-import { elevatedExecutor } from "../system/elevated-executor";
-import { resolveEnvironment } from "../system/environment";
 
 // ─── Connection config ───────────────────────────────────────────────────────
 export type { DockerConnectionOptions } from "./docker-transport";
@@ -870,28 +866,6 @@ export class DockerRuntime implements RuntimeAdapter {
       await this.ensureNamedNetwork(VIBRAIL_EDGE_NETWORK, {
         [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
       });
-      const hostExecutor = this.connectionOptions?.executor ?? this.systemManager?.executor;
-      if (!hostExecutor) {
-        throw new Error(
-          "Could not install the Cloudflare origin trust configuration on this server.",
-        );
-      }
-      const profile = await resolveEnvironment(hostExecutor);
-      if (!profile.isRoot && !profile.canSudo) {
-        throw new Error(
-          "Installing the Traefik origin trust configuration needs root. Connect this server as root, or as a user with passwordless sudo.",
-        );
-      }
-      const privilegedExecutor = profile.isRoot ? hostExecutor : elevatedExecutor(hostExecutor);
-      await privilegedExecutor.mkdir(VIBRAIL_EDGE_DYNAMIC_HOST_DIR);
-      await privilegedExecutor.writeFile(
-        `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}/cloudflare-origin-pull-ca.pem`,
-        CLOUDFLARE_AOP_CA,
-      );
-      await privilegedExecutor.writeFile(
-        `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}/cloudflare-aop.json`,
-        CLOUDFLARE_AOP_DYNAMIC_CONFIG,
-      );
       const args = [
         "--api.dashboard=false",
         // JSON access logs go to stdout by default. Keeping them unbuffered is
@@ -907,8 +881,6 @@ export class DockerRuntime implements RuntimeAdapter {
         "--experimental.localplugins.vibrail-origin-auth.modulename=github.com/vibrail/vibrail-origin-auth",
         "--entrypoints.web.address=:80",
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
-        `--entrypoints.${VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT}.address=:8443`,
-        `--entrypoints.${VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT}.http.tls.options=cloudflare-aop@file`,
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.http.tls.certresolver=${VIBRAIL_EDGE_CERT_RESOLVER}`,
         `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.storage=/letsencrypt/acme.json`,
         `--certificatesresolvers.${VIBRAIL_EDGE_CERT_RESOLVER}.acme.httpchallenge.entrypoint=web`,
@@ -992,7 +964,6 @@ export class DockerRuntime implements RuntimeAdapter {
         network: VIBRAIL_EDGE_NETWORK,
         entrypoint: VIBRAIL_EDGE_ENTRYPOINT,
         httpEntrypoint: VIBRAIL_EDGE_HTTP_ENTRYPOINT,
-        cloudflareEntrypoint: VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT,
         tls: true,
         certResolver: VIBRAIL_EDGE_CERT_RESOLVER,
         source: "vibrail",

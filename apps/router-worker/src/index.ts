@@ -15,6 +15,10 @@ export type Env = CloudflareEnv & {
 type Cached = { route: EdgeRoute | null; expiresAt: number };
 const memory = new Map<string, Cached>();
 const MAX_MEMORY_ROUTES = 1_024;
+const MAX_SERVER_KEYS = 1_024;
+const encoder = new TextEncoder();
+let cachedMasterSecret: string | undefined;
+const serverKeys = new Map<string, Promise<CryptoKey>>();
 
 function rememberRoute(hostname: string, value: Cached, now: number): void {
   memory.delete(hostname);
@@ -30,18 +34,50 @@ function rememberRoute(hostname: string, value: Cached, now: number): void {
   }
 }
 
-export function resetRouteMemoryForTest(): void { memory.clear(); }
+export function resetRouteMemoryForTest(): void {
+  memory.clear();
+  serverKeys.clear();
+  cachedMasterSecret = undefined;
+}
 export function routeMemorySizeForTest(): number { return memory.size; }
 
 const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
 async function hmac(secret: string, payload: string): Promise<string> {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return hex(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(payload)));
+  const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return hex(await crypto.subtle.sign("HMAC", key, encoder.encode(payload)));
 }
 
-async function deriveServerSecret(master: string, serverId: string): Promise<string> {
-  return hmac(master, `v1:${serverId}`);
+async function serverSigningKey(master: string, serverId: string): Promise<CryptoKey> {
+  // Worker bindings are immutable for an isolate, but explicitly clear the
+  // cache if a test/runtime supplies a rotated secret to the same isolate.
+  if (cachedMasterSecret !== master) {
+    cachedMasterSecret = master;
+    serverKeys.clear();
+  }
+  const cached = serverKeys.get(serverId);
+  if (cached) {
+    serverKeys.delete(serverId);
+    serverKeys.set(serverId, cached);
+    return cached;
+  }
+  const key = (async () => {
+    const derived = await hmac(master, `v1:${serverId}`);
+    return crypto.subtle.importKey(
+      "raw",
+      encoder.encode(derived),
+      { name: "HMAC", hash: "SHA-256" },
+      false,
+      ["sign"],
+    );
+  })();
+  serverKeys.set(serverId, key);
+  while (serverKeys.size > MAX_SERVER_KEYS) {
+    const oldest = serverKeys.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    serverKeys.delete(oldest);
+  }
+  return key;
 }
 
 function ttl(env: Env, negative: boolean): number {
@@ -105,9 +141,9 @@ export async function routeRequest(request: Request, env: Env, ctx: ExecutionCon
   const url = new URL(request.url);
   url.protocol = "https:";
   url.hostname = originHostnameForServer(route.server_id, baseDomain);
-  // Use Cloudflare's standard HTTPS origin port. The matching Traefik router
-  // is still private-by-proof: every request must pass the HMAC middleware,
-  // timestamp/nonce replay checks and the on-host route manifest.
+  // Use the standard HTTPS origin port so installations only need to expose
+  // 80/443. The HMAC middleware and local authority manifest keep managed
+  // origin routes fail-closed on the shared TLS entrypoint.
   url.port = "";
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const nonce = crypto.randomUUID();
@@ -123,7 +159,6 @@ export async function routeRequest(request: Request, env: Env, ctx: ExecutionCon
     timestamp,
     nonce,
   };
-  const serverSecret = await deriveServerSecret(env.VIBRAIL_ROUTER_MASTER_SECRET, route.server_id);
   headers.set("x-vibrail-hostname", hostname);
   headers.set("x-vibrail-project-id", route.project_id);
   headers.set("x-vibrail-service-id", route.service_id ?? "");
@@ -131,7 +166,14 @@ export async function routeRequest(request: Request, env: Env, ctx: ExecutionCon
   headers.set("x-vibrail-timestamp", timestamp);
   headers.set("x-vibrail-nonce", nonce);
   headers.set("x-vibrail-route-version", String(route.version));
-  headers.set("x-vibrail-signature", await hmac(serverSecret, routeSignaturePayload(signatureInput)));
+  const signingKey = await serverSigningKey(
+    env.VIBRAIL_ROUTER_MASTER_SECRET,
+    route.server_id,
+  );
+  headers.set(
+    "x-vibrail-signature",
+    hex(await crypto.subtle.sign("HMAC", signingKey, encoder.encode(routeSignaturePayload(signatureInput)))),
+  );
 
   try {
     const response = await fetch(url, { method: request.method, headers, body: request.body, redirect: "manual" });

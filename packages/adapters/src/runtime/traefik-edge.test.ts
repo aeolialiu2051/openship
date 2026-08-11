@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import type { DockerContainerDetail } from "./types";
 import {
   VIBRAIL_EDGE_CERT_RESOLVER_LABEL,
-  VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT,
   VIBRAIL_EDGE_COMPATIBLE_LABEL,
   VIBRAIL_EDGE_CONFIG_VERSION,
   VIBRAIL_EDGE_ENTRYPOINT_LABEL,
@@ -25,7 +24,6 @@ describe("managed Traefik compatibility", () => {
   it("uses a Docker-29-compatible image and migrates older managed edges", () => {
     expect(VIBRAIL_EDGE_IMAGE).toContain("vibrail-edge");
     expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(10);
-    expect(VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT).toBe("cloudflare-origin");
   });
 
   it("does not mistake a suspension label carrier for the shared edge", () => {
@@ -134,7 +132,6 @@ certificatesResolvers:
             "--providers.docker=true",
             "--providers.docker.network=vibrail-edge",
             "--entrypoints.websecure.address=:443",
-            "--entrypoints.cloudflare-origin.address=:8443",
           ],
           labels: {
             [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
@@ -148,7 +145,6 @@ certificatesResolvers:
       ),
     ).toMatchObject({
       network: "vibrail-edge",
-      cloudflareEntrypoint: "cloudflare-origin",
       source: "vibrail",
     });
   });
@@ -227,7 +223,6 @@ describe("buildTraefikLabels", () => {
     const labels = buildTraefikLabels({
       network: "vibrail-edge",
       entrypoint: "websecure",
-      cloudflareEntrypoint: "cloudflare-origin",
       managedOriginHost: "server-21e43be6.vibrail.app",
       tls: true,
       routes: [
@@ -267,11 +262,10 @@ describe("buildTraefikLabels", () => {
     ).toBe("seekpeace-web-ynfhiez1.vibrail.app");
   });
 
-  it("does not expose ordinary direct-host routers on the protected origin entrypoint", () => {
+  it("keeps ordinary and managed routers on the standard HTTPS entrypoint", () => {
     const labels = buildTraefikLabels({
       network: "vibrail-edge",
       entrypoint: "websecure",
-      cloudflareEntrypoint: "cloudflare-origin",
       tls: true,
       routes: [{ routerName: "app", hostname: "app.vibrail.app", port: 3000 }],
     });
@@ -362,7 +356,6 @@ describe("buildTraefikLabels", () => {
       {
         network: "vibrail-edge",
         entrypoint: "websecure",
-        cloudflareEntrypoint: "cloudflare",
         tls: true,
         source: "vibrail",
         containerId: "edge",
@@ -385,7 +378,7 @@ describe("buildTraefikLabels", () => {
     )!;
     const name = router.split(".")[3]!;
     expect(labels).toMatchObject({
-      [`traefik.http.routers.${name}.entrypoints`]: "websecure,cloudflare",
+      [`traefik.http.routers.${name}.entrypoints`]: "websecure",
       [`traefik.http.routers.${name}.priority`]: "100000",
       [`traefik.http.routers.${name}.middlewares`]:
         `${name}-origin-auth@docker,${name}-redirect@docker`,
