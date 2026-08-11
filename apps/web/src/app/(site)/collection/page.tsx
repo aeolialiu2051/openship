@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import { CollectionPage, type Project as CollectionProject } from "@/components/collection/collection-page";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { LANDING_LOCALE_COOKIE, parseLandingLocale } from "@/lib/landing-locale";
-import { CLOUD_DASHBOARD_URL, DEFAULT_PORT, resolveDashboardPageUrl } from "@repo/core";
+import { CLOUD_API_URL, CLOUD_DASHBOARD_URL, DEFAULT_PORT, resolveDashboardPageUrl } from "@repo/core";
 import { resolveCollectionPreview } from "@/lib/collection-preview";
+import { resolveCollectionApiUrls } from "@/lib/collection-api-url";
 
 export const metadata: Metadata = {
   title: "Collection",
@@ -17,16 +18,31 @@ export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const cookieStore = await cookies();
+  const requestHeaders = await headers();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
   const dashboardBaseUrl = process.env.NODE_ENV === "development"
     ? `http://localhost:${DEFAULT_PORT.vibrailSaasDashboard}`
     : CLOUD_DASHBOARD_URL;
   const dashboardLoginUrl = resolveDashboardPageUrl(dashboardBaseUrl, "/login");
-  const apiUrl = (process.env.VIBRAIL_API_URL || process.env.NEXT_PUBLIC_VIBRAIL_API_URL || "http://localhost:4100").replace(/\/$/, "");
+  const { serverApiUrl, browserApiUrl } = resolveCollectionApiUrls({
+    nodeEnv: process.env.NODE_ENV,
+    internalApiUrl: process.env.VIBRAIL_API_URL,
+    publicApiUrl: process.env.NEXT_PUBLIC_VIBRAIL_API_URL,
+    cloudApiUrl: CLOUD_API_URL,
+  });
   let projects: CollectionProject[] = [];
+  let initialAuthenticated = false;
   try {
-    const response = await fetch(`${apiUrl}/api/collection`, { cache: "no-store" });
-    if (response.ok) projects = (await response.json()).data ?? [];
+    const cookie = requestHeaders.get("cookie");
+    const response = await fetch(`${serverApiUrl}/api/collection`, {
+      cache: "no-store",
+      headers: cookie ? { cookie } : undefined,
+    });
+    if (response.ok) {
+      const payload = await response.json();
+      projects = payload.data ?? [];
+      initialAuthenticated = Boolean(payload.authenticated);
+    }
   } catch {
     // The public site remains usable while the API is unavailable.
   }
@@ -36,5 +52,5 @@ export default async function Page() {
       previewable: await resolveCollectionPreview(project),
     })),
   );
-  return <CollectionPage initialProjects={projects} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={apiUrl} />;
+  return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
 }

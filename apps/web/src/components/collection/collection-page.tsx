@@ -138,11 +138,13 @@ function CollectionPreview({
 
 export function CollectionPage({
   initialProjects,
+  initialAuthenticated,
   initialLocale,
   dashboardLoginUrl,
   apiUrl,
 }: {
   initialProjects: Project[];
+  initialAuthenticated: boolean;
   initialLocale?: LandingLocale;
   dashboardLoginUrl: string;
   apiUrl: string;
@@ -152,7 +154,7 @@ export function CollectionPage({
   const [query, setQuery] = useState("");
   const [allProjects, setAllProjects] = useState(initialProjects);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [authenticated, setAuthenticated] = useState(false);
+  const [authenticated, setAuthenticated] = useState(initialAuthenticated);
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
