@@ -5,6 +5,7 @@ import { ApiUnavailable } from "@/components/api-unavailable";
 import {
   getCloudConnectHandoffUrl,
   buildAuthPageHref,
+  resolveReturnToDestination,
   validateReturnTo,
   DESKTOP_CLOUD_FLOW,
   CLI_LOGIN_FLOW,
@@ -56,7 +57,10 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
     // server-side so a tampered URL can't redirect to an attacker domain.
     const returnTo = validateReturnTo(params.get("returnTo"));
     if (returnTo) {
-      redirect(returnTo);
+      const forwardedHost = hdrs.get("x-forwarded-host") ?? hdrs.get("host");
+      const forwardedProto = hdrs.get("x-forwarded-proto") ?? "http";
+      const requestOrigin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : undefined;
+      redirect(resolveReturnToDestination(returnTo, requestOrigin));
     }
 
     if (params.get("flow") === CLI_LOGIN_FLOW) {

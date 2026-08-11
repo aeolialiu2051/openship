@@ -1,5 +1,5 @@
-import { getCloudApiOrigin, getCloudDashboardUrl } from "@/lib/api/urls";
-import { resolveDashboardPageUrl } from "@repo/core";
+import { getCloudApiOrigin, getCloudDashboardUrl } from "./api/urls";
+import { DEFAULT_PORT, resolveDashboardPageUrl } from "@repo/core";
 
 export const DESKTOP_CLOUD_FLOW = "desktop-cloud";
 export const CLI_LOGIN_FLOW = "cli-login";
@@ -149,7 +149,10 @@ export function getPostAuthRedirect(searchParams: SearchParamsLike) {
   // (e.g. /cloud-authorize → /login?returnTo=… → back to /cloud-authorize).
   // Take precedence over the older `callback` flow when both are present.
   const returnTo = validateReturnTo(searchParams.get("returnTo"));
-  if (returnTo) return returnTo;
+  if (returnTo) {
+    const requestOrigin = typeof window !== "undefined" ? window.location.origin : undefined;
+    return resolveReturnToDestination(returnTo, requestOrigin);
+  }
 
   if (searchParams.get("flow") === CLI_LOGIN_FLOW) {
     return buildAuthPageHref("/authorize", searchParams);
@@ -166,6 +169,24 @@ export function getPostAuthRedirect(searchParams: SearchParamsLike) {
 }
 
 /**
+ * The hosted dashboard and marketing site share one origin, so a relative
+ * collection path is correct there. Local development runs them on separate
+ * ports; send collection continuations back to the Web app instead of asking
+ * the Dashboard app to render `/collection`.
+ */
+export function resolveReturnToDestination(returnTo: string, requestOrigin?: string): string {
+  if (!returnTo.startsWith("/collection")) return returnTo;
+  if (!requestOrigin) return returnTo;
+  const origin = new URL(requestOrigin);
+  const isLocalDashboard =
+    (origin.hostname === "localhost" || origin.hostname === "127.0.0.1") &&
+    (origin.port === String(DEFAULT_PORT.dashboard) ||
+      origin.port === String(DEFAULT_PORT.vibrailSaasDashboard));
+  if (!isLocalDashboard) return returnTo;
+  return `${origin.protocol}//${origin.hostname}:${DEFAULT_PORT.web}${returnTo}`;
+}
+
+/**
  * Allowlist for `?returnTo=` post-auth redirects.
  *
  * Open redirects via `returnTo` are the classic phishing vector — an
@@ -175,9 +196,9 @@ export function getPostAuthRedirect(searchParams: SearchParamsLike) {
  * Rules:
  *   - Must be a relative path starting with a single `/`.
  *   - Must NOT start with `//` (protocol-relative URLs).
- *   - Path must match an allowlisted prefix. Currently only
- *     `/cloud-authorize` (the consent page that minted the link) and
- *     `/` (root) are accepted; widen this list intentionally as new
+ *   - Path must match an allowlisted prefix. Currently
+ *     `/cloud-authorize`, `/collection`, and `/` (root) are accepted;
+ *     widen this list intentionally as new
  *     pages need it.
  *
  * Returns the validated path, or `null` when the input is unsafe or
@@ -200,7 +221,7 @@ export function validateReturnTo(input: string | null): string | null {
   // Split off any query/fragment for the prefix check, but keep them on
   // the returned value so the consent page reloads with its params.
   const pathOnly = input.split(/[?#]/)[0];
-  const ALLOWED_PREFIXES = ["/cloud-authorize", "/"];
+  const ALLOWED_PREFIXES = ["/cloud-authorize", "/collection", "/"];
   const isAllowed = ALLOWED_PREFIXES.some((prefix) => {
     if (prefix === "/") return pathOnly === "/";
     return pathOnly === prefix || pathOnly.startsWith(prefix + "/");

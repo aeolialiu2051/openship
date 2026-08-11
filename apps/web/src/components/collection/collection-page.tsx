@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Globe2,
@@ -26,6 +26,16 @@ export type Project = {
   previewable?: boolean;
   updatedAt?: string;
   publisher?: { name: string; image?: string | null } | null;
+  likeCount?: number;
+  likedByViewer?: boolean;
+  commentCount?: number;
+  comments?: Array<{
+    id: string;
+    projectId: string;
+    content: string;
+    createdAt: string;
+    author: { name: string; image?: string | null };
+  }>;
 };
 const text = {
   en: {
@@ -44,6 +54,10 @@ const text = {
     start: "Start the conversation.",
     feedback: "Share feedback with the maker.",
     signIn: "Sign in to leave a comment",
+    commentPlaceholder: "Write a comment…",
+    sendComment: "Post comment",
+    authRequired: "Sign in or create an account to continue.",
+    failed: "Something went wrong. Please try again.",
     open: "Open live site",
     project: "Web project",
     close: "Close",
@@ -67,6 +81,10 @@ const text = {
     start: "来发第一条评论吧。",
     feedback: "给创作者留下你的反馈。",
     signIn: "登录后发表评论",
+    commentPlaceholder: "写下你的评论…",
+    sendComment: "发表评论",
+    authRequired: "请先登录或注册后继续。",
+    failed: "操作失败，请重试。",
     open: "打开线上项目",
     project: "Web 项目",
     close: "关闭",
@@ -122,21 +140,118 @@ export function CollectionPage({
   initialProjects,
   initialLocale,
   dashboardLoginUrl,
+  apiUrl,
 }: {
   initialProjects: Project[];
   initialLocale?: LandingLocale;
   dashboardLoginUrl: string;
+  apiUrl: string;
 }) {
   const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
   const copy = text[locale];
   const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<Project | null>(null);
-  const [liked, setLiked] = useState<Set<string>>(new Set());
+  const [allProjects, setAllProjects] = useState(initialProjects);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [authenticated, setAuthenticated] = useState(false);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const continuationHandled = useRef(false);
+  const selected = allProjects.find((project) => project.id === selectedId) ?? null;
   const projects = useMemo(
     () =>
-      initialProjects.filter((project) => project.name.toLowerCase().includes(query.toLowerCase())),
-    [initialProjects, query],
+      allProjects.filter((project) => project.name.toLowerCase().includes(query.toLowerCase())),
+    [allProjects, query],
   );
+
+  useEffect(() => {
+    fetch(`${apiUrl}/api/collection`, { credentials: "include" })
+      .then(async (response) => response.ok ? response.json() : Promise.reject())
+      .then((payload) => {
+        setAuthenticated(Boolean(payload.authenticated));
+        setAllProjects((current) => payload.data.map((project: Project) => ({
+          ...project,
+          previewable: current.find((item) => item.id === project.id)?.previewable,
+        })));
+      })
+      .catch(() => {});
+  }, [apiUrl]);
+
+  const requireLogin = (projectId?: string, intent?: "like" | "comment") => {
+    const loginUrl = new URL(dashboardLoginUrl);
+    const returnTo = new URL("/collection", window.location.origin);
+    if (projectId && intent) {
+      returnTo.searchParams.set("project", projectId);
+      returnTo.searchParams.set("intent", intent);
+    }
+    loginUrl.searchParams.set("returnTo", `${returnTo.pathname}${returnTo.search}`);
+    window.location.href = loginUrl.toString();
+  };
+
+  const toggleLike = async (projectId: string) => {
+    if (!authenticated) return requireLogin(projectId, "like");
+    setError("");
+    const response = await fetch(`${apiUrl}/api/collection/${projectId}/like`, {
+      method: "POST",
+      credentials: "include",
+    }).catch(() => null);
+    if (!response?.ok) {
+      if (response?.status === 401) return requireLogin(projectId, "like");
+      setError(copy.failed);
+      return;
+    }
+    const result = await response.json();
+    setAllProjects((current) => current.map((project) => project.id === projectId
+      ? { ...project, likedByViewer: result.liked, likeCount: result.likeCount }
+      : project));
+  };
+
+  const submitComment = async () => {
+    if (!authenticated) return requireLogin(selected?.id, "comment");
+    if (!selected || !comment.trim() || submitting) return;
+    setSubmitting(true);
+    setError("");
+    const response = await fetch(`${apiUrl}/api/collection/${selected.id}/comments`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: comment }),
+    }).catch(() => null);
+    if (!response?.ok) {
+      setSubmitting(false);
+      if (response?.status === 401) return requireLogin(selected.id, "comment");
+      setError(copy.failed);
+      return;
+    }
+    const result = await response.json();
+    setAllProjects((current) => current.map((project) => project.id === selected.id
+      ? {
+          ...project,
+          commentCount: (project.commentCount ?? 0) + 1,
+          comments: [...(project.comments ?? []), result.data],
+        }
+      : project));
+    setComment("");
+    setSubmitting(false);
+  };
+
+  useEffect(() => {
+    if (continuationHandled.current || !allProjects.length) return;
+    const params = new URLSearchParams(window.location.search);
+    const projectId = params.get("project");
+    const intent = params.get("intent");
+    if (!projectId || !allProjects.some((project) => project.id === projectId)) return;
+    if (intent === "comment") {
+      continuationHandled.current = true;
+      setSelectedId(projectId);
+    } else if (intent === "like" && authenticated) {
+      continuationHandled.current = true;
+      void toggleLike(projectId);
+    } else {
+      return;
+    }
+    window.history.replaceState(null, "", "/collection");
+  }, [allProjects, authenticated]);
 
   useEffect(() => {
     document.body.style.overflow = selected ? "hidden" : "";
@@ -183,7 +298,7 @@ export function CollectionPage({
               <article
                 className={`collection-card card-tone-${index % 5}`}
                 key={project.id}
-                onClick={() => setSelected(project)}
+                onClick={() => setSelectedId(project.id)}
               >
                 <div className="collection-preview">
                   <CollectionPreview project={project} />
@@ -214,16 +329,12 @@ export function CollectionPage({
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
-                        setLiked((old) => {
-                          const next = new Set(old);
-                          next.has(project.id) ? next.delete(project.id) : next.add(project.id);
-                          return next;
-                        });
+                        void toggleLike(project.id);
                       }}
                       aria-label={copy.like}
                     >
-                      <Heart size={17} fill={liked.has(project.id) ? "currentColor" : "none"} />{" "}
-                      {liked.has(project.id) ? 1 : 0}
+                      <Heart size={17} fill={project.likedByViewer ? "currentColor" : "none"} />{" "}
+                      {project.likeCount ?? 0}
                     </button>
                   </div>
                 </div>
@@ -242,7 +353,7 @@ export function CollectionPage({
           <div
             className="collection-modal-backdrop"
             role="presentation"
-            onMouseDown={(event) => event.target === event.currentTarget && setSelected(null)}
+            onMouseDown={(event) => event.target === event.currentTarget && setSelectedId(null)}
           >
             <div
               className="collection-modal"
@@ -252,7 +363,7 @@ export function CollectionPage({
             >
               <button
                 className="collection-close"
-                onClick={() => setSelected(null)}
+                onClick={() => setSelectedId(null)}
                 aria-label={copy.close}
               >
                 <X size={21} />
@@ -282,26 +393,43 @@ export function CollectionPage({
                   </span>
                 </div>
                 <div className="collection-comment-title">
-                  <MessageCircle size={16} /> {copy.comments} <span>0</span>
+                  <MessageCircle size={16} /> {copy.comments} <span>{selected.commentCount ?? 0}</span>
                 </div>
-                <div className="collection-comment-empty">
-                  <MessageCircle size={24} />
-                  <p>{copy.start}</p>
-                  <span>{copy.feedback}</span>
-                </div>
+                {selected.comments?.length ? (
+                  <div className="collection-comment-list">
+                    {selected.comments.map((item) => (
+                      <div className="collection-comment" key={item.id}>
+                        <strong>{item.author.name}</strong>
+                        <p>{item.content}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="collection-comment-empty">
+                    <MessageCircle size={24} />
+                    <p>{copy.start}</p>
+                    <span>{copy.feedback}</span>
+                  </div>
+                )}
                 <div className="collection-comment-box">
                   <input
-                    placeholder={copy.signIn}
-                    readOnly
-                    onClick={() => (window.location.href = dashboardLoginUrl)}
+                    value={comment}
+                    maxLength={1000}
+                    placeholder={authenticated ? copy.commentPlaceholder : copy.signIn}
+                    readOnly={!authenticated}
+                    onChange={(event) => setComment(event.target.value)}
+                    onClick={() => !authenticated && requireLogin(selected.id, "comment")}
+                    onKeyDown={(event) => event.key === "Enter" && void submitComment()}
                   />
                   <button
-                    aria-label={copy.signIn}
-                    onClick={() => (window.location.href = dashboardLoginUrl)}
+                    aria-label={authenticated ? copy.sendComment : copy.signIn}
+                    disabled={submitting || (authenticated && !comment.trim())}
+                    onClick={() => void submitComment()}
                   >
                     <Send size={17} />
                   </button>
                 </div>
+                {error && <p className="collection-comment-error">{error}</p>}
               </aside>
             </div>
           </div>

@@ -61,3 +61,4 @@ export {
   billingUsageSnapshot,
 } from "./billing";
 export { customAppTemplate } from "./custom-app-template";
+export { collectionLike, collectionComment } from "./collection-engagement";

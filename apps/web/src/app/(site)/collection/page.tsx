@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { CollectionPage, type Project as CollectionProject } from "@/components/collection/collection-page";
 import { cookies } from "next/headers";
 import { LANDING_LOCALE_COOKIE, parseLandingLocale } from "@/lib/landing-locale";
-import { CLOUD_DASHBOARD_URL, resolveDashboardPageUrl } from "@repo/core";
+import { CLOUD_DASHBOARD_URL, DEFAULT_PORT, resolveDashboardPageUrl } from "@repo/core";
 import { resolveCollectionPreview } from "@/lib/collection-preview";
 
 export const metadata: Metadata = {
@@ -18,7 +18,10 @@ export const dynamic = "force-dynamic";
 export default async function Page() {
   const cookieStore = await cookies();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
-  const dashboardLoginUrl = resolveDashboardPageUrl(CLOUD_DASHBOARD_URL, "/login");
+  const dashboardBaseUrl = process.env.NODE_ENV === "development"
+    ? `http://localhost:${DEFAULT_PORT.vibrailSaasDashboard}`
+    : CLOUD_DASHBOARD_URL;
+  const dashboardLoginUrl = resolveDashboardPageUrl(dashboardBaseUrl, "/login");
   const apiUrl = (process.env.VIBRAIL_API_URL || process.env.NEXT_PUBLIC_VIBRAIL_API_URL || "http://localhost:4100").replace(/\/$/, "");
   let projects: CollectionProject[] = [];
   try {
@@ -33,5 +36,5 @@ export default async function Page() {
       previewable: await resolveCollectionPreview(project),
     })),
   );
-  return <CollectionPage initialProjects={projects} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} />;
+  return <CollectionPage initialProjects={projects} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={apiUrl} />;
 }

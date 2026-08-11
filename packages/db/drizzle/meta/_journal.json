@@ -631,6 +631,13 @@
       "when": 1893456000014,
       "tag": "0089_project_collection_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 90,
+      "version": "7",
+      "when": 1893456000015,
+      "tag": "0090_collection_engagement",
+      "breakpoints": true
     }
   ]
 }
