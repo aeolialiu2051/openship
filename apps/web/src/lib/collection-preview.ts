@@ -11,6 +11,37 @@ function isManagedPreviewUrl(value: string) {
   }
 }
 
+type HeaderReader = { get(name: string): string | null };
+
+/**
+ * Return false when a response explicitly prevents cross-origin framing.
+ * Collection cards are hosted outside each project's `.vibrail.app` origin,
+ * so SAMEORIGIN and CSP `self` cannot render here either.
+ */
+export function allowsCollectionEmbedding(headers: HeaderReader) {
+  const xFrameOptions = headers.get("x-frame-options")?.trim().toLowerCase();
+  if (xFrameOptions) {
+    const directives = xFrameOptions.split(",").map((value) => value.trim());
+    if (directives.some((value) => value === "deny" || value === "sameorigin")) {
+      return false;
+    }
+  }
+
+  const csp = headers.get("content-security-policy") ?? "";
+  const frameAncestors = csp
+    .split(";")
+    .map((directive) => directive.trim())
+    .find((directive) => /^frame-ancestors(?:\s|$)/i.test(directive));
+  if (!frameAncestors) return true;
+
+  const sources = frameAncestors.replace(/^frame-ancestors\s*/i, "").trim().split(/\s+/);
+  if (sources.includes("'none'")) return false;
+  // A project origin is never the Collection origin, so a self-only policy
+  // blocks the card even though the project itself renders normally.
+  if (sources.length === 1 && sources[0] === "'self'") return false;
+  return true;
+}
+
 /**
  * A useful HTML response either contains visible body content or boots a
  * client-side application. Empty HTML shells from API/default routes should
@@ -45,6 +76,8 @@ async function probeManagedHtml(url: string) {
       signal: AbortSignal.timeout(3_000),
     });
     if (!response.ok) return false;
+
+    if (!allowsCollectionEmbedding(response.headers)) return false;
 
     const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
     if (!contentType.includes("text/html") && !contentType.includes("application/xhtml+xml")) {
