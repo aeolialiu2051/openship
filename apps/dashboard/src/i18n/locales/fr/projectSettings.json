@@ -49,6 +49,18 @@
       "disable": "Désactiver",
       "enable": "Activer"
     },
+    "collection": {
+      "title": "Collection",
+      "description": "Contrôlez si ce projet apparaît dans la collection publique Vibrail",
+      "label": "Partager dans la collection",
+      "shared": "Ce projet apparaît dans la collection",
+      "hidden": "Ce projet est masqué de la collection ; son URL publique reste accessible",
+      "toast": {
+        "shared": "Projet partagé dans la collection",
+        "hidden": "Projet masqué de la collection",
+        "failed": "Échec de la mise à jour des paramètres de collection"
+      }
+    },
     "cache": {
       "title": "Cache",
       "description": "Videz les artefacts de build et les installations de dépendances mis en cache",

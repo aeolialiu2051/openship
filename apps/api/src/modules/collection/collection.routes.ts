@@ -21,6 +21,7 @@ export const collectionRoutes = new Hono().get("/", async (c) => {
       and(
         isNull(schema.project.deletedAt),
         eq(schema.project.active, true),
+        eq(schema.project.shareToCollection, true),
         eq(schema.project.moderationStatus, "active"),
         eq(schema.domain.ownerType, "project"),
         eq(schema.domain.status, "active"),
@@ -75,9 +76,7 @@ export const collectionRoutes = new Hono().get("/", async (c) => {
   // publisher fallback instead of showing an anonymous label forever.
   const organizationIdsMissingCreator = [
     ...new Set(
-      uniqueRows
-        .filter((row) => !creatorByProject.has(row.id))
-        .map((row) => row.organizationId),
+      uniqueRows.filter((row) => !creatorByProject.has(row.id)).map((row) => row.organizationId),
     ),
   ];
   const owners = organizationIdsMissingCreator.length

@@ -624,6 +624,13 @@
       "when": 1893456000013,
       "tag": "0088_domain_managed_key_index",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "7",
+      "when": 1893456000014,
+      "tag": "0089_project_collection_visibility",
+      "breakpoints": true
     }
   ]
 }

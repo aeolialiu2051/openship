@@ -49,10 +49,7 @@ const EnvironmentEnum = Type.Union([
   Type.Literal("development"),
 ]);
 
-const EnvironmentSourceModeEnum = Type.Union([
-  Type.Literal("branch"),
-  Type.Literal("manual"),
-]);
+const EnvironmentSourceModeEnum = Type.Union([Type.Literal("branch"), Type.Literal("manual")]);
 
 const PublicEndpointSchema = Type.Object({
   port: Type.Optional(Type.Number({ minimum: 1, maximum: 65535 })),
@@ -145,7 +142,10 @@ const RoutingConfigSchema = Type.Object({
       Type.Object({
         source: Type.String({ maxLength: 2000 }),
         headers: Type.Array(
-          Type.Object({ key: Type.String({ maxLength: 200 }), value: Type.String({ maxLength: 4000 }) }),
+          Type.Object({
+            key: Type.String({ maxLength: 200 }),
+            value: Type.String({ maxLength: 4000 }),
+          }),
           { maxItems: 50 },
         ),
       }),
@@ -245,7 +245,10 @@ export const CreateProjectBody = Type.Object({
    * overlaps an existing service's `rootDirectory`.
    */
   monorepoSharedPaths: Type.Optional(
-    Type.Union([Type.Null(), Type.Array(Type.String({ minLength: 1, maxLength: 200 }), { maxItems: 50 })]),
+    Type.Union([
+      Type.Null(),
+      Type.Array(Type.String({ minLength: 1, maxLength: 200 }), { maxItems: 50 }),
+    ]),
   ),
   /** Routing config from the repo's vercel.json (see RoutingConfigSchema). */
   routingConfig: Type.Optional(Type.Union([Type.Null(), RoutingConfigSchema])),
@@ -257,6 +260,8 @@ export const CreateProjectBody = Type.Object({
   defaultRollbackStrategy: Type.Optional(
     Type.Union([Type.Literal("git"), Type.Literal("snapshot")]),
   ),
+  /** Allow this project to appear in the public Vibrail collection. */
+  shareToCollection: Type.Optional(Type.Boolean({ default: true })),
   /**
    * Edge → app upstream addressing for this project (self-hosted).
    *   - "auto"          → resolved to loopback-port (the safe default)
@@ -266,11 +271,7 @@ export const CreateProjectBody = Type.Object({
    *     supported on Docker Desktop). Ignored by bare + cloud runtimes.
    */
   routeStrategy: Type.Optional(
-    Type.Union([
-      Type.Literal("auto"),
-      Type.Literal("loopback-port"),
-      Type.Literal("container-ip"),
-    ]),
+    Type.Union([Type.Literal("auto"), Type.Literal("loopback-port"), Type.Literal("container-ip")]),
   ),
   /**
    * Apps-catalog marker. Set by the Create-App instantiator when a project is
@@ -284,9 +285,7 @@ export const CreateProjectBody = Type.Object({
 
 // routeKey is a routing identity, not editable project configuration. Changing
 // it after routes exist would orphan old hostnames and can create double keys.
-export const UpdateProjectBody = Type.Partial(
-  Type.Omit(CreateProjectBody, ["routeKey"]),
-);
+export const UpdateProjectBody = Type.Partial(Type.Omit(CreateProjectBody, ["routeKey"]));
 
 /**
  * POST /projects/ensure — CreateProjectBody plus an optional `projectId` to
@@ -305,12 +304,16 @@ export const EnsureProjectBody = Type.Composite([
 export const FolderSessionBody = Type.Object(
   {
     stack: Type.Optional(
-      Type.String({ description: "Stack hint (e.g. 'vite','nextjs'); picks the cloud build image." }),
+      Type.String({
+        description: "Stack hint (e.g. 'vite','nextjs'); picks the cloud build image.",
+      }),
     ),
     packageManager: Type.Optional(Type.String({ description: "npm | pnpm | yarn | bun." })),
     name: Type.Optional(Type.String({ description: "Project name." })),
     serverId: Type.Optional(
-      Type.String({ description: "User-selected server that will receive and deploy this upload." }),
+      Type.String({
+        description: "User-selected server that will receive and deploy this upload.",
+      }),
     ),
   },
   { additionalProperties: true },

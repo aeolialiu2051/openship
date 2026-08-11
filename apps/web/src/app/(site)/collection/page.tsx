@@ -9,7 +9,10 @@ export const metadata: Metadata = {
   description: "Explore projects built and deployed with Vibrail.",
 };
 
-export const revalidate = 60;
+// Collection visibility is user-controlled from project settings. Keep this
+// route dynamic so opting out is reflected on the very next page load instead
+// of serving a previously cached public listing.
+export const dynamic = "force-dynamic";
 
 export default async function Page() {
   const cookieStore = await cookies();
@@ -18,7 +21,7 @@ export default async function Page() {
   const apiUrl = (process.env.VIBRAIL_API_URL || process.env.NEXT_PUBLIC_VIBRAIL_API_URL || "http://localhost:4100").replace(/\/$/, "");
   let projects = [];
   try {
-    const response = await fetch(`${apiUrl}/api/collection`, { next: { revalidate: 60 } });
+    const response = await fetch(`${apiUrl}/api/collection`, { cache: "no-store" });
     if (response.ok) projects = (await response.json()).data ?? [];
   } catch {
     // The public site remains usable while the API is unavailable.

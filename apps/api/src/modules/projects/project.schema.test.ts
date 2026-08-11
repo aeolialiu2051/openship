@@ -30,7 +30,14 @@ describe("UpdateProjectBody — mass-assignment allow-list", () => {
   });
 
   it("still allows the documented editable fields (no accidental over-restriction)", () => {
-    for (const allowed of ["name", "gitBranch", "port", "publicEndpoints", "routingConfig"]) {
+    for (const allowed of [
+      "name",
+      "gitBranch",
+      "port",
+      "publicEndpoints",
+      "routingConfig",
+      "shareToCollection",
+    ]) {
       expect(keys).toContain(allowed);
     }
   });

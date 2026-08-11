@@ -137,6 +137,18 @@
       "disable": "禁用",
       "enable": "启用"
     },
+    "collection": {
+      "title": "作品集",
+      "description": "控制项目是否展示在 Vibrail 公共作品集中",
+      "label": "分享到作品集",
+      "shared": "项目会展示在作品集中",
+      "hidden": "项目不会展示在作品集中，公网访问不受影响",
+      "toast": {
+        "shared": "项目已分享到作品集",
+        "hidden": "项目已从作品集中隐藏",
+        "failed": "更新作品集设置失败"
+      }
+    },
     "cache": {
       "title": "缓存",
       "description": "清除缓存的构建产物和依赖安装",

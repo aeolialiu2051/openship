@@ -49,6 +49,18 @@
       "disable": "Deaktivieren",
       "enable": "Aktivieren"
     },
+    "collection": {
+      "title": "Sammlung",
+      "description": "Lege fest, ob dieses Projekt in der öffentlichen Vibrail-Sammlung erscheint",
+      "label": "In Sammlung teilen",
+      "shared": "Dieses Projekt erscheint in der Sammlung",
+      "hidden": "Dieses Projekt ist in der Sammlung verborgen; die öffentliche URL bleibt erreichbar",
+      "toast": {
+        "shared": "Projekt in der Sammlung geteilt",
+        "hidden": "Projekt aus der Sammlung ausgeblendet",
+        "failed": "Sammlungseinstellung konnte nicht aktualisiert werden"
+      }
+    },
     "cache": {
       "title": "Cache",
       "description": "Zwischengespeicherte Build-Artefakte und Abhängigkeitsinstallationen leeren",

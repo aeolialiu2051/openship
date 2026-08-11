@@ -120,6 +120,18 @@
       "disable": "Devre Dışı Bırak",
       "enable": "Etkinleştir"
     },
+    "collection": {
+      "title": "Koleksiyon",
+      "description": "Bu projenin Vibrail'in herkese açık koleksiyonunda görünüp görünmeyeceğini belirleyin",
+      "label": "Koleksiyonda paylaş",
+      "shared": "Bu proje koleksiyonda görünür",
+      "hidden": "Bu proje koleksiyonda gizlidir; genel URL'si çalışmaya devam eder",
+      "toast": {
+        "shared": "Proje koleksiyonda paylaşıldı",
+        "hidden": "Proje koleksiyondan gizlendi",
+        "failed": "Koleksiyon ayarları güncellenemedi"
+      }
+    },
     "cache": {
       "title": "Önbellek",
       "description": "Önbelleğe alınmış derleme çıktılarını ve bağımlılık kurulumlarını temizleyin",

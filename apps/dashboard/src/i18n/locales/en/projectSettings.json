@@ -157,6 +157,18 @@
       "disable": "Disable",
       "enable": "Enable"
     },
+    "collection": {
+      "title": "Collection",
+      "description": "Control whether this project appears in Vibrail's public collection",
+      "label": "Share to collection",
+      "shared": "This project appears in the collection",
+      "hidden": "This project is hidden from the collection; its public URL still works",
+      "toast": {
+        "shared": "Project shared to the collection",
+        "hidden": "Project hidden from the collection",
+        "failed": "Failed to update collection settings"
+      }
+    },
     "cache": {
       "title": "Cache",
       "description": "Clear cached build artifacts and dependency installs",

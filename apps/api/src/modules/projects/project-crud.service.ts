@@ -354,6 +354,7 @@ function buildProductionProjectInput(
     routeStrategy: data.routeStrategy ?? undefined,
     isApp: data.isApp === true,
     appTemplateId: data.appTemplateId ?? null,
+    shareToCollection: data.shareToCollection ?? true,
     // Every server workload is containerized, including projects without a
     // repository Dockerfile (the runtime generates one from detected commands).
     runtimeMode: "docker",

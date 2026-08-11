@@ -27,6 +27,7 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import { projectsApi } from "@/lib/api";
 import { getApiErrorMessage } from "@/lib/api/client";
 import type { RouteStrategy } from "@/lib/api/settings";
+import { Switch } from "@/components/ui/Switch";
 
 interface Props {
   onDeleteProject: (deleteApp?: boolean, wipeVolumes?: boolean, recordOnly?: boolean) => void;
@@ -66,7 +67,9 @@ function SectionCard({
 
   const header = (
     <>
-      <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[iconTone]}`}>
+      <div
+        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${ICON_TONES[iconTone]}`}
+      >
         <Icon className="size-4" />
       </div>
       <div className="min-w-0 flex-1">
@@ -105,12 +108,16 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   const { t } = useI18n();
   const { projectData, updateProjectData } = useProjectSettings();
   const [isProjectActive, setIsProjectActive] = useState(projectData?.active ?? true);
+  const [shareToCollection, setShareToCollection] = useState(
+    projectData?.shareToCollection ?? true,
+  );
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [loading, setLoading] = useState({
     disableProject: false,
     clearInstallCache: false,
     clearBuildCache: false,
+    shareToCollection: false,
   });
 
   // Project data is loaded asynchronously and can also change after a deploy.
@@ -118,6 +125,38 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   useEffect(() => {
     setIsProjectActive(projectData?.active ?? true);
   }, [projectData?.active, projectData?.id]);
+
+  useEffect(() => {
+    setShareToCollection(projectData?.shareToCollection ?? true);
+  }, [projectData?.shareToCollection, projectData?.id]);
+
+  const handleCollectionVisibility = async (next: boolean) => {
+    if (loading.shareToCollection) return;
+    const previous = shareToCollection;
+    setShareToCollection(next);
+    setLoading((s) => ({ ...s, shareToCollection: true }));
+    try {
+      const response = await projectsApi.update(projectData.id, { shareToCollection: next });
+      const saved = response.data?.shareToCollection ?? next;
+      setShareToCollection(saved);
+      updateProjectData({ shareToCollection: saved });
+      showToast(
+        saved
+          ? t.projectSettings.advanced.collection.toast.shared
+          : t.projectSettings.advanced.collection.toast.hidden,
+        "success",
+      );
+    } catch (error) {
+      setShareToCollection(previous);
+      showToast(
+        getApiErrorMessage(error, t.projectSettings.advanced.collection.toast.failed),
+        "error",
+        t.projectSettings.advanced.collection.toast.failed,
+      );
+    } finally {
+      setLoading((s) => ({ ...s, shareToCollection: false }));
+    }
+  };
 
   const handleDisableProject = async () => {
     if (loading.disableProject) return;
@@ -168,13 +207,27 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
             <Settings2 className="size-4 text-primary" />
           </div>
           <div className="min-w-0 flex-1">
-            <h3 className="text-[14px] font-semibold text-foreground">{t.projectSettings.advanced.projectInfo.title}</h3>
-            <p className="mt-0.5 text-[12px] text-muted-foreground">{t.projectSettings.advanced.projectInfo.description}</p>
+            <h3 className="text-[14px] font-semibold text-foreground">
+              {t.projectSettings.advanced.projectInfo.title}
+            </h3>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {t.projectSettings.advanced.projectInfo.description}
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-6 px-5 py-4">
-          <MetricRow label={t.projectSettings.advanced.metric.status} value={isProjectActive ? t.projectSettings.advanced.statusActive : t.projectSettings.advanced.statusDisabled} />
-          <MetricRow label={t.projectSettings.advanced.metric.project} value={projectData?.name || "-"} />
+          <MetricRow
+            label={t.projectSettings.advanced.metric.status}
+            value={
+              isProjectActive
+                ? t.projectSettings.advanced.statusActive
+                : t.projectSettings.advanced.statusDisabled
+            }
+          />
+          <MetricRow
+            label={t.projectSettings.advanced.metric.project}
+            value={projectData?.name || "-"}
+          />
           {projectData?.deployTarget && (
             <MetricRow
               label={t.projectSettings.advanced.metric.hostedOn}
@@ -197,63 +250,102 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
         icon={Settings2}
         iconTone="primary"
       >
-          <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-            <div className="flex items-center gap-3">
-              <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${isProjectActive ? "bg-success-bg" : "bg-warning-bg"}`}>
-                {isProjectActive ? (
-                  <Pause className="size-4 text-success" />
-                ) : (
-                  <Play className="size-4 text-warning" />
-                )}
-              </div>
-              <div>
-                <p className="text-[13px] font-medium text-foreground">
-                  {isProjectActive ? t.projectSettings.advanced.projectStatus.active : t.projectSettings.advanced.projectStatus.disabled}
-                </p>
-                <p className="text-[12px] text-muted-foreground">
-                  {isProjectActive ? t.projectSettings.advanced.projectStatus.liveAccessible : t.projectSettings.advanced.projectStatus.pausedInaccessible}
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleDisableProject}
-              disabled={loading.disableProject}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                isProjectActive
-                  ? "bg-warning-bg text-warning hover:bg-warning-solid/20"
-                  : "bg-primary/10 text-primary hover:bg-primary/20"
-              }`}
+        <div className="flex items-center justify-between rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+          <div className="flex items-center gap-3">
+            <div
+              className={`flex h-8 w-8 items-center justify-center rounded-lg ${isProjectActive ? "bg-success-bg" : "bg-warning-bg"}`}
             >
-              {loading.disableProject ? (
-                <Loader2 className="size-3.5 animate-spin" />
-              ) : isProjectActive ? (
-                t.projectSettings.advanced.projectStatus.disable
+              {isProjectActive ? (
+                <Pause className="size-4 text-success" />
               ) : (
-                t.projectSettings.advanced.projectStatus.enable
+                <Play className="size-4 text-warning" />
               )}
-            </button>
+            </div>
+            <div>
+              <p className="text-[13px] font-medium text-foreground">
+                {isProjectActive
+                  ? t.projectSettings.advanced.projectStatus.active
+                  : t.projectSettings.advanced.projectStatus.disabled}
+              </p>
+              <p className="text-[12px] text-muted-foreground">
+                {isProjectActive
+                  ? t.projectSettings.advanced.projectStatus.liveAccessible
+                  : t.projectSettings.advanced.projectStatus.pausedInaccessible}
+              </p>
+            </div>
           </div>
-        </SectionCard>
-
-        {/* Routing (edge → app upstream) — self-hosted only; cloud handles its
-            own ingress. Advanced opt-in; loopback-port is the safe default. */}
-        {projectData?.deployTarget !== "cloud" && (
-          <SectionCard
-            title={t.projectSettings.advanced.routing.title}
-            description={t.projectSettings.advanced.routing.description}
-            icon={Waypoints}
-            iconTone="primary"
-            collapsible
+          <button
+            onClick={handleDisableProject}
+            disabled={loading.disableProject}
+            className={`inline-flex h-9 items-center gap-1.5 rounded-xl px-4 text-[13px] font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+              isProjectActive
+                ? "bg-warning-bg text-warning hover:bg-warning-solid/20"
+                : "bg-primary/10 text-primary hover:bg-primary/20"
+            }`}
           >
-            <RoutingStrategyCard
-              projectId={projectData.id}
-              initial={(projectData?.routeStrategy as RouteStrategy) ?? "auto"}
-            />
-          </SectionCard>
-        )}
+            {loading.disableProject ? (
+              <Loader2 className="size-3.5 animate-spin" />
+            ) : isProjectActive ? (
+              t.projectSettings.advanced.projectStatus.disable
+            ) : (
+              t.projectSettings.advanced.projectStatus.enable
+            )}
+          </button>
+        </div>
+      </SectionCard>
 
-        {/* Cache Management (mock — hidden until wired) */}
-        {SHOW_MOCK_ADVANCED && (
+      {/* Public collection visibility. This only controls discovery in the
+            Vibrail collection; public routes remain available. */}
+      <SectionCard
+        title={t.projectSettings.advanced.collection.title}
+        description={t.projectSettings.advanced.collection.description}
+        icon={Cloud}
+        iconTone="primary"
+      >
+        <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+          <div className="min-w-0">
+            <p className="text-[13px] font-medium text-foreground">
+              {t.projectSettings.advanced.collection.label}
+            </p>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {shareToCollection
+                ? t.projectSettings.advanced.collection.shared
+                : t.projectSettings.advanced.collection.hidden}
+            </p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            {loading.shareToCollection && (
+              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+            )}
+            <Switch
+              checked={shareToCollection}
+              onChange={handleCollectionVisibility}
+              disabled={loading.shareToCollection}
+              ariaLabel={t.projectSettings.advanced.collection.label}
+            />
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Routing (edge → app upstream) — self-hosted only; cloud handles its
+            own ingress. Advanced opt-in; loopback-port is the safe default. */}
+      {projectData?.deployTarget !== "cloud" && (
+        <SectionCard
+          title={t.projectSettings.advanced.routing.title}
+          description={t.projectSettings.advanced.routing.description}
+          icon={Waypoints}
+          iconTone="primary"
+          collapsible
+        >
+          <RoutingStrategyCard
+            projectId={projectData.id}
+            initial={(projectData?.routeStrategy as RouteStrategy) ?? "auto"}
+          />
+        </SectionCard>
+      )}
+
+      {/* Cache Management (mock — hidden until wired) */}
+      {SHOW_MOCK_ADVANCED && (
         <SectionCard
           title={t.projectSettings.advanced.cache.title}
           description={t.projectSettings.advanced.cache.description}
@@ -270,10 +362,16 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
                 <Package className="size-4 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-foreground">{t.projectSettings.advanced.cache.clearInstall}</p>
-                <p className="text-[12px] text-muted-foreground">{t.projectSettings.advanced.cache.clearInstallDesc}</p>
+                <p className="text-[13px] font-medium text-foreground">
+                  {t.projectSettings.advanced.cache.clearInstall}
+                </p>
+                <p className="text-[12px] text-muted-foreground">
+                  {t.projectSettings.advanced.cache.clearInstallDesc}
+                </p>
               </div>
-              {loading.clearInstallCache && <Loader2 className="ms-auto size-4 animate-spin text-muted-foreground" />}
+              {loading.clearInstallCache && (
+                <Loader2 className="ms-auto size-4 animate-spin text-muted-foreground" />
+              )}
             </button>
 
             <button
@@ -285,17 +383,23 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
                 <Hammer className="size-4 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-[13px] font-medium text-foreground">{t.projectSettings.advanced.cache.clearBuild}</p>
-                <p className="text-[12px] text-muted-foreground">{t.projectSettings.advanced.cache.clearBuildDesc}</p>
+                <p className="text-[13px] font-medium text-foreground">
+                  {t.projectSettings.advanced.cache.clearBuild}
+                </p>
+                <p className="text-[12px] text-muted-foreground">
+                  {t.projectSettings.advanced.cache.clearBuildDesc}
+                </p>
               </div>
-              {loading.clearBuildCache && <Loader2 className="ms-auto size-4 animate-spin text-muted-foreground" />}
+              {loading.clearBuildCache && (
+                <Loader2 className="ms-auto size-4 animate-spin text-muted-foreground" />
+              )}
             </button>
           </div>
         </SectionCard>
-        )}
+      )}
 
-        {/* Transfer & Clone (mock — hidden until wired) */}
-        {SHOW_MOCK_ADVANCED && (
+      {/* Transfer & Clone (mock — hidden until wired) */}
+      {SHOW_MOCK_ADVANCED && (
         <SectionCard
           title={t.projectSettings.advanced.transfer.title}
           description={t.projectSettings.advanced.transfer.description}
@@ -307,32 +411,36 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
             currentServer={projectData?.serverName}
           />
         </SectionCard>
-        )}
+      )}
 
-        {/* Danger Zone */}
-        <div className="overflow-hidden rounded-2xl border border-danger-border bg-card">
-          <div className="flex items-start gap-3 border-b border-danger-border px-5 py-4">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger-bg">
-              <AlertTriangle className="size-4 text-danger" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="text-[14px] font-semibold text-danger">{t.projectSettings.advanced.danger.title}</h3>
-              <p className="mt-0.5 text-[12px] text-muted-foreground">{t.projectSettings.advanced.danger.description}</p>
-            </div>
+      {/* Danger Zone */}
+      <div className="overflow-hidden rounded-2xl border border-danger-border bg-card">
+        <div className="flex items-start gap-3 border-b border-danger-border px-5 py-4">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-danger-bg">
+            <AlertTriangle className="size-4 text-danger" />
           </div>
-          <div className="px-5 py-4">
-            <p className="text-[13px] text-muted-foreground leading-relaxed">
-              {t.projectSettings.advanced.danger.body}
+          <div className="min-w-0 flex-1">
+            <h3 className="text-[14px] font-semibold text-danger">
+              {t.projectSettings.advanced.danger.title}
+            </h3>
+            <p className="mt-0.5 text-[12px] text-muted-foreground">
+              {t.projectSettings.advanced.danger.description}
             </p>
-            <button
-              onClick={() => setShowDeleteModal(true)}
-              className="mt-4 inline-flex h-9 items-center gap-2 rounded-xl bg-danger-solid px-4 text-[13px] font-medium text-white transition-colors hover:bg-danger-solid/90"
-            >
-              <Trash2 className="size-3.5" />
-              {t.projectSettings.advanced.danger.delete}
-            </button>
           </div>
         </div>
+        <div className="px-5 py-4">
+          <p className="text-[13px] text-muted-foreground leading-relaxed">
+            {t.projectSettings.advanced.danger.body}
+          </p>
+          <button
+            onClick={() => setShowDeleteModal(true)}
+            className="mt-4 inline-flex h-9 items-center gap-2 rounded-xl bg-danger-solid px-4 text-[13px] font-medium text-white transition-colors hover:bg-danger-solid/90"
+          >
+            <Trash2 className="size-3.5" />
+            {t.projectSettings.advanced.danger.delete}
+          </button>
+        </div>
+      </div>
 
       <DeletionModal
         isOpen={showDeleteModal}
@@ -378,7 +486,9 @@ function RoutingStrategyCard({
     try {
       const res = await projectsApi.update(projectId, { routeStrategy: mode });
       if ((res as { success?: boolean })?.success === false) throw new Error("update failed");
-      const label = t.projectSettings.advanced.routing.modes[ROUTE_MODES.find((m) => m.value === mode)!.key].label;
+      const label =
+        t.projectSettings.advanced.routing.modes[ROUTE_MODES.find((m) => m.value === mode)!.key]
+          .label;
       showToast(
         interpolate(t.projectSettings.advanced.routing.toast.saved, { mode: label }),
         "success",
@@ -398,7 +508,9 @@ function RoutingStrategyCard({
 
   return (
     <>
-      <p className="text-[12px] text-muted-foreground">{t.projectSettings.advanced.routing.intro}</p>
+      <p className="text-[12px] text-muted-foreground">
+        {t.projectSettings.advanced.routing.intro}
+      </p>
       <div className="grid gap-3 sm:grid-cols-3">
         {ROUTE_MODES.map(({ value, key, icon: ModeIcon }) => {
           const active = strategy === value;
@@ -440,7 +552,9 @@ function MetricRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-4">
       <span className="text-[13px] text-muted-foreground">{label}</span>
-      <span className="max-w-[180px] truncate text-end text-[13px] font-medium text-foreground">{value}</span>
+      <span className="max-w-[180px] truncate text-end text-[13px] font-medium text-foreground">
+        {value}
+      </span>
     </div>
   );
 }
@@ -469,9 +583,7 @@ function TransferOptions({
   const current = TARGET_META[currentTarget ?? ""];
 
   // Build transfer options - everything except the current target
-  const transferTargets = Object.entries(TARGET_META).filter(
-    ([key]) => key !== currentTarget,
-  );
+  const transferTargets = Object.entries(TARGET_META).filter(([key]) => key !== currentTarget);
 
   return (
     <div className="space-y-3">
@@ -482,7 +594,9 @@ function TransferOptions({
             {current.icon}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-medium text-foreground">{targetLabels[currentTarget ?? ""]}</p>
+            <p className="text-[13px] font-medium text-foreground">
+              {targetLabels[currentTarget ?? ""]}
+            </p>
             {currentTarget === "server" && currentServer && (
               <p className="text-[12px] text-muted-foreground">{currentServer}</p>
             )}
@@ -505,21 +619,25 @@ function TransferOptions({
               {meta.icon}
             </div>
             <div className="min-w-0">
-              <p className="text-[13px] font-medium text-foreground">{t.projectSettings.advanced.transfer.transfer}</p>
+              <p className="text-[13px] font-medium text-foreground">
+                {t.projectSettings.advanced.transfer.transfer}
+              </p>
               <p className="text-[12px] text-muted-foreground">{targetLabels[key]}</p>
             </div>
           </button>
         ))}
 
-        <button
-          className="flex items-center gap-3 rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-3 text-start transition-colors hover:border-border hover:bg-muted/30"
-        >
+        <button className="flex items-center gap-3 rounded-xl border border-dashed border-border/50 bg-muted/10 px-4 py-3 text-start transition-colors hover:border-border hover:bg-muted/30">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">
             <Copy className="size-4" />
           </div>
           <div className="min-w-0">
-            <p className="text-[13px] font-medium text-foreground">{t.projectSettings.advanced.transfer.clone}</p>
-            <p className="text-[12px] text-muted-foreground">{t.projectSettings.advanced.transfer.anotherServer}</p>
+            <p className="text-[13px] font-medium text-foreground">
+              {t.projectSettings.advanced.transfer.clone}
+            </p>
+            <p className="text-[12px] text-muted-foreground">
+              {t.projectSettings.advanced.transfer.anotherServer}
+            </p>
           </div>
         </button>
       </div>

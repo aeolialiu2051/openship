@@ -49,6 +49,18 @@
       "disable": "Deshabilitar",
       "enable": "Habilitar"
     },
+    "collection": {
+      "title": "Colección",
+      "description": "Controla si este proyecto aparece en la colección pública de Vibrail",
+      "label": "Compartir en la colección",
+      "shared": "Este proyecto aparece en la colección",
+      "hidden": "Este proyecto está oculto en la colección; su URL pública sigue funcionando",
+      "toast": {
+        "shared": "Proyecto compartido en la colección",
+        "hidden": "Proyecto ocultado de la colección",
+        "failed": "No se pudo actualizar la configuración de la colección"
+      }
+    },
     "cache": {
       "title": "Caché",
       "description": "Borra los artefactos de compilación y las instalaciones de dependencias en caché",
