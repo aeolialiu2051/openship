@@ -18,6 +18,7 @@ describe("edge route stores", () => {
     await store.publish("app.example.com", route);
     await store.remove("app.example.com", 3);
     await expect(store.publish("app.example.com", { ...route, version: 2 })).rejects.toBeInstanceOf(StaleEdgeRouteWriteError);
+    await expect(store.publish("app.example.com", { ...route, version: 3 })).rejects.toBeInstanceOf(StaleEdgeRouteWriteError);
   });
   it("uses normalized route keys and bearer auth for Cloudflare KV", async () => {
     const request = vi.fn(async (_url: string, init?: RequestInit) => init?.method === "PUT" ? new Response(null, { status: 200 }) : new Response(JSON.stringify({ ...route, version: 1 }), { status: 200 }));
@@ -32,5 +33,25 @@ describe("edge route stores", () => {
 
     expect(await store.get("app.example.com")).toBeNull();
     await expect(store.publish("app.example.com", route)).rejects.toThrow("Cloudflare KV request failed (404)");
+  });
+
+  it("persists a Cloudflare KV tombstone before deletion and rejects resurrection", async () => {
+    const values = new Map<string, string>();
+    const request = vi.fn(async (rawUrl: string, init?: RequestInit) => {
+      const key = decodeURIComponent(new URL(rawUrl).pathname.split("/").at(-1)!);
+      if (init?.method === "PUT") { values.set(key, String(init.body)); return new Response(null, { status: 200 }); }
+      if (init?.method === "DELETE") { values.delete(key); return new Response(null, { status: 200 }); }
+      const value = values.get(key);
+      return value === undefined ? new Response(null, { status: 404 }) : new Response(value, { status: 200 });
+    });
+    const store = new CloudflareKvEdgeRouteStore({ accountId: "acct", namespaceId: "ns", apiToken: "token", fetch: request as typeof fetch });
+    await store.publish("app.example.com", route);
+    await store.remove("app.example.com", 3);
+    expect(values.has("route:app.example.com")).toBe(false);
+    expect(JSON.parse(values.get("route-tombstone:app.example.com")!)).toEqual({ version: 3 });
+    await expect(store.publish("app.example.com", { ...route, version: 2 })).rejects.toBeInstanceOf(StaleEdgeRouteWriteError);
+    await expect(store.publish("app.example.com", { ...route, version: 3 })).rejects.toBeInstanceOf(StaleEdgeRouteWriteError);
+    await store.publish("app.example.com", { ...route, version: 4 });
+    expect(values.has("route-tombstone:app.example.com")).toBe(false);
   });
 });

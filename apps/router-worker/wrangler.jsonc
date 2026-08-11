@@ -2,7 +2,15 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "vibrail-router",
   "main": "src/index.ts",
+  "workers_dev": false,
+  "routes": [{ "pattern": "*.vibrail.app/*", "zone_name": "vibrail.app" }],
   "compatibility_date": "2026-08-10",
+  "compatibility_flags": ["nodejs_compat"],
   "kv_namespaces": [{ "binding": "ROUTING", "id": "045c3624f961493c8d93f56341811752" }],
-  "vars": { "VIBRAIL_MANAGED_DOMAIN": "vibrail.app", "VIBRAIL_ROUTE_CACHE_TTL": "30", "VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL": "2" }
+  "vars": { "VIBRAIL_MANAGED_DOMAIN": "vibrail.app", "VIBRAIL_ROUTE_CACHE_TTL": "30", "VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL": "2" },
+  "observability": {
+    "enabled": true,
+    "logs": { "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.01 }
+  }
 }

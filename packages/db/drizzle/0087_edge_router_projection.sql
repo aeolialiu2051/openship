@@ -14,7 +14,9 @@ SET "routing_id" = lower(substr(md5("id"), 1, 8))
 WHERE "routing_id" IS NULL;--> statement-breakpoint
 
 CREATE UNIQUE INDEX IF NOT EXISTS "uq_domain_hostname_lower" ON "domain" (lower("hostname"));--> statement-breakpoint
-CREATE UNIQUE INDEX IF NOT EXISTS "uq_domain_managed_key" ON "domain" ("managed_key") WHERE "managed_key" IS NOT NULL;--> statement-breakpoint
+-- A project owns one unique route_key, shared by all of its service hostnames.
+-- Domain managed_key is therefore intentionally non-unique.
+CREATE INDEX IF NOT EXISTS "idx_domain_managed_key" ON "domain" ("managed_key") WHERE "managed_key" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX IF NOT EXISTS "idx_domain_route_reconcile" ON "domain" ("domain_type", "route_status", "updated_at");--> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "uq_servers_routing_id" ON "servers" ("routing_id") WHERE "routing_id" IS NOT NULL;--> statement-breakpoint
 

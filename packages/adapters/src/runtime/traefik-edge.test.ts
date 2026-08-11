@@ -23,8 +23,8 @@ import {
 
 describe("managed Traefik compatibility", () => {
   it("uses a Docker-29-compatible image and migrates older managed edges", () => {
-    expect(VIBRAIL_EDGE_IMAGE).toBe("traefik:v3.6");
-    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(6);
+    expect(VIBRAIL_EDGE_IMAGE).toContain("vibrail-edge");
+    expect(Number(VIBRAIL_EDGE_CONFIG_VERSION)).toBeGreaterThanOrEqual(10);
     expect(VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT).toBe("cloudflare-origin");
   });
 
@@ -134,6 +134,7 @@ certificatesResolvers:
             "--providers.docker=true",
             "--providers.docker.network=vibrail-edge",
             "--entrypoints.websecure.address=:443",
+            "--entrypoints.cloudflare-origin.address=:8443",
           ],
           labels: {
             [VIBRAIL_EDGE_MANAGED_LABEL]: "true",
@@ -145,7 +146,11 @@ certificatesResolvers:
           },
         }),
       ),
-    ).toMatchObject({ network: "vibrail-edge", source: "vibrail" });
+    ).toMatchObject({
+      network: "vibrail-edge",
+      cloudflareEntrypoint: "cloudflare-origin",
+      source: "vibrail",
+    });
   });
 });
 
@@ -233,18 +238,36 @@ describe("buildTraefikLabels", () => {
           managedOrigin: true,
         },
       ],
+      routeRules: {
+        "seekpeace-web-ynfhiez1.vibrail.app": [
+          { name: "api-limit", pathPrefix: "/api", inFlightReq: { amount: 10 } },
+        ],
+      },
     });
 
     expect(labels["traefik.http.routers.seekpeace-origin.rule"]).toBe(
       "Host(`server-21e43be6.vibrail.app`) && Header(`x-vibrail-hostname`, `seekpeace-web-ynfhiez1.vibrail.app`)",
     );
-    expect(labels["traefik.http.routers.seekpeace-origin.entrypoints"]).toBe(
-      "websecure,cloudflare-origin",
-    );
+    expect(labels["traefik.http.routers.seekpeace-origin.entrypoints"]).toBe("websecure");
     expect(labels["traefik.http.routers.seekpeace-origin.service"]).toBe("seekpeace");
+    expect(labels["traefik.http.routers.seekpeace.rule"]).toBeUndefined();
+    expect(labels["traefik.http.routers.seekpeace-redirect.rule"]).toBeUndefined();
+    expect(labels["traefik.http.routers.seekpeace-rule-0.rule"]).toBeUndefined();
+    expect(labels["traefik.http.routers.seekpeace-rule-0-origin.entrypoints"]).toBe("websecure");
+    expect(labels["traefik.http.routers.seekpeace-rule-0-origin.middlewares"]).toContain(
+      "seekpeace-rule-0-origin-origin-auth@docker",
+    );
+    expect(labels["traefik.http.routers.seekpeace-origin.middlewares"]).toContain(
+      "seekpeace-origin-origin-auth@docker",
+    );
+    expect(
+      labels[
+        "traefik.http.middlewares.seekpeace-origin-origin-auth.plugin.vibrail-origin-auth.hostname"
+      ],
+    ).toBe("seekpeace-web-ynfhiez1.vibrail.app");
   });
 
-  it("adds the protected Cloudflare entrypoint without replacing public HTTPS", () => {
+  it("does not expose ordinary direct-host routers on the protected origin entrypoint", () => {
     const labels = buildTraefikLabels({
       network: "vibrail-edge",
       entrypoint: "websecure",
@@ -253,7 +276,7 @@ describe("buildTraefikLabels", () => {
       routes: [{ routerName: "app", hostname: "app.vibrail.app", port: 3000 }],
     });
 
-    expect(labels["traefik.http.routers.app.entrypoints"]).toBe("websecure,cloudflare-origin");
+    expect(labels["traefik.http.routers.app.entrypoints"]).toBe("websecure");
   });
 
   it("builds stable per-route labels and selects the shared edge network", () => {

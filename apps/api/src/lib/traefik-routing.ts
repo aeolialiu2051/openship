@@ -8,6 +8,7 @@ import type {
 import { DockerRuntime } from "@repo/adapters";
 import { originHostnameForServer } from "@repo/core/managed-routing";
 import { compileProjectTraefikRules } from "../modules/route-rules/route-rule.service";
+import { ensureServerOriginSecret } from "./server-origin-infra";
 export { vibrailRouterName } from "./traefik-router-name";
 
 function serverRateLimitRuleName(serverId: string, projectId: string): string {
@@ -74,6 +75,9 @@ export async function prepareTraefikConfig(opts: {
       ? repos.server.getInOrganization(opts.serverId, opts.organizationId).catch(() => null)
       : Promise.resolve(null),
   ]);
+  // Install/repair the derived per-server secret before a versioned edge
+  // replacement starts. The Traefik auth plugin fails closed without it.
+  if (server) await ensureServerOriginSecret(server);
   const edge: ResolvedTraefikEdge = await opts.runtime.ensureSharedTraefik(manual);
   opts.onLog?.(
     edge.source === "existing"

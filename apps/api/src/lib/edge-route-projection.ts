@@ -36,7 +36,7 @@ export async function publishManagedDomainRoute(domain: Domain, serverId: string
     version: domain.routeVersion,
     updated_at: new Date().toISOString(),
   });
-  // Gateway authority must be ready before the edge can emit traffic.
+  // On-server origin authority must be ready before the edge can emit traffic.
   await installServerAuthorityRoute(serverId, domain);
   await store.publish(domain.hostname, route);
   if (!(await waitForManagedRoutePropagation(domain.hostname, domain.routeVersion))) {

@@ -26,6 +26,9 @@ apps/cli/LICENSE
 .env.local
 .env.*.local
 .env.vibrail-saas
+.dev.vars
+.dev.vars.*
+.wrangler/
 
 # Dev-only generated secrets (per-machine, not for prod)
 .dev-secrets.json

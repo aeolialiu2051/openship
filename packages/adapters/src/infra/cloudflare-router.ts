@@ -1,7 +1,7 @@
 import { originHostnameForServer } from "@repo/core/managed-routing";
 
-type CfEnvelope<T> = { success: boolean; result: T; errors?: Array<{ message?: string }> };
-type DnsRecord = { id: string; name: string; type: string; content: string; proxied: boolean };
+type CfEnvelope<T> = { success: boolean; result: T; errors?: Array<{ code?: number; message?: string }> };
+type DnsRecord = { id: string; name: string; type: string; content: string; proxied: boolean; ttl?: number; comment?: string | null };
 type WorkerRoute = { id: string; pattern: string; script?: string | null };
 
 export type CloudflareRouterInfraOptions = { zoneId: string; apiToken: string; baseDomain?: string; fetch?: typeof fetch };
@@ -12,7 +12,13 @@ export class CloudflareRouterInfra {
   private async call<T>(path: string, init?: RequestInit): Promise<T> {
     const response = await this.request(`https://api.cloudflare.com/client/v4/zones/${encodeURIComponent(this.options.zoneId)}${path}`, { ...init, headers: { Authorization: `Bearer ${this.options.apiToken}`, "content-type": "application/json", ...(init?.headers ?? {}) } });
     const body = await response.json().catch(() => null) as CfEnvelope<T> | null;
-    if (!response.ok || !body?.success) throw new Error(`Cloudflare router infrastructure request failed (${response.status})`);
+    if (!response.ok || !body?.success) {
+      const details = body?.errors
+        ?.map((item) => [item.code, item.message].filter((value) => value != null && value !== "").join(": "))
+        .filter(Boolean)
+        .join("; ");
+      throw new Error(`Cloudflare router infrastructure request failed (${response.status})${details ? `: ${details}` : ""}`);
+    }
     return body.result;
   }
 
@@ -35,9 +41,19 @@ export class CloudflareRouterInfra {
       if (found?.script) await this.call<WorkerRoute>(`/workers/routes/${encodeURIComponent(found.id)}`, { method: "PUT", body: JSON.stringify({ pattern, script: null }) });
       return { hostname, dnsRecordId: dns.id, exclusionRouteId: exclusion.id };
     } catch (error) {
-      // Roll back only a record created by this attempt. Never delete a
-      // pre-existing operator/server record merely because route setup failed.
-      if (!existing) await this.call(`/dns_records/${encodeURIComponent(dns.id)}`, { method: "DELETE" }).catch(() => undefined);
+      if (existing) {
+        const restore = {
+          type: existing.type,
+          name: existing.name,
+          content: existing.content,
+          ttl: existing.ttl ?? 1,
+          proxied: existing.proxied,
+          ...(existing.comment != null ? { comment: existing.comment } : {}),
+        };
+        await this.call(`/dns_records/${encodeURIComponent(existing.id)}`, { method: "PUT", body: JSON.stringify(restore) }).catch(() => undefined);
+      } else {
+        await this.call(`/dns_records/${encodeURIComponent(dns.id)}`, { method: "DELETE" }).catch(() => undefined);
+      }
       throw error;
     }
   }

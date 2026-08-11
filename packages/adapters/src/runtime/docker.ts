@@ -904,6 +904,7 @@ export class DockerRuntime implements RuntimeAdapter {
         `--providers.docker.network=${VIBRAIL_EDGE_NETWORK}`,
         `--providers.file.directory=${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}`,
         "--providers.file.watch=true",
+        "--experimental.localplugins.vibrail-origin-auth.modulename=github.com/vibrail/vibrail-origin-auth",
         "--entrypoints.web.address=:80",
         `--entrypoints.${VIBRAIL_EDGE_ENTRYPOINT}.address=:443`,
         `--entrypoints.${VIBRAIL_EDGE_CLOUDFLARE_ENTRYPOINT}.address=:8443`,
@@ -923,7 +924,11 @@ export class DockerRuntime implements RuntimeAdapter {
         [VIBRAIL_EDGE_CERT_RESOLVER_LABEL]: VIBRAIL_EDGE_CERT_RESOLVER,
       };
 
-      await this.pullImage(VIBRAIL_EDGE_IMAGE).catch((error) => {
+      // A managed edge is recreated specifically when its configuration/image
+      // contract changes. The tag may be mutable (notably `latest` in local
+      // development), so a present-only check can silently recreate the new
+      // container from stale local bytes.
+      await this.pullImage(VIBRAIL_EDGE_IMAGE, { force: true }).catch((error) => {
         throw new Error(`Could not pull ${VIBRAIL_EDGE_IMAGE}: ${safeErrorMessage(error)}`);
       });
 
@@ -938,6 +943,8 @@ export class DockerRuntime implements RuntimeAdapter {
           `--volume ${sq(`${socketPath}:/var/run/docker.sock:ro`)}`,
           `--volume ${sq("vibrail-edge-acme:/letsencrypt")}`,
           `--volume ${sq(`${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`)}`,
+          `--volume ${sq("/etc/vibrail/edge:/etc/vibrail/edge:ro")}`,
+          `--volume ${sq("/etc/vibrail/edge-routes:/etc/vibrail/edge-routes:ro")}`,
           `--restart ${sq("unless-stopped")}`,
           sq(VIBRAIL_EDGE_IMAGE),
           ...args.map(sq),
@@ -963,6 +970,8 @@ export class DockerRuntime implements RuntimeAdapter {
                 "/var/run/docker.sock:/var/run/docker.sock:ro",
                 "vibrail-edge-acme:/letsencrypt",
                 `${VIBRAIL_EDGE_DYNAMIC_HOST_DIR}:${VIBRAIL_EDGE_DYNAMIC_CONTAINER_DIR}:ro`,
+                "/etc/vibrail/edge:/etc/vibrail/edge:ro",
+                "/etc/vibrail/edge-routes:/etc/vibrail/edge-routes:ro",
               ],
               // Host networking lets file-provider routes reach Bare processes
               // at 127.0.0.1 while Docker-provider routes still resolve the

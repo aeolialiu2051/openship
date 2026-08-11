@@ -74,6 +74,10 @@ describe("DockerRuntime managed Traefik migration", () => {
       containerId: "new-edge",
     });
     expect(destroy).toHaveBeenCalledWith("old-edge");
+    expect(internals.pullImage).toHaveBeenCalledWith(
+      expect.stringContaining("vibrail-edge"),
+      { force: true },
+    );
     expect(writeFile).toHaveBeenCalledWith(
       "/var/lib/vibrail/traefik/dynamic/cloudflare-aop.json",
       expect.stringContaining("RequireAndVerifyClientCert"),

@@ -1315,7 +1315,7 @@ export async function deployComposeServices(
 
       // Sync the managed edge proxy for EACH free .vibrail.app route (a multi-port
       // service has several). The direct KV projection is a deployment commit
-      // barrier: a managed URL must not be reported ready until its Gateway
+      // barrier: a managed URL must not be reported ready until its origin
       // authority and KV route are both durable. The legacy cloud-edge fallback
       // below remains best-effort for installations without direct KV.
       const managedRoutes = proxyRoutes.filter((r) => r.isCloud && r.managedSubdomain);

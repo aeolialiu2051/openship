@@ -20,7 +20,7 @@ export async function reconcileDomainProjection(
 
   if (["disabled", "deleting"].includes(domain.routeStatus)) {
     await hooks.removeAuthority?.();
-    if (!current || (!current.enabled && current.version === domain.routeVersion)) return "unchanged";
+    if (current && !current.enabled && current.version === domain.routeVersion) return "unchanged";
     await store.disable(domain.hostname, domain.routeVersion);
     return "disabled";
   }
@@ -68,6 +68,19 @@ export async function runEdgeRouteReconcileSweep(options: { limit?: number; offs
     summary.scanned += 1;
     try {
       if (!domain.projectId) { summary.skipped += 1; continue; }
+      // Disabling the edge projection does not depend on a live deployment.
+      // Do this before placement lookup so a removed/broken deployment can
+      // never leave an active public KV route behind indefinitely.
+      if (["disabled", "deleting"].includes(domain.routeStatus)) {
+        const result = await reconcileDomainProjection(domain, "disabled", store);
+        summary[result] += 1;
+        if (result === "ahead") {
+          console.error(JSON.stringify({ event: "edge_route_version_ahead", domain_id: domain.id, hostname: domain.hostname, database_version: domain.routeVersion }));
+        } else {
+          await repos.domain.markRouteReconciled(domain.id);
+        }
+        continue;
+      }
       if (!projectCache.has(domain.projectId)) projectCache.set(domain.projectId, await repos.project.findById(domain.projectId));
       const project = projectCache.get(domain.projectId);
       if (!project?.activeDeploymentId) { summary.skipped += 1; continue; }

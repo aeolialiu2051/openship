@@ -59,6 +59,8 @@ describe("edge routing safety", () => {
     expect(parseEdgeRoute(route)).toEqual(route);
     expect(() => parseEdgeRoute({ ...route, version: 0 })).toThrow();
     expect(() => parseEdgeRoute({ ...route, server_id: "https://evil.test" })).toThrow();
+    expect(() => parseEdgeRoute({ ...route, project_id: "proj_1\r\nx-forged: yes" })).toThrow();
+    expect(() => parseEdgeRoute({ ...route, service_id: "svc/invalid" })).toThrow();
   });
 
   it("canonicalizes every security-sensitive field", () => {

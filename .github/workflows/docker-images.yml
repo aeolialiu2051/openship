@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard]
+        image: [api, dashboard, edge]
         platform: [amd64, arm64]
         include:
           - platform: amd64
@@ -102,7 +102,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        image: [api, dashboard]
+        image: [api, dashboard, edge]
     steps:
       - name: Download digests
         uses: actions/download-artifact@v8

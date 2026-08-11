@@ -3,6 +3,7 @@ const MANAGED_KEY_LENGTH = 8;
 const MAX_SLUG_LENGTH = 32;
 const SERVER_ROUTING_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,30}[a-z0-9])?$/;
 const MANAGED_KEY_PATTERN = /^[a-z0-9]{8}$/;
+const ROUTE_ENTITY_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export type ManagedDomain = {
   slug: string;
@@ -101,13 +102,13 @@ export function isReservedServerHostname(hostname: string, baseDomain = DEFAULT_
 export function parseEdgeRoute(value: unknown): EdgeRoute {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Invalid edge route");
   const route = value as Record<string, unknown>;
-  if (typeof route.project_id !== "string" || route.project_id.length === 0) throw new Error("Invalid project ID");
-  if (route.service_id !== null && typeof route.service_id !== "string") throw new Error("Invalid service ID");
+  if (typeof route.project_id !== "string" || !ROUTE_ENTITY_ID_PATTERN.test(route.project_id)) throw new Error("Invalid project ID");
+  if (route.service_id !== null && (typeof route.service_id !== "string" || !ROUTE_ENTITY_ID_PATTERN.test(route.service_id))) throw new Error("Invalid service ID");
   if (typeof route.server_id !== "string") throw new Error("Invalid server ID");
   assertValidServerRoutingId(route.server_id);
   if (typeof route.enabled !== "boolean") throw new Error("Invalid enabled flag");
   if (!Number.isSafeInteger(route.version) || (route.version as number) < 1) throw new Error("Invalid route version");
-  if (typeof route.updated_at !== "string" || Number.isNaN(Date.parse(route.updated_at))) throw new Error("Invalid updated timestamp");
+  if (typeof route.updated_at !== "string" || route.updated_at.length > 64 || Number.isNaN(Date.parse(route.updated_at))) throw new Error("Invalid updated timestamp");
   return route as EdgeRoute;
 }
 

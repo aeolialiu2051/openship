@@ -8,17 +8,30 @@ import {
   type EdgeRoute,
 } from "@repo/core/managed-routing";
 
-export interface Env {
-  ROUTING: KVNamespace;
+export type Env = CloudflareEnv & {
   VIBRAIL_ROUTER_MASTER_SECRET: string;
-  VIBRAIL_ROUTER_PREVIOUS_MASTER_SECRET?: string;
-  VIBRAIL_MANAGED_DOMAIN?: string;
-  VIBRAIL_ROUTE_CACHE_TTL?: string;
-  VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL?: string;
-}
+};
 
 type Cached = { route: EdgeRoute | null; expiresAt: number };
 const memory = new Map<string, Cached>();
+const MAX_MEMORY_ROUTES = 1_024;
+
+function rememberRoute(hostname: string, value: Cached, now: number): void {
+  memory.delete(hostname);
+  memory.set(hostname, value);
+  if (memory.size <= MAX_MEMORY_ROUTES) return;
+  for (const [key, cached] of memory) {
+    if (cached.expiresAt <= now) memory.delete(key);
+  }
+  while (memory.size > MAX_MEMORY_ROUTES) {
+    const oldest = memory.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    memory.delete(oldest);
+  }
+}
+
+export function resetRouteMemoryForTest(): void { memory.clear(); }
+export function routeMemorySizeForTest(): number { return memory.size; }
 
 const hex = (bytes: ArrayBuffer) => [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, "0")).join("");
 
@@ -47,14 +60,14 @@ async function loadRoute(hostname: string, env: Env, ctx: ExecutionContext): Pro
   if (cachedResponse) {
     const value = (await cachedResponse.json()) as unknown;
     const route = value === null ? null : parseEdgeRoute(value);
-    memory.set(hostname, { route, expiresAt: now + ttl(env, route === null) * 1_000 });
+    rememberRoute(hostname, { route, expiresAt: now + ttl(env, route === null) * 1_000 }, now);
     return route;
   }
 
   const raw = await env.ROUTING.get(`route:${hostname}`, "json");
   const route = raw === null ? null : parseEdgeRoute(raw);
   const seconds = ttl(env, route === null || !route.enabled);
-  memory.set(hostname, { route, expiresAt: now + seconds * 1_000 });
+  rememberRoute(hostname, { route, expiresAt: now + seconds * 1_000 }, now);
   ctx.waitUntil(edgeCache.put(cacheKey, new Response(JSON.stringify(route), { headers: { "cache-control": `max-age=${seconds}` } })));
   return route;
 }
@@ -92,6 +105,9 @@ export async function routeRequest(request: Request, env: Env, ctx: ExecutionCon
   const url = new URL(request.url);
   url.protocol = "https:";
   url.hostname = originHostnameForServer(route.server_id, baseDomain);
+  // Use Cloudflare's standard HTTPS origin port. The matching Traefik router
+  // is still private-by-proof: every request must pass the HMAC middleware,
+  // timestamp/nonce replay checks and the on-host route manifest.
   url.port = "";
   const timestamp = String(Math.floor(Date.now() / 1_000));
   const nonce = crypto.randomUUID();
@@ -119,6 +135,9 @@ export async function routeRequest(request: Request, env: Env, ctx: ExecutionCon
 
   try {
     const response = await fetch(url, { method: request.method, headers, body: request.body, redirect: "manual" });
+    // A WebSocket response carries a runtime-owned endpoint and status 101
+    // cannot be reconstructed with the standard Response constructor.
+    if (response.status === 101) return response;
     const routed = new Response(response.body, response);
     routed.headers.set("x-vibrail-route-status", "hit");
     routed.headers.set("x-vibrail-route-version", String(route.version));

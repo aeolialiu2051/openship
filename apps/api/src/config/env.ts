@@ -243,6 +243,9 @@ const envSchema = z.object({
   VIBRAIL_CLOUDFLARE_ACCOUNT_ID: z.string().optional(),
   VIBRAIL_ROUTING_KV_NAMESPACE_ID: z.string().optional(),
   VIBRAIL_ROUTING_KV_API_TOKEN: z.string().optional(),
+  /** Shared only with the router Worker. The API derives a distinct per-server
+   * origin secret from it and writes that derived value to each server. */
+  VIBRAIL_ROUTER_MASTER_SECRET: z.string().min(32).optional(),
   VIBRAIL_ROUTER_WORKER_NAME: z.string().default("vibrail-router"),
   VIBRAIL_ROUTE_CACHE_TTL: z.coerce.number().int().min(1).max(60).default(30),
   VIBRAIL_ROUTE_NEGATIVE_CACHE_TTL: z.coerce.number().int().min(1).max(30).default(10),
@@ -376,6 +379,7 @@ const edgeRoutingConfig = {
   VIBRAIL_ROUTING_KV_API_TOKEN: env.VIBRAIL_ROUTING_KV_API_TOKEN,
   VIBRAIL_CLOUDFLARE_ZONE_ID: env.VIBRAIL_CLOUDFLARE_ZONE_ID,
   VIBRAIL_CLOUDFLARE_API_TOKEN: env.VIBRAIL_CLOUDFLARE_API_TOKEN,
+  VIBRAIL_ROUTER_MASTER_SECRET: env.VIBRAIL_ROUTER_MASTER_SECRET,
 };
 if (
   env.VIBRAIL_CLOUDFLARE_ACCOUNT_ID ||

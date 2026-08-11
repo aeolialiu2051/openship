@@ -195,7 +195,13 @@ export function createDomainRepo(db: Database) {
     async listManagedForReconcile(limit = 100, offset = 0): Promise<Domain[]> {
       return db.query.domain.findMany({
         where: and(eq(domain.ownerType, "project"), eq(domain.domainType, "free")),
-        orderBy: [asc(domain.id)],
+        // Reconciled rows move to the back of the queue. Ordering only by id
+        // would make a fixed-size scheduled sweep permanently starve every
+        // row after the first page once an installation has > limit domains.
+        // PostgreSQL sorts NULL last for ASC unless told otherwise. A NULL
+        // means this route has never reconciled, so it must be ahead of every
+        // previously-processed row rather than permanently starved behind it.
+        orderBy: [sql`${domain.routeReconciledAt} ASC NULLS FIRST`, asc(domain.id)],
         limit: Math.min(Math.max(limit, 1), 500),
         offset: Math.max(offset, 0),
       });

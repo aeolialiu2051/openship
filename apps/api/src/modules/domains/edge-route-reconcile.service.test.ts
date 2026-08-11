@@ -9,6 +9,11 @@ describe("edge route reconciler", () => {
   it("repairs a missing route and is idempotent", async () => { const store = new MemoryEdgeRouteStore(); expect(await reconcileDomainProjection(domain, "001", store)).toBe("published"); expect(await reconcileDomainProjection(domain, "001", store)).toBe("unchanged"); });
   it("repairs a stale or wrong server projection", async () => { const store = new MemoryEdgeRouteStore(); await store.publish(domain.hostname, { project_id: "p", service_id: null, server_id: "002", enabled: true, version: 2, updated_at: new Date().toISOString() }); expect(await reconcileDomainProjection(domain, "001", store)).toBe("published"); expect((await store.get(domain.hostname))?.server_id).toBe("001"); });
   it("disables before teardown", async () => { const store = new MemoryEdgeRouteStore(); await store.publish(domain.hostname, { project_id: "p", service_id: null, server_id: "001", enabled: true, version: 3, updated_at: new Date().toISOString() }); expect(await reconcileDomainProjection({ ...domain, routeStatus: "disabled" }, "001", store)).toBe("disabled"); expect((await store.get(domain.hostname))?.enabled).toBe(false); });
+  it("tombstones a missing disabled route so a delayed write cannot resurrect it", async () => {
+    const store = new MemoryEdgeRouteStore();
+    expect(await reconcileDomainProjection({ ...domain, routeStatus: "disabled" }, "disabled", store)).toBe("disabled");
+    await expect(store.publish(domain.hostname, { project_id: "p", service_id: null, server_id: "001", enabled: true, version: 3, updated_at: new Date().toISOString() })).rejects.toThrow();
+  });
   it("repairs authority even when KV is already current", async () => {
     const store = new MemoryEdgeRouteStore();
     await store.publish(domain.hostname, { project_id: "p", service_id: null, server_id: "001", enabled: true, version: 3, updated_at: new Date().toISOString() });

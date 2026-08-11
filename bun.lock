@@ -140,19 +140,6 @@
       "name": "@repo/email",
       "version": "0.4.13",
     },
-    "apps/origin-auth-gateway": {
-      "name": "@repo/origin-auth-gateway",
-      "version": "0.1.0",
-      "dependencies": {
-        "@repo/core": "workspace:*",
-      },
-      "devDependencies": {
-        "@types/node": "^22.13.0",
-        "tsup": "^8.5.1",
-        "typescript": "^5.9.3",
-        "vitest": "^4.0.18",
-      },
-    },
     "apps/router-worker": {
       "name": "@repo/router-worker",
       "version": "0.1.0",
@@ -908,8 +895,6 @@
     "@repo/email": ["@repo/email@workspace:apps/email"],
 
     "@repo/onboarding": ["@repo/onboarding@workspace:packages/onboarding"],
-
-    "@repo/origin-auth-gateway": ["@repo/origin-auth-gateway@workspace:apps/origin-auth-gateway"],
 
     "@repo/router-worker": ["@repo/router-worker@workspace:apps/router-worker"],
 
