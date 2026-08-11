@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+vi.mock("./server-origin-infra", () => ({ provisionServerOrigin: vi.fn() }));
 import { compileServerTraefikRateLimit } from "./traefik-routing";
 import { vibrailRouterName } from "./traefik-router-name";
 

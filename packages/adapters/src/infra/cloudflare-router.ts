@@ -26,7 +26,14 @@ export class CloudflareRouterInfra {
     const hostname = originHostnameForServer(input.routingId, this.options.baseDomain);
     const records = await this.call<DnsRecord[]>(`/dns_records?type=A&name=${encodeURIComponent(hostname)}`);
     const existing = records[0];
-    const desired = { type: "A", name: hostname, content: input.ipv4, ttl: 1, proxied: true, comment: "Vibrail server origin; do not remove while server is registered" };
+    // This is the Router Worker's origin, not a public application hostname.
+    // Keep it DNS-only so Traefik's HTTP-01 challenge reaches the server
+    // directly. Proxying it through Cloudflare creates a bootstrap deadlock:
+    // the origin has no trusted certificate yet, Strict mode returns 526, and
+    // the proxied ACME challenge cannot issue the certificate needed to clear
+    // that 526. Origin requests are authenticated independently by the
+    // server-specific HMAC middleware.
+    const desired = { type: "A", name: hostname, content: input.ipv4, ttl: 1, proxied: false, comment: "Vibrail server origin; DNS-only; do not remove while server is registered" };
     const dns = existing
       ? await this.call<DnsRecord>(`/dns_records/${encodeURIComponent(existing.id)}`, { method: "PUT", body: JSON.stringify(desired) })
       : await this.call<DnsRecord>("/dns_records", { method: "POST", body: JSON.stringify(desired) });

@@ -4,7 +4,7 @@ import { CloudflareRouterInfra } from "../src/infra/cloudflare-router";
 const envelope = (result: unknown) => new Response(JSON.stringify({ success: true, result }), { status: 200 });
 
 describe("Cloudflare server origin provisioning", () => {
-  it("creates one proxied DNS record and an exact no-script exclusion", async () => {
+  it("creates one DNS-only origin record and an exact no-script exclusion", async () => {
     const request = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.includes("dns_records?")) return envelope([]);
       if (url.endsWith("/dns_records")) return envelope({ id: "dns1" });
@@ -15,7 +15,11 @@ describe("Cloudflare server origin provisioning", () => {
     const infra = new CloudflareRouterInfra({ zoneId: "zone", apiToken: "token", fetch: request as typeof fetch });
     expect(await infra.provisionServerOrigin({ routingId: "001", ipv4: "203.0.113.8" })).toEqual({ hostname: "server-001.vibrail.app", dnsRecordId: "dns1", exclusionRouteId: "route1" });
     const dnsBody = JSON.parse(String(request.mock.calls.find(([, init]) => init?.method === "POST")?.[1]?.body));
-    expect(dnsBody).toMatchObject({ name: "server-001.vibrail.app", proxied: true });
+    expect(dnsBody).toMatchObject({
+      name: "server-001.vibrail.app",
+      content: "203.0.113.8",
+      proxied: false,
+    });
     const routeCall = request.mock.calls.find(([url, init]) => String(url).endsWith("/workers/routes") && init?.method === "POST");
     expect(JSON.parse(String(routeCall?.[1]?.body))).toEqual({ pattern: "server-001.vibrail.app/*", script: null });
   });
