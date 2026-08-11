@@ -158,8 +158,12 @@
 }
 .collection-preview iframe {
   border: 0;
-  width: 1440px;
-  height: 900px;
+  /* Render the remote page at 4× the card viewport, then scale it down.
+     Using percentages keeps every masonry preview height fully covered;
+     the previous fixed 1440×900 frame only painted 360×225 after scaling
+     and exposed the container background in taller cards. */
+  width: 400%;
+  height: 400%;
   transform: scale(0.25);
   transform-origin: top left;
   background: #fff;
