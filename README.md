@@ -5,20 +5,21 @@
 <h1 align="center">Vibrail</h1>
 
 <p align="center">
-  Open-source, self-hostable deployment platform with built-in CI/CD.<br>
-  Point it at a repo — it builds, ships, routes, and TLS-terminates your app. Drive it from a desktop app, web dashboard, or CLI.
+  Open-source deployment infrastructure with built-in CI/CD.<br>
+  Connect a repository, choose where it runs, and let Vibrail build, deploy, route, and secure it.
 </p>
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@vibrail/cli"><img src="https://img.shields.io/npm/v/%40vibrail%2Fcli?color=0b7285&label=npm" alt="npm version" /></a>
+  <a href="https://github.com/aeolialiu2051/vibrail/stargazers"><img src="https://img.shields.io/github/stars/aeolialiu2051/vibrail?style=flat&color=0b7285" alt="GitHub stars" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="License" /></a>
   <a href="https://vibrail.com"><img src="https://img.shields.io/badge/website-vibrail.com-0b7285" alt="Website" /></a>
 </p>
 
 <p align="center">
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#how-it-works">How It Works</a> ·
-  <a href="#interfaces">Interfaces</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#deployment-pipeline">Deployment Pipeline</a> ·
   <a href="https://docs.vibrail.com/">Docs</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
@@ -36,245 +37,266 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/screen.png" alt="Vibrail dashboard" width="800" />
+  <img src="docs/screenshots/screen.png" alt="Vibrail web dashboard" width="800" />
 </p>
+
+---
+
+## Why Vibrail
+
+Most deployment platforms couple their control plane, build system, runtime, and ingress. Vibrail separates them.
+
+- **One control plane** manages projects, deployments, servers, domains, databases, backups, and access.
+- **Pluggable runtimes** send workloads to Vibrail Cloud, a local Docker engine, or a remote Docker host.
+- **Independent routing providers** handle public traffic and TLS without leaking infrastructure details into the deployment workflow.
+- **Immutable deployment snapshots** preserve the exact source and resolved configuration used for redeploys and rollbacks.
+- **Web dashboard, CLI, REST API, and MCP** expose the same platform capabilities for people, CI systems, and AI agents.
+
+Your application remains a standard container. The destination can change without changing the way your team deploys it.
 
 ---
 
 ## Quick Start
 
-There's one decision to make first: **how you run Vibrail itself** (the control plane). Everything else is the same afterwards.
-
-| If you're… | Run Vibrail as | Where your apps run |
-|---|---|---|
-| **Solo, one machine, no ops** | **Desktop app** | A server you connect over SSH, or Vibrail Cloud |
-| **A team — or you want push-to-deploy / to host apps on your own box** | **Self-hosted server** (`vibrail up`) | In Docker on that box or another connected server, or in Cloud |
-| **Not interested in running anything** | **Vibrail Cloud** | Managed sandboxes, zero setup |
-
-> [!TIP]
-> **Solo? Use the desktop app.** It runs Vibrail's control plane on your own machine *only while the app is open* — nothing is left running on an always-on server, nothing is exposed publicly. You only need an always-on server install once you want **push-to-deploy (CI/CD)**, **team access**, or to **host apps on that box** — the things that need a public, always-on endpoint.
-
-### Solo — desktop app
-
-The control plane runs locally and drives your servers over SSH. No login, no terminal, no public surface — download, open, done:
-
-| Platform | Download |
-|---|---|
-| **macOS** (Apple Silicon) | [Vibrail-arm64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-arm64.dmg) |
-| **macOS** (Intel) | [Vibrail-x64.dmg](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-x64.dmg) |
-| **Windows** | [Vibrail-win32-x64.zip](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail-win32-x64.zip) |
-| **Linux** | [Vibrail.AppImage](https://github.com/aeolialiu2051/vibrail/releases/latest/download/Vibrail.AppImage) |
-
-Linux: `chmod +x Vibrail.AppImage && ./Vibrail.AppImage`. Already have the CLI? `vibrail install` fetches and launches it. Links always point at the newest release.
-
-From the desktop app you connect a server (SSH) or Vibrail Cloud and deploy to it — the app itself doesn't host public apps on your laptop.
-
-### Team / always-on — self-hosted server
-
-Install the CLI (it bundles the API + dashboard), then run **`vibrail`** — an interactive wizard creates the first admin, wires your domain, and installs Vibrail as a boot service. Run it again anytime to manage the instance.
+The published CLI requires Node.js 22 or newer:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh          # install  (or: npm i -g @vibrail/cli)
-vibrail                                          # guided setup, then control panel
-```
+npm install --global @vibrail/cli
+vibrail login
 
-For CI / headless boxes, skip the wizard and drive `vibrail up` directly:
-
-```bash
-vibrail up                                       # install + start as a background service (boots + auto-restarts)
-vibrail up --public-url https://vibrail.example.com   # + serve the dashboard on your domain (edge + TLS handled)
-```
-
-**`vibrail up` picks how it runs for you:**
-
-- **On Linux with Docker → Compose mode** (the default). Brings up the full stack — Postgres, Redis, API, dashboard, and a containerized **Traefik edge on :80/:443** — from published images. This is the flavor that **hosts your deployed apps on the same box**, with automatic domains + Let's Encrypt TLS. Force it with `--compose`.
-- **Everywhere else → bare mode** (macOS, Windows, or Linux without Docker). A single lightweight process with an embedded database — an always-on control plane that **deploys apps out to a server (SSH) or Cloud**, like the desktop app but always on and login-required. Force it with `--bare`.
-
-A self-hosted instance **always requires login** (the admin you create in setup). `vibrail open` opens the dashboard · `vibrail stop` stops it · `vibrail update` upgrades · `vibrail up --foreground` runs attached.
-
-> **Preview an unreleased build (dev).** To run the CLI built straight from source — a branch, tag, or `main` ahead of the next release — install the from-source build:
->
-> ```bash
-> curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install-source.sh | sh     # or: VIBRAIL_REF=my-branch curl ... | sh
-> vibrail-dev                                     # same CLI, built from source
-> vibrail-dev update                              # pull latest source + rebuild (no release needed)
-> ```
->
-> It installs as a **separate `vibrail-dev`** command with its own isolated home (`~/.vibrail-dev`) and boot service, so your production `vibrail` and its data are never touched. Needs Bun + git; it's an unverified dev build (the dashboard compile wants real RAM/CPU) — not a production path.
-
-**Deploy a project:**
-
-```bash
 cd your-project
-vibrail init            # link this directory to a project
-vibrail deploy
+vibrail init
+vibrail deploy --watch
 ```
 
-Full guides: **[CLI reference](docs/cli.md)** · **[Installation and self-hosting](docs/installation.md)** · **[docs.vibrail.com](https://docs.vibrail.com/)**.
+Inside a Git repository, Vibrail deploys the current branch by default. Outside Git, it uploads the current folder and runs the same pipeline. Use `vibrail context` to switch between managed and self-hosted instances.
+
+### Self-host on Linux
+
+Install the CLI on a Linux server, then start the guided setup:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aeolialiu2051/vibrail/main/scripts/install.sh | sh
+vibrail
+```
+
+For a headless or automated installation:
+
+```bash
+vibrail up --public-url https://ops.example.com
+```
+
+On Linux with Docker, `vibrail up` starts the published Compose stack: PostgreSQL, Redis, API, web dashboard, and the deployment edge. The service starts on boot and restarts after failure.
+
+See the **[CLI guide](docs/cli.md)** and **[self-hosting guide](docs/installation.md)** for contexts, authentication, Docker Compose, upgrades, and troubleshooting.
 
 <details>
-<summary>Self-host with raw Docker Compose (no CLI)</summary>
-
-The self-hosted stack lives in **`docker/docker-compose.yml`** and **pulls** published images from GitHub Container Registry (`ghcr.io/aeolialiu2051/*`) — no build tooling, no monorepo compile. Run it from the repo root:
+<summary>Run the published Docker Compose stack directly</summary>
 
 ```bash
-git clone https://github.com/aeolialiu2051/vibrail.git && cd vibrail
-cp .env.example .env          # then edit
+git clone https://github.com/aeolialiu2051/vibrail.git
+cd vibrail
+cp .env.example .env
 docker compose --env-file .env -f docker/docker-compose.yml up -d
 ```
 
-The control-plane stack is **postgres + redis + api + dashboard**. The API mounts the host Docker socket so it can build and run application workloads. When the first public Docker route is deployed, Vibrail reuses a compatible Traefik instance or creates the shared `vibrail-edge` instance; application containers publish their routes through Docker labels. Run the socket-enabled stack only on a trusted host.
+The API mounts the host Docker socket to build and operate application containers. This grants host-level control; run the stack only on a trusted server. Pin `VIBRAIL_VERSION` in `.env` for reproducible upgrades.
 
-**Upgrade:** pin `VIBRAIL_VERSION` in `.env` for reproducible pulls, then `docker compose --env-file .env -f docker/docker-compose.yml pull && … up -d` (or just `vibrail update`). **Build from source instead:** add `-f docker/docker-compose.build.yml … up -d --build`.
-
-> The **root** `docker-compose.yml` is a different file: it's the SaaS / from-source **control plane** (builds from source, ships the marketing site, no edge/socket). It does **not** self-host your apps — use `docker/docker-compose.yml` above or `vibrail up`.
+The repository-root `docker-compose.yml` is the SaaS/from-source control plane. For self-hosting, use `docker/docker-compose.yml` or `vibrail up`.
 
 </details>
 
 ---
 
-## How It Works
+## Architecture
 
-Point Vibrail at a source — a **GitHub repo**, a **local folder**, or a **prebuilt artifact** — and it runs one pipeline end to end:
+Vibrail is organized around a control plane and interchangeable infrastructure adapters:
 
-1. **Detect.** It reads your `package.json`, framework config, lockfiles, and any `docker-compose.yml` / `vibrail.json` to work out the stack, package manager, build/start commands, and port. Zero config files required; a `vibrail.json` overrides the guesses if you want control.
-2. **Build.** On the target server or locally on the orchestrator, into a Docker image (using your Dockerfile/Compose file or an automatically generated Dockerfile). The resolved config is frozen into a snapshot, so redeploys and rollbacks re-run *exactly* what shipped.
-3. **Run.** As a container published on loopback only — never a public port. Cloud deployments run in managed workspaces.
-4. **Route + secure.** The Traefik edge writes a reverse-proxy vhost to your domain and issues a Let's Encrypt certificate (HTTP-01). Because routing and TLS happen *after* the app is up, a DNS or cert hiccup surfaces as "action required" — it never fails the deploy or takes your app down.
-5. **Push-to-deploy.** A GitHub webhook re-runs the pipeline on every push to the tracked branch — rebuilding only the services a monorepo push actually touched.
+```text
+         ┌─────────────────────────────────────────────┐
+         │  Web Dashboard · CLI · REST API · MCP       │
+         └──────────────────────┬──────────────────────┘
+                                │
+                                ▼
+         ┌─────────────────────────────────────────────┐
+         │            Vibrail Control Plane            │
+         │       projects · auth · deploys · state     │
+         └──────────────────────┬──────────────────────┘
+                                │
+                  ┌─────────────┴────────────────┐
+                  │                              │
+                  ▼                              ▼
+        ┌───────────────────┐          ┌───────────────────┐
+        │  Runtime Adapter  │          │  Routing Adapter  │
+        └─────────┬─────────┘          └─────────┬─────────┘
+                  │                              │
+            ┌─────┴─────┐                  ┌─────┴─────┐
+            │           │                  │           │
+            ▼           ▼                  ▼           ▼
+      ┌───────────┐ ┌──────────┐ ┌──────────────┐ ┌────────────────┐
+      │ Cloud API │ │  Docker  │ │ Managed Edge │ │ Traefik + ACME │
+      └─────┬─────┘ └────┬─────┘ └──────┬───────┘ └───────┬────────┘
+            │            │              │                 │
+            └────────────┴──────┬───────┴─────────────────┘
+                                │
+                                ▼
+              ┌───────────────────────────────┐
+              │     Application Workloads     │
+              └───────────────────────────────┘
+```
 
-Databases, domains, SSL, CDN, mail, and backups are managed from the same place. (Push-to-deploy and public domains need an always-on server or Cloud — a desktop/loopback instance has no public endpoint to receive webhooks.)
+### Control plane
+
+The API is the source of truth for desired state and deployment history. PostgreSQL stores durable state; Redis backs queues, caching, and rate limiting. The web dashboard and CLI both operate through the same API.
+
+### Runtime layer
+
+The runtime adapter owns the build/deploy/stop lifecycle:
+
+- **Managed runtime** uses API calls to provision isolated cloud workspaces. No infrastructure commands execute in the control-plane process.
+- **Docker runtime** talks to a local or remote Docker daemon and keeps workloads portable as standard images and containers.
+
+This boundary keeps project and deployment logic independent from the machine that ultimately runs the workload.
+
+### Routing layer
+
+Routing and TLS are applied only after an application is healthy:
+
+- Managed deployments flow through the Vibrail edge router to the correct origin.
+- Self-hosted deployments use Traefik routes and Let's Encrypt certificates.
+- Custom domains and platform-provided domains share the same deployment model.
+
+Routing failures are surfaced as actionable infrastructure state instead of invalidating an otherwise healthy build.
+
+### Trust boundary
+
+For managed routes, PostgreSQL remains authoritative while edge KV is a reconciled projection. Requests from the edge to an origin are authenticated with per-server derived secrets, timestamps, and one-time nonces. Stale or forged routes fail closed.
+
+For self-hosting, the Docker socket is deliberately treated as privileged infrastructure access and is never exposed directly to application workloads.
+
+For the deeper implementation model, see [adapter architecture](packages/adapters/docs/ARCHITECTURE.md) and [managed edge routing](docs/managed-edge-router.md).
 
 ---
 
-## Interfaces
+## Deployment Pipeline
 
-Three ways to drive the same backend:
+Every source type follows the same lifecycle:
 
-- **Desktop app** — full GUI, real-time logs, one-click everything. Best for solo.
-- **Web dashboard** — the same UI in the browser, built for teams.
-- **CLI** — scriptable and CI-friendly; also how you install and manage a self-hosted instance.
+1. **Detect** — inspect framework files, lockfiles, Dockerfiles, Compose files, and `vibrail.json`.
+2. **Resolve** — freeze build commands, start commands, ports, resources, environment, and source revision into a deployment snapshot.
+3. **Build** — use the project's Dockerfile or generate one automatically.
+4. **Run** — start the workload on the selected runtime and verify its health.
+5. **Route** — publish the domain and provision TLS only after the workload is ready.
+6. **Observe** — stream build logs, runtime logs, deployment events, and server metrics to the dashboard and CLI.
 
-An **MCP** endpoint (for AI agents) and a **REST API** round it out for automation. Only routes that opt in are exposed as MCP tools, every call re-checks your permissions, and credential/token routes can never become tools. Full reference at [docs.vibrail.com](https://docs.vibrail.com/).
-
-> [!NOTE]
-> The docs are actively being filled out. If something's missing or unclear, [contributions](CONTRIBUTING.md) are hugely welcome.
+GitHub webhooks can repeat the pipeline on every push. In monorepos, Vibrail can limit builds to affected services. Redeploys and rollbacks reuse the frozen snapshot so the platform does not silently reinterpret an older release.
 
 ---
 
 ## Features
 
-| | |
+| Capability | What it provides |
 |---|---|
-| **Built-in CI/CD** | Push-to-deploy, preview environments, staging/prod flows, rollbacks |
-| **Any stack** | Node, Python, Go, Rust, PHP, Ruby, Java, .NET, Docker, monorepos |
-| **Full backend** | Postgres, MySQL, MongoDB, Redis, workers, WebSockets, storage |
-| **Domains & SSL** | Automatic Let's Encrypt, wildcards, unlimited domains, auto-renewal |
-| **CDN** | Edge caching, HTTP/3, Brotli compression, instant purge |
-| **Mail server** | Built-in SMTP with DKIM/SPF/DMARC — no Mailgun or SES needed |
-| **Backups** | Scheduled, databases + volumes, one-click restore, export anytime |
-| **Real-time monitoring** | Live build logs, container metrics, and resource usage streamed to your screen |
-| **Scaling** | Auto-scaling on cloud, multi-node ready on self-hosted |
-| **Portability** | Standard Docker containers — move between providers freely |
-| **Docker Compose** | Deploy existing compose files as-is |
+| **Built-in CI/CD** | Push-to-deploy, deployment history, previews, and rollbacks |
+| **Automatic detection** | Node.js, Python, Go, Rust, PHP, Ruby, Java, .NET, Docker, and monorepos |
+| **Declarative overrides** | Optional `vibrail.json` with the same validation used by the deployment pipeline |
+| **Domains and TLS** | Managed domains, custom domains, Let's Encrypt, verification, and renewal |
+| **Data services** | Databases, Redis, persistent volumes, scheduled backups, and restore workflows |
+| **Observability** | Live build logs, container logs, deployment events, and multi-server monitoring |
+| **Compose support** | Deploy existing Docker Compose applications without redesigning the stack |
+| **Automation** | Scriptable CLI, machine-readable JSON, REST API, and permission-aware MCP tools |
+| **Portability** | Standard Docker images and containers across managed and self-hosted targets |
 
 ---
 
-## Deploy Anywhere
+## Interfaces
 
-- **Vibrail Cloud** — managed, auto-scaling, zero setup
-- **Any VPS** — Hetzner, DigitalOcean, Linode, OVH, and the rest
-- **Dedicated servers** — bare metal, colo, homelab
-- **Multi-server** — spread workloads across machines
+- **Web dashboard** — the primary visual interface for projects, infrastructure, logs, and team access.
+- **CLI** — deploy from a repository, manage instances, inspect resources, and automate CI workflows.
+- **REST API and MCP** — integrate external systems and AI agents. MCP tools are explicitly opted in and re-check authorization on every call.
 
-Same interface regardless of where you deploy.
+Full documentation is available at [docs.vibrail.com](https://docs.vibrail.com/).
 
 ---
 
-## Status
+## Repository Layout
 
-Production-ready core, actively developed. Self-hosting is **free** (no billing).
+```text
+apps/
+├── api/             Control plane and deployment orchestration
+├── dashboard/       Web management interface
+├── router-worker/   Managed edge request router
+├── cli/             Deployment and instance-management CLI
+├── email/           Self-hosted mail stack
+└── web/             Product and documentation website
 
-**Coming next:** multi-node clusters, load-balancing UI, private networking, advanced monitoring, and visual CI/CD pipelines.
+packages/
+├── adapters/        Runtime, routing, SSL, executor, and system abstractions
+├── core/            Shared domain logic and contracts
+├── db/              Control-plane persistence
+└── ui/              Shared interface components
+
+docker/              Published self-hosting stack
+docs/                Architecture, installation, and operations guides
+```
+
+---
+
+## Project Status
+
+Vibrail's core deployment workflow is available and actively developed. Self-hosting is free and does not require a billing integration.
+
+The roadmap includes multi-node scheduling, richer load-balancing controls, private networking, advanced monitoring, and visual CI/CD pipelines.
 
 ---
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development and contribution guidelines.
 
 ---
 
 ## Releasing
 
-Cut a release with the version script — it syncs every package's version,
-commits the bump, tags `vX.Y.Z`, and pushes:
+The release script synchronizes package versions, commits the version bump, creates a `vX.Y.Z` tag, and pushes it:
 
 ```bash
-bun scripts/release.ts 0.2.0        # explicit version
-# or a bump keyword: patch | minor | major | rc   (minor from 0.1.x → 0.2.0)
+bun scripts/release.ts 0.5.0
+# or: bun scripts/release.ts patch | minor | major | rc
 ```
 
-Pushing the tag triggers [`.github/workflows/release.yml`](.github/workflows/release.yml), which:
+Version tags publish `@vibrail/cli`, server artifacts, and a GitHub Release. Official Docker images (`vibrail-api`, `vibrail-dashboard`, and `vibrail-edge`) are published to GitHub Container Registry by [the Docker image workflow](.github/workflows/docker-images.yml).
 
-- builds the **macOS / Windows / Linux installers** and the server tarballs (with SHA-256 sidecars),
-- **publishes the `@vibrail/cli` package to npm** — via npm [OIDC trusted publishing](https://docs.npmjs.com/trusted-publishers) (no token), and
-- creates the **GitHub Release** with the built assets (notes come from the tag).
-
-Official Docker images (`ghcr.io/aeolialiu2051/vibrail-{api,dashboard,edge}`) publish from
-[`.github/workflows/docker-images.yml`](.github/workflows/docker-images.yml) — on a version tag, or on demand with `bun scripts/release.ts docker`.
-
-To flag a release as **critical** (or add recommended/info advisories) in the
-in-app updater, add an entry to [`release-advisories.json`](release-advisories.json)
-**before** tagging — clients pull it pinned to the release tag. High-level notes
-live in [`CHANGELOG.md`](CHANGELOG.md).
+Add critical or recommended update notices to [release-advisories.json](release-advisories.json) before tagging. High-level release notes live in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
 ## Security
 
-Found a vulnerability? We welcome your report — please disclose it **privately**,
-never in a public issue, PR, or discussion.
+Please report vulnerabilities privately through [GitHub Security Advisories](https://github.com/aeolialiu2051/vibrail/security/advisories/new), never in a public issue or discussion.
 
-- **Report it here (preferred):** [Report a vulnerability](https://github.com/aeolialiu2051/vibrail/security/advisories/new) — a private GitHub advisory, visible only to you and the maintainers.
-- Scope, what to include, and our response/disclosure process: [SECURITY.md](SECURITY.md).
-
-Good-faith security research is **authorized** under our
-[safe-harbor policy](SECURITY.md#safe-harbor), and we're happy to credit valid
-first reports.
+See [SECURITY.md](SECURITY.md) for scope, reporting guidance, the disclosure process, and the safe-harbor policy.
 
 ---
-## ⭐ Star History
 
-<p align="center">
-  <a href="https://star-history.com/#aeolialiu2051/vibrail&Date">
-    <picture>
-      <source
-        media="(prefers-color-scheme: dark)"
-        srcset="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date&theme=dark"
-      />
-      <source
-        media="(prefers-color-scheme: light)"
-        srcset="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date"
-      />
-      <img
-        alt="Star History Chart"
-        src="https://api.star-history.com/svg?repos=aeolialiu2051/vibrail&type=Date"
-      />
-    </picture>
-  </a>
-</p>
+## Star History
+
+<a href="https://www.star-history.com/?repos=aeolialiu2051%2Fvibrail&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=aeolialiu2051/vibrail&type=date&theme=dark&legend=top-left&sealed_token=Jz1jVpiW8qH_rK8bKmYj3iykZ4rwWAVIuHXpkdu18gKf7-Pdj03p10ZSfCMXMVG4V3pD2U-vRqWaWIjta_VwO8MDfnjE_XBW-ytsnVF8qGMxxbQW2LhUT8sqxvkZ-q2anlgRYVR4Q_eRz4YwcOXxtGTOvcVP0dP9nDl9qZkotu0yILQoHDnFFlro_Wwo" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=aeolialiu2051/vibrail&type=date&legend=top-left&sealed_token=Jz1jVpiW8qH_rK8bKmYj3iykZ4rwWAVIuHXpkdu18gKf7-Pdj03p10ZSfCMXMVG4V3pD2U-vRqWaWIjta_VwO8MDfnjE_XBW-ytsnVF8qGMxxbQW2LhUT8sqxvkZ-q2anlgRYVR4Q_eRz4YwcOXxtGTOvcVP0dP9nDl9qZkotu0yILQoHDnFFlro_Wwo" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=aeolialiu2051/vibrail&type=date&legend=top-left&sealed_token=Jz1jVpiW8qH_rK8bKmYj3iykZ4rwWAVIuHXpkdu18gKf7-Pdj03p10ZSfCMXMVG4V3pD2U-vRqWaWIjta_VwO8MDfnjE_XBW-ytsnVF8qGMxxbQW2LhUT8sqxvkZ-q2anlgRYVR4Q_eRz4YwcOXxtGTOvcVP0dP9nDl9qZkotu0yILQoHDnFFlro_Wwo" />
+ </picture>
+</a>
 
 ---
+
 ## Acknowledgements
 
-Vibrail is based on [OpenShip](https://github.com/oblien/openship). We are grateful to the original authors and contributors for their work and for making the project open source.
+Vibrail is based on [OpenShip](https://github.com/oblien/openship). We are grateful to its authors and contributors for making their work open source.
 
 ---
+
 ## License
 
-Vibrail is **open-source** software, licensed under the [Apache License 2.0](LICENSE).
-
-You may use, run, modify, self-host, and distribute it — including in commercial
-and closed-source products — under the terms of the Apache 2.0 license. See
-[LICENSE](LICENSE) for the full text.
+Vibrail is licensed under the [Apache License 2.0](LICENSE). You may use, modify, self-host, and distribute it—including in commercial and closed-source products—under the terms of the license.
