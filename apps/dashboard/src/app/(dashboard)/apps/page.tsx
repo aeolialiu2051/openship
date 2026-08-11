@@ -15,6 +15,9 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { AppLogo } from "@/components/AppLogo";
 import { useProjectsHome } from "@/hooks/useProjectsHome";
 import { FEATURED_APPS } from "./featured-apps";
+import { ListPagination } from "@/components/ui/ListPagination";
+
+const PAGE_SIZE = 20;
 
 /**
  * Apps tab — catalog-installed managed services. Shares `projects/home` data with
@@ -28,12 +31,13 @@ import { FEATURED_APPS } from "./featured-apps";
 const isAppEnabled = (id: string) => AVAILABLE_APP_IDS.has(id);
 
 export default function AppsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const router = useRouter();
   const ap = t.dashboard.pages.apps;
   const featuredDescriptions = ap.featuredDescriptions as Record<string, string>;
   const { projects, isLoading, refresh } = useProjectsHome();
   const [updatesBehind, setUpdatesBehind] = useState<Set<string>>(new Set());
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     // Which installed apps have a pending update (fed by the update scan). Best-
@@ -45,6 +49,13 @@ export default function AppsPage() {
   }, []);
 
   const apps = projects.filter((p) => p.isApp);
+  const totalPages = Math.max(1, Math.ceil(apps.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleApps = apps.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <PageContainer outerClassName="pb-20">
@@ -193,7 +204,7 @@ export default function AppsPage() {
           {/* Left: installed apps */}
           <div className="min-w-0">
             <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
-              {apps.map((app) => (
+              {visibleApps.map((app) => (
                 <ProjectCard
                   key={app.id}
                   project={app}
@@ -203,6 +214,7 @@ export default function AppsPage() {
                 />
               ))}
             </div>
+            <ListPagination page={currentPage} totalItems={apps.length} pageSize={PAGE_SIZE} onPageChange={setPage} locale={locale} />
           </div>
 
           {/* Right: catalog apps you can also deploy (excludes installed ones) */}

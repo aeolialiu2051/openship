@@ -271,6 +271,8 @@ function getCopy(locale: string) {
         status: "状态",
         actions: "操作",
         noResults: "没有找到匹配的资源",
+        viewAllProjects: "查看全部项目",
+        viewAllApps: "查看全部应用",
         server: "自托管服务器",
         local: "本地",
         unconfigured: "未配置",
@@ -326,6 +328,8 @@ function getCopy(locale: string) {
         status: "Status",
         actions: "Actions",
         noResults: "No matching resources",
+        viewAllProjects: "View all projects",
+        viewAllApps: "View all apps",
         server: "Self-hosted server",
         local: "Local",
         unconfigured: "Not configured",
@@ -917,6 +921,18 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                       })}
                     </div>
                   </div>
+                  {projects.length > 12 && (
+                    <div className="sticky start-0 flex w-[calc(100vw-2rem)] max-w-full items-center justify-center gap-2 border-t border-border/50 px-5 py-3 sm:w-[calc(100vw-3rem)] lg:w-[calc(100vw-4rem)] xl:w-auto">
+                      <Link href="/projects" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground">
+                        {labels.viewAllProjects}
+                        <ArrowRight className="size-3.5 rtl:rotate-180" />
+                      </Link>
+                      <Link href="/apps" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground">
+                        {labels.viewAllApps}
+                        <ArrowRight className="size-3.5 rtl:rotate-180" />
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

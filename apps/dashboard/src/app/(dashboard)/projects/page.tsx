@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useDeferredValue } from "react";
+import { useState, useMemo, useDeferredValue, useEffect } from "react";
 import Link from "next/link";
 import ProjectCard from "./components/ProjectCard";
 import {
@@ -17,14 +17,18 @@ import { PageContainer } from "@/components/ui/PageContainer";
 import { usePlatform } from "@/context/PlatformContext";
 import { useProjectsHome } from "@/hooks/useProjectsHome";
 import { useAddServerModal } from "@/components/servers/ServerModal";
+import { ListPagination } from "@/components/ui/ListPagination";
+
+const PAGE_SIZE = 20;
 
 export default function ProjectsPage() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { projects, isLoading, refresh } = useProjectsHome();
   const showAddServer = useAddServerModal();
   const [searchQuery, setSearchQuery] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const [filter, setFilter] = useState<ProjectFilter>({ kind: "all" });
+  const [page, setPage] = useState(1);
   const { userServers } = usePlatform();
 
   // Catalog-installed apps have their own Apps page. Keep every piece of the
@@ -52,6 +56,13 @@ export default function ProjectsPage() {
       );
     });
   }, [deferredSearchQuery, filter, projectItems]);
+  const totalPages = Math.max(1, Math.ceil(filteredProjects.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const visibleProjects = filteredProjects.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
 
   return (
     <PageContainer outerClassName="pb-20">
@@ -107,7 +118,10 @@ export default function ProjectsPage() {
                   type="text"
                   placeholder={t.dashboard.pages.projects.searchPlaceholder}
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setPage(1);
+                  }}
                   className="w-full ps-10 pe-4 py-2.5 bg-card border border-border/50 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/20 transition-all text-foreground placeholder:text-muted-foreground"
                 />
               </div>
@@ -118,7 +132,7 @@ export default function ProjectsPage() {
               <div className="min-w-0">
                 {filteredProjects.length > 0 ? (
                   <div className="bg-card rounded-2xl border border-border/50 divide-y divide-border/50">
-                    {filteredProjects.map((project) => (
+                    {visibleProjects.map((project) => (
                       <ProjectCard key={project.id} project={project} />
                     ))}
                   </div>
@@ -144,13 +158,21 @@ export default function ProjectsPage() {
                     )}
                   </div>
                 )}
+                <ListPagination page={currentPage} totalItems={filteredProjects.length} pageSize={PAGE_SIZE} onPageChange={setPage} locale={locale} />
               </div>
 
               {/* Right: filter by deploy target + a server CTA so the column
                   is never empty (e.g. when nothing is deployed to a server). */}
               <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
                 {showFilterCard && (
-                  <ProjectFilters options={filterOptions} active={filter} onChange={setFilter} />
+                  <ProjectFilters
+                    options={filterOptions}
+                    active={filter}
+                    onChange={(nextFilter) => {
+                      setFilter(nextFilter);
+                      setPage(1);
+                    }}
+                  />
                 )}
                 {!hasServers && (
                   <div className="bg-card rounded-2xl border border-border/50 p-5">
