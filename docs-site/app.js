@@ -31,9 +31,10 @@ const sectionsByLocale = {
     {
       title: '开发者',
       links: [
-        ['REST API', '/docs/api'],
+        ['API', '/docs/api'],
         ['MCP', '/docs/mcp'],
         ['CLI', '/docs/cli'],
+        ['Skill', '/docs/skill'],
         ['常见问题', '/docs/faq'],
       ],
     },
@@ -66,9 +67,10 @@ const sectionsByLocale = {
     {
       title: 'Developers',
       links: [
-        ['REST API', '/docs/api'],
+        ['API', '/docs/api'],
         ['MCP', '/docs/mcp'],
         ['CLI', '/docs/cli'],
+        ['Skill', '/docs/skill'],
         ['FAQ', '/docs/faq'],
       ],
     },
@@ -77,7 +79,7 @@ const sectionsByLocale = {
 
 const ui = {
   zh: {
-    nav: ['文档', '部署', 'CLI', 'API', 'MCP', '常见问题'],
+    nav: ['文档', '部署', 'API', 'MCP', 'CLI', 'Skill', '常见问题'],
     search: '搜索或提问…',
     searchLabel: '搜索文档',
     searchPlaceholder: '搜索文档…',
@@ -97,7 +99,7 @@ const ui = {
     language: 'EN',
   },
   en: {
-    nav: ['Docs', 'Deploy', 'CLI', 'API', 'MCP', 'FAQ'],
+    nav: ['Docs', 'Deploy', 'API', 'MCP', 'CLI', 'Skill', 'FAQ'],
     search: 'Search or ask…',
     searchLabel: 'Search documentation',
     searchPlaceholder: 'Search documentation…',
@@ -443,8 +445,8 @@ const pagesZh = {
   },
   '/docs/cli': {
     nav: 'cli',
-    eyebrow: '命令行工具',
-    title: 'Vibrail CLI',
+    eyebrow: '开发者',
+    title: 'CLI',
     lead: '从终端部署应用、管理多个 Vibrail 实例，并安装和运维自托管控制面。',
     body: `<h2 id="install">安装</h2><p>npm 包需要 Node.js 22 或更高版本。服务器安装脚本可以安装所需运行时和最新 CLI。</p>${code(
       'Terminal',
@@ -598,7 +600,7 @@ vibrail deploy --name my-app --watch`)}<p>更多选项见 <a href="#/docs/cli">C
   '/docs/api': {
     nav: 'api',
     eyebrow: '开发者',
-    title: 'REST API',
+    title: 'API',
     lead: 'Vibrail 控制台使用同一套 HTTP API，外部集成可通过个人访问令牌调用。',
     body: `<h2 id="base-url">Base URL</h2><p>托管 API Base URL 为 <code>${API_URL}</code>；自托管实例使用自己的域名加 <code>/api</code>。</p><h2 id="auth">鉴权</h2><p>在 Settings → Tokens 中创建个人访问令牌，并作为 Bearer Token 发送。</p>${code('HTTP', 'Authorization: Bearer YOUR_TOKEN')}<h2 id="example">请求示例</h2>${code(
       'Terminal',
@@ -633,6 +635,23 @@ vibrail deploy --name my-app --watch`)}<p>更多选项见 <a href="#/docs/cli">C
       numberedRows(mcpToolRows('zh')),
       'mcp-tools-table',
     )}<div class="callout warning"><strong>使用最小权限</strong><p>只读令牌只会看到可读取的工具；受限成员只会看到其资源授权允许的工具。危险写入工具可能删除资源或产生难以撤销的影响，调用前应再次确认目标。</p></div>`,
+  },
+  '/docs/skill': {
+    nav: 'skill',
+    eyebrow: '开发者',
+    title: 'Skill',
+    lead: '让 Codex 等 AI 编码智能体按照 Vibrail 的安全工作流检查、部署、重新部署并验证项目。',
+    body: `<p><code>vibrail-deploy</code> Skill 覆盖本地项目与 GitHub 仓库，支持静态站点、服务、Dockerfile、Docker Compose、monorepo、路由、加密配置和安全的源码上传回退。</p>${cards([
+      ['查看 Skill 原文', '打开可直接下载或提供给 AI 客户端的 SKILL.md 文件。', 'https://docs.vibrail.com/skill.md'],
+    ])}<h2 id="install">安装到 Codex</h2><p>将文件保存为个人 Skill 目录中的 <code>SKILL.md</code>，然后重新启动 Codex 或开启一个新任务。</p>${code(
+      'Terminal',
+      `mkdir -p ~/.codex/skills/vibrail-deploy
+curl -fsSL https://docs.vibrail.com/skill.md \\
+  -o ~/.codex/skills/vibrail-deploy/SKILL.md`,
+    )}<h2 id="usage">使用方式</h2><p>安装后，可以直接要求 Codex 使用 Vibrail 检查或部署当前项目，例如：</p>${code(
+      'Prompt',
+      `使用 Vibrail 部署这个项目，并等待部署完成后验证公网地址。`,
+    )}<h2 id="safety">安全约束</h2><ul class="feature-list"><li>部署前先检查仓库结构、配置、目标服务器和认证状态。</li><li>保护令牌、密码、数据库地址和其他敏感信息。</li><li>不擅自提交代码、改变架构、扩大公网暴露范围或创建付费资源。</li><li>等待部署进入最终状态，并实际验证工作负载后再报告成功。</li></ul>`,
   },
   '/docs/faq': {
     nav: 'faq',
@@ -865,6 +884,23 @@ vibrail deploy --name my-app --watch`)}<p>See the <a href="#/docs/cli">CLI guide
       numberedRows(mcpToolRows('en')),
       'mcp-tools-table',
     )}<div class="callout warning"><strong>Use least privilege</strong><p>Read-only tokens only see readable tools, and restricted members only see tools allowed by their resource grants. Destructive tools may delete resources or cause effects that are difficult to reverse; confirm the target before calling them.</p></div>`,
+  },
+  '/docs/skill': {
+    nav: 'skill',
+    eyebrow: 'Developers',
+    title: 'Vibrail Skill',
+    lead: 'Give Codex and other AI coding agents a safe workflow for inspecting, deploying, redeploying, and verifying projects with Vibrail.',
+    body: `<p>The <code>vibrail-deploy</code> Skill covers local projects and GitHub repositories, including static sites, services, Dockerfiles, Docker Compose, monorepos, routing, encrypted configuration, and safe source-upload fallback.</p>${cards([
+      ['View the Skill source', 'Open the SKILL.md file for direct download or use with an AI client.', 'https://docs.vibrail.com/skill.md'],
+    ])}<h2 id="install">Install in Codex</h2><p>Save the file as <code>SKILL.md</code> in your personal Skill directory, then restart Codex or begin a new task.</p>${code(
+      'Terminal',
+      `mkdir -p ~/.codex/skills/vibrail-deploy
+curl -fsSL https://docs.vibrail.com/skill.md \\
+  -o ~/.codex/skills/vibrail-deploy/SKILL.md`,
+    )}<h2 id="usage">Use the Skill</h2><p>Once installed, ask Codex to inspect or deploy the current project with Vibrail. For example:</p>${code(
+      'Prompt',
+      `Deploy this project with Vibrail, wait for it to settle, and verify the public URL.`,
+    )}<h2 id="safety">Safety guardrails</h2><ul class="feature-list"><li>Inspect the repository, configuration, target server, and authentication before deploying.</li><li>Protect tokens, passwords, database URLs, and other sensitive values.</li><li>Do not silently commit code, change architecture, expand public exposure, or create paid resources.</li><li>Wait for a final deployment state and verify the workload before reporting success.</li></ul><div class="callout"><strong>Always get the latest version</strong><p>The canonical Skill URL is <a href="/skill.md" target="_blank" rel="noreferrer">https://docs.vibrail.com/skill.md</a>.</p></div>`,
   },
   '/docs/faq': {
     nav: 'faq',
