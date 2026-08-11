@@ -17,6 +17,7 @@ interface DashboardProvidersProps {
   version?: string;
   cloudAuthUrl: string;
   cloudApiUrl: string;
+  discordLink?: string | null;
   machineName?: string;
   siteDomain: string;
   managedDomain: string;
@@ -37,6 +38,7 @@ export function DashboardProviders({
   version,
   cloudAuthUrl,
   cloudApiUrl,
+  discordLink,
   machineName,
   siteDomain,
   managedDomain,
@@ -53,6 +55,7 @@ export function DashboardProviders({
         version={version}
         cloudAuthUrl={cloudAuthUrl}
         cloudApiUrl={cloudApiUrl}
+        discordLink={discordLink}
         machineName={machineName}
         siteDomain={siteDomain}
         managedDomain={managedDomain}

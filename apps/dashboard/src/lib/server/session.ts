@@ -119,6 +119,8 @@ export type DeploymentInfo = {
   cloudApiUrl: string;
   /** Contact mailbox parsed by the API from SMTP_FROM. */
   supportEmail?: string;
+  /** Discord invite configured through the instance runtime settings. */
+  discordLink?: string | null;
   machineName?: string;
   siteDomain: string;
   managedDomain: string;

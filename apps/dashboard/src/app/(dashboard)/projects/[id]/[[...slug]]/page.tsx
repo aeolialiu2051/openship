@@ -44,6 +44,7 @@ import DropdownMenu, { type MenuAction } from "@/components/ui/DropdownMenu";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useProjectDeletionTracker } from "@/context/ProjectDeletionContext";
+import { usePlatform } from "@/context/PlatformContext";
 import { getSupportEmail } from "@/lib/support-email";
 
 const ProjectTabLoading = () => (
@@ -531,6 +532,7 @@ const ProjectSettingsContent = () => {
   const { showToast } = useToast();
   const { showModal, hideModal } = useModal();
   const { trackProjectDeletion } = useProjectDeletionTracker();
+  const { discordLink } = usePlatform();
   const supportEmail = getSupportEmail();
   const router = useRouter();
   const [deletionOperationId, setDeletionOperationId] = useState<string | null>(null);
@@ -895,7 +897,7 @@ const ProjectSettingsContent = () => {
       label: t.projects.help.joinCommunity,
       icon: <ExternalLink className="w-4 h-4" />,
       onClick: () => {
-        window.open("https://discord.gg/vibrail", "_blank");
+        window.open(discordLink || "https://vibrail.com/about", "_blank", "noopener,noreferrer");
       },
     },
   ];

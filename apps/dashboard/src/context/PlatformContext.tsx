@@ -19,6 +19,7 @@ interface PlatformContextValue {
   version?: string;
   cloudAuthUrl: string;
   cloudApiUrl: string;
+  discordLink?: string | null;
   machineName?: string;
   siteDomain: string;
   managedDomain: string;
@@ -67,6 +68,7 @@ interface PlatformProviderProps {
   version?: string;
   cloudAuthUrl?: string;
   cloudApiUrl?: string;
+  discordLink?: string | null;
   machineName?: string;
   siteDomain?: string;
   managedDomain?: string;
@@ -91,6 +93,7 @@ export function PlatformProvider({
   version,
   cloudAuthUrl = CLOUD_DASHBOARD_URL,
   cloudApiUrl = CLOUD_API_URL,
+  discordLink,
   machineName,
   siteDomain = "vibrail.com",
   managedDomain = DEFAULT_MANAGED_DOMAIN,
@@ -111,6 +114,7 @@ export function PlatformProvider({
         version,
         cloudAuthUrl,
         cloudApiUrl,
+        discordLink,
         machineName,
         siteDomain,
         managedDomain,
