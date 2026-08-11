@@ -789,16 +789,39 @@ const STATS_COMMAND = [
  * Runs a lightweight stats command via SSH on an interval.
  * Stops when the client disconnects.
  *
- * Query: ?serverId=<uuid>&intervalMs=<3000..60000>
+ * Query: ?serverId=<uuid>&intervalMs=<3000..60000> (legacy single-server mode)
+ *     or ?serverIds=<uuid,uuid,...>&intervalMs=<3000..60000> (batched mode)
  */
 export async function monitorStream(c: Context) {
   if (!USER_SERVERS_ENABLED) return c.json({ error: "Not available" }, 404);
 
-  const serverId = c.req.query("serverId");
-  if (!serverId) return c.json({ error: "serverId query param is required" }, 400);
+  const legacyServerId = c.req.query("serverId")?.trim();
+  const serverIds = Array.from(
+    new Set(
+      (c.req.query("serverIds") ?? legacyServerId ?? "")
+        .split(",")
+        .map((id) => id.trim())
+        .filter(Boolean),
+    ),
+  );
+  if (serverIds.length === 0) {
+    return c.json({ error: "serverId or serverIds query param is required" }, 400);
+  }
+  if (serverIds.length > 50) {
+    return c.json({ error: "At most 50 servers can be monitored per stream" }, 400);
+  }
+  const batched = !!c.req.query("serverIds");
 
   getRequestContext(c);
-  await permission.assert(getRequestContext(c), { resourceType: "server", resourceId: serverId, action: "read" });
+  await Promise.all(
+    serverIds.map((serverId) =>
+      permission.assert(getRequestContext(c), {
+        resourceType: "server",
+        resourceId: serverId,
+        action: "read",
+      }),
+    ),
+  );
 
   const requestedInterval = Number(c.req.query("intervalMs"));
   const POLL_INTERVAL = Number.isFinite(requestedInterval)
@@ -810,29 +833,39 @@ export async function monitorStream(c: Context) {
   const STATS_TIMEOUT_MS = 12_000;
 
   return streamSSE(c, async (sseStream) => {
-    sshManager.retain(serverId);
+    serverIds.forEach((serverId) => sshManager.retain(serverId));
     const ac = new AbortController();
     sseStream.onAbort(() => ac.abort());
 
     try {
       while (!ac.signal.aborted) {
-        try {
-          // Use acquire()+exec() rather than withExecutor(): this is a
-          // best-effort background poller, and its timeouts must NOT count
-          // toward the circuit breaker (which would penalize the whole server
-          // for a slow metrics sample). A failed sample just retries next tick.
-          const executor = await sshManager.acquire(serverId);
-          const raw = await executor.exec(STATS_COMMAND, { timeout: STATS_TIMEOUT_MS });
-          if (ac.signal.aborted) break;
-          JSON.parse(raw); // validate
-          await sseStream.writeSSE({ event: "stats", data: raw });
-        } catch (err) {
-          if (ac.signal.aborted) break;
-          const msg = safeErrorMessage(err);
-          await sseStream.writeSSE({
-            event: "error",
-            data: JSON.stringify({ error: msg }),
-          });
+        const samples = await Promise.all(
+          serverIds.map(async (serverId) => {
+            try {
+              // Use acquire()+exec() rather than withExecutor(): this is a
+              // best-effort background poller, and its timeouts must NOT count
+              // toward the circuit breaker. A failed sample retries next tick.
+              const executor = await sshManager.acquire(serverId);
+              const raw = await executor.exec(STATS_COMMAND, { timeout: STATS_TIMEOUT_MS });
+              return { serverId, stats: JSON.parse(raw) as unknown };
+            } catch (err) {
+              return { serverId, error: safeErrorMessage(err) };
+            }
+          }),
+        );
+        if (ac.signal.aborted) break;
+        for (const sample of samples) {
+          if ("stats" in sample) {
+            await sseStream.writeSSE({
+              event: "stats",
+              data: JSON.stringify(batched ? sample : sample.stats),
+            });
+          } else {
+            await sseStream.writeSSE({
+              event: "error",
+              data: JSON.stringify(batched ? sample : { error: sample.error }),
+            });
+          }
         }
         // Abort-aware sleep
         await new Promise<void>((resolve) => {
@@ -849,7 +882,7 @@ export async function monitorStream(c: Context) {
         });
       }
     } finally {
-      sshManager.release(serverId);
+      serverIds.forEach((serverId) => sshManager.release(serverId));
     }
   });
 }

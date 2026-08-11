@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 import { endpoints } from "@/lib/api/endpoints";
 import type { ServerStats } from "@/lib/api/system";
+import { parseBatchedServerStatsEvent } from "./server-stats-events";
 
 /** Streams whole-machine resource samples for every configured server. */
 export function useServerResourceStats(serverIds: string[], intervalMs = 15_000) {
@@ -33,70 +34,91 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
     setSettledByServer((current) =>
       Object.fromEntries(Object.entries(current).filter(([serverId]) => activeIds.has(serverId))),
     );
-    const controllers = stableServerIds.map(() => new AbortController());
-    controllersRef.current = controllers;
+    if (stableServerIds.length === 0) {
+      controllersRef.current = [];
+      return;
+    }
 
-    stableServerIds.forEach((serverId, index) => {
-      const controller = controllers[index];
-      void (async () => {
-        const params = new URLSearchParams({ serverId, intervalMs: String(intervalMs) });
-        try {
-          const response = await fetch(
-            `${getApiBaseUrl()}${endpoints.system.monitorStream}?${params.toString()}`,
-            {
-              credentials: "include",
-              headers: { Accept: "text/event-stream" },
-              signal: controller.signal,
-            },
-          );
-          if (!response.ok || !response.body) {
-            setSettledByServer((current) => ({ ...current, [serverId]: true }));
-            return;
-          }
+    // One multiplexed stream for the whole dashboard. Opening one permanent
+    // same-origin HTTP/1.1 connection per server exhausted the browser's
+    // connection pool at 5-6 servers, leaving Next.js RSC navigations queued
+    // until a full reload closed the streams.
+    const controller = new AbortController();
+    controllersRef.current = [controller];
 
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          while (!controller.signal.aborted) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const events = buffer.split("\n\n");
-            buffer = events.pop() ?? "";
-            for (const event of events) {
-              if (event.includes("event: error")) {
-                setSettledByServer((current) => ({ ...current, [serverId]: true }));
-                continue;
-              }
-              if (!event.includes("event: stats")) continue;
+    void (async () => {
+      const params = new URLSearchParams({
+        serverIds: stableServerIds.join(","),
+        intervalMs: String(intervalMs),
+      });
+      try {
+        const response = await fetch(
+          `${getApiBaseUrl()}${endpoints.system.monitorStream}?${params.toString()}`,
+          {
+            credentials: "include",
+            headers: { Accept: "text/event-stream" },
+            signal: controller.signal,
+          },
+        );
+        if (!response.ok || !response.body) {
+          setSettledByServer(Object.fromEntries(stableServerIds.map((id) => [id, true])));
+          return;
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (!controller.signal.aborted) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+          for (const event of events) {
+            if (event.includes("event: error")) {
               const data = event
                 .split("\n")
                 .find((line) => line.trimStart().startsWith("data:"))
                 ?.trimStart()
                 .slice(5)
                 .trim();
-              if (!data) continue;
-              try {
-                const stats = JSON.parse(data) as ServerStats;
-                if (!Number.isFinite(stats.cpu) || !Number.isFinite(stats.memTotal)) continue;
-                setStatsByServer((current) => ({ ...current, [serverId]: stats }));
-                setSettledByServer((current) => ({ ...current, [serverId]: true }));
-                setUpdatedAt(Date.now());
-              } catch {
-                // Ignore a malformed sample and keep the stream alive.
+              if (data) {
+                try {
+                  const parsed = JSON.parse(data) as { serverId?: unknown };
+                  if (typeof parsed.serverId === "string") {
+                    const failedServerId = parsed.serverId;
+                    setSettledByServer((current) => ({ ...current, [failedServerId]: true }));
+                  }
+                } catch {
+                  /* ignore malformed error payload */
+                }
               }
+              continue;
             }
-          }
-        } catch {
-          // An unavailable server is excluded from the aggregate until refresh/reconnect.
-          if (!controller.signal.aborted) {
-            setSettledByServer((current) => ({ ...current, [serverId]: true }));
+            if (!event.includes("event: stats")) continue;
+            const data = event
+              .split("\n")
+              .find((line) => line.trimStart().startsWith("data:"))
+              ?.trimStart()
+              .slice(5)
+              .trim();
+            if (!data) continue;
+            const sample = parseBatchedServerStatsEvent(data);
+            if (!sample) continue;
+            setStatsByServer((current) => ({ ...current, [sample.serverId]: sample.stats }));
+            setSettledByServer((current) => ({ ...current, [sample.serverId]: true }));
+            setUpdatedAt(Date.now());
           }
         }
-      })();
-    });
+      } catch {
+        // Unavailable servers are excluded from the aggregate until refresh/reconnect.
+        if (!controller.signal.aborted) {
+          setSettledByServer(Object.fromEntries(stableServerIds.map((id) => [id, true])));
+        }
+      }
+    })();
 
-    return () => controllers.forEach((controller) => controller.abort());
+    return () => controller.abort();
   }, [stableServerIds, generation, intervalMs]);
 
   return {
