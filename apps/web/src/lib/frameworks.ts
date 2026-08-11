@@ -10,7 +10,7 @@ export function getFrameworkConfig(frameworkId?: string | null) {
   };
 }
 
-/** Whether a stack normally renders a browser UI suitable for Collection previews. */
+/** Whether framework metadata alone is enough to expect a browser UI. */
 export function hasVisualPreview(frameworkId?: string | null) {
   const category = getFrameworkConfig(frameworkId).category;
   return category === "frontend" || category === "fullstack" || category === "static";

@@ -14,15 +14,16 @@ import {
 import { Navbar } from "@/components/landing/navbar";
 import { landingCopy, type LandingLocale } from "@/components/landing/landing-copy";
 import { useLandingPreferences } from "@/components/landing/use-landing-preferences";
-import { getFrameworkConfig, hasVisualPreview } from "@/lib/frameworks";
+import { getFrameworkConfig } from "@/lib/frameworks";
 
-type Project = {
+export type Project = {
   id: string;
   name: string;
   slug: string;
   url: string;
   favicon?: string | null;
   framework?: string | null;
+  previewable?: boolean;
   updatedAt?: string;
   publisher?: { name: string; image?: string | null } | null;
 };
@@ -85,22 +86,34 @@ function VibrailPreviewPlaceholder() {
   );
 }
 
-function CollectionPreview({ project }: { project: Project }) {
+function CollectionPreview({
+  project,
+  interactive = false,
+}: {
+  project: Project;
+  interactive?: boolean;
+}) {
   const [failed, setFailed] = useState(false);
 
-  if (!hasVisualPreview(project.framework) || failed) return <VibrailPreviewPlaceholder />;
+  useEffect(() => setFailed(false), [project.url]);
+
+  if (project.previewable === false || failed) return <VibrailPreviewPlaceholder />;
 
   return (
     <>
       <iframe
         src={project.url}
-        title={`${project.name} preview`}
-        loading="lazy"
-        tabIndex={-1}
-        sandbox="allow-scripts allow-same-origin"
+        title={interactive ? project.name : `${project.name} preview`}
+        loading={interactive ? "eager" : "lazy"}
+        tabIndex={interactive ? undefined : -1}
+        sandbox={
+          interactive
+            ? "allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+            : "allow-scripts allow-same-origin"
+        }
         onError={() => setFailed(true)}
       />
-      <div className="collection-preview-shield" />
+      {!interactive && <div className="collection-preview-shield" />}
     </>
   );
 }
@@ -245,15 +258,7 @@ export function CollectionPage({
                 <X size={21} />
               </button>
               <div className="collection-live">
-                {hasVisualPreview(selected.framework) ? (
-                  <iframe
-                    src={selected.url}
-                    title={selected.name}
-                    sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-                  />
-                ) : (
-                  <VibrailPreviewPlaceholder />
-                )}
+                <CollectionPreview project={selected} interactive />
               </div>
               <aside className="collection-comments">
                 <div className="collection-project-head">
