@@ -348,6 +348,41 @@ describe("selectPreferredProjectRoot", () => {
     expect(selected.stack.stack).toBe("docker-compose");
   });
 
+  it("keeps a root Dockerfile over nested framework and static candidates", () => {
+    const selected = selectPreferredProjectRoot(
+      {
+        rootDirectory: "",
+        files: [
+          { name: "Dockerfile", type: "file" as const },
+          { name: "package.json", type: "file" as const },
+        ],
+        packageJson: { dependencies: { express: "^5.0.0" } },
+        fileContents: { Dockerfile: "FROM node:22\n" },
+      },
+      [
+        {
+          rootDirectory: "packages/web",
+          source: "workspace",
+          files: [
+            { name: "package.json", type: "file" as const },
+            { name: "vite.config.ts", type: "file" as const },
+          ],
+          packageJson: { dependencies: { vite: "^7.0.0" } },
+          fileContents: {},
+        },
+        {
+          rootDirectory: "packages/desktop/src/renderer",
+          source: "discovered",
+          files: [{ name: "index.html", type: "file" as const }],
+          fileContents: {},
+        },
+      ],
+    );
+
+    expect(selected.rootDirectory).toBe("");
+    expect(selected.stack.stack).toBe("docker");
+  });
+
   it("recognises a Rush monorepo and elevates its projects to workspace hints", () => {
     const rushJson = JSON.stringify({
       projects: [

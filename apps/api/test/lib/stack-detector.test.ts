@@ -492,6 +492,25 @@ describe("detectStack - rule ordering & gate disambiguation", () => {
     expect(result.stack).toBe("docker-compose");
   });
 
+  it("Dockerfile wins over detected frameworks and static markers", () => {
+    const result = detectStack(
+      files("Dockerfile", "package.json", "vite.config.ts", "index.html"),
+      { dependencies: { vite: "^7.0.0", express: "^5.0.0" } },
+    );
+    expect(result.stack).toBe("docker");
+    expect(result.projectType).toBe("docker");
+  });
+
+  it("Dockerfile is not reclassified by deployment metadata", () => {
+    const result = detectStack(
+      files("Dockerfile", "vercel.json", "package.json", "next.config.js"),
+      { dependencies: { next: "^15.0.0" } },
+      { "vercel.json": JSON.stringify({ framework: "nextjs", outputDirectory: "out" }) },
+    );
+    expect(result.stack).toBe("docker");
+    expect(result.projectType).toBe("docker");
+  });
+
   it("Docker Compose wins over a detected language framework", () => {
     const result = detectStack(
       files("docker-compose.yml", "Dockerfile", "go.mod", "main.go"),

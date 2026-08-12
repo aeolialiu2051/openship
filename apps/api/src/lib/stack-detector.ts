@@ -206,6 +206,12 @@ const FRAMEWORK_RULES: FrameworkRule[] = [
   // is incorrectly reduced to a single app (or expanded as a monorepo).
   { stack: "docker-compose" },
 
+  // ── Dockerfile (explicit single-container deployment contract) ──────────
+  // A repository-provided Dockerfile is authoritative for the build/runtime
+  // shape. Keep it immediately after Compose so framework manifests and nested
+  // app discovery cannot silently replace it with a generated build recipe.
+  { stack: "docker" },
+
   // ── Frontend / Fullstack JS (check first - they may also have backend deps) ──
   { stack: "nextjs" },
   { stack: "nuxt" },
@@ -332,9 +338,6 @@ const FRAMEWORK_RULES: FrameworkRule[] = [
 
   // ── Generic Python (catch-all - after specific Python frameworks) ────────
   { stack: "python" },
-
-  // ── Dockerfile (single container) ────────────────────────────────────────
-  { stack: "docker" },
 
   // ── Static site (no package.json / manifest at all) ──────────────────────
   {
@@ -499,10 +502,10 @@ export function applyMetadataOverrides(
   result: StackResult,
   metadataList: DeploymentMetadata[],
 ): StackResult {
-  // Compose is the highest-priority, explicit deployment contract. Metadata
-  // such as vercel.json may still contribute routing elsewhere, but it must not
-  // reclassify a Compose project as a framework app.
-  if (result.stack === "docker-compose") {
+  // Compose and Dockerfile are the two highest-priority explicit deployment
+  // contracts. Metadata such as vercel.json may still contribute routing
+  // elsewhere, but it must not reclassify either as a framework app.
+  if (result.stack === "docker-compose" || result.stack === "docker") {
     return result;
   }
 

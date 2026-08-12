@@ -72,6 +72,13 @@ function detectPackageManager(dir: string): string | undefined {
 
 /** Manifest → coarse stack hint (server scan re-detects the real framework). */
 function detectStack(dir: string): string | undefined {
+  if (
+    existsSync(join(dir, "docker-compose.yml")) ||
+    existsSync(join(dir, "docker-compose.yaml")) ||
+    existsSync(join(dir, "compose.yml")) ||
+    existsSync(join(dir, "compose.yaml"))
+  ) return "docker-compose";
+  if (existsSync(join(dir, "Dockerfile"))) return "docker";
   if (existsSync(join(dir, "go.mod"))) return "go";
   if (existsSync(join(dir, "Cargo.toml"))) return "rust";
   if (existsSync(join(dir, "requirements.txt")) || existsSync(join(dir, "pyproject.toml")))
