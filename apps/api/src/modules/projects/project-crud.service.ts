@@ -1042,6 +1042,19 @@ export async function updateProject(
       if (!["http:", "https:"].includes(parsed.protocol)) {
         throw new ValidationError("Collection URL must use http or https");
       }
+      const primaryDomain = await repos.domain.getPrimaryByProject(projectId);
+      if (!primaryDomain) {
+        throw new ValidationError("A primary project domain is required for a collection URL");
+      }
+      if (
+        parsed.protocol !== "https:" ||
+        parsed.hostname.toLowerCase() !== primaryDomain.hostname.toLowerCase() ||
+        parsed.port ||
+        parsed.username ||
+        parsed.password
+      ) {
+        throw new ValidationError("Collection URL must use the project's primary domain");
+      }
     }
     update.collectionUrl = value;
   }

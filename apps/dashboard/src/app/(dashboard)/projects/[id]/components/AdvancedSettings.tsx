@@ -52,6 +52,24 @@ function getDefaultCollectionUrl(project: {
   return /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
 }
 
+function getCollectionUrlSuffix(url: string | null | undefined, baseUrl: string) {
+  if (!url || !baseUrl) return "";
+  try {
+    const parsed = new URL(url);
+    const base = new URL(baseUrl);
+    if (parsed.origin !== base.origin) return "";
+    return `${parsed.pathname === "/" ? "" : parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return "";
+  }
+}
+
+function normalizeCollectionUrlSuffix(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
 function SectionCard({
   title,
   description,
@@ -120,11 +138,13 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   const [shareToCollection, setShareToCollection] = useState(
     projectData?.shareToCollection ?? true,
   );
-  const [collectionUrl, setCollectionUrl] = useState(
-    projectData?.collectionUrl || getDefaultCollectionUrl(projectData),
+  const collectionBaseUrl = getDefaultCollectionUrl(projectData);
+  const savedCollectionUrlSuffix = getCollectionUrlSuffix(
+    projectData?.collectionUrl,
+    collectionBaseUrl,
   );
-  const savedCollectionUrl = projectData?.collectionUrl || getDefaultCollectionUrl(projectData);
-  const collectionUrlChanged = collectionUrl !== savedCollectionUrl;
+  const [collectionUrlSuffix, setCollectionUrlSuffix] = useState(savedCollectionUrlSuffix);
+  const collectionUrlChanged = collectionUrlSuffix !== savedCollectionUrlSuffix;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [loading, setLoading] = useState({
@@ -146,26 +166,20 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   }, [projectData?.shareToCollection, projectData?.id]);
 
   useEffect(() => {
-    setCollectionUrl(projectData?.collectionUrl || getDefaultCollectionUrl(projectData));
+    const baseUrl = getDefaultCollectionUrl(projectData);
+    setCollectionUrlSuffix(getCollectionUrlSuffix(projectData?.collectionUrl, baseUrl));
   }, [projectData?.collectionUrl, projectData?.domains, projectData?.id]);
 
   const handleCollectionUrlSave = async () => {
     if (loading.collectionUrl || !collectionUrlChanged) return;
-    const value = collectionUrl.trim();
-    if (value) {
-      try {
-        const parsed = new URL(value);
-        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
-      } catch {
-        showToast(t.projectSettings.advanced.collection.urlInvalid, "error");
-        return;
-      }
-    }
+    const suffix = normalizeCollectionUrlSuffix(collectionUrlSuffix);
+    const value = suffix ? `${collectionBaseUrl}${suffix}` : null;
+    if (!collectionBaseUrl) return;
     setLoading((s) => ({ ...s, collectionUrl: true }));
     try {
-      const response = await projectsApi.update(projectData.id, { collectionUrl: value || null });
+      const response = await projectsApi.update(projectData.id, { collectionUrl: value });
       const saved = response.data?.collectionUrl ?? "";
-      setCollectionUrl(saved || getDefaultCollectionUrl(projectData));
+      setCollectionUrlSuffix(getCollectionUrlSuffix(saved, collectionBaseUrl));
       updateProjectData({ collectionUrl: saved || null });
       showToast(t.projectSettings.advanced.collection.toast.urlSaved, "success");
     } catch (error) {
@@ -382,15 +396,20 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
               {t.projectSettings.advanced.collection.urlHint}
             </p>
             <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-              <input
-                id="collection-url"
-                type="url"
-                value={collectionUrl}
-                onChange={(event) => setCollectionUrl(event.target.value)}
-                placeholder={t.projectSettings.advanced.collection.urlPlaceholder}
-                disabled={loading.collectionUrl}
-                className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
-              />
+              <div className="flex h-9 min-w-0 flex-1 overflow-hidden rounded-xl border border-border bg-background focus-within:border-primary">
+                <span className="flex shrink-0 items-center border-r border-border bg-muted/40 px-3 text-[13px] text-muted-foreground">
+                  {collectionBaseUrl}
+                </span>
+                <input
+                  id="collection-url"
+                  type="text"
+                  value={collectionUrlSuffix}
+                  onChange={(event) => setCollectionUrlSuffix(event.target.value)}
+                  placeholder={t.projectSettings.advanced.collection.urlPlaceholder}
+                  disabled={loading.collectionUrl || !collectionBaseUrl}
+                  className="min-w-0 flex-1 bg-transparent px-3 text-[13px] text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-50"
+                />
+              </div>
               <button
                 type="button"
                 onClick={handleCollectionUrlSave}
