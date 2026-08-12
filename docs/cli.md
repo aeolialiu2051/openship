@@ -148,6 +148,7 @@ Typical workflows include:
 ```bash
 vibrail project list
 vibrail project env set <project-id> --set KEY=value
+openssl rand -hex 32 | vibrail project env set <project-id> --secret-stdin JWT_SECRET
 vibrail project logs <project-id> --follow
 
 vibrail service list --project <project-id>
@@ -157,6 +158,10 @@ vibrail domain add --project <project-id> app.example.com
 vibrail domain records <domain-id>
 vibrail domain verify <domain-id>
 ```
+
+`--secret-stdin` reads one value from standard input and sends it through the
+existing encrypted environment-variable API. Use it for application-owned
+secrets so the value never appears in shell arguments or agent output.
 
 Command details can differ by resource, so check the nested help before using a
 command in automation, for example `vibrail project env set --help`.

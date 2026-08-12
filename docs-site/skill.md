@@ -223,9 +223,12 @@ project name, or local Compose scan is not proof that Vibrail persisted the corr
 
 Classify missing values before prompting:
 
-1. **Application-owned secret:** generate in the documented format (otherwise at least 32 random
-   bytes) through a server-side or hidden input, store it encrypted, and reuse where equality is
-   needed without revealing the value to the agent.
+1. **Application-owned secret:** generate it automatically in the documented format (otherwise at
+   least 32 random bytes) with a standard generator and pipe it to
+   `vibrail project env set <project-id> --secret-stdin <KEY>`. Do not ask the user to create or
+   enter it. Tell the user which environment variable names were generated and encrypted, and that
+   future operations can use those stored variables; never reveal their values. Reuse one generated
+   value where equality is required.
 2. **Derived internal value:** derive from the confirmed topology; generate one shared credential
    for connected services.
 3. **Required external credential:** never fabricate it. Ask only for that credential and direct the
@@ -235,8 +238,15 @@ Classify missing values before prompting:
 Use exact repository variable names and scopes. Preserve existing masked secrets; never rotate them
 because they cannot be read back. Do not pass generated values through `--set KEY=value`: shell
 expansion still places the secret in the Vibrail process arguments. Use that flag only for confirmed
-non-secret values. Do not change a datastore password on an initialized volume only by editing
+non-secret values. Generate application secrets directly into the stdin pipe without assigning them
+to shell variables, writing temp files, or printing them. If the installed CLI lacks
+`--secret-stdin`, update the CLI before deploying; the existing API needs no change. Use hidden
+Console input only for user-owned or external credentials. Do not change a datastore password on an initialized volume only by editing
 environment variables, and never delete/recreate persistent data as an automatic retry.
+
+```bash
+openssl rand -hex 32 | vibrail project env set <project-id> --secret-stdin <KEY>
+```
 
 For a third-party app with a human login, configure the exact login URL and supported username/
 password environment keys before first deploy. Use `vibrail project login set ...

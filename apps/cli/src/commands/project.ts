@@ -52,6 +52,27 @@ function printProject(project: Record<string, unknown>): void {
 }
 
 const ENVIRONMENTS = ["production", "preview", "development"];
+const MAX_STDIN_SECRET_BYTES = 10_000;
+
+/** Read one secret from stdin, removing only the line ending commonly emitted by generators. */
+export async function readSecretFromStdin(
+  stream: AsyncIterable<unknown> = process.stdin,
+): Promise<string> {
+  const chunks: Buffer[] = [];
+  let size = 0;
+  for await (const chunk of stream) {
+    const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk));
+    size += buffer.length;
+    if (size > MAX_STDIN_SECRET_BYTES) {
+      throw new Error(`stdin secret exceeds ${MAX_STDIN_SECRET_BYTES} bytes`);
+    }
+    chunks.push(buffer);
+  }
+  const value = Buffer.concat(chunks).toString("utf8").replace(/\r?\n$/, "");
+  if (!value) throw new Error("stdin secret is empty");
+  if (value.includes("\0")) throw new Error("stdin secret contains a NUL byte");
+  return value;
+}
 
 /** Prompt for a password without echoing it. */
 async function promptHidden(query: string): Promise<string> {
@@ -232,6 +253,7 @@ envCmd
     },
     [] as string[],
   )
+  .option("--secret-stdin <key>", "Read one secret value from stdin and store it encrypted")
   .option("--secret", "Mark every --set value as a secret")
   .action(
     action(async (id: string, opts) => {
@@ -249,9 +271,16 @@ envCmd
           isSecret: !!opts.secret,
         };
       });
+      if (opts.secretStdin) {
+        upserts.push({
+          key: opts.secretStdin as string,
+          value: await readSecretFromStdin(),
+          isSecret: true,
+        });
+      }
       const deletes = opts.unset as string[];
       if (upserts.length === 0 && deletes.length === 0) {
-        err("  Nothing to do — pass --set and/or --unset.");
+        err("  Nothing to do — pass --set, --secret-stdin, and/or --unset.");
         process.exitCode = 1;
         return;
       }
