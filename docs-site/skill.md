@@ -283,6 +283,14 @@ vibrail project login set <project-id> --url <login-url> --username <username> \
 Omit `--username-env` for a fixed application username. Stop if the app generates a password only
 after startup and provides no supported configuration input.
 
+Treat the application's initial human-login credential as a required deployment handoff, not as an
+ordinary environment secret. After a successful deployment of an app that requires login, return
+the exact login URL, username, and initial password to the user, and explicitly tell them to change
+the password immediately after their first login. Do not finish with an unknown or omitted initial
+credential: if Vibrail cannot safely return the generated password, stop and report that the login
+handoff is incomplete instead of claiming the deployment is fully ready. Never reveal datastore,
+infrastructure, API, token, or other machine credentials under this exception.
+
 ## 5. Select and verify the target
 
 Every deployment needs a connected user-owned server:
@@ -415,6 +423,8 @@ fix DNS, certificate, or routing state.
 Report:
 
 - public URL or intentional private scope;
+- for an app that requires human login, the exact login URL, username, and initial password, followed
+  by a clear instruction to change the password immediately after the first login;
 - project ID, deployment ID, server name/ID, and settled status;
 - Git-linked source with revision, or sanitized upload with verified source revision and downgrade
   reason when applicable;
