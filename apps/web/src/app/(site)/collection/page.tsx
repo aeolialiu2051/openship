@@ -46,13 +46,13 @@ export default async function Page() {
   } catch {
     // The public site remains usable while the API is unavailable.
   }
-  // Never probe every deployed site in the navigation critical path. The old
-  // Promise.all waited up to three seconds for each ambiguous Docker/Compose
-  // URL before Next could commit this route. Known visual frameworks can be
-  // previewed immediately; ambiguous services use the existing placeholder.
+  // Never probe every deployed site in the navigation critical path. Known
+  // visual frameworks are definitely previewable; ambiguous Docker/Compose
+  // services intentionally remain `undefined` so the client can optimistically
+  // try their iframe without delaying the route response.
   projects = projects.map((project) => ({
     ...project,
-    previewable: hasVisualPreview(project.framework),
+    previewable: hasVisualPreview(project.framework) ? true : undefined,
   }));
   return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
 }

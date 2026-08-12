@@ -126,6 +126,10 @@ function CollectionPreview({
     if (!element) return;
     let idleId: number | null = null;
     let timerId: ReturnType<typeof setTimeout> | null = null;
+    if (!("IntersectionObserver" in window)) {
+      setReady(true);
+      return;
+    }
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry?.isIntersecting) return;
@@ -149,25 +153,36 @@ function CollectionPreview({
 
   if (project.previewable === false || failed) return <VibrailPreviewPlaceholder />;
 
+  // The modal's `.collection-live` is itself a CSS-grid child beside the
+  // comments panel. Keep its iframe as the direct child as before; the
+  // absolutely-positioned lazy wrapper is only valid inside card previews.
+  if (interactive) {
+    return (
+      <iframe
+        src={project.url}
+        title={project.name}
+        loading="eager"
+        sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
+
   return (
     <div ref={containerRef} className="collection-preview-content">
       {ready ? (
         <iframe
           src={project.url}
-          title={interactive ? project.name : `${project.name} preview`}
-          loading={interactive ? "eager" : "lazy"}
-          tabIndex={interactive ? undefined : -1}
-          sandbox={
-            interactive
-              ? "allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-              : "allow-scripts allow-same-origin"
-          }
+          title={`${project.name} preview`}
+          loading="lazy"
+          tabIndex={-1}
+          sandbox="allow-scripts allow-same-origin"
           onError={() => setFailed(true)}
         />
       ) : (
         <VibrailPreviewPlaceholder />
       )}
-      {!interactive && <div className="collection-preview-shield" />}
+      <div className="collection-preview-shield" />
     </div>
   );
 }
