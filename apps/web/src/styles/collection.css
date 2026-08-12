@@ -150,10 +150,6 @@
   background: #deddd7;
   overflow: hidden;
 }
-.collection-preview-content {
-  position: absolute;
-  inset: 0;
-}
 .collection-card:nth-child(3n + 2) .collection-preview {
   height: 230px;
 }

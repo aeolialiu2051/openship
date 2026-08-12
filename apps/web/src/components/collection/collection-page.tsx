@@ -24,6 +24,7 @@ export type Project = {
   favicon?: string | null;
   framework?: string | null;
   previewable?: boolean;
+  previewUrl?: string | null;
   updatedAt?: string;
   publisher?: { name: string; image?: string | null } | null;
   likeCount?: number;
@@ -112,78 +113,28 @@ function CollectionPreview({
   interactive?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
-  const [ready, setReady] = useState(interactive);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const previewUrl = project.previewUrl || project.url;
 
-  useEffect(() => setFailed(false), [project.url]);
+  useEffect(() => setFailed(false), [previewUrl]);
 
-  useEffect(() => {
-    if (interactive || project.previewable === false) {
-      setReady(interactive);
-      return;
-    }
-    const element = containerRef.current;
-    if (!element) return;
-    let idleId: number | null = null;
-    let timerId: ReturnType<typeof setTimeout> | null = null;
-    if (!("IntersectionObserver" in window)) {
-      setReady(true);
-      return;
-    }
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        observer.disconnect();
-        const mount = () => setReady(true);
-        if ("requestIdleCallback" in window) {
-          idleId = window.requestIdleCallback(mount, { timeout: 600 });
-        } else {
-          timerId = setTimeout(mount, 80);
-        }
-      },
-      { rootMargin: "240px" },
-    );
-    observer.observe(element);
-    return () => {
-      observer.disconnect();
-      if (idleId != null && "cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
-      if (timerId != null) clearTimeout(timerId);
-    };
-  }, [interactive, project.previewable, project.url]);
-
-  if (project.previewable === false || failed) return <VibrailPreviewPlaceholder />;
-
-  // The modal's `.collection-live` is itself a CSS-grid child beside the
-  // comments panel. Keep its iframe as the direct child as before; the
-  // absolutely-positioned lazy wrapper is only valid inside card previews.
-  if (interactive) {
-    return (
-      <iframe
-        src={project.url}
-        title={project.name}
-        loading="eager"
-        sandbox="allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-        onError={() => setFailed(true)}
-      />
-    );
-  }
+  if (project.previewable !== true || failed) return <VibrailPreviewPlaceholder />;
 
   return (
-    <div ref={containerRef} className="collection-preview-content">
-      {ready ? (
-        <iframe
-          src={project.url}
-          title={`${project.name} preview`}
-          loading="lazy"
-          tabIndex={-1}
-          sandbox="allow-scripts allow-same-origin"
-          onError={() => setFailed(true)}
-        />
-      ) : (
-        <VibrailPreviewPlaceholder />
-      )}
-      <div className="collection-preview-shield" />
-    </div>
+    <>
+      <iframe
+        src={previewUrl}
+        title={interactive ? project.name : `${project.name} preview`}
+        loading={interactive ? "eager" : "lazy"}
+        tabIndex={interactive ? undefined : -1}
+        sandbox={
+          interactive
+            ? "allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+            : "allow-scripts allow-same-origin"
+        }
+        onError={() => setFailed(true)}
+      />
+      {!interactive && <div className="collection-preview-shield" />}
+    </>
   );
 }
 
@@ -216,6 +167,35 @@ export function CollectionPage({
       allProjects.filter((project) => project.name.toLowerCase().includes(query.toLowerCase())),
     [allProjects, query],
   );
+
+  useEffect(() => {
+    const unresolved = initialProjects.filter((project) => project.previewable === undefined);
+    if (unresolved.length === 0) return;
+    const controller = new AbortController();
+    fetch("/api/collection/previews", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        projects: unresolved.map(({ id, url, framework }) => ({ id, url, framework })),
+      }),
+      signal: controller.signal,
+    })
+      .then(async (response) => response.ok ? response.json() : Promise.reject())
+      .then((payload: { data?: Record<string, string | null> }) => {
+        if (!payload.data) return;
+        setAllProjects((current) => current.map((project) =>
+          project.previewable === undefined && project.id in payload.data!
+            ? {
+                ...project,
+                previewable: payload.data![project.id] !== null,
+                previewUrl: payload.data![project.id],
+              }
+            : project,
+        ));
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [initialProjects]);
 
   const requireLogin = (projectId?: string, intent?: "like" | "comment") => {
     const loginUrl = new URL(dashboardLoginUrl);

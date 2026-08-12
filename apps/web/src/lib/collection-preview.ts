@@ -1,6 +1,15 @@
 import { hasVisualPreview } from "./frameworks";
 
 const MANAGED_HOST_SUFFIX = ".vibrail.app";
+const PREVIEW_CACHE_TTL_MS = 5 * 60_000;
+
+type PreviewCacheEntry = {
+  value?: string | null;
+  expiresAt: number;
+  inFlight?: Promise<string | null>;
+};
+
+const previewCache = new Map<string, PreviewCacheEntry>();
 
 function isManagedPreviewUrl(value: string) {
   try {
@@ -90,14 +99,37 @@ async function probeManagedHtml(url: string) {
   }
 }
 
+export async function resolveCollectionPreviewUrl(project: {
+  url: string;
+  framework?: string | null;
+}): Promise<string | null> {
+  if (hasVisualPreview(project.framework)) return project.url;
+  const now = Date.now();
+  const cached = previewCache.get(project.url);
+  if (cached && "value" in cached && cached.expiresAt > now) return cached.value ?? null;
+  if (cached?.inFlight) return cached.inFlight;
+
+  const inFlight = (async () => {
+    if (await probeManagedHtml(project.url)) return project.url;
+    // Some API-first products expose their browser UI separately while the
+    // deployment root intentionally returns JSON (for example CLIProxyAPI).
+    const managementUrl = new URL("/management.html", project.url).toString();
+    if (await probeManagedHtml(managementUrl)) return managementUrl;
+    return null;
+  })().then((value) => {
+    previewCache.set(project.url, {
+      value,
+      expiresAt: Date.now() + PREVIEW_CACHE_TTL_MS,
+    });
+    return value;
+  });
+  previewCache.set(project.url, { expiresAt: 0, inFlight });
+  return inFlight;
+}
+
 export async function resolveCollectionPreview(project: {
   url: string;
   framework?: string | null;
 }) {
-  if (hasVisualPreview(project.framework)) return true;
-
-  // Compose/Docker/unknown are ambiguous: inspect only platform-controlled
-  // public hosts. Never turn Collection rendering into an arbitrary SSRF
-  // primitive for user-supplied custom domains.
-  return probeManagedHtml(project.url);
+  return (await resolveCollectionPreviewUrl(project)) !== null;
 }

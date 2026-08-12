@@ -46,13 +46,12 @@ export default async function Page() {
   } catch {
     // The public site remains usable while the API is unavailable.
   }
-  // Never probe every deployed site in the navigation critical path. Known
-  // visual frameworks are definitely previewable; ambiguous Docker/Compose
-  // services intentionally remain `undefined` so the client can optimistically
-  // try their iframe without delaying the route response.
+  // Known browser-facing frameworks need no network probe. Ambiguous services
+  // remain unresolved and are checked asynchronously after the route commits.
   projects = projects.map((project) => ({
     ...project,
     previewable: hasVisualPreview(project.framework) ? true : undefined,
+    previewUrl: hasVisualPreview(project.framework) ? project.url : undefined,
   }));
   return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
 }
