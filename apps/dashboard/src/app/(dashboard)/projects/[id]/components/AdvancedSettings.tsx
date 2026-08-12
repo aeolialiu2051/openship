@@ -343,66 +343,67 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
         </div>
       </SectionCard>
 
-      {/* Public collection visibility. This only controls discovery in the
-            Vibrail collection; public routes remain available. */}
-      <SectionCard
-        title={t.projectSettings.advanced.collection.title}
-        description={t.projectSettings.advanced.collection.description}
-        icon={Cloud}
-        iconTone="primary"
-      >
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-          <div className="min-w-0">
-            <p className="text-[13px] font-medium text-foreground">
-              {t.projectSettings.advanced.collection.label}
-            </p>
+      {/* Only publicly accessible projects can be shown in the collection. */}
+      {projectData?.isPubliclyAccessible === true && (
+        <SectionCard
+          title={t.projectSettings.advanced.collection.title}
+          description={t.projectSettings.advanced.collection.description}
+          icon={Cloud}
+          iconTone="primary"
+        >
+          <div className="flex items-center justify-between gap-4 rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+            <div className="min-w-0">
+              <p className="text-[13px] font-medium text-foreground">
+                {t.projectSettings.advanced.collection.label}
+              </p>
+              <p className="mt-0.5 text-[12px] text-muted-foreground">
+                {shareToCollection
+                  ? t.projectSettings.advanced.collection.shared
+                  : t.projectSettings.advanced.collection.hidden}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              {loading.shareToCollection && (
+                <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+              )}
+              <Switch
+                checked={shareToCollection}
+                onChange={handleCollectionVisibility}
+                disabled={loading.shareToCollection}
+                ariaLabel={t.projectSettings.advanced.collection.label}
+              />
+            </div>
+          </div>
+          <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+            <label htmlFor="collection-url" className="text-[13px] font-medium text-foreground">
+              {t.projectSettings.advanced.collection.urlLabel}
+            </label>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              {shareToCollection
-                ? t.projectSettings.advanced.collection.shared
-                : t.projectSettings.advanced.collection.hidden}
+              {t.projectSettings.advanced.collection.urlHint}
             </p>
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                id="collection-url"
+                type="url"
+                value={collectionUrl}
+                onChange={(event) => setCollectionUrl(event.target.value)}
+                placeholder={t.projectSettings.advanced.collection.urlPlaceholder}
+                disabled={loading.collectionUrl}
+                className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
+              />
+              <button
+                type="button"
+                onClick={handleCollectionUrlSave}
+                disabled={loading.collectionUrl || !collectionUrlChanged}
+                className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+              >
+                {loading.collectionUrl && <Loader2 className="size-3.5 animate-spin" />}
+                {t.projectSettings.advanced.collection.urlSave}
+              </button>
+            </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {loading.shareToCollection && (
-              <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
-            )}
-            <Switch
-              checked={shareToCollection}
-              onChange={handleCollectionVisibility}
-              disabled={loading.shareToCollection}
-              ariaLabel={t.projectSettings.advanced.collection.label}
-            />
-          </div>
-        </div>
-        <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
-          <label htmlFor="collection-url" className="text-[13px] font-medium text-foreground">
-            {t.projectSettings.advanced.collection.urlLabel}
-          </label>
-          <p className="mt-0.5 text-[12px] text-muted-foreground">
-            {t.projectSettings.advanced.collection.urlHint}
-          </p>
-          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
-            <input
-              id="collection-url"
-              type="url"
-              value={collectionUrl}
-              onChange={(event) => setCollectionUrl(event.target.value)}
-              placeholder={t.projectSettings.advanced.collection.urlPlaceholder}
-              disabled={loading.collectionUrl}
-              className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
-            />
-            <button
-              type="button"
-              onClick={handleCollectionUrlSave}
-              disabled={loading.collectionUrl || !collectionUrlChanged}
-              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-opacity disabled:opacity-50"
-            >
-              {loading.collectionUrl && <Loader2 className="size-3.5 animate-spin" />}
-              {t.projectSettings.advanced.collection.urlSave}
-            </button>
-          </div>
-        </div>
-      </SectionCard>
+        </SectionCard>
+      )}
 
       {/* Routing (edge → app upstream) — self-hosted only; cloud handles its
             own ingress. Advanced opt-in; loopback-port is the safe default. */}

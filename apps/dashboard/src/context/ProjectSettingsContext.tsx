@@ -54,6 +54,8 @@ interface BasicProjectData {
   /** How many recent versions retain their build artifact for rollback (snapshot strategy). null = instance default. */
   rollbackWindow?: number | null;
   collectionUrl?: string | null;
+  /** Canonical public/private access state returned by the project API. */
+  isPubliclyAccessible?: boolean;
   [key: string]: any;
 }
 

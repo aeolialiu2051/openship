@@ -2171,6 +2171,15 @@ export async function getInfo(c: Context) {
     rawDomains.find((domain) => domain.isPrimary && domain.verified)?.hostname ??
     rawDomains.find((domain) => domain.verified)?.hostname ??
     null;
+  // Keep this identical to the access-visibility calculation used by the
+  // projects list: service projects are public when at least one enabled
+  // service is exposed; single-app projects are public when they have a
+  // project domain. The dashboard uses this canonical flag everywhere it
+  // labels a project as public/private.
+  const isPubliclyAccessible =
+    serviceRows.length > 0
+      ? serviceRows.some((service) => service.enabled && service.exposed)
+      : rawDomains.some((domain) => domain.isPrimary && Boolean(domain.hostname));
   refreshProjectFaviconIfStale(project, {
     hostname: verifiedPrimaryDomain,
   });
@@ -2186,6 +2195,7 @@ export async function getInfo(c: Context) {
         serviceCount,
         hasMultipleServices: serviceCount > 1,
         projectType,
+        isPubliclyAccessible,
       },
       environments,
     },
