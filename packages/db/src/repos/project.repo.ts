@@ -642,6 +642,30 @@ export function createProjectRepo(db: Database) {
       });
     },
 
+    /** Atomically insert generated secrets that do not already exist. */
+    async createEnvVarsIfMissing(
+      projectId: string,
+      environment: string,
+      values: { key: string; value: string; isSecret?: boolean }[],
+      serviceId?: string | null,
+    ): Promise<string[]> {
+      if (values.length === 0) return [];
+      const inserted = await db
+        .insert(envVar)
+        .values(values.map((v) => ({
+          id: generateId("env"),
+          projectId,
+          environment,
+          serviceId: serviceId ?? null,
+          key: v.key,
+          value: v.value,
+          isSecret: v.isSecret ?? true,
+        })))
+        .onConflictDoNothing()
+        .returning();
+      return inserted.map((row) => row.key);
+    },
+
     /** Get a map of env vars for injection into builds/containers */
     async getEnvMap(
       projectId: string,

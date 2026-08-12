@@ -28,6 +28,7 @@ import {
   UpdateProjectBody,
   CreateProjectEnvironmentBody,
   MergeEnvVarsBody,
+  ProvisionEnvSecretsBody,
   SetProjectLoginBody,
   UpdateResourcesBody,
 } from "./project.schema";
@@ -152,6 +153,18 @@ r.patch(
   },
   cloudProjectProxy,
   ctrl.update,
+);
+r.post(
+  "/:id/env/provision",
+  {
+    tag: "project:write",
+    mcp: {
+      description: "Generate and encrypted-store missing project secrets; plaintext is never returned.",
+      body: ProvisionEnvSecretsBody,
+    },
+  },
+  cloudProjectProxy,
+  ctrl.provisionEnvSecrets,
 );
 
 /* ─── Optional human login card ─────────────────────────────────────────── */

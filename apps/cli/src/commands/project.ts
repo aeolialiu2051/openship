@@ -301,6 +301,46 @@ envCmd
     }),
   );
 
+envCmd
+  .command("generate")
+  .description("Generate and encrypted-store secrets on the server (existing values are preserved)")
+  .argument("<id>", "Project ID")
+  .argument("<keys...>", "Environment variable key(s)")
+  .option("--environment <env>", "Target environment", "production")
+  .option("--type <type>", "Secret type: password|token|hex|encryption-key", "token")
+  .option("--bytes <n>", "Random bytes per secret", "32")
+  .action(
+    action(async (id: string, keys: string[], opts) => {
+      if (!ENVIRONMENTS.includes(opts.environment)) {
+        throw new Error(`environment must be one of: ${ENVIRONMENTS.join(", ")}`);
+      }
+      const types = ["password", "token", "hex", "encryption-key"];
+      if (!types.includes(opts.type)) {
+        throw new Error(`type must be one of: ${types.join(", ")}`);
+      }
+      const bytes = Number(opts.bytes);
+      if (!Number.isInteger(bytes) || bytes < 16 || bytes > 128) {
+        throw new Error("bytes must be an integer between 16 and 128");
+      }
+      const result = await apiRequest<{ created: string[]; existing: string[] }>(
+        `/projects/${encodeURIComponent(id)}/env/provision`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            environment: opts.environment,
+            secrets: keys.map((key) => ({ key, type: opts.type, bytes })),
+          }),
+        },
+      );
+      if (isJsonMode()) {
+        printJson(result);
+        return;
+      }
+      for (const key of result.created) ok(`  ✓ ${key} created\n`);
+      for (const key of result.existing) info(`  • ${key} already configured\n`);
+    }),
+  );
+
 // ─── login card ─────────────────────────────────────────────────────────────
 const loginCmd = new Command("login").description(
   "Manage the optional homepage + human login card for non-Catalog projects",

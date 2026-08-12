@@ -45,6 +45,7 @@ consistently if global installation is inappropriate.
 vibrail --version
 npm view @vibrail/cli version
 vibrail deploy --help
+vibrail project env generate --help
 vibrail context list
 vibrail status
 vibrail --json project list
@@ -223,12 +224,12 @@ project name, or local Compose scan is not proof that Vibrail persisted the corr
 
 Classify missing values before prompting:
 
-1. **Application-owned secret:** generate it automatically in the documented format (otherwise at
-   least 32 random bytes) with a standard generator and pipe it to
-   `vibrail project env set <project-id> --secret-stdin <KEY>`. Do not ask the user to create or
-   enter it. Tell the user which environment variable names were generated and encrypted, and that
-   future operations can use those stored variables; never reveal their values. Reuse one generated
-   value where equality is required.
+1. **Application-owned secret:** provision it automatically in the documented format (otherwise at
+   least 32 random bytes). Prefer `vibrail project env generate`: generation occurs inside the API,
+   the value is encrypted immediately, and only created/existing key names return. Do not ask the
+   user to create or enter it. Tell the user which names were generated and encrypted; never reveal
+   values. Reuse one generated value where equality is required; server-side per-key generation is
+   unsuitable when multiple variables must contain the same value.
 2. **Derived internal value:** derive from the confirmed topology; generate one shared credential
    for connected services.
 3. **Required external credential:** never fabricate it. Ask only for that credential and direct the
@@ -236,17 +237,37 @@ Classify missing values before prompting:
 4. **Optional credential:** leave unset and disable the related optional feature unless requested.
 
 Use exact repository variable names and scopes. Preserve existing masked secrets; never rotate them
-because they cannot be read back. Do not pass generated values through `--set KEY=value`: shell
-expansion still places the secret in the Vibrail process arguments. Use that flag only for confirmed
-non-secret values. Generate application secrets directly into the stdin pipe without assigning them
-to shell variables, writing temp files, or printing them. If the installed CLI lacks
-`--secret-stdin`, update the CLI before deploying; the existing API needs no change. Use hidden
-Console input only for user-owned or external credentials. Do not change a datastore password on an initialized volume only by editing
-environment variables, and never delete/recreate persistent data as an automatic retry.
+because they cannot be read back. `env generate` is create-if-missing and safe to repeat, including
+under concurrent deploy attempts. Select `--type hex` only when the application requires hexadecimal
+text; use `password`, `token`, or `encryption-key` for URL-safe Base64 values. Use 32 bytes unless the
+application specifies another size; the supported range is 16–128 bytes.
+
+Provision independent application-owned secrets in one request when they share type and size:
+
+```bash
+vibrail project env generate <project-id> <KEY> [KEY...] \
+  --environment <production|preview|development> --type <password|token|hex|encryption-key> --bytes 32
+```
+
+Read back `vibrail project env get <project-id> --environment <environment>` and verify each key is
+present and marked secret/masked. Never expect or attempt to retrieve generated plaintext.
+
+If `env generate` is absent after checking its help, update the CLI. If the latest compatible CLI
+still lacks it, use the safe stdin fallback below. Do not pass generated values through
+`--set KEY=value`: shell expansion places the secret in process arguments. Generate directly into
+the stdin pipe without assigning shell variables, writing temp files, or printing values. Use hidden
+Console input only for user-owned or external credentials—not for secrets the application can safely
+generate itself. If neither server-side generation nor `--secret-stdin` exists, stop and report the
+missing safe input path.
 
 ```bash
 openssl rand -hex 32 | vibrail project env set <project-id> --secret-stdin <KEY>
 ```
+
+Do not change a datastore password on an initialized volume only by editing environment variables,
+and never delete/recreate persistent data as an automatic retry. For a first deployment with a new
+volume, provision the datastore password before starting the stack. For an existing volume, preserve
+the stored value unless following an explicit coordinated rotation procedure.
 
 For a third-party app with a human login, configure the exact login URL and supported username/
 password environment keys before first deploy. Use `vibrail project login set ...

@@ -30,6 +30,7 @@ import type {
   TCreateProjectEnvironmentBody,
   TUpdateProjectBody,
   TMergeEnvVarsBody,
+  TProvisionEnvSecretsBody,
   TSetProjectLoginBody,
   TUpdateResourcesBody,
 } from "./project.schema";
@@ -741,6 +742,27 @@ export async function mergeEnvVars(c: Context) {
       // Names only - never echo the secret values.
       upsertedNames: (body.upserts ?? []).map((v) => v.key),
       deletedNames: body.deletes ?? [],
+    },
+  });
+  return c.json(result);
+}
+
+export async function provisionEnvSecrets(c: Context) {
+  const ctx = getRequestContext(c);
+  const { userId, organizationId } = ctx;
+  const id = param(c, "id");
+  await permission.assert(ctx, { resourceType: "project", resourceId: id, action: "write" });
+  const body = await c.req.json<TProvisionEnvSecretsBody>();
+  const result = await projectService.provisionEnvSecrets(id, organizationId, body);
+  audit.recordAsync(auditContextFrom(c, organizationId, userId), {
+    eventType: "project.updated",
+    resourceType: "project",
+    resourceId: id,
+    after: {
+      action: "envVars.provision",
+      environment: body.environment,
+      createdNames: result.created,
+      existingNames: result.existing,
     },
   });
   return c.json(result);

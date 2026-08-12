@@ -425,5 +425,13 @@ export const envVar = pgTable(
     index("idx_env_var_project_env_service").on(t.projectId, t.environment, t.serviceId),
     // Backup / restore reads all vars for a project.
     index("idx_env_var_project").on(t.projectId),
+    // One value per key and scope. COALESCE makes project-level NULL service ids
+    // participate in uniqueness, which is required for atomic create-if-missing.
+    uniqueIndex("uq_env_var_scope_key").on(
+      t.projectId,
+      t.environment,
+      sql`coalesce(${t.serviceId}, '')`,
+      t.key,
+    ),
   ],
 );

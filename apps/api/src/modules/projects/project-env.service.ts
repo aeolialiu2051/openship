@@ -6,7 +6,8 @@ import { repos } from "@repo/db";
 import { ValidationError, SYSTEM } from "@repo/core";
 import { encrypt, decrypt } from "../../lib/encryption";
 import { assertResourceInOrg } from "../../lib/controller-helpers";
-import type { TMergeEnvVarsBody } from "./project.schema";
+import { randomBytes } from "node:crypto";
+import type { TMergeEnvVarsBody, TProvisionEnvSecretsBody } from "./project.schema";
 
 // ─── List env vars ───────────────────────────────────────────────────────────
 
@@ -87,3 +88,41 @@ export async function mergeEnvVars(
   return { upserted: data.upserts.length, deleted: data.deletes.length };
 }
 
+function generateSecret(type: NonNullable<TProvisionEnvSecretsBody["secrets"][number]["type"]>, bytes: number) {
+  const entropy = randomBytes(bytes);
+  return type === "hex" ? entropy.toString("hex") : entropy.toString("base64url");
+}
+
+/**
+ * Generate and atomically persist missing secrets. The plaintext values never
+ * cross the API boundary and are never included in the result or logs.
+ */
+export async function provisionEnvSecrets(
+  projectId: string,
+  organizationId: string,
+  data: TProvisionEnvSecretsBody,
+) {
+  const p = await repos.project.findById(projectId);
+  assertResourceInOrg(p, "Project", organizationId, projectId);
+
+  const keys = data.secrets.map((secret) => secret.key);
+  if (new Set(keys).size !== keys.length) {
+    throw new ValidationError("Duplicate environment variable keys in secrets");
+  }
+
+  const candidates = data.secrets.map((secret) => ({
+    key: secret.key,
+    value: encrypt(generateSecret(secret.type ?? "token", secret.bytes ?? 32)),
+    isSecret: true,
+  }));
+  const created = await repos.project.createEnvVarsIfMissing(
+    projectId,
+    data.environment,
+    candidates,
+  );
+  const createdSet = new Set(created);
+  return {
+    created,
+    existing: keys.filter((key) => !createdSet.has(key)),
+  };
+}

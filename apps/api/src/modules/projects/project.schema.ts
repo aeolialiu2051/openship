@@ -354,6 +354,26 @@ export const MergeEnvVarsBody = Type.Object({
   }),
 });
 
+export const ProvisionSecretTypeEnum = Type.Union([
+  Type.Literal("password"),
+  Type.Literal("token"),
+  Type.Literal("hex"),
+  Type.Literal("encryption-key"),
+]);
+
+/** Server-side secret generation. Values are generated, encrypted and stored without being returned. */
+export const ProvisionEnvSecretsBody = Type.Object({
+  environment: EnvironmentEnum,
+  secrets: Type.Array(
+    Type.Object({
+      key: Type.String({ minLength: 1, maxLength: 256, pattern: "^[A-Za-z_][A-Za-z0-9_]*$" }),
+      type: Type.Optional(ProvisionSecretTypeEnum),
+      bytes: Type.Optional(Type.Integer({ minimum: 16, maximum: 128, default: 32 })),
+    }),
+    { minItems: 1, maxItems: 100 },
+  ),
+});
+
 /** Optional username/password card shown on the project Overview. */
 export const SetProjectLoginBody = Type.Object(
   {
@@ -399,5 +419,6 @@ export type TUpdateProjectBody = Static<typeof UpdateProjectBody> & {
 };
 export type TCreateProjectEnvironmentBody = Static<typeof CreateProjectEnvironmentBody>;
 export type TMergeEnvVarsBody = Static<typeof MergeEnvVarsBody>;
+export type TProvisionEnvSecretsBody = Static<typeof ProvisionEnvSecretsBody>;
 export type TSetProjectLoginBody = Static<typeof SetProjectLoginBody>;
 export type TUpdateResourcesBody = Static<typeof UpdateResourcesBody>;

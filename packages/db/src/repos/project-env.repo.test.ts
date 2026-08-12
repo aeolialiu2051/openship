@@ -103,6 +103,25 @@ describe("project.repo env writes (PGlite)", () => {
     expect(rows.map((r) => r.key).sort()).toEqual(["DELETEME", "KEEP"]);
   });
 
+  it("createEnvVarsIfMissing preserves existing values and is idempotent", async () => {
+    const first = await ctx.repo.createEnvVarsIfMissing("p1", "production", [
+      { key: "SECRET", value: "replacement", isSecret: true },
+      { key: "GENERATED", value: "ciphertext", isSecret: true },
+    ]);
+    expect(first).toEqual(["GENERATED"]);
+
+    const second = await ctx.repo.createEnvVarsIfMissing("p1", "production", [
+      { key: "GENERATED", value: "different", isSecret: true },
+    ]);
+    expect(second).toEqual([]);
+
+    const rows = await prodProjectLevel(ctx.db);
+    const byKey = Object.fromEntries(rows.map((row) => [row.key, row]));
+    expect(byKey.SECRET.value).toBe("enc-secret");
+    expect(byKey.GENERATED.value).toBe("ciphertext");
+    expect(byKey.GENERATED.isSecret).toBe(true);
+  });
+
   it("bulkSetEnvVars REPLACES the project-level production scope only", async () => {
     await ctx.repo.bulkSetEnvVars("p1", "production", [{ key: "ONLY", value: "1", isSecret: false }]);
 
