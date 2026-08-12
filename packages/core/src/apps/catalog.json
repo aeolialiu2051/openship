@@ -1211,6 +1211,13 @@
           ],
           "exposedPort": 8080,
           "exposed": true,
+          "advanced": {
+            "readinessTimeout": "8m"
+          },
+          "resources": {
+            "cpuCores": 1,
+            "memoryMb": 2048
+          },
           "volumes": [
             "nocodb_data:/usr/app/data"
           ],
@@ -1458,7 +1465,8 @@
       ]
     },
     {
-      "available": false,
+      "available": true,
+      "verified": true,
       "id": "stirling-pdf",
       "name": "Stirling PDF",
       "description": "Split, merge, convert, OCR and edit PDFs locally. Default login is admin / stirling — change it.",

@@ -62,7 +62,10 @@ export function defaultServiceHostnameLabel(
   const base = normalizeServiceLabel(projectLabel);
   const normalizedService = normalizeServiceLabel(serviceName);
 
-  if (kind === "compose" && ["web", "app", "frontend"].includes(normalizedService)) {
+  if (
+    kind === "compose" &&
+    (normalizedService === base || ["web", "app", "frontend"].includes(normalizedService))
+  ) {
     return base;
   }
 

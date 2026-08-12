@@ -63,6 +63,7 @@ const HealthcheckSchema = Type.Object(
 export const AdvancedSchema = Type.Object(
   {
     healthcheck: Type.Optional(HealthcheckSchema),
+    readinessTimeout: Type.Optional(Type.String({ maxLength: 32 })),
     commandMode: Type.Optional(Type.Union([Type.Literal("exec"), Type.Literal("shell")])),
   },
   { additionalProperties: false },

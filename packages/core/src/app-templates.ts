@@ -75,6 +75,9 @@ export interface TemplateServiceSpec {
   restart?: "no" | "always" | "on-failure" | "unless-stopped";
   /** Override the container command. */
   command?: string;
+  /** Minimum runtime resources required by this service. The deployer raises a
+   * smaller project allocation to these floors. */
+  resources?: { cpuCores?: number; memoryMb?: number };
 }
 
 export interface AppConfigField {

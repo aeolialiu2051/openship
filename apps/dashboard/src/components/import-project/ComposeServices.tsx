@@ -35,7 +35,7 @@ import BuildSettings from "./BuildSettings";
 import ProjectSettings from "./ProjectSettings";
 import { cn } from "@/lib/utils";
 import { useI18n, interpolate } from "@/components/i18n-provider";
-import { STACKS } from "@repo/core";
+import { defaultServiceHostnameLabel, STACKS } from "@repo/core";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -197,10 +197,7 @@ const ServiceDomainSection: React.FC<{
   }
 
   const primaryPort = service.exposedPort || getExposedPort(service) || "";
-  const defaultSubdomain =
-    service.name === "web" || service.name === "app" || service.name === "frontend"
-      ? normalizeSubdomain(projectName)
-      : normalizeSubdomain(`${projectName}-${service.name}`);
+  const defaultSubdomain = defaultServiceHostnameLabel(projectName, service.name);
 
   // Routes shown in the card: the service's explicit publicEndpoints, else a
   // single route synthesized from the scalar exposedPort/domain. One row per

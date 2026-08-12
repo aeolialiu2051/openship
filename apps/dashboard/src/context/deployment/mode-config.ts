@@ -1,5 +1,6 @@
 import type { FrameworkId } from "@/components/import-project/types";
 import { normalizeSubdomain } from "../../utils/subdomain";
+import { defaultServiceHostnameLabel } from "@repo/core";
 import {
   createPublicEndpoint,
   resolveBuildImageForDeploymentMode,
@@ -146,9 +147,7 @@ function resolveComposeServiceSingleAppDomain(
     return service.domain;
   }
 
-  return PRIMARY_SINGLE_APP_SERVICE_NAMES.has(service.name)
-    ? normalizeSubdomain(projectName)
-    : normalizeSubdomain(`${projectName}-${service.name}`);
+  return defaultServiceHostnameLabel(projectName, service.name);
 }
 
 function listSingleAppComposeEndpointCandidates(config: DeploymentConfig) {

@@ -62,7 +62,11 @@ import {
 } from "../../../lib/public-endpoints";
 import { ensureManagedEdgeProxy } from "../../../lib/managed-edge-proxy";
 import * as sessionManager from "../session-manager";
-import { auditPorts } from "../port-audit.service";
+import {
+  auditPorts,
+  parseReadinessTimeout,
+  PORT_READINESS_TIMEOUT_MS,
+} from "../port-audit.service";
 import type { PortCheckResult } from "../../../lib/deployment-runtime";
 import { resolveServicePort } from "./domain-helpers";
 import { buildCompositeRegistration, buildDomainFanoutRegistrations } from "./composite-route";
@@ -307,6 +311,22 @@ function createServiceRuntimeConfig(opts: {
     customDomain: resolveServiceCustomDomain(service),
     previousWorkspaceId,
     dependsOn: (service.dependsOn as string[]) ?? undefined,
+  };
+}
+
+/** Curated applications whose upstream runtime cannot boot inside the generic
+ * 512 MB default. Apply this at deploy time as well as in the catalog so apps
+ * installed before the catalog fix are repaired on their next redeploy. */
+function serviceRuntimeResources(
+  project: Project,
+  resources?: ResourceConfig,
+): ResourceConfig | undefined {
+  if (project.appTemplateId !== "stirling-pdf") return resources;
+  const current = resources ?? DEFAULT_RESOURCE_CONFIG;
+  return {
+    ...current,
+    cpuCores: Math.max(current.cpuCores, 1),
+    memoryMb: Math.max(current.memoryMb, 2048),
   };
 }
 
@@ -982,13 +1002,14 @@ export async function deployComposeServices(
       );
     }
 
+    const effectiveRuntimeResources = serviceRuntimeResources(project, opts?.resources);
     const serviceRuntimeConfig = createServiceRuntimeConfig({
       project,
       dep,
       service: svc,
       image,
       environment: mergedEnv,
-      resources: opts?.resources,
+      resources: effectiveRuntimeResources,
       // Cloud stores the workspace id as the service's containerId. Reuse the
       // previous deployment's workspace so its disk (volume data) survives the
       // redeploy. Only meaningful on cloud; docker recreates containers.
@@ -1040,7 +1061,7 @@ export async function deployComposeServices(
       service: svc,
       image,
       environment: mergedEnv,
-      resources: opts?.resources,
+      resources: effectiveRuntimeResources,
       buildSessionId: opts?.buildSessionId,
     });
     const { routes: preparedRoutes, warnings: routeClaimWarnings } = await prepareServiceRoutes({
@@ -1158,9 +1179,28 @@ export async function deployComposeServices(
             ? async (containerId) => {
                 const port = resolveServicePublicPort(svc);
                 if (port === undefined) return;
-                const checks = await auditPorts(runtime, containerId, [port], serviceLogger);
+                const checks = await auditPorts(runtime, containerId, [port], serviceLogger, {
+                  timeoutMs:
+                    parseReadinessTimeout(svc.advanced?.readinessTimeout) ??
+                    (project.appTemplateId === "stirling-pdf" ? 8 * 60_000 : undefined) ??
+                    PORT_READINESS_TIMEOUT_MS,
+                });
                 const failed = checks.find((check) => check.checked && !check.listening);
                 if (failed) {
+                  // Preserve the application's own startup error before the
+                  // failed deployment path removes the container. Without
+                  // this, every crash/slow boot is reduced to the misleading
+                  // generic "port is not listening" message.
+                  const runtimeLogs = await runtime.getRuntimeLogs(containerId, 100).catch(() => []);
+                  if (runtimeLogs.length > 0) {
+                    serviceLogger.log("Application logs before readiness failure:\n", "warn");
+                    for (const entry of runtimeLogs) {
+                      serviceLogger.log(
+                        `${entry.message}${entry.message.endsWith("\n") ? "" : "\n"}`,
+                        entry.level,
+                      );
+                    }
+                  }
                   throw new Error(
                     `Service "${svc.name}" did not start listening on port ${failed.port}`,
                   );

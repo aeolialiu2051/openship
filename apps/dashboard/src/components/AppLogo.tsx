@@ -17,6 +17,9 @@ export const APP_LOGO: Record<
   "cli-proxy-api": {
     src: "https://avatars.githubusercontent.com/u/233033915?s=128&v=4",
   },
+  "":{
+    src: "https://avatars.githubusercontent.com/u/139791695?s=60&v=4",
+  },
   // simpleicons removed the Slack + Microsoft Teams brand marks (both 404 on the
   // CDN now), so resolve their official colored favicons like convex above —
   // otherwise they fall back to a generic monochrome glyph.

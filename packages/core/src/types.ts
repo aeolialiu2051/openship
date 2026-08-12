@@ -121,6 +121,9 @@ export type ComposeHealthcheck = {
  */
 export type ComposeAdvanced = {
   healthcheck?: ComposeHealthcheck;
+  /** Maximum time to wait for the public container port to start listening.
+   * Compose duration syntax (for example "3m" or "30s"). */
+  readinessTimeout?: string;
   /** How an explicit compose `command` is passed to the image. Missing means
    * legacy Vibrail shell wrapping for backward compatibility; newly parsed
    * compose files persist `exec`, matching Docker Compose semantics. */
