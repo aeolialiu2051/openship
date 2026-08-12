@@ -37,7 +37,7 @@ source, target, deployment ID, and URL.
 
 ## 1. Check CLI and authentication
 
-Require Vibrail CLI `0.4.14` or later. Compare the installed version with the latest; install/update
+Require Vibrail CLI `0.4.15` or later. Compare the installed version with the latest; install/update
 only when missing, too old, or missing a required flag. Use `npx -y @vibrail/cli@latest`
 consistently if global installation is inappropriate.
 
