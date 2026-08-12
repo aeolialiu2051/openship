@@ -71,6 +71,31 @@ function createLocalReader(dirPath: string): ProjectReader {
   };
 }
 
+export async function resolveClonedGitHubSource(
+  dirPath: string,
+  repo: {
+    owner: string;
+    name: string;
+    branch: string;
+  },
+): Promise<ProjectInfo> {
+  return resolveFromReader(
+    createLocalReader(dirPath),
+    {
+      name: repo.name,
+      full_name: `${repo.owner}/${repo.name}`,
+      owner: repo.owner,
+      private: false,
+      default_branch: repo.branch,
+      selected_branch: repo.branch,
+      clone_url: `https://github.com/${repo.owner}/${repo.name}.git`,
+      html_url: `https://github.com/${repo.owner}/${repo.name}`,
+      branches: [{ name: repo.branch }],
+    },
+    repo.branch,
+  );
+}
+
 export async function resolveFromLocal(dirPath: string): Promise<ProjectInfo> {
   const st = await stat(dirPath);
   if (!st.isDirectory()) {

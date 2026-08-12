@@ -39,6 +39,8 @@ import { isPublicRepo } from "../github/github.http";
 import { getRoutingBaseDomain, managedDomainsUseCloudEdge } from "../../lib/routing-domains";
 import { resolveServerHost } from "../../lib/server-target";
 import { normalizeTargetPath } from "../../lib/public-endpoints";
+import { usesServerEndpointRouting } from "./preflight-routing";
+import { requiresRemoteCloneCredential } from "./preflight-git-credentials";
 import {
   getInstallationId,
   getInstallationIdByOrg,
@@ -479,6 +481,7 @@ type EndpointCloudLookup =
 async function checkPublicEndpoints(
   snapshot: DeploymentConfigSnapshot,
   endpoints: NonNullable<PreflightOptions["publicEndpoints"]>,
+  usesServerRouting: boolean,
   cloud: CloudPreflightData | null,
   ctx?: RequestContext,
   projectId?: string,
@@ -486,7 +489,7 @@ async function checkPublicEndpoints(
 ): Promise<PreflightCheck[]> {
   const plat = platform();
   const effectiveTarget = resolveEffectiveTarget(plat.target, snapshot);
-  const isCloudStatic = effectiveTarget === "cloud" && !snapshot.hasServer;
+  const isCloudStatic = effectiveTarget === "cloud" && !usesServerRouting;
   // Whether we can reach the SaaS to verify slugs / custom domains.
   const canBridgeCloud = Boolean(cloud?.runtime.ok && ctx?.userId);
   const baseDomain = getRoutingBaseDomain();
@@ -552,7 +555,7 @@ async function checkPublicEndpoints(
     }
 
     // Target kind must match the deployment kind.
-    if (hasPortTarget && !snapshot.hasServer) {
+    if (hasPortTarget && !usesServerRouting) {
       checks.push(
         fail(
           idOf("shape"),
@@ -560,7 +563,7 @@ async function checkPublicEndpoints(
           "Static deployments cannot expose port-targeted routes. Use a static target path instead.",
         ),
       );
-    } else if (hasPathTarget && snapshot.hasServer) {
+    } else if (hasPathTarget && usesServerRouting) {
       checks.push(
         fail(
           idOf("shape"),
@@ -1310,6 +1313,10 @@ export async function runPreflightChecks(
   // Determine whether this deployment requires cloud directly or via managed routing
   const plat = platform();
   const effectiveTarget = resolveEffectiveTarget(plat.target, snapshot);
+  const usesServerRouting = usesServerEndpointRouting({
+    hasServer: snapshot.hasServer,
+    multiService: opts?.multiService,
+  });
   // Managed routing = the deploy lands on the operator's own host (server/local)
   // but the public hostname is served by cloud edge. Single authority shared
   // with the pipeline (deployment-runtime.ts).
@@ -1392,22 +1399,6 @@ export async function runPreflightChecks(
   const ghRepo = parseGithubOwnerRepo(snapshot.repoUrl, opts?.gitOwner, opts?.gitRepo);
   const repoIsPublic = ghRepo ? await isPublicRepo(ghRepo.owner, ghRepo.repo) : false;
 
-  // GitHub App installation check — only relevant when the repo is cloned on a
-  // REMOTE build worker (server build). A LOCAL build ("Build on this machine")
-  // clones on the API host using local credentials (gh CLI / OAuth), so the
-  // cloud App installation is irrelevant — skip it. This mirrors the
-  // remote-clone-token check below, which already passes for local builds.
-  if (
-    clonePlan.needsClone &&
-    !repoIsPublic &&
-    getGitHubAuthMode() === "app" &&
-    effectiveBuildStrategy !== "local"
-  ) {
-    checks.push(
-      await checkGitHubAppInstallation(githubCtx, opts?.gitOwner),
-    );
-  }
-
   // A remote clone credential is only needed when the repo is actually cloned
   // ON the remote build worker. Per the build pipeline (build-pipeline.ts:774),
   // that is ONLY the bare runtime on a server build: Docker builds — including
@@ -1415,16 +1406,24 @@ export async function runPreflightChecks(
   // the API host), and cloud builds clone inside the workspace. So the two
   // credential checks below apply only to bare + server; otherwise the clone is
   // local and these checks would wrongly demand a remote/App/cloud credential.
-  const clonesOnRemote =
-    clonePlan.needsClone &&
-    !repoIsPublic &&
-    runtimeMode === "bare" &&
+  const clonesOnRemote = requiresRemoteCloneCredential({
+    needsClone: clonePlan.needsClone,
+    repoIsPublic,
+    runtimeIsBare: runtimeMode === "bare",
     // Static apps now BUILD in a temporary Docker container (see build-pipeline's static
     // flip) which clones on the orchestrator — never a remote bare clone — so
     // they never need a remote clone credential even if runtimeMode is "bare".
-    snapshot.hasServer &&
-    effectiveTarget === "server" &&
-    effectiveBuildStrategy !== "local";
+    hasServer: snapshot.hasServer,
+    effectiveTarget,
+    buildStrategy: effectiveBuildStrategy,
+  });
+
+  // App installation is a clone credential, so it must be gated by the exact
+  // same clone plan as the token checks below. Previously this ran for every
+  // server build and incorrectly blocked Docker Compose/public deployments.
+  if (clonesOnRemote && getGitHubAuthMode() === "app") {
+    checks.push(await checkGitHubAppInstallation(githubCtx, opts?.gitOwner));
+  }
 
   if (clonesOnRemote) {
     // Remote-build credential check. For App-scoped modes (app / cloud-app):
@@ -1497,6 +1496,7 @@ export async function runPreflightChecks(
     checks.push(...(await checkPublicEndpoints(
       snapshot,
       opts.publicEndpoints,
+      usesServerRouting,
       cloudPreflight,
       opts.ctx,
       opts.projectId,

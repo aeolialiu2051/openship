@@ -508,9 +508,29 @@ async function resolveFromGitHub(
   repo: string,
   branch?: string,
 ): Promise<ProjectInfo> {
-  const repository = await githubService.getRepository(ctx, owner, repo, {
-    withBranches: true,
-  });
+  let repository: Awaited<ReturnType<typeof githubService.getRepository>>;
+  try {
+    repository = await githubService.getRepository(ctx, owner, repo, {
+      withBranches: true,
+    });
+  } catch (error) {
+    // With no credential, public-repo preparation must not depend on GitHub's
+    // shared unauthenticated REST quota. An anonymous shallow clone proves the
+    // repo is public and provides a complete tree for the normal detector.
+    // Private/missing repos fail that clone and retain the actionable auth error.
+    if (
+      error instanceof Error &&
+      error.message.includes("No GitHub access token available")
+    ) {
+      try {
+        const { resolveAnonymousGitHubSource } = await import("./anonymous-github-source");
+        return await resolveAnonymousGitHubSource(owner, repo, branch?.trim() || undefined);
+      } catch {
+        throw error;
+      }
+    }
+    throw error;
+  }
   const requestedBranch = branch?.trim();
   const selectedBranch = requestedBranch || repository.default_branch;
 
