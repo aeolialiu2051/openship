@@ -63,8 +63,18 @@ export function PortForwardingCard({ serverId }: { serverId: string }) {
 
   useEffect(() => {
     void refresh();
-    const t = setInterval(() => void refresh({ silent: true }), POLL_MS);
-    return () => clearInterval(t);
+    const poll = () => {
+      if (document.visibilityState === "visible") void refresh({ silent: true });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void refresh({ silent: true });
+    };
+    const timer = setInterval(poll, POLL_MS);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [refresh]);
 
   const withBusy = useCallback(async (id: string, fn: () => Promise<void>) => {

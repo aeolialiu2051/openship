@@ -112,27 +112,63 @@ function CollectionPreview({
   interactive?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
+  const [ready, setReady] = useState(interactive);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setFailed(false), [project.url]);
+
+  useEffect(() => {
+    if (interactive || project.previewable === false) {
+      setReady(interactive);
+      return;
+    }
+    const element = containerRef.current;
+    if (!element) return;
+    let idleId: number | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        observer.disconnect();
+        const mount = () => setReady(true);
+        if ("requestIdleCallback" in window) {
+          idleId = window.requestIdleCallback(mount, { timeout: 600 });
+        } else {
+          timerId = setTimeout(mount, 80);
+        }
+      },
+      { rootMargin: "240px" },
+    );
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+      if (idleId != null && "cancelIdleCallback" in window) window.cancelIdleCallback(idleId);
+      if (timerId != null) clearTimeout(timerId);
+    };
+  }, [interactive, project.previewable, project.url]);
 
   if (project.previewable === false || failed) return <VibrailPreviewPlaceholder />;
 
   return (
-    <>
-      <iframe
-        src={project.url}
-        title={interactive ? project.name : `${project.name} preview`}
-        loading={interactive ? "eager" : "lazy"}
-        tabIndex={interactive ? undefined : -1}
-        sandbox={
-          interactive
-            ? "allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
-            : "allow-scripts allow-same-origin"
-        }
-        onError={() => setFailed(true)}
-      />
+    <div ref={containerRef} className="collection-preview-content">
+      {ready ? (
+        <iframe
+          src={project.url}
+          title={interactive ? project.name : `${project.name} preview`}
+          loading={interactive ? "eager" : "lazy"}
+          tabIndex={interactive ? undefined : -1}
+          sandbox={
+            interactive
+              ? "allow-forms allow-modals allow-popups allow-scripts allow-same-origin"
+              : "allow-scripts allow-same-origin"
+          }
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <VibrailPreviewPlaceholder />
+      )}
       {!interactive && <div className="collection-preview-shield" />}
-    </>
+    </div>
   );
 }
 
@@ -165,19 +201,6 @@ export function CollectionPage({
       allProjects.filter((project) => project.name.toLowerCase().includes(query.toLowerCase())),
     [allProjects, query],
   );
-
-  useEffect(() => {
-    fetch(`${apiUrl}/api/collection`, { credentials: "include" })
-      .then(async (response) => response.ok ? response.json() : Promise.reject())
-      .then((payload) => {
-        setAuthenticated(Boolean(payload.authenticated));
-        setAllProjects((current) => payload.data.map((project: Project) => ({
-          ...project,
-          previewable: current.find((item) => item.id === project.id)?.previewable,
-        })));
-      })
-      .catch(() => {});
-  }, [apiUrl]);
 
   const requireLogin = (projectId?: string, intent?: "like" | "comment") => {
     const loginUrl = new URL(dashboardLoginUrl);

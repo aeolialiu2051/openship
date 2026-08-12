@@ -51,6 +51,9 @@ const DASHBOARD_COMPAT_REDIRECTS = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  experimental: {
+    optimizePackageImports: ["lucide-react", "motion"],
+  },
   // Monorepo: trace from the repo root so the standalone bundle includes the
   // root-hoisted node_modules + workspace packages. Without this, `output:
   // "standalone"` traces from apps/web and can ship an incomplete bundle that
@@ -62,6 +65,19 @@ const nextConfig = {
     resolveAlias: {
       "@/.source/*": "./.source/*",
     },
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*.:ext(ico|png|jpg|jpeg|gif|webp|avif|svg|woff|woff2|ttf)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+    ];
   },
   async redirects() {
     return DASHBOARD_COMPAT_REDIRECTS;

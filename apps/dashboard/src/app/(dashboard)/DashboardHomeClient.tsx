@@ -445,6 +445,9 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   const { projects, numbers, loading, refresh } = useDashboardHome(initialData);
   const { data: serversData, isLoading: serversLoading, refresh: refreshServers } = useServersList();
   const servers = useMemo(() => serversData ?? [], [serversData]);
+  // The home page owns one coordinated refresh clock below. Disable the hook's
+  // independent timer so usage, projects and servers cannot drift into
+  // duplicate 15-second request waves.
   const { usageByProject, updatedAt: usageUpdatedAt, loaded: usageLoaded, refresh: refreshUsage } = useResourceUsage(projects, null);
   const serverIds = useMemo(() => servers.map((server) => server.id), [servers]);
   const {
@@ -498,15 +501,24 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   );
 
   useEffect(() => {
-    const timer = window.setInterval(() => {
+    const refreshVisibleData = () => {
+      if (document.visibilityState !== "visible") return;
       const sources = refreshSourcesRef.current;
       void Promise.allSettled([
         sources.refresh(),
         sources.refreshUsage(),
         sources.refreshServers(),
       ]).then(() => setDataRefreshKey((key) => key + 1));
-    }, HOME_REFRESH_INTERVAL_MS);
-    return () => window.clearInterval(timer);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refreshVisibleData();
+    };
+    const timer = window.setInterval(refreshVisibleData, HOME_REFRESH_INTERVAL_MS);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   useEffect(() => {

@@ -3,7 +3,7 @@ import { CollectionPage, type Project as CollectionProject } from "@/components/
 import { cookies, headers } from "next/headers";
 import { LANDING_LOCALE_COOKIE, parseLandingLocale } from "@/lib/landing-locale";
 import { CLOUD_API_URL, CLOUD_DASHBOARD_URL, DEFAULT_PORT, resolveDashboardPageUrl } from "@repo/core";
-import { resolveCollectionPreview } from "@/lib/collection-preview";
+import { hasVisualPreview } from "@/lib/frameworks";
 import { resolveCollectionApiUrls } from "@/lib/collection-api-url";
 
 export const metadata: Metadata = {
@@ -46,11 +46,13 @@ export default async function Page() {
   } catch {
     // The public site remains usable while the API is unavailable.
   }
-  projects = await Promise.all(
-    projects.map(async (project) => ({
-      ...project,
-      previewable: await resolveCollectionPreview(project),
-    })),
-  );
+  // Never probe every deployed site in the navigation critical path. The old
+  // Promise.all waited up to three seconds for each ambiguous Docker/Compose
+  // URL before Next could commit this route. Known visual frameworks can be
+  // previewed immediately; ambiguous services use the existing placeholder.
+  projects = projects.map((project) => ({
+    ...project,
+    previewable: hasVisualPreview(project.framework),
+  }));
   return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
 }

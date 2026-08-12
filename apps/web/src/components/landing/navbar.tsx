@@ -80,7 +80,7 @@ export function Navbar({
           <Link href="/#platform">{copy.platform}</Link>
           <Link href="/#workflow">{copy.workflow}</Link>
           <Link href="/#operations">{copy.operations}</Link>
-          <Link href="/collection">{copy.collection}</Link>
+          <Link href="/collection" prefetch>{copy.collection}</Link>
           <a href={DOCS_URL}>{copy.docs}</a>
           <Link href="/about">{copy.about}</Link>
         </nav>
@@ -149,7 +149,7 @@ export function Navbar({
               <Link href="/#platform" onClick={() => setMobileMenuOpen(false)}>{copy.platform}</Link>
               <Link href="/#workflow" onClick={() => setMobileMenuOpen(false)}>{copy.workflow}</Link>
               <Link href="/#operations" onClick={() => setMobileMenuOpen(false)}>{copy.operations}</Link>
-              <Link href="/collection" onClick={() => setMobileMenuOpen(false)}>{copy.collection}</Link>
+              <Link href="/collection" prefetch onClick={() => setMobileMenuOpen(false)}>{copy.collection}</Link>
               <a href={DOCS_URL} onClick={() => setMobileMenuOpen(false)}>{copy.docs}</a>
               <Link href="/about" onClick={() => setMobileMenuOpen(false)}>{copy.about}</Link>
             </nav>

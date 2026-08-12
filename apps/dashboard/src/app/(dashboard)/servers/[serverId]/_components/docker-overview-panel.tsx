@@ -249,10 +249,18 @@ export function DockerOverviewPanel({ serverId }: { serverId: string }) {
   useEffect(() => {
     alive.current = true;
     void load();
-    const timer = window.setInterval(() => void load(true), 15_000);
+    const poll = () => {
+      if (document.visibilityState === "visible") void load(true);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load(true);
+    };
+    const timer = window.setInterval(poll, 15_000);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       alive.current = false;
       window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [load]);
 

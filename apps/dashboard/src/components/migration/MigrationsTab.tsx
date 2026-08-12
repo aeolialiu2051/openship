@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import {
   AlertTriangle,
   ArrowRight,
@@ -22,7 +23,11 @@ import { systemApi } from "@/lib/api";
 import { formatBytes } from "@/lib/formatBytes";
 import { useI18n } from "@/components/i18n-provider";
 import { ServerConnectionCard } from "@/app/(dashboard)/servers/[serverId]/_components/connection-card";
-import { ServerMigrationWizard } from "./ServerMigrationWizard";
+
+const ServerMigrationWizard = dynamic(
+  () => import("./ServerMigrationWizard").then((mod) => mod.ServerMigrationWizard),
+  { ssr: false },
+);
 
 const IN_FLIGHT: MigrationStatus[] = [
   "queued",

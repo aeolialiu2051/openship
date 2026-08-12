@@ -63,6 +63,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href="https://cdn.oblien.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://cdn.oblien.com" />
         <ThemeScript />
         {/* Set <html lang> from the locale cookie before paint if SSR fell back
             to the default. The dashboard layout stays LTR for every locale;

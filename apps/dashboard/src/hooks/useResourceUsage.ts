@@ -185,12 +185,20 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
     alive.current = true;
     setLoaded(false);
     void load();
-    const timer = pollIntervalMs == null
-      ? null
-      : window.setInterval(() => void load(), pollIntervalMs);
+    const poll = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const timer = pollIntervalMs == null ? null : window.setInterval(poll, pollIntervalMs);
+    if (pollIntervalMs != null) {
+      document.addEventListener("visibilitychange", onVisibilityChange);
+    }
     return () => {
       alive.current = false;
       if (timer != null) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [load, pollIntervalMs]);
 

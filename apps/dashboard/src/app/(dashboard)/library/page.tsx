@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import { FolderUp, Github, Link2, Sparkles, Boxes } from "lucide-react";
 import { useGitHub } from "@/context/GitHubContext";
@@ -17,9 +18,13 @@ import { LibrarySidebar } from "./components/LibrarySidebar";
 import { UrlImport } from "./components/UrlImport";
 import { TemplateGrid } from "./components/TemplateGrid";
 import { PageContainer } from "@/components/ui/PageContainer";
-import { ServerMigrationWizard } from "@/components/migration/ServerMigrationWizard";
 import { useI18n } from "@/components/i18n-provider";
 import { useToast } from "@/context/ToastContext";
+
+const ServerMigrationWizard = dynamic(
+  () => import("@/components/migration/ServerMigrationWizard").then((mod) => mod.ServerMigrationWizard),
+  { ssr: false },
+);
 
 type Tab = "folder" | "repositories" | "url" | "template" | "server";
 
@@ -229,7 +234,9 @@ export default function LibraryPage() {
         />
       </div>
 
-      <ServerMigrationWizard isOpen={showMigrate} onClose={() => setShowMigrate(false)} />
+      {showMigrate ? (
+        <ServerMigrationWizard isOpen onClose={() => setShowMigrate(false)} />
+      ) : null}
     </PageContainer>
   );
 }

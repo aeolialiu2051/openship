@@ -48,8 +48,18 @@ export default function UpdatesBlock({ projectCount, loading, refreshKey = 0 }: 
   // success (or becomes retryable after failure/cancellation).
   useEffect(() => {
     if (!items?.some((item) => item.latestInProgress)) return;
-    const timer = window.setInterval(() => void load(), 15_000);
-    return () => window.clearInterval(timer);
+    const poll = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") void load();
+    };
+    const timer = window.setInterval(poll, 15_000);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, [items, load]);
 
   async function apply(item: UpdateStatusItem) {

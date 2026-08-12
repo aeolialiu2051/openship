@@ -18,6 +18,11 @@ const DASHBOARD_BASE_PATH = (process.env.NEXT_PUBLIC_DASHBOARD_BASE_PATH || "")
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: "standalone",
+  experimental: {
+    // Keep barrel imports from pulling the complete icon/chart packages into
+    // client chunks. These packages are used across most dashboard routes.
+    optimizePackageImports: ["lucide-react", "recharts"],
+  },
   distDir: process.env.NEXT_DIST_DIR || ".next",
   basePath: DASHBOARD_BASE_PATH,
   // Monorepo: trace from the repo root so the standalone bundle includes the
@@ -28,6 +33,19 @@ const nextConfig = {
   transpilePackages: ["@repo/ui", "@repo/core", "@repo/db"],
   turbopack: {
     root: path.resolve(__dirname, "../.."),
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*.:ext(ico|png|jpg|jpeg|gif|webp|avif|svg|woff|woff2|ttf)",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=86400, stale-while-revalidate=604800",
+          },
+        ],
+      },
+    ];
   },
   async rewrites() {
     if (!API_PROXY) return [];

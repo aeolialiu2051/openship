@@ -43,10 +43,14 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
     // same-origin HTTP/1.1 connection per server exhausted the browser's
     // connection pool at 5-6 servers, leaving Next.js RSC navigations queued
     // until a full reload closed the streams.
-    const controller = new AbortController();
-    controllersRef.current = [controller];
+    let controller: AbortController | null = null;
 
-    void (async () => {
+    const connect = () => {
+      if (document.visibilityState !== "visible" || controller) return;
+      controller = new AbortController();
+      controllersRef.current = [controller];
+      const activeController = controller;
+      void (async () => {
       const params = new URLSearchParams({
         serverIds: stableServerIds.join(","),
         intervalMs: String(intervalMs),
@@ -57,7 +61,7 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
           {
             credentials: "include",
             headers: { Accept: "text/event-stream" },
-            signal: controller.signal,
+            signal: activeController.signal,
           },
         );
         if (!response.ok || !response.body) {
@@ -68,7 +72,7 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
-        while (!controller.signal.aborted) {
+        while (!activeController.signal.aborted) {
           const { done, value } = await reader.read();
           if (done) break;
           buffer += decoder.decode(value, { stream: true });
@@ -112,13 +116,32 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
         }
       } catch {
         // Unavailable servers are excluded from the aggregate until refresh/reconnect.
-        if (!controller.signal.aborted) {
+        if (!activeController.signal.aborted) {
           setSettledByServer(Object.fromEntries(stableServerIds.map((id) => [id, true])));
         }
+      } finally {
+        if (controller === activeController) controller = null;
       }
-    })();
+      })();
+    };
 
-    return () => controller.abort();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        connect();
+      } else {
+        controller?.abort();
+        controller = null;
+        controllersRef.current = [];
+      }
+    };
+
+    connect();
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      controller?.abort();
+    };
   }, [stableServerIds, generation, intervalMs]);
 
   return {
