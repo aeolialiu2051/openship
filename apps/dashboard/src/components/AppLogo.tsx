@@ -17,7 +17,7 @@ export const APP_LOGO: Record<
   "cli-proxy-api": {
     src: "https://avatars.githubusercontent.com/u/233033915?s=128&v=4",
   },
-  "":{
+  "stirling-pdf":{
     src: "https://avatars.githubusercontent.com/u/139791695?s=60&v=4",
   },
   // simpleicons removed the Slack + Microsoft Teams brand marks (both 404 on the
@@ -52,7 +52,7 @@ export const APP_LOGO: Record<
   // Buzz (block/buzz) — vendored bee mark (its own favicon, OS-recolor stripped).
   // Monochrome near-black, so darkInvert flips it to light on the dark themes.
   buzz: { slug: undefined, src: "/app-logos/buzz.svg", darkInvert: true },
-  // code-server / IT-Tools / Stirling-PDF have no reliable simpleicons mark →
+  // code-server / IT-Tools have no reliable simpleicons mark →
   // they fall back to the monochrome Boxes glyph.
   // vibrail-native mail stack — its own brand mark, a full-bleed square icon.
   // Both the catalog id ("mail") and the installed-app id ("mail-webmail").
