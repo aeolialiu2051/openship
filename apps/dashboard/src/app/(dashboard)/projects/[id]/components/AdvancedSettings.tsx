@@ -43,6 +43,15 @@ const ICON_TONES = {
 // Flip to true to reveal them once the backend is ready.
 const SHOW_MOCK_ADVANCED = false;
 
+function getDefaultCollectionUrl(project: {
+  domains?: Array<{ domain?: string; primary?: boolean }>;
+}) {
+  const domain =
+    project.domains?.find((item) => item.primary)?.domain || project.domains?.[0]?.domain || "";
+  if (!domain) return "";
+  return /^https?:\/\//i.test(domain) ? domain : `https://${domain}`;
+}
+
 function SectionCard({
   title,
   description,
@@ -111,6 +120,11 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   const [shareToCollection, setShareToCollection] = useState(
     projectData?.shareToCollection ?? true,
   );
+  const [collectionUrl, setCollectionUrl] = useState(
+    projectData?.collectionUrl || getDefaultCollectionUrl(projectData),
+  );
+  const savedCollectionUrl = projectData?.collectionUrl || getDefaultCollectionUrl(projectData);
+  const collectionUrlChanged = collectionUrl !== savedCollectionUrl;
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [loading, setLoading] = useState({
@@ -118,6 +132,7 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
     clearInstallCache: false,
     clearBuildCache: false,
     shareToCollection: false,
+    collectionUrl: false,
   });
 
   // Project data is loaded asynchronously and can also change after a deploy.
@@ -129,6 +144,40 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
   useEffect(() => {
     setShareToCollection(projectData?.shareToCollection ?? true);
   }, [projectData?.shareToCollection, projectData?.id]);
+
+  useEffect(() => {
+    setCollectionUrl(projectData?.collectionUrl || getDefaultCollectionUrl(projectData));
+  }, [projectData?.collectionUrl, projectData?.domains, projectData?.id]);
+
+  const handleCollectionUrlSave = async () => {
+    if (loading.collectionUrl || !collectionUrlChanged) return;
+    const value = collectionUrl.trim();
+    if (value) {
+      try {
+        const parsed = new URL(value);
+        if (!["http:", "https:"].includes(parsed.protocol)) throw new Error();
+      } catch {
+        showToast(t.projectSettings.advanced.collection.urlInvalid, "error");
+        return;
+      }
+    }
+    setLoading((s) => ({ ...s, collectionUrl: true }));
+    try {
+      const response = await projectsApi.update(projectData.id, { collectionUrl: value || null });
+      const saved = response.data?.collectionUrl ?? "";
+      setCollectionUrl(saved || getDefaultCollectionUrl(projectData));
+      updateProjectData({ collectionUrl: saved || null });
+      showToast(t.projectSettings.advanced.collection.toast.urlSaved, "success");
+    } catch (error) {
+      showToast(
+        getApiErrorMessage(error, t.projectSettings.advanced.collection.toast.urlFailed),
+        "error",
+        t.projectSettings.advanced.collection.toast.urlFailed,
+      );
+    } finally {
+      setLoading((s) => ({ ...s, collectionUrl: false }));
+    }
+  };
 
   const handleCollectionVisibility = async (next: boolean) => {
     if (loading.shareToCollection) return;
@@ -323,6 +372,34 @@ export const AdvancedSettings = ({ onDeleteProject }: Props) => {
               disabled={loading.shareToCollection}
               ariaLabel={t.projectSettings.advanced.collection.label}
             />
+          </div>
+        </div>
+        <div className="rounded-xl border border-border/50 bg-muted/20 px-4 py-3">
+          <label htmlFor="collection-url" className="text-[13px] font-medium text-foreground">
+            {t.projectSettings.advanced.collection.urlLabel}
+          </label>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            {t.projectSettings.advanced.collection.urlHint}
+          </p>
+          <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+            <input
+              id="collection-url"
+              type="url"
+              value={collectionUrl}
+              onChange={(event) => setCollectionUrl(event.target.value)}
+              placeholder={t.projectSettings.advanced.collection.urlPlaceholder}
+              disabled={loading.collectionUrl}
+              className="h-9 min-w-0 flex-1 rounded-xl border border-border bg-background px-3 text-[13px] text-foreground outline-none transition-colors placeholder:text-muted-foreground focus:border-primary disabled:opacity-50"
+            />
+            <button
+              type="button"
+              onClick={handleCollectionUrlSave}
+              disabled={loading.collectionUrl || !collectionUrlChanged}
+              className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-opacity disabled:opacity-50"
+            >
+              {loading.collectionUrl && <Loader2 className="size-3.5 animate-spin" />}
+              {t.projectSettings.advanced.collection.urlSave}
+            </button>
           </div>
         </div>
       </SectionCard>

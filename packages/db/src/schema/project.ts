@@ -346,6 +346,8 @@ export const project = pgTable(
     favicon: text("favicon"),
     /** Whether this public project may appear in Vibrail's public collection. */
     shareToCollection: boolean("share_to_collection").notNull().default(true),
+    /** Optional card destination in the public collection; null uses the primary domain. */
+    collectionUrl: text("collection_url"),
     /** Last time favicon detection was attempted for this project */
     faviconCheckedAt: timestamp("favicon_checked_at"),
     /** Soft delete */

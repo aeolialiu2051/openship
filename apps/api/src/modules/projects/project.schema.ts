@@ -262,6 +262,8 @@ export const CreateProjectBody = Type.Object({
   ),
   /** Allow this project to appear in the public Vibrail collection. */
   shareToCollection: Type.Optional(Type.Boolean({ default: true })),
+  /** Optional collection card destination. Null/empty restores the primary deployment domain. */
+  collectionUrl: Type.Optional(Type.Union([Type.Null(), Type.String({ maxLength: 2048 })])),
   /**
    * Edge → app upstream addressing for this project (self-hosted).
    *   - "auto"          → resolved to loopback-port (the safe default)

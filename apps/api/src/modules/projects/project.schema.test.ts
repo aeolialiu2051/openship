@@ -37,6 +37,7 @@ describe("UpdateProjectBody — mass-assignment allow-list", () => {
       "publicEndpoints",
       "routingConfig",
       "shareToCollection",
+      "collectionUrl",
     ]) {
       expect(keys).toContain(allowed);
     }

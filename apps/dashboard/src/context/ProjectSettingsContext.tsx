@@ -53,9 +53,9 @@ interface BasicProjectData {
   packageManager?: string;
   /** How many recent versions retain their build artifact for rollback (snapshot strategy). null = instance default. */
   rollbackWindow?: number | null;
+  collectionUrl?: string | null;
   [key: string]: any;
 }
-
 
 interface DomainsData {
   domains: any[];
@@ -222,7 +222,6 @@ interface ProjectSettingsContextType {
 }
 
 const ProjectSettingsContext = createContext<ProjectSettingsContextType | undefined>(undefined);
-
 
 interface ProviderProps {
   children: ReactNode;
@@ -401,9 +400,7 @@ export const ProjectSettingsProvider: React.FC<ProviderProps> = ({
     const available = (projectData.domains || [])
       .map((d: any) => d?.domain)
       .filter((d: unknown): d is string => typeof d === "string" && d.length > 0);
-    setSelectedDomain((current) =>
-      current && available.includes(current) ? current : domain,
-    );
+    setSelectedDomain((current) => (current && available.includes(current) ? current : domain));
   }, [domain, projectData.domains]);
 
   // Derived: do we have multi-service rendering paths to enable?

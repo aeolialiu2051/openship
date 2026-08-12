@@ -1030,6 +1030,22 @@ export async function updateProject(
       data.rollbackWindow === null ? null : normalizeRollbackWindow(data.rollbackWindow);
   }
 
+  if (data.collectionUrl !== undefined) {
+    const value = data.collectionUrl?.trim() || null;
+    if (value) {
+      let parsed: URL;
+      try {
+        parsed = new URL(value);
+      } catch {
+        throw new ValidationError("Collection URL must be a valid absolute URL");
+      }
+      if (!["http:", "https:"].includes(parsed.protocol)) {
+        throw new ValidationError("Collection URL must use http or https");
+      }
+    }
+    update.collectionUrl = value;
+  }
+
   const nextIsApp = update.isApp === undefined ? p.isApp : update.isApp === true;
   const nextTemplateId =
     update.appTemplateId === undefined

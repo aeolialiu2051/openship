@@ -37,6 +37,7 @@ r.public(
         organizationId: schema.project.organizationId,
         name: schema.project.name,
         slug: schema.project.slug,
+        collectionUrl: schema.project.collectionUrl,
         favicon: schema.project.favicon,
         framework: schema.deployment.framework,
         updatedAt: schema.project.updatedAt,
@@ -63,7 +64,10 @@ r.public(
     const projectIds = uniqueRows.map((row) => row.id);
     const creatorEvents = projectIds.length
       ? await db
-          .select({ projectId: schema.auditEvent.resourceId, userId: schema.auditEvent.actorUserId })
+          .select({
+            projectId: schema.auditEvent.resourceId,
+            userId: schema.auditEvent.actorUserId,
+          })
           .from(schema.auditEvent)
           .where(
             and(
@@ -90,7 +94,9 @@ r.public(
       : [];
     const creatorsById = new Map(creators.map((creator) => [creator.id, creator]));
     const missingOrganizationIds = [
-      ...new Set(uniqueRows.filter((row) => !creatorByProject.has(row.id)).map((row) => row.organizationId)),
+      ...new Set(
+        uniqueRows.filter((row) => !creatorByProject.has(row.id)).map((row) => row.organizationId),
+      ),
     ];
     const owners = missingOrganizationIds.length
       ? await db
@@ -102,11 +108,18 @@ r.public(
           })
           .from(schema.member)
           .innerJoin(schema.user, eq(schema.user.id, schema.member.userId))
-          .where(and(eq(schema.member.role, "owner"), inArray(schema.member.organizationId, missingOrganizationIds)))
+          .where(
+            and(
+              eq(schema.member.role, "owner"),
+              inArray(schema.member.organizationId, missingOrganizationIds),
+            ),
+          )
           .orderBy(asc(schema.member.createdAt))
       : [];
     const ownerByOrganization = new Map<string, (typeof owners)[number]>();
-    for (const owner of owners) if (!ownerByOrganization.has(owner.organizationId)) ownerByOrganization.set(owner.organizationId, owner);
+    for (const owner of owners)
+      if (!ownerByOrganization.has(owner.organizationId))
+        ownerByOrganization.set(owner.organizationId, owner);
 
     const likeCounts = projectIds.length
       ? await db
@@ -117,7 +130,10 @@ r.public(
       : [];
     const commentCounts = projectIds.length
       ? await db
-          .select({ projectId: schema.collectionComment.projectId, count: sql<number>`count(*)::int` })
+          .select({
+            projectId: schema.collectionComment.projectId,
+            count: sql<number>`count(*)::int`,
+          })
           .from(schema.collectionComment)
           .where(inArray(schema.collectionComment.projectId, projectIds))
           .groupBy(schema.collectionComment.projectId)
@@ -137,27 +153,41 @@ r.public(
           .orderBy(asc(schema.collectionComment.createdAt))
       : [];
     const session = await auth.api.getSession({ headers: c.req.raw.headers }).catch(() => null);
-    const viewerLikes = session?.user.id && projectIds.length
-      ? await db
-          .select({ projectId: schema.collectionLike.projectId })
-          .from(schema.collectionLike)
-          .where(and(eq(schema.collectionLike.userId, session.user.id), inArray(schema.collectionLike.projectId, projectIds)))
-      : [];
+    const viewerLikes =
+      session?.user.id && projectIds.length
+        ? await db
+            .select({ projectId: schema.collectionLike.projectId })
+            .from(schema.collectionLike)
+            .where(
+              and(
+                eq(schema.collectionLike.userId, session.user.id),
+                inArray(schema.collectionLike.projectId, projectIds),
+              ),
+            )
+        : [];
     const likedIds = new Set(viewerLikes.map((like) => like.projectId));
     const likesByProject = new Map(likeCounts.map((item) => [item.projectId, item.count]));
-    const commentCountByProject = new Map(commentCounts.map((item) => [item.projectId, item.count]));
+    const commentCountByProject = new Map(
+      commentCounts.map((item) => [item.projectId, item.count]),
+    );
     const commentsByProject = new Map<string, typeof comments>();
-    for (const comment of comments) commentsByProject.set(comment.projectId, [...(commentsByProject.get(comment.projectId) ?? []), comment]);
+    for (const comment of comments)
+      commentsByProject.set(comment.projectId, [
+        ...(commentsByProject.get(comment.projectId) ?? []),
+        comment,
+      ]);
 
     return c.json({
       authenticated: Boolean(session),
       data: uniqueRows.map((row) => {
-        const creator = creatorsById.get(creatorByProject.get(row.id) ?? "") ?? ownerByOrganization.get(row.organizationId);
+        const creator =
+          creatorsById.get(creatorByProject.get(row.id) ?? "") ??
+          ownerByOrganization.get(row.organizationId);
         return {
           id: row.id,
           name: row.name,
           slug: row.slug,
-          url: `https://${row.hostname}`,
+          url: row.collectionUrl || `https://${row.hostname}`,
           favicon: row.favicon,
           framework: row.framework,
           updatedAt: row.updatedAt,
@@ -188,10 +218,22 @@ r.public(
     const [existing] = await db
       .select({ projectId: schema.collectionLike.projectId })
       .from(schema.collectionLike)
-      .where(and(eq(schema.collectionLike.projectId, projectId), eq(schema.collectionLike.userId, userId)))
+      .where(
+        and(
+          eq(schema.collectionLike.projectId, projectId),
+          eq(schema.collectionLike.userId, userId),
+        ),
+      )
       .limit(1);
     if (existing) {
-      await db.delete(schema.collectionLike).where(and(eq(schema.collectionLike.projectId, projectId), eq(schema.collectionLike.userId, userId)));
+      await db
+        .delete(schema.collectionLike)
+        .where(
+          and(
+            eq(schema.collectionLike.projectId, projectId),
+            eq(schema.collectionLike.userId, userId),
+          ),
+        );
     } else {
       await db.insert(schema.collectionLike).values({ projectId, userId }).onConflictDoNothing();
     }
@@ -215,15 +257,19 @@ r.public(
     const projectId = c.req.param("projectId");
     if (!projectId) return c.json({ error: "Project not found" }, 404);
     if (!(await visibleProject(projectId))) return c.json({ error: "Project not found" }, 404);
-    const body = await c.req.json().catch(() => null) as { content?: unknown } | null;
+    const body = (await c.req.json().catch(() => null)) as { content?: unknown } | null;
     const content = typeof body?.content === "string" ? body.content.trim() : "";
-    if (!content || content.length > 1000) return c.json({ error: "Comment must be between 1 and 1000 characters" }, 400);
+    if (!content || content.length > 1000)
+      return c.json({ error: "Comment must be between 1 and 1000 characters" }, 400);
     const ctx = getRequestContext(c);
     const [comment] = await db
       .insert(schema.collectionComment)
       .values({ id: crypto.randomUUID(), projectId, userId: ctx.userId, content })
       .returning();
-    return c.json({ data: { ...comment, projectId, author: { name: ctx.user.name, image: null } } }, 201);
+    return c.json(
+      { data: { ...comment, projectId, author: { name: ctx.user.name, image: null } } },
+      201,
+    );
   },
 );
 

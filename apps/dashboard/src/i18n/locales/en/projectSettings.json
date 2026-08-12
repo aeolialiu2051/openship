@@ -163,10 +163,17 @@
       "label": "Share to collection",
       "shared": "This project appears in the collection",
       "hidden": "This project is hidden from the collection; its public URL still works",
+      "urlLabel": "Collection display URL",
+      "urlHint": "Choose the page opened from the collection card. Leave blank to use the primary deployment domain.",
+      "urlPlaceholder": "https://example.com/landing-page",
+      "urlSave": "Save URL",
+      "urlInvalid": "Enter a complete http:// or https:// URL",
       "toast": {
         "shared": "Project shared to the collection",
         "hidden": "Project hidden from the collection",
-        "failed": "Failed to update collection settings"
+        "failed": "Failed to update collection settings",
+        "urlSaved": "Collection URL saved",
+        "urlFailed": "Failed to save collection URL"
       }
     },
     "cache": {

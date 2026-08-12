@@ -143,10 +143,17 @@
       "label": "分享到作品集",
       "shared": "项目会展示在作品集中",
       "hidden": "项目不会展示在作品集中，公网访问不受影响",
+      "urlLabel": "作品集展示 URL",
+      "urlHint": "设置点击作品集卡片后打开的页面。留空则使用应用部署的主域名。",
+      "urlPlaceholder": "https://example.com/landing-page",
+      "urlSave": "保存 URL",
+      "urlInvalid": "请输入完整的 http:// 或 https:// 地址",
       "toast": {
         "shared": "项目已分享到作品集",
         "hidden": "项目已从作品集中隐藏",
-        "failed": "更新作品集设置失败"
+        "failed": "更新作品集设置失败",
+        "urlSaved": "作品集 URL 已保存",
+        "urlFailed": "保存作品集 URL 失败"
       }
     },
     "cache": {
