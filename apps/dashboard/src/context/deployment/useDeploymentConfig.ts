@@ -5,6 +5,7 @@ import type { FrameworkId } from "@/components/import-project/types";
 import { deployApi, projectsApi, servicesApi, serviceKind } from "@/lib/api";
 import { folderApi } from "@/lib/api/folder";
 import type { PrepareProjectResponse, PrepareComposeService, PrepareMonorepoApp } from "@/lib/api/deploy";
+import { buildPreparedOptions } from "./prepared-options";
 import type { Service } from "@/lib/api/services";
 import { ApiError, getApiErrorMessage, isAbortError } from "@/lib/api/client";
 import { settingsApi } from "@/lib/api/settings";
@@ -187,27 +188,6 @@ function buildSingleAppEndpoints(
       ? { port, domain: primaryDomain, domainType: "free" }
       : { targetPath: "/", domain: primaryDomain, domainType: "free" },
   );
-}
-
-function buildPreparedOptions(response: PrepareProjectResponse): DeploymentConfig["options"] {
-  // Declared productionMode wins: "static" is serverless; "host"/"standalone"
-  // always run a server. Absent → derive from the detected start command.
-  const hasServer = response.productionMode
-    ? response.productionMode !== "static"
-    : !!response.startCommand;
-  const hasBuild = !!response.buildCommand;
-
-  return {
-    buildCommand: response.buildCommand ?? "",
-    installCommand: response.installCommand ?? "",
-    outputDirectory: response.outputDirectory ?? "",
-    productionPaths: response.productionPaths.join(", "),
-    startCommand: response.startCommand ?? "",
-    productionPort: hasServer ? String(response.port ?? "") : "",
-    rootDirectory: response.rootDirectory || "./",
-    hasServer,
-    hasBuild,
-  };
 }
 
 /**
