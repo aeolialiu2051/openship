@@ -134,6 +134,14 @@ function LocationIcon({ project }: { project: Project }) {
 
 function ResourceIcon({ project }: { project: Project }) {
   const [faviconFailed, setFaviconFailed] = useState(false);
+  // Installed catalog apps have a stable, curated brand identity. Their
+  // deployed site's favicon may be generic, stale, or customized (Excalidraw
+  // currently serves a different purple favicon), so never let it override
+  // the catalog logo. Site favicons remain the right first choice for regular
+  // user projects.
+  if (project.isApp && project.appTemplateId) {
+    return <AppLogo appId={project.appTemplateId} className="size-5" />;
+  }
   if (project.favicon && !faviconFailed) {
     return (
       <img
@@ -143,9 +151,6 @@ function ResourceIcon({ project }: { project: Project }) {
         onError={() => setFaviconFailed(true)}
       />
     );
-  }
-  if (project.isApp && project.appTemplateId) {
-    return <AppLogo appId={project.appTemplateId} className="size-5" />;
   }
   return <div className="size-5">{getFrameworkConfig(project.framework).icon("currentColor")}</div>;
 }
