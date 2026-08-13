@@ -33,7 +33,6 @@ import {
 import { migrationApi, api, getApiErrorMessage } from "@/lib/api";
 import type { SwitchBackResult } from "@/lib/api/migration";
 import { useToast } from "@/context/ToastContext";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 
 type TeamMode =
@@ -186,7 +185,7 @@ export default function SwitchBackPage() {
           <button
             type="button"
             onClick={() => {
-              if (typeof window !== "undefined") window.location.assign(withDashboardBasePath("/"));
+              if (typeof window !== "undefined") window.location.assign("/");
             }}
             className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
           >

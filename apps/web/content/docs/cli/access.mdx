@@ -48,16 +48,16 @@ vibrail login \
 |---|---|---|
 | `--token <token>` | Personal access token (`vibrail_pat_…`) for non-interactive login. | *(browser login)* |
 | `--no-browser` | Print the authorization URL without opening it. | off |
-| `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.com/api/proxy` |
-| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.com/dashboard` |
+| `--api-url <url>` | API base URL to authenticate against. | `https://app.vibrail.com/api/proxy` |
+| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://app.vibrail.com` |
 | `--context <name>` | Name of the context to store this login under. | `default` |
 
-The hosted default is derived from `VIBRAIL_SITE_DOMAIN`. A bare hostname uses HTTPS, so
-`VIBRAIL_SITE_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/dashboard/authorize` and validates
+The hosted product default is derived from `VIBRAIL_APP_DOMAIN`. A bare hostname uses HTTPS, so
+`VIBRAIL_APP_DOMAIN=next.vibrail.example vibrail login` opens `https://next.vibrail.example/authorize` and validates
 the token through `https://next.vibrail.example/api/proxy/api/tokens`. A complete URL such as
-`VIBRAIL_SITE_DOMAIN=http://localhost:3002` keeps its scheme and mounts the dashboard at `/dashboard`. `VIBRAIL_CLOUD_API_URL` and
+`VIBRAIL_APP_DOMAIN=http://localhost:3002` keeps its scheme and mounts the dashboard at `/`. `VIBRAIL_CLOUD_API_URL` and
 `VIBRAIL_CLOUD_DASHBOARD_URL` can still override the two endpoints individually and take precedence over
-`VIBRAIL_SITE_DOMAIN`.
+`VIBRAIL_APP_DOMAIN`.
 
 <Callout title="Can't reach the API?" type="warn">
 If login reports it couldn't reach the API, the host in `--api-url` isn't responding. Point it at the right

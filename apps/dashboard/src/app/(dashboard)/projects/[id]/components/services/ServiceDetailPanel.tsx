@@ -17,7 +17,6 @@ import {
 } from "@/lib/api/services";
 import { deployApi } from "@/lib/api/deploy";
 import { formatBytes } from "@/lib/formatBytes";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { appendProjectRouteKey, resolveServiceHostnameLabel, internalServiceAddress } from "@repo/core";
 import {
   Play,
@@ -163,7 +162,7 @@ export function ServiceDetailPanel({
       window.history.replaceState(
         {},
         "",
-        withDashboardBasePath(`/projects/${projectId}/services/${service.id}/${tab}`),
+        `/projects/${projectId}/services/${service.id}/${tab}`,
       );
       requestAnimationFrame(() => window.scrollTo(0, scrollY));
     }

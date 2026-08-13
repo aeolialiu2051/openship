@@ -67,12 +67,12 @@ The token is validated against the API and saved to `~/.vibrail/config.json`.
 |---|---|---|
 | `--token <token>` | PAT (`vibrail_pat_…`) for non-interactive login. | browser login |
 | `--no-browser` | Print the authorization URL without opening it. | off |
-| `--api-url <url>` | API base URL to authenticate against. | `https://vibrail.com/api/proxy` |
-| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://vibrail.com/dashboard` |
+| `--api-url <url>` | API base URL to authenticate against. | `https://app.vibrail.com/api/proxy` |
+| `--dashboard-url <url>` | Dashboard base URL used for browser authorization. | `https://app.vibrail.com` |
 | `--context <name>` | Name of the [context](#connection-contexts) to store this login under. | `default` |
 
-Set `VIBRAIL_SITE_DOMAIN` to change the shared hosted origin without rebuilding the CLI. A bare hostname is
-interpreted as HTTPS; the dashboard is mounted at `/dashboard` and the API stays at `/api/proxy`.
+Set `VIBRAIL_APP_DOMAIN` to change the hosted product origin without rebuilding the CLI. A bare hostname is
+interpreted as HTTPS; the dashboard is mounted at `/` on the app origin and the API stays at `/api/proxy`.
 `VIBRAIL_CLOUD_API_URL` and `VIBRAIL_CLOUD_DASHBOARD_URL` remain available as higher-priority overrides.
 
 <Callout title="Signing out" type="info">

@@ -6,6 +6,14 @@ import {
 } from "../../src/lib/browser-login";
 
 describe("browser login", () => {
+  it("builds the production authorization URL on the app origin", () => {
+    const request = createBrowserLoginRequest("https://app.vibrail.com", "production");
+    const url = new URL(request.authorizeUrl);
+
+    expect(url.origin + url.pathname).toBe("https://app.vibrail.com/authorize");
+    expect(url.searchParams.get("flow")).toBe(CLI_LOGIN_FLOW);
+  });
+
   it("builds a PKCE authorization URL", () => {
     const request = createBrowserLoginRequest(
       "https://vibrail.example.com/dashboard/",

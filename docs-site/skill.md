@@ -57,8 +57,8 @@ version and required flags. An empty project list is a valid authenticated respo
 For the hosted service, require:
 
 ```text
-apiUrl:       https://vibrail.com/api/proxy
-dashboardUrl: https://vibrail.com/dashboard
+apiUrl:       https://app.vibrail.com/api/proxy
+dashboardUrl: https://app.vibrail.com
 ```
 
 If authentication is absent, expired, or for another instance, use interactive login; never pass a
@@ -66,8 +66,8 @@ token on the command line or read `~/.vibrail/config.json`:
 
 ```bash
 vibrail login --context vibrail \
-  --api-url https://vibrail.com/api/proxy \
-  --dashboard-url https://vibrail.com/dashboard
+  --api-url https://app.vibrail.com/api/proxy \
+  --dashboard-url https://app.vibrail.com
 ```
 
 After browser approval, rerun `vibrail status` and `vibrail --json project list`.
@@ -191,7 +191,7 @@ pointers, and missing submodule content. Build the same compressed tarball the C
 measure that file—not only the unpacked directory. Record its byte size without printing contents.
 
 For the hosted context, inspect the active `apiUrl`. A relative folder-upload target sent through
-`https://vibrail.com/api/proxy` traverses the dashboard/proxy path before the API's documented 300 MB
+`https://app.vibrail.com/api/proxy` traverses the dashboard/proxy path before the API's documented 300 MB
 relay. Treat a compressed archive at or above 90 MB as high risk for an upstream ~100 MB request
 limit: do not attempt it automatically after GitHub authorization failure. Report the measured size
 and prefer fixing GitHub App access. Do not claim the API's 300 MB relay limit applies end-to-end.

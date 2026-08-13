@@ -15,7 +15,6 @@ import { Label } from "@/components/ui/label";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { isNetworkError } from "@/lib/api";
 import { buildAuthPageHref, getPostAuthRedirect } from "@/lib/cloud-auth";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 
 export default function RegisterPage() {
   return (
@@ -73,7 +72,7 @@ function RegisterPageInner() {
         // account creation failed).
         router.push(`/verify-email?email=${encodeURIComponent(email)}`);
       } else if (postLoginUrl) {
-        window.location.href = withDashboardBasePath(postLoginUrl);
+        window.location.href = postLoginUrl;
       } else {
         router.push("/");
       }

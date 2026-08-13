@@ -5,11 +5,21 @@ import { createMDX } from "fumadocs-mdx/next";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const withMDX = createMDX({ configPath: "./source.config.ts" });
 
-// Before the hosted dashboard moved under /dashboard, external callbacks,
-// invitation emails, bookmarks, and client-side history could point at these
-// root paths. Keep them working at the marketing-site edge instead of serving a
-// misleading 404. The destination deliberately stays relative so query strings
-// (OAuth state, reset tokens, suspended site names, etc.) are preserved.
+const configuredAppOrigin = process.env.VIBRAIL_CLOUD_DASHBOARD_URL || process.env.VIBRAIL_APP_DOMAIN;
+if (!configuredAppOrigin && process.env.NODE_ENV === "production") {
+  throw new Error(
+    "VIBRAIL_CLOUD_DASHBOARD_URL or VIBRAIL_APP_DOMAIN is required for the production web build.",
+  );
+}
+const APP_ORIGIN = configuredAppOrigin
+  ? (/^[a-z][a-z\d+.-]*:\/\//i.test(configuredAppOrigin)
+      ? configuredAppOrigin
+      : `https://${configuredAppOrigin}`
+    ).replace(/\/+$/, "")
+  : "http://localhost:3002";
+
+// Bookmarks and callbacks from the former shared-origin deployment stay valid.
+// Next preserves the query string when applying these redirects.
 const DASHBOARD_COMPAT_REDIRECTS = [
   "accept-invite",
   "admin",
@@ -44,9 +54,14 @@ const DASHBOARD_COMPAT_REDIRECTS = [
   "auth/callback",
 ].map((route) => ({
   source: `/${route}/:path*`,
-  destination: `/dashboard/${route}/:path*`,
-  permanent: false,
+  destination: `${APP_ORIGIN}/${route}/:path*`,
+  permanent: true,
 }));
+
+DASHBOARD_COMPAT_REDIRECTS.push(
+  { source: "/dashboard", destination: APP_ORIGIN, permanent: true },
+  { source: "/dashboard/:path*", destination: `${APP_ORIGIN}/:path*`, permanent: true },
+);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {

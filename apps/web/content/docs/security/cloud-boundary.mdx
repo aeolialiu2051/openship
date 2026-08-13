@@ -13,7 +13,7 @@ nothing from home. No local ID cards, no house keys, no return address.
 - **Self-hosted instance** — the Vibrail you run on your own machine or server.
   It is the single **control plane** and **permission plane**: the layer that
   decides who may do what. Every request is checked here first.
-- **Vibrail Cloud** — the hosted control plane at `https://vibrail.com/dashboard`. It is the
+- **Vibrail Cloud** — the hosted control plane at `https://app.vibrail.com`. It is the
   **upstream authority** (the final say) for any project that lives on the Cloud.
 - **Proxy** — when a request is for a Cloud-owned project, your instance *forwards*
   it upstream instead of answering itself. That forwarding step is the boundary,
@@ -58,7 +58,7 @@ of these:
 | Local session cookies | Browser sign-in is local-only; the Cloud never sees it. |
 | `X-Organization-Id` | The Cloud resolves the org from the owner's token, not a header. A local org id is meaningless upstream (local org id ≠ Cloud org id) and would be a footgun. |
 | `X-Project-Source` and other client hints | Routing hints stay local. |
-| `Host` / the original origin | The request is re-addressed to `vibrail.com`. |
+| `Host` / the original origin | The request is re-addressed to `app.vibrail.com`. |
 
 <Callout title="The invariant" type="info">
 A proxied request forwards **only method, path, body, and Content-Type**, plus the

@@ -37,8 +37,8 @@ describe("public-url resolver — no VIBRAIL_PUBLIC_URL (cloud / dev)", () => {
 
   it("uses the runtime Dashboard path in hosted Cloud mode", () => {
     mockEnv.CLOUD_MODE = true;
-    mockRuntimeTarget.dashboard = "https://vibrail.example/dashboard";
-    expect(resolveDashboardPublicUrl()).toBe("https://vibrail.example/dashboard");
+    mockRuntimeTarget.dashboard = "https://app.vibrail.com";
+    expect(resolveDashboardPublicUrl()).toBe("https://app.vibrail.com");
     mockRuntimeTarget.dashboard = "http://localhost:3001";
   });
 });

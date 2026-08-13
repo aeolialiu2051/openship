@@ -16,18 +16,18 @@ export const LOCAL_WEB_URL = localhost(DEFAULT_PORT.web);
 export const LOCAL_DASHBOARD_URL = localhost(DEFAULT_PORT.dashboard);
 export const LOCAL_API_URL = localhost(DEFAULT_PORT.api);
 
-// The production cloud endpoints. VIBRAIL_SITE_DOMAIN selects the shared public origin;
-// the hosted dashboard lives beneath /dashboard while the API keeps the clean
-// root-level /api/proxy contract. VIBRAIL_CLOUD_* remain the highest-priority
-// per-endpoint overrides for local development and custom installations.
+// The production cloud endpoints. The marketing site stays on vibrail.com while
+// the hosted product owns app.vibrail.com. VIBRAIL_CLOUD_* remain the
+// highest-priority per-endpoint overrides for local development and custom
+// installations.
 const envUrl = (key: string): string | undefined => {
   const v = typeof process !== "undefined" ? process.env?.[key] : undefined;
   return v && v.trim() ? v.trim() : undefined;
 };
 
-const hostedOrigin = (() => {
-  const configured = envUrl("VIBRAIL_SITE_DOMAIN");
-  if (!configured) return "https://vibrail.com";
+const hostedAppOrigin = (() => {
+  const configured = envUrl("VIBRAIL_APP_DOMAIN");
+  if (!configured) return "https://app.vibrail.com";
   const withoutTrailingSlash = configured.replace(/\/+$/, "");
   return /^[a-z][a-z\d+.-]*:\/\//i.test(withoutTrailingSlash)
     ? withoutTrailingSlash
@@ -35,13 +35,13 @@ const hostedOrigin = (() => {
 })();
 
 export const CLOUD_DASHBOARD_URL = (
-  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? `${hostedOrigin}/dashboard`
+  envUrl("VIBRAIL_CLOUD_DASHBOARD_URL") ?? hostedAppOrigin
 ).replace(/\/+$/, "");
-// Hosted Vibrail serves the dashboard and API on one public origin. General
+// Hosted Vibrail serves the dashboard and API on the app origin. General
 // API routes pass through the dashboard's Next.js catch-all proxy; callers
 // append their normal `/api/...` paths to this base.
 export const CLOUD_API_URL = (
-  envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedOrigin}/api/proxy`
+  envUrl("VIBRAIL_CLOUD_API_URL") ?? `${hostedAppOrigin}/api/proxy`
 ).replace(/\/+$/, "");
 
 /**

@@ -185,9 +185,7 @@ export function resolveReturnToDestination(returnTo: string, requestOrigin?: str
   if (isLocalDashboard) {
     return `${origin.protocol}//${origin.hostname}:${DEFAULT_PORT.web}${returnTo}`;
   }
-  // An absolute URL is required even when Dashboard and Web share an origin:
-  // Next.js otherwise applies NEXT_PUBLIC_DASHBOARD_BASE_PATH and turns the
-  // intended `/collection` into the nonexistent `/dashboard/collection`.
+  // Return an absolute marketing-site URL so the app subdomain is removed.
   const marketingHostname = origin.hostname.startsWith("app.")
     ? origin.hostname.slice(4)
     : origin.hostname;

@@ -18,7 +18,10 @@ function readThemeCookie(): Theme | null {
 
 function writeThemeCookie(theme: Theme) {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
+    ? "; Domain=.vibrail.com"
+    : "";
+  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
 }
 
 interface ThemeContextValue {

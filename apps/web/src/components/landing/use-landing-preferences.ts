@@ -20,7 +20,10 @@ function dashboardThemeForLanding(theme: LandingTheme): "light" | "dim" {
 
 function writeThemeCookie(theme: LandingTheme) {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
-  document.cookie = `${THEME_COOKIE}=${dashboardThemeForLanding(theme)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
+    ? "; Domain=.vibrail.com"
+    : "";
+  document.cookie = `${THEME_COOKIE}=${dashboardThemeForLanding(theme)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
 }
 
 function resolveLandingTheme(value: string | null): LandingTheme | null {
@@ -60,7 +63,10 @@ export function useLandingPreferences(initialLocale?: LandingLocale) {
   useEffect(() => {
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
-    document.cookie = `${LANDING_LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
+      ? "; Domain=.vibrail.com"
+      : "";
+    document.cookie = `${LANDING_LOCALE_COOKIE}=${locale}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
     document.documentElement.dataset.vrTheme = theme;
     document.documentElement.style.colorScheme = theme;

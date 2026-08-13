@@ -7,11 +7,11 @@ describe("resolveCollectionApiUrls", () => {
       resolveCollectionApiUrls({
         nodeEnv: "production",
         internalApiUrl: "http://api:4100/",
-        cloudApiUrl: "https://vibrail.com/api/proxy/",
+        cloudApiUrl: "https://app.vibrail.com/api/proxy/",
       }),
     ).toEqual({
       serverApiUrl: "http://api:4100",
-      browserApiUrl: "https://vibrail.com/api/proxy",
+      browserApiUrl: "https://app.vibrail.com/api/proxy",
     });
   });
 
@@ -19,7 +19,7 @@ describe("resolveCollectionApiUrls", () => {
     expect(
       resolveCollectionApiUrls({
         nodeEnv: "development",
-        cloudApiUrl: "https://vibrail.com/api/proxy",
+        cloudApiUrl: "https://app.vibrail.com/api/proxy",
       }),
     ).toEqual({
       serverApiUrl: "http://localhost:4100",
@@ -32,7 +32,7 @@ describe("resolveCollectionApiUrls", () => {
       resolveCollectionApiUrls({
         nodeEnv: "production",
         publicApiUrl: "https://api.example.com/",
-        cloudApiUrl: "https://vibrail.com/api/proxy",
+        cloudApiUrl: "https://app.vibrail.com/api/proxy",
       }),
     ).toEqual({
       serverApiUrl: "https://api.example.com",

@@ -2,7 +2,6 @@
 
 import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { generateIcon } from "@/utils/icons";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { useEffect } from "react";
 
 export const ProjectsBottomNavigation = () => {
@@ -27,7 +26,7 @@ export const ProjectsBottomNavigation = () => {
         window.history.replaceState(
             {},
             '',
-            withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+            `/projects/${projectData.id}/${tabId}`,
         );
     };
 

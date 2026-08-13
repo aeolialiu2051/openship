@@ -6,7 +6,6 @@ import { useToast } from "@/components/toast";
 import { useI18n } from "@/components/i18n-provider";
 import { Button } from "@/components/ui/button";
 import { Github, Loader2 } from "lucide-react";
-import { dashboardUrl } from "@/lib/dashboard-path";
 
 function GoogleIcon() {
   return (
@@ -41,7 +40,7 @@ export function OAuthButtons({ callbackURL = "/" }: { callbackURL?: string }) {
       // split-origin SaaS (app.* vs api.*) a bare "/" dead-ends on the API
       // subdomain after the OAuth callback instead of returning to the app.
       const appOrigin = window.location.origin;
-      const cb = dashboardUrl(appOrigin, callbackURL);
+      const cb = new URL(callbackURL, appOrigin).toString();
       // better-auth resolves sign-in errors into `{ error }` rather than
       // throwing, so inspecting the return value is what actually surfaces a
       // misconfigured/failed provider — the try/catch only covers thrown
@@ -51,7 +50,7 @@ export function OAuthButtons({ callbackURL = "/" }: { callbackURL?: string }) {
         callbackURL: cb,
         // First-time OAuth users take the newUser branch; keep them on the app.
         newUserCallbackURL: cb,
-        errorCallbackURL: dashboardUrl(appOrigin, "/login"),
+        errorCallbackURL: new URL("/login", appOrigin).toString(),
       });
       if (error) {
         toast("error", error.message ?? t.auth.errors.oauthFailed);

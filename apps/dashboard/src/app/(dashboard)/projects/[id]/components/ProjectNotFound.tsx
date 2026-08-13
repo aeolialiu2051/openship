@@ -6,7 +6,6 @@ import { useProjectSettings } from "@/context/ProjectSettingsContext";
 import { useI18n } from "@/components/i18n-provider";
 import { ResourceNotFound } from "@/components/resource-not-found";
 import { getSupportEmail } from "@/lib/support-email";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 
 export const ProjectNotFound: React.FC = () => {
   const { domain } = useProjectSettings();
@@ -26,7 +25,7 @@ export const ProjectNotFound: React.FC = () => {
             label: nf.dashboard,
             icon: <Home className="size-4" />,
             onClick: () => {
-              window.location.href = withDashboardBasePath("/");
+              window.location.href = "/";
             },
           },
           {

@@ -64,21 +64,21 @@ describe("cli smoke", { timeout: 40_000 }, () => {
   it("defaults login to the hosted Vibrail production endpoint", async () => {
     const { stdout, code } = await runCli(["login", "--help"]);
     expect(code).toBe(0);
-    expect(stdout).toContain("https://vibrail.com/api/proxy");
-    expect(stdout).toContain("https://vibrail.com/dashboard");
+    expect(stdout).toContain("https://app.vibrail.com/api/proxy");
+    expect(stdout).toContain("https://app.vibrail.com");
     expect(stdout).not.toContain("http://localhost:4000");
     expect(stdout).not.toContain("http://localhost:3001");
   });
 
-  it("derives the hosted login endpoint from VIBRAIL_SITE_DOMAIN", async () => {
+  it("derives the hosted login endpoint from VIBRAIL_APP_DOMAIN", async () => {
     const { stdout, code } = await runCli(["login", "--help"], {
-      VIBRAIL_SITE_DOMAIN: "next.vibrail.example",
+      VIBRAIL_APP_DOMAIN: "next.vibrail.example",
       VIBRAIL_CLOUD_API_URL: "",
       VIBRAIL_CLOUD_DASHBOARD_URL: "",
     });
     expect(code).toBe(0);
     expect(stdout).toContain("https://next.vibrail.example/api/proxy");
-    expect(stdout).toContain("https://next.vibrail.example/dashboard");
+    expect(stdout).toContain("https://next.vibrail.example");
   });
 
   it("exits non-zero on an unknown command", async () => {

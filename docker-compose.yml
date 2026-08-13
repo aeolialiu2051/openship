@@ -30,9 +30,8 @@
 # The API + dashboard bind fixed internal ports via PORT (the API honors PORT
 # regardless of VIBRAIL_TARGET); a reverse proxy maps the public domains to
 # them. postgres/redis are internal-only. The API auto-migrates Postgres on boot.
-# The hosted reverse proxy must route /dashboard plus the root API/OAuth/MCP/WS
-# paths to dashboard; all remaining paths go to web. Production owns that edge
-# configuration outside this application stack.
+# The hosted reverse proxy sends app.vibrail.com to dashboard and vibrail.com to
+# web. API/OAuth/MCP/WS paths on the app origin are handled by dashboard's proxy.
 #
 # REMOTE ACCESS: reaching this from another machine (LAN IP or a reverse proxy)
 # requires VIBRAIL_PUBLIC_URL in .env — else the dashboard loads but login is
@@ -114,10 +113,6 @@ services:
     build:
       context: .
       dockerfile: apps/dashboard/Dockerfile
-      args:
-        # Hosted SaaS shares the marketing origin and mounts the UI beneath
-        # /dashboard. Self-hosted/release builds leave this empty and stay at /.
-        NEXT_PUBLIC_DASHBOARD_BASE_PATH: "${DASHBOARD_BASE_PATH:-/dashboard}"
     restart: unless-stopped
     ports:
       - "${VIBRAIL_BIND_ADDR:-0.0.0.0}:${DASHBOARD_PORT:-3001}:${DASHBOARD_PORT:-3001}"
@@ -127,9 +122,6 @@ services:
       NODE_ENV: production
       PORT: "${DASHBOARD_PORT:-3001}"
       INTERNAL_API_URL: http://api:${API_PORT:-4000}
-      # The front server uses the same mount to map root-level API/OAuth/MCP
-      # requests into the basePath-aware Next app.
-      NEXT_PUBLIC_DASHBOARD_BASE_PATH: "${DASHBOARD_BASE_PATH:-/dashboard}"
     depends_on:
       api:
         condition: service_healthy
@@ -139,17 +131,24 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        VIBRAIL_SITE_DOMAIN: "${VIBRAIL_SITE_DOMAIN:?VIBRAIL_SITE_DOMAIN is required}"
+        VIBRAIL_APP_DOMAIN: "${VIBRAIL_APP_DOMAIN:?VIBRAIL_APP_DOMAIN is required}"
+        VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:?VIBRAIL_CLOUD_DASHBOARD_URL is required}"
+        VIBRAIL_CLOUD_API_URL: "${VIBRAIL_CLOUD_API_URL:?VIBRAIL_CLOUD_API_URL is required}"
     restart: unless-stopped
     ports:
       - "${VIBRAIL_BIND_ADDR:-0.0.0.0}:${WEB_PORT:-3000}:${WEB_PORT:-3000}"
     environment:
       NODE_ENV: production
       PORT: "${WEB_PORT:-3000}"
-      VIBRAIL_SITE_DOMAIN: "${VIBRAIL_SITE_DOMAIN:-vibrail.com}"
+      VIBRAIL_SITE_DOMAIN: "${VIBRAIL_SITE_DOMAIN:?VIBRAIL_SITE_DOMAIN is required}"
+      VIBRAIL_APP_DOMAIN: "${VIBRAIL_APP_DOMAIN:?VIBRAIL_APP_DOMAIN is required}"
       VIBRAIL_API_URL: http://api:${API_PORT:-4000}
-      VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:-https://vibrail.com/dashboard}"
-      SMTP_FROM: "${SMTP_FROM:-Vibrail <support@vibrail.com>}"
-      WECHAT_ID: "${WECHAT_ID:-vibrail}"
+      VIBRAIL_CLOUD_DASHBOARD_URL: "${VIBRAIL_CLOUD_DASHBOARD_URL:?VIBRAIL_CLOUD_DASHBOARD_URL is required}"
+      VIBRAIL_CLOUD_API_URL: "${VIBRAIL_CLOUD_API_URL:?VIBRAIL_CLOUD_API_URL is required}"
+      SMTP_FROM: "${SMTP_FROM:?SMTP_FROM is required}"
+      WECHAT_ID: "${WECHAT_ID:-}"
       DISCORD_LINK: "${DISCORD_LINK:-}"
     depends_on:
       api:

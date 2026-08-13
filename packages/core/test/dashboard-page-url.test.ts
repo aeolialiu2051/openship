@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { resolveDashboardPageUrl } from "../src/runtime-config";
+import {
+  CLOUD_API_URL,
+  CLOUD_DASHBOARD_URL,
+  resolveDashboardPageUrl,
+} from "../src/runtime-config";
 
 describe("resolveDashboardPageUrl", () => {
+  it("uses the production app origin for dashboard, API, and login", () => {
+    expect(CLOUD_DASHBOARD_URL).toBe("https://app.vibrail.com");
+    expect(CLOUD_API_URL).toBe("https://app.vibrail.com/api/proxy");
+    expect(resolveDashboardPageUrl(CLOUD_DASHBOARD_URL, "/authorize")).toBe(
+      "https://app.vibrail.com/authorize",
+    );
+  });
+
   it("preserves a hosted dashboard mount path", () => {
     expect(
       resolveDashboardPageUrl("https://vibrail.example/dashboard", "/authorize?flow=cli-login"),

@@ -9,7 +9,6 @@ import { ConnectedServicesCard } from "./ConnectedServicesCard";
 import { useProjectInfo, useAnalyticsData } from "@/hooks/useProjectEndpoints";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { projectContainerPort } from "@/lib/project-display-port";
 import {
   ExternalLink,
@@ -426,7 +425,7 @@ export const OverviewTab = () => {
           window.history.replaceState(
             {},
             "",
-            withDashboardBasePath(`/projects/${projectId}/services`),
+            `/projects/${projectId}/services`,
           );
         }}
         className="w-full bg-card rounded-2xl border border-border/50 px-4 py-3 flex items-center justify-between hover:bg-accent/50 transition-colors group"

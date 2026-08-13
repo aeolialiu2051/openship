@@ -104,7 +104,11 @@ export function I18nProvider({
     setLocaleState(l);
     // Cookie is the source of truth (read server-side for SSR); localStorage is
     // kept as a mirror. 1-year, lax so it rides top-level navigations.
-    document.cookie = `${LOCALE_COOKIE}=${l};path=/;max-age=31536000;samesite=lax`;
+    const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
+      ? ";domain=.vibrail.com"
+      : "";
+    const secure = window.location.protocol === "https:" ? ";secure" : "";
+    document.cookie = `${LOCALE_COOKIE}=${l};path=/;max-age=31536000;samesite=lax${secure}${sharedDomain}`;
     try {
       localStorage.setItem(LOCALE_COOKIE, l);
     } catch {

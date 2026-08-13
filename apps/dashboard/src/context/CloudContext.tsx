@@ -18,7 +18,6 @@ import {
   generateConnectFlowId,
   CONNECT_PKCE_STORAGE_PREFIX,
 } from "@/lib/cloud-auth";
-import { dashboardUrl } from "@/lib/dashboard-path";
 import { canUseCloudConnection, usePlatform } from "@/context/PlatformContext";
 import { useGitHub } from "@/context/GitHubContext";
 import { Button } from "@/components/ui/button";
@@ -271,7 +270,7 @@ export function CloudProvider({ children }: { children: ReactNode }) {
   // invisible and the PKCE exchange fails on the SaaS side.
   const callbackUrl =
     typeof window !== "undefined"
-      ? dashboardUrl(window.location.origin, "/cloud-connect-callback")
+      ? new URL("/cloud-connect-callback", window.location.origin).toString()
       : "/cloud-connect-callback";
 
   /** Build the connect handoff URL with a fresh PKCE binding.

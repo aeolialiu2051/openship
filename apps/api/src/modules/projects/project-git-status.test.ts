@@ -33,22 +33,22 @@ describe("project Git webhook status", () => {
     expect(
       appWebhookTargetsInstance({
         active: true,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github/",
-        expectedUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github/",
+        expectedUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
       }),
     ).toBe(true);
     expect(
       appWebhookTargetsInstance({
         active: true,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
         expectedUrl: "http://localhost:4100/api/webhooks/github",
       }),
     ).toBe(false);
     expect(
       appWebhookTargetsInstance({
         active: false,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
-        expectedUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
+        expectedUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
       }),
     ).toBe(false);
   });
@@ -57,15 +57,15 @@ describe("project Git webhook status", () => {
     expect(
       appWebhookTargetsInstance({
         active: null,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
-        expectedUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
+        expectedUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
       }),
     ).toBe(true);
     expect(
       appWebhookTargetsInstance({
         active: null,
         configuredUrl: "https://another.example.com/api/webhooks/github",
-        expectedUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        expectedUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
       }),
     ).toBe(false);
   });
@@ -74,7 +74,7 @@ describe("project Git webhook status", () => {
     expect(
       appWebhookTargetsInstance({
         active: null,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
         expectedUrl: "http://localhost:4100/api/webhooks/github",
         allowConfiguredRemote: true,
       }),
@@ -82,7 +82,7 @@ describe("project Git webhook status", () => {
     expect(
       appWebhookTargetsInstance({
         active: false,
-        configuredUrl: "https://vibrail.com/api/proxy/api/webhooks/github",
+        configuredUrl: "https://app.vibrail.com/api/proxy/api/webhooks/github",
         expectedUrl: "http://localhost:4100/api/webhooks/github",
         allowConfiguredRemote: true,
       }),

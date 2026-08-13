@@ -21,9 +21,6 @@ const nextOrigin = new URL(`http://127.0.0.1:${nextPort}`);
 const apiOrigin = new URL(
   process.env.INTERNAL_API_URL || process.env.VIBRAIL_LOCAL_API_URL || "http://127.0.0.1:4000",
 );
-const dashboardBasePath = (process.env.NEXT_PUBLIC_DASHBOARD_BASE_PATH || "")
-  .trim()
-  .replace(/\/+$/, "");
 const WS_PREFIX = "/_vibrail/ws/api/";
 const nextEntry = process.env.VIBRAIL_NEXT_ENTRY || join(root, "server.js");
 
@@ -47,22 +44,7 @@ function forwardedHeaders(req, target) {
 }
 
 function nextRequestPath(rawUrl = "/") {
-  if (!dashboardBasePath) return rawUrl;
-
-  const url = new URL(rawUrl, "http://dashboard.internal");
-  if (url.pathname.startsWith("/api/proxy/")) {
-    url.pathname = `${dashboardBasePath}${url.pathname}`;
-  } else if (url.pathname === "/api/proxy") {
-    url.pathname = `${dashboardBasePath}/api/proxy`;
-  } else if (url.pathname.startsWith("/.well-known/")) {
-    url.pathname = `${dashboardBasePath}/api/proxy${url.pathname}`;
-  } else if (url.pathname.startsWith("/api/auth/")) {
-    url.pathname = `${dashboardBasePath}/api/proxy${url.pathname}`;
-  } else if (url.pathname === "/api/mcp") {
-    url.pathname = `${dashboardBasePath}/api/proxy/api/mcp`;
-  }
-
-  return `${url.pathname}${url.search}`;
+  return rawUrl;
 }
 
 function proxyHttp(req, res) {

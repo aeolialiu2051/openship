@@ -11,9 +11,6 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // the public origin instead of localhost. Only added in proxy builds; cloud/dev
 // (NEXT_PUBLIC_API_PROXY unset) get no rewrites and are unchanged.
 const API_PROXY = process.env.NEXT_PUBLIC_API_PROXY === "true";
-const DASHBOARD_BASE_PATH = (process.env.NEXT_PUBLIC_DASHBOARD_BASE_PATH || "")
-  .trim()
-  .replace(/\/+$/, "");
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -24,7 +21,6 @@ const nextConfig = {
     optimizePackageImports: ["lucide-react", "recharts"],
   },
   distDir: process.env.NEXT_DIST_DIR || ".next",
-  basePath: DASHBOARD_BASE_PATH,
   // Monorepo: trace from the repo root so the standalone bundle includes the
   // root-hoisted node_modules + workspace packages. Without this, `output:
   // "standalone"` traces from apps/dashboard and can ship an incomplete bundle

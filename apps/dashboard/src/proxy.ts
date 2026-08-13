@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDashboardBasePath, withoutDashboardBasePath } from "@/lib/dashboard-path";
 
 // Cookie presence only — never proof of a valid session. Server-side
 // `getSession()` in (dashboard) layout is the real authoritative
@@ -21,7 +20,7 @@ const SESSION_COOKIE_SUFFIX = ".session_token";
 
 export function proxy(req: NextRequest) {
   const { pathname, search } = req.nextUrl;
-  const appPathname = withoutDashboardBasePath(pathname);
+  const appPathname = pathname;
 
   // Never redirect API routes. The page-auth redirect below is meant for
   // navigations; applying it to /api/* breaks single-host proxy mode
@@ -35,7 +34,7 @@ export function proxy(req: NextRequest) {
   const hasCookie = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX));
 
   if (!hasCookie && !isPublic) {
-    const url = new URL(withDashboardBasePath("/login"), req.url);
+    const url = new URL("/login", req.url);
     url.searchParams.set("from", appPathname);
     return NextResponse.redirect(url);
   }

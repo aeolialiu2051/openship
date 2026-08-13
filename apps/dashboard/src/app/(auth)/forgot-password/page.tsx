@@ -3,7 +3,6 @@
 import { useState } from "react";
 import Link from "next/link";
 import { forgetPassword } from "@/lib/auth-client";
-import { dashboardUrl } from "@/lib/dashboard-path";
 import { useToast } from "@/components/toast";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import { AuthShell } from "@/components/auth-shell";
@@ -27,7 +26,7 @@ export default function ForgotPasswordPage() {
     try {
       await forgetPassword({
         email,
-        redirectTo: dashboardUrl(window.location.origin, "/reset-password"),
+        redirectTo: new URL("/reset-password", window.location.origin).toString(),
       });
       setSent(true);
     } catch (err) {

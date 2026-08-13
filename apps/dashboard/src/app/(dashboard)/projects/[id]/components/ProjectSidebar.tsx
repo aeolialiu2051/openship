@@ -8,7 +8,6 @@ import { useI18n, interpolate } from "@/components/i18n-provider";
 import { AppLogo } from "@/components/AppLogo";
 import { DomainSwitcher } from "@/components/routing/DomainSwitcher";
 import { formatDate } from "@/utils/date";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 import { getProjectStatus, PROJECT_STATUS_META, projectStatusLabel } from "@/utils/project-status";
 import { projectHostPort } from "@/lib/project-display-port";
 import {
@@ -111,7 +110,7 @@ export const ProjectSidebar = () => {
     window.history.replaceState(
       {},
       "",
-      withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+      `/projects/${projectData.id}/${tabId}`,
     );
     requestAnimationFrame(() => window.scrollTo(0, scrollY));
   };
@@ -271,7 +270,7 @@ export const ProjectMobileTabs = () => {
     window.history.replaceState(
       {},
       "",
-      withDashboardBasePath(`/projects/${projectData.id}/${tabId}`),
+      `/projects/${projectData.id}/${tabId}`,
     );
     requestAnimationFrame(() => window.scrollTo(0, scrollY));
   };

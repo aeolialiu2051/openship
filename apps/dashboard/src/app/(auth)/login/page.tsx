@@ -22,7 +22,6 @@ import {
   preparePkceFlow,
   startDesktopCloudAuth,
 } from "@/lib/cloud-auth";
-import { withDashboardBasePath } from "@/lib/dashboard-path";
 
 export default function LoginPage() {
   return (
@@ -78,7 +77,7 @@ function LoginPageInner() {
       // render. Keeping the button in its loading state until this page unmounts
       // avoids the dead "idle button, no navigation yet" gap.
       if (postLoginUrl) {
-        window.location.href = withDashboardBasePath(postLoginUrl);
+        window.location.href = postLoginUrl;
       } else {
         router.push("/");
       }
