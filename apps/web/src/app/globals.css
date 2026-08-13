@@ -4,6 +4,7 @@
 @import "../styles/vibrail-landing.css";
 @import "../styles/collection.css";
 
+
 @theme inline {
   --font-sans: 'Gellix', 'SF Arabic', system-ui, -apple-system, sans-serif;
   --color-panelDark: #1A1A1A;

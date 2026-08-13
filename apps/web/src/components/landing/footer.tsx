@@ -15,7 +15,7 @@ export function Footer({ copy = landingCopy.en.footer, supportEmail, dashboardLo
     <footer className="vr-footer">
       <div className="vr-footer-main">
         <div>
-          <Link href="/" className="vr-brand" aria-label={copy.homeLabel}>
+          <Link href="/" prefetch={false} className="vr-brand" aria-label={copy.homeLabel}>
             <img src="/apple-touch-icon.png" alt="" className="vr-brand-logo" />
             <span>Vibrail</span>
           </Link>
@@ -24,9 +24,9 @@ export function Footer({ copy = landingCopy.en.footer, supportEmail, dashboardLo
         <div className="vr-footer-links">
           <div>
             <span>{copy.product}</span>
-            <Link href="/#platform">{copy.platform}</Link>
-            <Link href="/#workflow">{copy.workflow}</Link>
-            <Link href="/#operations">{copy.operations}</Link>
+            <Link href="/#platform" prefetch={false}>{copy.platform}</Link>
+            <Link href="/#workflow" prefetch={false}>{copy.workflow}</Link>
+            <Link href="/#operations" prefetch={false}>{copy.operations}</Link>
           </div>
           <div>
             <span>{copy.developers}</span>
@@ -51,8 +51,8 @@ export function Footer({ copy = landingCopy.en.footer, supportEmail, dashboardLo
               <span>{supportEmail}</span>
             </a>
           )}
-          <Link href="/privacy">{copy.privacy}</Link>
-          <Link href="/terms">{copy.terms}</Link>
+          <Link href="/privacy" prefetch={false}>{copy.privacy}</Link>
+          <Link href="/terms" prefetch={false}>{copy.terms}</Link>
         </div>
       </div>
     </footer>

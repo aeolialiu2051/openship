@@ -44,7 +44,7 @@ export function VibrailNotFound({ initialLocale }: { initialLocale?: LandingLoca
           <p>{copy.eyebrow}</p>
           <h1>{copy.title}<span>{copy.accent}</span></h1>
           <div>{copy.description}</div>
-          <Link href="/" className="vr-button vr-button-primary">
+          <Link href="/" prefetch={false} className="vr-button vr-button-primary">
             {copy.action} <ArrowRight size={17} />
           </Link>
         </section>

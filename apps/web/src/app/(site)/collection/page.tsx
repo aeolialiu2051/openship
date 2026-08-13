@@ -6,6 +6,8 @@ import { CLOUD_API_URL, CLOUD_DASHBOARD_URL, DEFAULT_PORT, resolveDashboardPageU
 import { hasVisualPreview } from "@/lib/frameworks";
 import { resolveCollectionApiUrls } from "@/lib/collection-api-url";
 
+const COLLECTION_FEED_TIMEOUT_MS = 1_500;
+
 export const metadata: Metadata = {
   title: "Collection",
   description: "Explore projects built and deployed with Vibrail.",
@@ -37,6 +39,8 @@ export default async function Page() {
     const response = await fetch(`${serverApiUrl}/api/collection`, {
       cache: "no-store",
       headers: cookie ? { cookie } : undefined,
+      // Navigation must not be held hostage by a slow or unavailable API.
+      signal: AbortSignal.timeout(COLLECTION_FEED_TIMEOUT_MS),
     });
     if (response.ok) {
       const payload = await response.json();

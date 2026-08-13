@@ -71,18 +71,18 @@ export function Navbar({
   return (
     <header className="vr-nav-shell">
       <div className="vr-nav">
-        <Link href="/" className="vr-brand" aria-label={copy.homeLabel}>
+        <Link href="/" prefetch={false} className="vr-brand" aria-label={copy.homeLabel}>
           <img src="/apple-touch-icon.png" alt="" className="vr-brand-logo" />
           <span>Vibrail</span>
         </Link>
 
         <nav className="vr-nav-links" aria-label={copy.mainLabel}>
-          <Link href="/#platform">{copy.platform}</Link>
-          <Link href="/#workflow">{copy.workflow}</Link>
-          <Link href="/#operations">{copy.operations}</Link>
-          <Link href="/collection" prefetch>{copy.collection}</Link>
+          <Link href="/#platform" prefetch={false}>{copy.platform}</Link>
+          <Link href="/#workflow" prefetch={false}>{copy.workflow}</Link>
+          <Link href="/#operations" prefetch={false}>{copy.operations}</Link>
+          <Link href="/collection" prefetch={false}>{copy.collection}</Link>
           <a href={DOCS_URL}>{copy.docs}</a>
-          <Link href="/about">{copy.about}</Link>
+          <Link href="/about" prefetch={false}>{copy.about}</Link>
         </nav>
 
         <div className="vr-nav-actions" ref={mobileMenuRef}>
@@ -146,12 +146,12 @@ export function Navbar({
           </button>
           {mobileMenuOpen && (
             <nav id="vr-mobile-menu" className="vr-mobile-menu" aria-label={copy.mainLabel}>
-              <Link href="/#platform" onClick={() => setMobileMenuOpen(false)}>{copy.platform}</Link>
-              <Link href="/#workflow" onClick={() => setMobileMenuOpen(false)}>{copy.workflow}</Link>
-              <Link href="/#operations" onClick={() => setMobileMenuOpen(false)}>{copy.operations}</Link>
-              <Link href="/collection" prefetch onClick={() => setMobileMenuOpen(false)}>{copy.collection}</Link>
+              <Link href="/#platform" prefetch={false} onClick={() => setMobileMenuOpen(false)}>{copy.platform}</Link>
+              <Link href="/#workflow" prefetch={false} onClick={() => setMobileMenuOpen(false)}>{copy.workflow}</Link>
+              <Link href="/#operations" prefetch={false} onClick={() => setMobileMenuOpen(false)}>{copy.operations}</Link>
+              <Link href="/collection" prefetch={false} onClick={() => setMobileMenuOpen(false)}>{copy.collection}</Link>
               <a href={DOCS_URL} onClick={() => setMobileMenuOpen(false)}>{copy.docs}</a>
-              <Link href="/about" onClick={() => setMobileMenuOpen(false)}>{copy.about}</Link>
+              <Link href="/about" prefetch={false} onClick={() => setMobileMenuOpen(false)}>{copy.about}</Link>
             </nav>
           )}
         </div>

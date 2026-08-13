@@ -3,6 +3,7 @@
 import { useState, type AnchorHTMLAttributes, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { LandingTheme } from "./landing-copy";
+import { LandingTransition } from "./landing-transition";
 
 type DashboardLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   children: ReactNode;
@@ -40,15 +41,7 @@ export function DashboardLink({ children, href, theme, onClick, ...props }: Dash
         {children}
       </a>
       {isLeaving && createPortal(
-        <div
-          className={`vr-dashboard-transition vr-dashboard-transition-${theme}`}
-          role="status"
-          aria-live="polite"
-        >
-          <img src="/apple-touch-icon.png" alt="" />
-          <span>Vibrail</span>
-          <i aria-hidden="true" />
-        </div>,
+        <LandingTransition theme={theme} />,
         document.body,
       )}
     </>

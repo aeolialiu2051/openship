@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SITE_URL } from "@/lib/site-url";
+import { CLOUD_DASHBOARD_URL } from "@repo/core";
 import "../globals.css";
 
 const SITE_NAME = "Vibrail";
@@ -7,6 +8,7 @@ const TITLE_DEFAULT = "Vibrail — Ship Software on Your Infrastructure";
 const TITLE_TEMPLATE = "%s - Vibrail";
 const DESCRIPTION =
   "Deployment infrastructure that turns human- and agent-created code into reliable services on Vibrail Cloud or Linux VPS environments, with immutable releases, automatic routing, live operations, and instant rollback.";
+const DASHBOARD_ORIGIN = new URL(CLOUD_DASHBOARD_URL).origin;
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -144,6 +146,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="preconnect" href={DASHBOARD_ORIGIN} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={DASHBOARD_ORIGIN} />
         <link rel="preconnect" href="https://cdn.oblien.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://cdn.oblien.com" />
         <link rel="icon" href="/favicon.ico" sizes="any" />

@@ -13,6 +13,5 @@ export const metadata: Metadata = {
 export default async function TermsPage() {
   const cookieStore = await cookies();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
-
   return <LegalPage document="terms" initialLocale={initialLocale} supportEmail={getSupportEmail()} />;
 }

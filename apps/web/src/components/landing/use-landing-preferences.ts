@@ -38,6 +38,7 @@ function resolveLandingTheme(value: string | null): LandingTheme | null {
 export function useLandingPreferences(initialLocale?: LandingLocale) {
   const [locale, setLocale] = useState<LandingLocale>(initialLocale ?? "en");
   const [theme, setTheme] = useState<LandingTheme>("dark");
+  const [preferencesReady, setPreferencesReady] = useState(false);
 
   useEffect(() => {
     const storedLocale = window.localStorage.getItem(LOCALE_STORAGE_KEY);
@@ -58,9 +59,13 @@ export function useLandingPreferences(initialLocale?: LandingLocale) {
     );
     setTheme(resolvedTheme);
     if (!storedCookieTheme) writeThemeCookie(resolvedTheme);
+    // Do not persist the fallback "en"/"dark" values from the first render.
+    // Wait until saved browser preferences have been restored first.
+    setPreferencesReady(true);
   }, [initialLocale]);
 
   useEffect(() => {
+    if (!preferencesReady) return;
     window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
     const secure = window.location.protocol === "https:" ? "; Secure" : "";
     const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
@@ -70,7 +75,7 @@ export function useLandingPreferences(initialLocale?: LandingLocale) {
     document.documentElement.lang = locale === "zh" ? "zh-CN" : "en";
     document.documentElement.dataset.vrTheme = theme;
     document.documentElement.style.colorScheme = theme;
-  }, [locale, theme]);
+  }, [locale, preferencesReady, theme]);
 
   const updateTheme = useCallback((value: SetStateAction<LandingTheme>) => {
     setTheme((current) => {

@@ -13,6 +13,5 @@ export const metadata: Metadata = {
 export default async function PrivacyPage() {
   const cookieStore = await cookies();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
-
   return <LegalPage document="privacy" initialLocale={initialLocale} supportEmail={getSupportEmail()} />;
 }

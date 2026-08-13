@@ -38,7 +38,7 @@ export function LegalPage({
           <p>{page.description}</p>
           <div>
             <time dateTime="2026-08-04">{legal.common.lastUpdated}</time>
-            <Link href="/"><ArrowLeft size={14} /> {copy.footer.homeLabel}</Link>
+            <Link href="/" prefetch={false}><ArrowLeft size={14} /> {copy.footer.homeLabel}</Link>
           </div>
         </header>
 
