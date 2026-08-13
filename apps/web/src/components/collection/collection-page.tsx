@@ -15,6 +15,7 @@ import { Navbar } from "@/components/landing/navbar";
 import { landingCopy, type LandingLocale, type LandingTheme } from "@/components/landing/landing-copy";
 import { useLandingPreferences } from "@/components/landing/use-landing-preferences";
 import { getFrameworkConfig } from "@/lib/frameworks";
+import { appLogoUrl, type AppLogoConfig } from "@repo/core";
 
 export type Project = {
   id: string;
@@ -22,6 +23,9 @@ export type Project = {
   slug: string;
   url: string;
   favicon?: string | null;
+  isApp?: boolean;
+  appTemplateId?: string | null;
+  appLogo?: AppLogoConfig | null;
   framework?: string | null;
   previewable?: boolean;
   previewUrl?: string | null;
@@ -38,6 +42,16 @@ export type Project = {
     author: { name: string; image?: string | null };
   }>;
 };
+
+function CollectionProjectIcon({ project }: { project: Project }) {
+  const src = project.isApp ? appLogoUrl(project.appLogo ?? {}) : project.favicon;
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => setFailed(false), [src]);
+
+  if (!src || failed) return project.name.slice(0, 1).toUpperCase();
+  return <img src={src} alt="" onError={() => setFailed(true)} />;
+}
 const text = {
   en: {
     search: "Search the collection",
@@ -328,11 +342,7 @@ export function CollectionPage({
                 <div className="collection-card-body">
                   <div className="collection-title-row">
                     <span className="collection-favicon">
-                      {project.favicon ? (
-                        <img src={project.favicon} alt="" />
-                      ) : (
-                        project.name.slice(0, 1).toUpperCase()
-                      )}
+                      <CollectionProjectIcon project={project} />
                     </span>
                     <div>
                       <h2>{project.name}</h2>
@@ -396,7 +406,7 @@ export function CollectionPage({
               <aside className="collection-comments">
                 <div className="collection-project-head">
                   <span className="collection-favicon">
-                    {selected.favicon ? <img src={selected.favicon} alt="" /> : selected.name[0]}
+                    <CollectionProjectIcon project={selected} />
                   </span>
                   <div>
                     <strong>{selected.name}</strong>

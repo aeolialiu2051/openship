@@ -15,6 +15,7 @@ export * from "./metadata";
 export * from "./vibrail-config";
 export * from "./mail-server";
 export * from "./app-templates";
+export * from "./app-logo";
 export {
   appTemplateSchema,
   isValidAppTemplate,

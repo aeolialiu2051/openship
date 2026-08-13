@@ -1,9 +1,11 @@
 import { Hono } from "hono";
+import { resolveAppLogo, type AppLogoConfig } from "@repo/core";
 import { and, asc, db, desc, eq, inArray, isNotNull, isNull, schema, sql } from "@repo/db";
 import { auth } from "../../lib/auth";
 import { getRequestContext } from "../../lib/request-context";
 import { secureRouter } from "../../lib/secure-router";
 import { authMiddleware } from "../../middleware/auth";
+import { getTemplateForOrg } from "../apps/catalog-source";
 
 async function visibleProject(projectId: string) {
   const [row] = await db
@@ -39,6 +41,8 @@ r.public(
         slug: schema.project.slug,
         collectionUrl: schema.project.collectionUrl,
         favicon: schema.project.favicon,
+        isApp: schema.project.isApp,
+        appTemplateId: schema.project.appTemplateId,
         framework: schema.deployment.framework,
         updatedAt: schema.project.updatedAt,
         hostname: schema.domain.hostname,
@@ -62,6 +66,16 @@ r.public(
     const seen = new Set<string>();
     const uniqueRows = rows.filter((row) => !seen.has(row.id) && Boolean(seen.add(row.id)));
     const projectIds = uniqueRows.map((row) => row.id);
+    const appLogos = new Map<string, AppLogoConfig>();
+    await Promise.all(
+      uniqueRows.map(async (row) => {
+        if (!row.isApp || !row.appTemplateId) return;
+        const template = await getTemplateForOrg(row.organizationId, row.appTemplateId);
+        if (template?.logo) {
+          appLogos.set(row.id, resolveAppLogo(row.appTemplateId, template.logo));
+        }
+      }),
+    );
     const creatorEvents = projectIds.length
       ? await db
           .select({
@@ -189,6 +203,9 @@ r.public(
           slug: row.slug,
           url: row.collectionUrl || `https://${row.hostname}`,
           favicon: row.favicon,
+          isApp: row.isApp,
+          appTemplateId: row.appTemplateId,
+          appLogo: appLogos.get(row.id) ?? null,
           framework: row.framework,
           updatedAt: row.updatedAt,
           publisher: creator ? { name: creator.name, image: creator.image } : null,
