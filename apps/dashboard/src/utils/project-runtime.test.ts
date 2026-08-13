@@ -11,4 +11,16 @@ describe("isStaticProjectRuntime", () => {
     expect(isStaticProjectRuntime({ productionMode: "static" })).toBe(true);
     expect(isStaticProjectRuntime({ productionMode: "host" })).toBe(false);
   });
+
+  it("treats compose service projects as server-backed despite stale static fields", () => {
+    expect(
+      isStaticProjectRuntime({
+        projectType: "services",
+        framework: "docker-compose",
+        serviceCount: 1,
+        hasServer: false,
+        productionMode: "static",
+      }),
+    ).toBe(false);
+  });
 });

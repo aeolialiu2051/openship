@@ -1,15 +1,27 @@
-import type { Project } from "@/constants/mock";
-
 /**
  * Determine whether a project has no runtime server.
  *
- * `hasServer` is the current, authoritative field. Some older or reconfigured
- * projects can retain a stale `productionMode`, so it must only be used as a
- * compatibility fallback when `hasServer` is absent.
+ * Compose/service projects are server-backed by definition. Early compose
+ * imports persisted app-level static defaults even though their service rows
+ * were running and exposed; the derived service shape must win over those
+ * stale fields.
  */
 export function isStaticProjectRuntime(
-  project: Pick<Project, "hasServer" | "productionMode">,
+  project: {
+    hasServer?: boolean | null;
+    productionMode?: string | null;
+    projectType?: string | null;
+    framework?: string | null;
+    serviceCount?: number | null;
+  },
 ): boolean {
+  if (
+    project.projectType === "services" ||
+    project.framework === "docker-compose" ||
+    (project.serviceCount ?? 0) > 0
+  ) {
+    return false;
+  }
   if (project.hasServer != null) return project.hasServer === false;
   return project.productionMode === "static";
 }

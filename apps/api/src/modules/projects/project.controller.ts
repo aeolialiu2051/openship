@@ -2119,7 +2119,6 @@ export async function getInfo(c: Context) {
   });
   const project = await projectService.getProject(id, organizationId);
   const environments = await projectService.listProjectEnvironments(id, organizationId);
-  const hasServer = project.hasServer ?? project.productionMode === "host";
   const serviceRows = await repos.service.listByProject(id);
   const serviceCount = serviceRows.length;
   // Deployment shape, derived from the service rows (kind-discriminated) — not a
@@ -2136,6 +2135,12 @@ export async function getInfo(c: Context) {
     : serviceRows.some((s) => serviceKind(s) === "compose")
       ? "services"
       : "app";
+  // Service-backed projects run through their compose/monorepo service
+  // processes. Legacy imports may retain app-level hasServer=false and
+  // productionMode=static; do not expose those stale fields as runtime truth.
+  const hasServer = projectType === "services"
+    ? true
+    : project.hasServer ?? project.productionMode === "host";
 
   // Build the "options" object the dashboard expects for build settings
   const options = {

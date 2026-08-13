@@ -24,6 +24,7 @@ import { useToast } from "@/context/ToastContext";
 import { useProjectDeletionTracker } from "@/context/ProjectDeletionContext";
 import { projectsApi, getApiErrorMessage } from "@/lib/api";
 import type { Dictionary } from "@/i18n";
+import { isStaticProjectRuntime } from "@/utils/project-runtime";
 
 /* ── Helpers ──────────────────────────────────────────────────────── */
 
@@ -241,7 +242,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
             <Server className="size-3.5" />
             {t.projects.card.services}
           </span>
-        ) : project.hasServer === false ? (
+        ) : isStaticProjectRuntime(project) ? (
           <span className="hidden lg:inline-flex items-center gap-1.5 text-xs text-muted-foreground shrink-0">
             <Globe className="size-3.5" />
             {t.projects.card.static}

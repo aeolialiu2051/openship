@@ -10,6 +10,7 @@ import { useProjectInfo, useAnalyticsData } from "@/hooks/useProjectEndpoints";
 import { useI18n, interpolate } from "@/components/i18n-provider";
 import type { Dictionary } from "@/i18n";
 import { projectContainerPort } from "@/lib/project-display-port";
+import { isStaticProjectRuntime } from "@/utils/project-runtime";
 import {
   ExternalLink,
   GitBranch,
@@ -67,10 +68,11 @@ export const OverviewTab = () => {
           ? t.projects.overview.platformLocal
           : "-";
   const hasGit = !!(projectData.gitOwner && projectData.gitRepo);
-  const isStaticRuntime =
-    projectData.hasServer === false ||
-    projectData.options?.hasServer === false ||
-    projectData.productionMode === "static";
+  const isStaticRuntime = isStaticProjectRuntime({
+    ...projectData,
+    serviceCount,
+    hasServer: projectData.options?.hasServer ?? projectData.hasServer,
+  });
   const modeLabel = isStaticRuntime
     ? t.projects.overview.modeStatic
     : projectData.productionMode === "standalone"
