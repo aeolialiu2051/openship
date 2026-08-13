@@ -8,10 +8,15 @@ const LOCALE_STORAGE_KEY = LANDING_LOCALE_STORAGE_KEY;
 const THEME_STORAGE_KEY = "vibrail-landing-theme";
 const DASHBOARD_THEME_STORAGE_KEY = "theme";
 const THEME_COOKIE = "vibrail-theme";
+const SHARED_THEME_COOKIE = "vibrail-shared-theme";
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  return match ? decodeURIComponent(match[1]) : null;
+}
 
 function readThemeCookie(): string | null {
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${THEME_COOKIE}=([^;]+)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  return readCookie(SHARED_THEME_COOKIE) ?? readCookie(THEME_COOKIE);
 }
 
 function dashboardThemeForLanding(theme: LandingTheme): "light" | "dim" {
@@ -23,7 +28,9 @@ function writeThemeCookie(theme: LandingTheme) {
   const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
     ? "; Domain=.vibrail.com"
     : "";
-  document.cookie = `${THEME_COOKIE}=${dashboardThemeForLanding(theme)}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
+  const value = dashboardThemeForLanding(theme);
+  document.cookie = `${THEME_COOKIE}=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  document.cookie = `${SHARED_THEME_COOKIE}=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
 }
 
 function resolveLandingTheme(value: string | null): LandingTheme | null {
@@ -35,9 +42,9 @@ function resolveLandingTheme(value: string | null): LandingTheme | null {
   return null;
 }
 
-export function useLandingPreferences(initialLocale?: LandingLocale) {
+export function useLandingPreferences(initialLocale?: LandingLocale, initialTheme: LandingTheme = "dark") {
   const [locale, setLocale] = useState<LandingLocale>(initialLocale ?? "en");
-  const [theme, setTheme] = useState<LandingTheme>("dark");
+  const [theme, setTheme] = useState<LandingTheme>(initialTheme);
   const [preferencesReady, setPreferencesReady] = useState(false);
 
   useEffect(() => {
@@ -58,7 +65,8 @@ export function useLandingPreferences(initialLocale?: LandingLocale) {
       window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark"
     );
     setTheme(resolvedTheme);
-    if (!storedCookieTheme) writeThemeCookie(resolvedTheme);
+    // Normalize legacy per-origin preferences into the canonical cross-subdomain cookie.
+    writeThemeCookie(resolvedTheme);
     // Do not persist the fallback "en"/"dark" values from the first render.
     // Wait until saved browser preferences have been restored first.
     setPreferencesReady(true);

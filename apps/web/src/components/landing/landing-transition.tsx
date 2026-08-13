@@ -1,6 +1,8 @@
 import type { LandingTheme } from "./landing-copy";
 
-export function LandingTransition({ theme = "dark" }: { theme?: LandingTheme }) {
+type LandingTransitionTheme = LandingTheme | "auto";
+
+export function LandingTransition({ theme = "auto" }: { theme?: LandingTransitionTheme }) {
   return (
     <div
       className={`vr-dashboard-transition vr-dashboard-transition-${theme}`}

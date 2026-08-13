@@ -190,6 +190,18 @@
   font-weight: 700;
   letter-spacing: -0.04em;
 }
+.collection-site.vr-theme-light .collection-preview-placeholder {
+  background:
+    radial-gradient(circle at 43% 40%, rgba(79, 120, 226, .16), transparent 34%),
+    radial-gradient(circle at 58% 58%, rgba(148, 94, 220, .11), transparent 38%),
+    linear-gradient(145deg, #f8faff, #edf1f8);
+  color: #202737;
+}
+.collection-site.vr-theme-light .collection-preview-placeholder img {
+  box-shadow:
+    0 10px 28px rgba(66, 86, 135, .16),
+    0 1px 3px rgba(28, 37, 58, .1);
+}
 .collection-preview-shield {
   position: absolute;
   inset: 0;

@@ -7,10 +7,16 @@ type ResolvedTheme = "light" | "dim" | "dark";
 
 const LANDING_THEME_STORAGE_KEY = "vibrail-landing-theme";
 const THEME_COOKIE = "vibrail-theme";
+const SHARED_THEME_COOKIE = "vibrail-shared-theme";
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+  const value = match ? decodeURIComponent(match[1]) : null;
+  return value;
+}
 
 function readThemeCookie(): Theme | null {
-  const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${THEME_COOKIE}=([^;]+)`));
-  const value = match ? decodeURIComponent(match[1]) : null;
+  const value = readCookie(SHARED_THEME_COOKIE) ?? readCookie(THEME_COOKIE);
   return value === "light" || value === "dim" || value === "dark" || value === "system"
     ? value
     : null;
@@ -21,7 +27,8 @@ function writeThemeCookie(theme: Theme) {
   const sharedDomain = window.location.hostname === "vibrail.com" || window.location.hostname.endsWith(".vibrail.com")
     ? "; Domain=.vibrail.com"
     : "";
-  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
+  document.cookie = `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+  document.cookie = `${SHARED_THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; SameSite=Lax${secure}${sharedDomain}`;
 }
 
 interface ThemeContextValue {
@@ -130,8 +137,9 @@ export function ThemeScript() {
   const script = `
     (function(){
       try {
-        var m = document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=([^;]+)/);
-        var t = m ? decodeURIComponent(m[1]) : (localStorage.getItem('theme') || localStorage.getItem('${LANDING_THEME_STORAGE_KEY}'));
+        var shared = document.cookie.match(/(?:^|;\\s*)${SHARED_THEME_COOKIE}=([^;]+)/);
+        var legacy = document.cookie.match(/(?:^|;\\s*)${THEME_COOKIE}=([^;]+)/);
+        var t = shared ? decodeURIComponent(shared[1]) : legacy ? decodeURIComponent(legacy[1]) : (localStorage.getItem('theme') || localStorage.getItem('${LANDING_THEME_STORAGE_KEY}'));
         // window.desktop is injected by the Electron preload before this runs.
         var isDesktop = !!(window.desktop && window.desktop.isDesktop);
         var sysDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;

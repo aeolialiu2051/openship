@@ -22,6 +22,9 @@ export default async function Page() {
   const cookieStore = await cookies();
   const requestHeaders = await headers();
   const initialLocale = parseLandingLocale(cookieStore.get(LANDING_LOCALE_COOKIE)?.value);
+  const storedTheme = cookieStore.get("vibrail-shared-theme")?.value
+    ?? cookieStore.get("vibrail-theme")?.value;
+  const initialTheme = storedTheme === "light" ? "light" : "dark";
   const dashboardBaseUrl = process.env.NODE_ENV === "development"
     ? `http://localhost:${DEFAULT_PORT.vibrailSaasDashboard}`
     : CLOUD_DASHBOARD_URL;
@@ -57,5 +60,5 @@ export default async function Page() {
     previewable: hasVisualPreview(project.framework) ? true : undefined,
     previewUrl: hasVisualPreview(project.framework) ? project.url : undefined,
   }));
-  return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
+  return <CollectionPage initialProjects={projects} initialAuthenticated={initialAuthenticated} initialLocale={initialLocale} initialTheme={initialTheme} dashboardLoginUrl={dashboardLoginUrl} apiUrl={browserApiUrl} />;
 }

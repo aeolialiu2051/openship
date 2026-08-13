@@ -12,7 +12,7 @@ import {
   X,
 } from "lucide-react";
 import { Navbar } from "@/components/landing/navbar";
-import { landingCopy, type LandingLocale } from "@/components/landing/landing-copy";
+import { landingCopy, type LandingLocale, type LandingTheme } from "@/components/landing/landing-copy";
 import { useLandingPreferences } from "@/components/landing/use-landing-preferences";
 import { getFrameworkConfig } from "@/lib/frameworks";
 
@@ -142,16 +142,18 @@ export function CollectionPage({
   initialProjects,
   initialAuthenticated,
   initialLocale,
+  initialTheme,
   dashboardLoginUrl,
   apiUrl,
 }: {
   initialProjects: Project[];
   initialAuthenticated: boolean;
   initialLocale?: LandingLocale;
+  initialTheme?: LandingTheme;
   dashboardLoginUrl: string;
   apiUrl: string;
 }) {
-  const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale);
+  const { locale, setLocale, theme, setTheme } = useLandingPreferences(initialLocale, initialTheme);
   const copy = text[locale];
   const [query, setQuery] = useState("");
   const [allProjects, setAllProjects] = useState(initialProjects);
