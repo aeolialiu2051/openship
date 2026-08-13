@@ -155,7 +155,7 @@ const ProjectCard: React.FC<Props> = ({ project, preferAppLogo, updateAvailable,
           → open in new tab) without nesting a <button> inside an <a>. It sits
           above the static content (captures row clicks) but below the draft menu
           (lifted with z-10), which stays independently clickable. */}
-      <Link href={clickTarget} aria-label={project.name} className="absolute inset-0 z-0" />
+      <Link href={clickTarget} prefetch={false} aria-label={project.name} className="absolute inset-0 z-0" />
 
       {/* Icon — on the Apps page show the catalog app's brand logo; otherwise
           the project favicon, falling back to the framework/service glyph. */}

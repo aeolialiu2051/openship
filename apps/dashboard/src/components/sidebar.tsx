@@ -39,7 +39,6 @@ import { usePlatform } from "@/context/PlatformContext";
 import { useCloud } from "@/context/CloudContext";
 import { DismissiblePopover } from "@/components/ui/Popover";
 import { setActiveOrganizationId } from "@/lib/api/client";
-import { prefetchDashboardRouteData } from "@/lib/dashboard-route-prefetch";
 
 /**
  * Org list / member shapes from Better Auth's organization plugin.
@@ -218,33 +217,8 @@ export function Sidebar({
   );
   const [orgRoles, setOrgRoles] = useState<Record<string, string>>({});
   const roleLoadsAttemptedRef = useRef(new Set<string>());
-  const prefetchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [orgsLoaded, setOrgsLoaded] = useState(initialOrganizations !== undefined);
   const [switchingOrgId, setSwitchingOrgId] = useState<string | null>(null);
-
-  const cancelRoutePrefetch = useCallback(() => {
-    if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
-    prefetchTimerRef.current = null;
-  }, []);
-
-  const scheduleRoutePrefetch = useCallback((href: string, delay = 120) => {
-    cancelRoutePrefetch();
-    const connection = (navigator as Navigator & {
-      connection?: { saveData?: boolean; effectiveType?: string };
-    }).connection;
-    if (connection?.saveData || connection?.effectiveType === "slow-2g") return;
-
-    // A pointer crossing the sidebar is not navigation intent. Waiting for a
-    // short dwell prevents a sweep across several links from starting several
-    // RSC and API requests that compete with the current page.
-    prefetchTimerRef.current = setTimeout(() => {
-      prefetchTimerRef.current = null;
-      router.prefetch(href);
-      prefetchDashboardRouteData(href);
-    }, delay);
-  }, [cancelRoutePrefetch, router]);
-
-  useEffect(() => cancelRoutePrefetch, [cancelRoutePrefetch]);
 
   // Fetch on mount so the trigger shows the current org name without
   // waiting for the user to click. Cheap (one /list call) and mirrors
@@ -460,10 +434,6 @@ export function Sidebar({
                         key={key}
                         href={href}
                         prefetch={false}
-                        onPointerEnter={() => scheduleRoutePrefetch(href)}
-                        onPointerLeave={cancelRoutePrefetch}
-                        onFocus={() => scheduleRoutePrefetch(href, 0)}
-                        onBlur={cancelRoutePrefetch}
                         className={`flex min-h-11 items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
                           active
                             ? "bg-foreground/[0.07] text-foreground"
@@ -590,10 +560,6 @@ export function Sidebar({
                         key={key}
                         href={href}
                         prefetch={false}
-                        onPointerEnter={() => scheduleRoutePrefetch(href)}
-                        onPointerLeave={cancelRoutePrefetch}
-                        onFocus={() => scheduleRoutePrefetch(href, 0)}
-                        onBlur={cancelRoutePrefetch}
                         title={collapsed ? label(key) : undefined}
                         className={`flex items-center rounded-xl px-3 py-2.5 text-[15px] font-medium transition-colors ${
                           collapsed ? "justify-center" : "gap-3"

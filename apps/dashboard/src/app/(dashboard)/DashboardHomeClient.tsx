@@ -509,6 +509,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   );
 
   useEffect(() => {
+    let visibilityRefreshTimer: number | null = null;
     const refreshVisibleData = () => {
       if (document.visibilityState !== "visible") return;
       const sources = refreshSourcesRef.current;
@@ -519,12 +520,18 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
       ]).then(() => setDataRefreshKey((key) => key + 1));
     };
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") refreshVisibleData();
+      if (document.visibilityState !== "visible") return;
+      // Prioritize the user's first navigation after resuming the tab. An
+      // immediate refresh starts several API requests while the browser is
+      // still recovering its connection pool and can stall the RSC request
+      // initiated by the user's click.
+      visibilityRefreshTimer = window.setTimeout(refreshVisibleData, 3_000);
     };
     const timer = window.setInterval(refreshVisibleData, HOME_REFRESH_INTERVAL_MS);
     document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.clearInterval(timer);
+      if (visibilityRefreshTimer != null) window.clearTimeout(visibilityRefreshTimer);
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);

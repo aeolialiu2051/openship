@@ -172,6 +172,7 @@ export const DeploymentCard: React.FC<DeploymentCardProps> = React.memo(({
     >
       <Link
         href={`/build/${deployment.id}`}
+        prefetch={false}
         aria-label={deployment.projectName || t.deployments.card.unknownProject}
         className="absolute inset-0 z-0"
       />
