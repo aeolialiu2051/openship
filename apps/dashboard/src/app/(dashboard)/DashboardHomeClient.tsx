@@ -279,6 +279,7 @@ function getCopy(locale: string) {
         usageStopped: "已停止",
         usageCloud: "云端暂无",
         usageStatic: "静态站点",
+        usageUnavailable: "资源指标暂不可用",
         usageUnmatched: "无容器",
         terminal: "打开服务器终端",
         logs: "打开项目日志",
@@ -336,6 +337,7 @@ function getCopy(locale: string) {
         usageStopped: "Stopped",
         usageCloud: "Cloud unavailable",
         usageStatic: "Static site",
+        usageUnavailable: "Metrics unavailable",
         usageUnmatched: "No container",
         terminal: "Open server terminal",
         logs: "Open project logs",
@@ -448,7 +450,13 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
   // The home page owns one coordinated refresh clock below. Disable the hook's
   // independent timer so usage, projects and servers cannot drift into
   // duplicate 15-second request waves.
-  const { usageByProject, updatedAt: usageUpdatedAt, loaded: usageLoaded, refresh: refreshUsage } = useResourceUsage(projects, null);
+  const {
+    usageByProject,
+    failedServerIds,
+    updatedAt: usageUpdatedAt,
+    loaded: usageLoaded,
+    refresh: refreshUsage,
+  } = useResourceUsage(projects, null);
   const serverIds = useMemo(() => servers.map((server) => server.id), [servers]);
   const {
     statsByServer,
@@ -819,7 +827,9 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                             ? labels.usageCloud
                             : isStaticRuntime
                               ? labels.usageStatic
-                              : labels.usageUnmatched;
+                              : project.serverId && failedServerIds.has(project.serverId)
+                                ? labels.usageUnavailable
+                                : labels.usageUnmatched;
                         const domainUrl = projectDomainUrl(project.primaryDomain);
                         return (
                           <div

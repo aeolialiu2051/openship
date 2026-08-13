@@ -42,6 +42,17 @@ export interface DockerContainerOverview {
   pids: number | null;
 }
 
+/**
+ * Build images carry `vibrail.build`, and containers created from those images
+ * inherit it. A real deployed workload also carries deployment/service labels;
+ * only the build-only shape is transient infrastructure.
+ */
+export function isTransientBuildContainer(
+  container: Pick<DockerContainerOverview, "buildId" | "deploymentId" | "serviceName">,
+): boolean {
+  return Boolean(container.buildId && !container.deploymentId && !container.serviceName);
+}
+
 interface DockerPsRow {
   ID?: string;
   Image?: string;

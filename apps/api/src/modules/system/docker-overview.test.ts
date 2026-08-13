@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { DOCKER_OVERVIEW_COMMAND, parseDockerOverview } from "./docker-overview";
+import {
+  DOCKER_OVERVIEW_COMMAND,
+  isTransientBuildContainer,
+  parseDockerOverview,
+} from "./docker-overview";
 
 describe("DOCKER_OVERVIEW_COMMAND", () => {
   it("does not request stats collectors for stopped containers", () => {
@@ -132,5 +136,27 @@ describe("parseDockerOverview", () => {
         running: true,
       }),
     );
+  });
+});
+
+describe("isTransientBuildContainer", () => {
+  it("keeps a deployed service that inherited its image build label", () => {
+    expect(
+      isTransientBuildContainer({
+        buildId: "build_123",
+        deploymentId: "dep_123",
+        serviceName: "hermes-webui",
+      }),
+    ).toBe(false);
+  });
+
+  it("filters a build-only helper container", () => {
+    expect(
+      isTransientBuildContainer({
+        buildId: "build_123",
+        deploymentId: null,
+        serviceName: null,
+      }),
+    ).toBe(true);
   });
 });

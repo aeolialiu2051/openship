@@ -8,6 +8,7 @@ import { permission } from "../../lib/permission";
 import { isSshAuthError } from "@repo/adapters";
 import {
   DOCKER_OVERVIEW_COMMAND,
+  isTransientBuildContainer,
   parseDockerOverview,
   type DockerContainerOverview,
 } from "./docker-overview";
@@ -30,7 +31,7 @@ function runningProjectsFor(
   for (const container of containers) {
     // Build helpers also carry vibrail.project, but they are transient build
     // infrastructure rather than a running project workload.
-    if (!container.running || !container.projectId || container.buildId) continue;
+    if (!container.running || !container.projectId || isTransientBuildContainer(container)) continue;
     const rows = runningByProject.get(container.projectId) ?? [];
     rows.push(container);
     runningByProject.set(container.projectId, rows);
@@ -78,7 +79,7 @@ export async function getDockerOverview(c: Context) {
     const projectIds = [
       ...new Set(
         containers
-          .filter((container) => container.running && !container.buildId)
+          .filter((container) => container.running && !isTransientBuildContainer(container))
           .map((container) => container.projectId)
           .filter((id): id is string => Boolean(id)),
       ),

@@ -16,6 +16,19 @@ export interface ProjectUsage {
 
 const POLL_INTERVAL_MS = 15_000;
 
+export function failedResourceServerIds(
+  serverIds: string[],
+  results: PromiseSettledResult<unknown>[],
+): Set<string> {
+  const failed = new Set<string>();
+  for (const [index, result] of results.entries()) {
+    if (result.status === "fulfilled") continue;
+    const serverId = serverIds[index];
+    if (serverId) failed.add(serverId);
+  }
+  return failed;
+}
+
 /** Parse docker-style memory strings ("81.14MiB", "1.2GiB") into MiB. */
 export function parseMemoryToMiB(value: string | null | undefined): number | null {
   if (!value) return null;
@@ -69,6 +82,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
   const [usageByProject, setUsageByProject] = useState<Record<string, ProjectUsage>>({});
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
+  const [failedServerIds, setFailedServerIds] = useState<Set<string>>(new Set());
   const [localServerId, setLocalServerId] = useState<string | null>(null);
   const inFlight = useRef(false);
   const alive = useRef(true);
@@ -118,6 +132,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
 
     if (serverIds.length === 0) {
       setUsageByProject({});
+      setFailedServerIds(new Set());
       setLoaded(true);
       return;
     }
@@ -129,6 +144,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
       if (!alive.current) return;
 
       const next: Record<string, ProjectUsage> = {};
+      const failed = failedResourceServerIds(serverIds, results);
       let anyFulfilled = false;
       for (const result of results) {
         if (result.status !== "fulfilled") continue;
@@ -174,6 +190,7 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
         }
       }
       setUsageByProject(next);
+      setFailedServerIds(failed);
       if (anyFulfilled) setUpdatedAt(Date.now());
     } finally {
       inFlight.current = false;
@@ -202,5 +219,5 @@ export function useResourceUsage(projects: Project[], pollIntervalMs: number | n
     };
   }, [load, pollIntervalMs]);
 
-  return { usageByProject, updatedAt, loaded, refresh: load };
+  return { usageByProject, failedServerIds, updatedAt, loaded, refresh: load };
 }
