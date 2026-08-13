@@ -574,6 +574,7 @@ function toProjectInfo(
   if (composeContent && stack.projectType === "services") {
     try {
       const parsed = parseComposeFile(composeContent, {
+        composeDirectory: projectRoot.rootDirectory || ".",
         envFileContent: composeEnvContent,
         // Prepare is introspection, not execution. Missing `:?` / `?` values
         // must reach the wizard as editable metadata instead of making a valid

@@ -6,6 +6,7 @@
  */
 
 import { parse as parseYaml } from "yaml";
+import { posix as pathPosix } from "node:path";
 import type { ComposeAdvanced, ComposeHealthcheck } from "@repo/core";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -64,6 +65,11 @@ export interface ComposeEnvironmentMeta {
 export type ComposeRequiredInterpolationMode = "error" | "collect";
 
 export interface ComposeParseOptions {
+  /**
+   * Repository-relative directory containing the Compose file. Relative build
+   * contexts are resolved from here, as required by the Compose specification.
+   */
+  composeDirectory?: string;
   /** Contents of project .env files used for Docker Compose interpolation. */
   envFileContent?: string | string[];
   /** Explicit interpolation values. Overrides values loaded from envFileContent. */
@@ -82,7 +88,10 @@ export function parseComposeFile(
   content: string,
   options: ComposeParseOptions = {},
 ): ComposeParseResult {
-  const doc = parseYaml(content);
+  // YAML merge keys are part of the Compose authoring surface (commonly via
+  // `x-*` extension anchors), but yaml intentionally leaves them disabled by
+  // default. Resolve them before extracting service fields.
+  const doc = parseYaml(content, { merge: true });
 
   if (!doc || typeof doc !== "object") {
     return { services: [], volumes: [], networks: [] };
@@ -97,7 +106,7 @@ export function parseComposeFile(
   for (const [name, def] of Object.entries(rawServices)) {
     if (!def || typeof def !== "object") continue;
     const svc = def as Record<string, unknown>;
-    const build = parseBuild(svc.build, interpolationEnv);
+    const build = parseBuild(svc.build, interpolationEnv, options.composeDirectory);
     const environment = parseEnvironment(
       svc.environment,
       interpolationEnv,
@@ -140,19 +149,35 @@ export function parseComposeFile(
 function parseBuild(
   build: unknown,
   env: Record<string, string>,
+  composeDirectory?: string,
 ): { context?: string; dockerfile?: string } {
-  if (typeof build === "string") return { context: interpolateComposeString(build, env) };
+  if (typeof build === "string") {
+    return { context: resolveBuildContext(interpolateComposeString(build, env), composeDirectory) };
+  }
   if (build && typeof build === "object") {
     const b = build as Record<string, unknown>;
     return {
       context:
-        (typeof b.context === "string" ? interpolateComposeString(b.context, env) : undefined) ??
-        ".",
+        resolveBuildContext(
+          (typeof b.context === "string" ? interpolateComposeString(b.context, env) : undefined) ??
+            ".",
+          composeDirectory,
+        ),
       dockerfile:
         typeof b.dockerfile === "string" ? interpolateComposeString(b.dockerfile, env) : undefined,
     };
   }
   return {};
+}
+
+function resolveBuildContext(context: string, composeDirectory?: string): string {
+  if (!composeDirectory || pathPosix.isAbsolute(context) || /^[a-z][a-z0-9+.-]*:\/\//i.test(context)) {
+    return context;
+  }
+
+  const directory = composeDirectory === "." ? "" : composeDirectory;
+  const resolved = pathPosix.normalize(pathPosix.join(directory, context));
+  return resolved === "" ? "." : resolved;
 }
 
 function parsePorts(ports: unknown, env: Record<string, string>): string[] {

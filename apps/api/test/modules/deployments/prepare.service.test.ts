@@ -39,6 +39,37 @@ describe("resolveProjectInfo", () => {
     expect(result.rootEnv).toEqual({ PORT: "9090" });
   });
 
+  it("imports anchored builds relative to a nested Compose file", async () => {
+    const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
+    tempDirs.push(tempDir);
+
+    await mkdir(join(tempDir, "docker"), { recursive: true });
+    await writeFile(join(tempDir, "package.json"), '{"name":"anchored-compose"}\n');
+    await writeFile(
+      join(tempDir, "docker", "docker-compose.yml"),
+      [
+        "x-common: &common",
+        "  build:",
+        "    context: ..",
+        "    dockerfile: docker/Dockerfile",
+        "services:",
+        "  analyzer:",
+        "    <<: *common",
+      ].join("\n"),
+    );
+
+    const result = await resolveProjectInfo({ source: "local", path: tempDir });
+
+    expect(result.rootDirectory).toBe("docker");
+    expect(result.services).toEqual([
+      expect.objectContaining({
+        name: "analyzer",
+        build: ".",
+        dockerfile: "docker/Dockerfile",
+      }),
+    ]);
+  });
+
   it("prefers a root compose file over a detected Go framework", async () => {
     const tempDir = await mkdtemp(join(tmpdir(), "vibrail-prepare-"));
     tempDirs.push(tempDir);

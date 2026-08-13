@@ -461,6 +461,70 @@ PORT=4000
 // ─── parseComposeFile - service surface area we rely on ──────────────────────
 
 describe("parseComposeFile - service shape extraction", () => {
+  it("resolves build fields inherited through YAML anchors and merge keys", () => {
+    const parsed = parseComposeFile(
+      `
+x-common: &common
+  build:
+    context: ..
+    dockerfile: docker/Dockerfile
+
+services:
+  analyzer:
+    <<: *common
+`,
+      { composeDirectory: "docker" },
+    );
+
+    expect(parsed.services).toEqual([
+      expect.objectContaining({
+        name: "analyzer",
+        build: ".",
+        dockerfile: "docker/Dockerfile",
+      }),
+    ]);
+  });
+
+  it("lets service fields override values inherited from a merge key", () => {
+    const parsed = parseComposeFile(`
+x-common: &common
+  image: example/common
+  build: ./common
+services:
+  app:
+    <<: *common
+    build: ./app
+`);
+
+    expect(parsed.services[0]).toMatchObject({
+      name: "app",
+      image: "example/common",
+      build: "./app",
+    });
+  });
+
+  it("resolves relative build contexts from the Compose file directory", () => {
+    const parsed = parseComposeFile(
+      `
+services:
+  api:
+    build: ./api
+  worker:
+    build:
+      dockerfile: Dockerfile.worker
+`,
+      { composeDirectory: "deploy/compose" },
+    );
+
+    expect(parsed.services.find((service) => service.name === "api")?.build).toBe(
+      "deploy/compose/api",
+    );
+    expect(parsed.services.find((service) => service.name === "worker")).toMatchObject({
+      build: "deploy/compose",
+      dockerfile: "Dockerfile.worker",
+    });
+  });
+
   it("extracts build context and dockerfile paths", () => {
     const parsed = parseComposeFile(`
 services:
