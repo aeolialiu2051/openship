@@ -9,6 +9,7 @@
 
 import { repos } from "@repo/db";
 import { env } from "../config/env";
+import { getRoutingBaseDomain } from "./routing-domains";
 import { safeFetch } from "./safe-fetch";
 
 const FETCH_TIMEOUT = 8_000;
@@ -54,6 +55,13 @@ async function resolvePreferredSiteUrl(
   const primaryDomain = await repos.domain.getPrimaryByProject(project.id);
   if (primaryDomain?.verified && primaryDomain.hostname?.trim()) {
     return normalizeSiteUrl(primaryDomain.hostname);
+  }
+
+  // Most projects only have their Vibrail-managed slug domain. A previous
+  // refactor dropped this fallback, so those projects stopped refreshing their
+  // favicon and the dashboard fell back to an unrelated framework glyph.
+  if (project.slug?.trim()) {
+    return normalizeSiteUrl(`${project.slug}.${getRoutingBaseDomain()}`);
   }
 
   return null;
@@ -131,8 +139,8 @@ export function refreshProjectFaviconIfStale(
 
 /**
  * Detect and store the favicon for a deployed project.
- * Best-effort: update the cache timestamp on every attempt, but only replace
- * the stored favicon URL when the fetch succeeds.
+ * Best-effort: update the cache timestamp on every attempt and clear a stale
+ * favicon when the current site no longer exposes one.
  */
 export async function detectAndStoreFavicon(projectId: string, siteUrl: string): Promise<void> {
   const checkedAt = new Date();
@@ -151,6 +159,7 @@ export async function detectAndStoreFavicon(projectId: string, siteUrl: string):
   }
 
   await repos.project.updateFaviconCache(projectId, {
+    favicon: null,
     faviconCheckedAt: checkedAt,
   }).catch(() => undefined);
 }
