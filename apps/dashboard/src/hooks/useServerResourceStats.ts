@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getApiBaseUrl } from "@/lib/api";
 import { endpoints } from "@/lib/api/endpoints";
 import type { ServerStats } from "@/lib/api/system";
-import { parseBatchedServerStatsEvent } from "./server-stats-events";
+import { parseBatchedServerStatsEvent, stabilizeServerStats } from "./server-stats-events";
 
 /** Streams whole-machine resource samples for every configured server. */
 export function useServerResourceStats(serverIds: string[], intervalMs = 15_000) {
@@ -18,9 +18,12 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
   const [updatedAt, setUpdatedAt] = useState<number | null>(null);
   const [generation, setGeneration] = useState(0);
   const controllersRef = useRef<AbortController[]>([]);
+  const bootstrapSamplesRef = useRef<Record<string, ServerStats[]>>({});
+  const [bootstrapCounts, setBootstrapCounts] = useState<Record<string, number>>({});
 
   const refresh = useCallback(() => {
-    setStatsByServer({});
+    bootstrapSamplesRef.current = {};
+    setBootstrapCounts({});
     setSettledByServer({});
     setGeneration((value) => value + 1);
   }, []);
@@ -109,7 +112,18 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
             if (!data) continue;
             const sample = parseBatchedServerStatsEvent(data);
             if (!sample) continue;
-            setStatsByServer((current) => ({ ...current, [sample.serverId]: sample.stats }));
+            const samples = [
+              ...(bootstrapSamplesRef.current[sample.serverId] ?? []),
+              sample.stats,
+            ].slice(-3);
+            bootstrapSamplesRef.current[sample.serverId] = samples;
+            const stabilized = stabilizeServerStats(samples);
+            if (!stabilized) continue;
+            setStatsByServer((current) => ({ ...current, [sample.serverId]: stabilized }));
+            setBootstrapCounts((current) => ({
+              ...current,
+              [sample.serverId]: Math.min(samples.length, 3),
+            }));
             setSettledByServer((current) => ({ ...current, [sample.serverId]: true }));
             setUpdatedAt(Date.now());
           }
@@ -147,7 +161,13 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
   return {
     statsByServer,
     updatedAt,
-    loading: stableServerIds.length > 0 && Object.keys(settledByServer).length < stableServerIds.length,
+    // Preserve previously rendered values during a manual refresh. The card is
+    // only blank on the true initial load, before any server has answered.
+    loading:
+      Object.keys(statsByServer).length === 0 &&
+      stableServerIds.length > 0 &&
+      Object.keys(settledByServer).length < stableServerIds.length,
+    stabilizing: Object.values(bootstrapCounts).some((count) => count > 0 && count < 3),
     refresh,
   };
 }

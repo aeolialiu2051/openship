@@ -831,6 +831,11 @@ export async function monitorStream(c: Context) {
   // fresh ssh process + ControlMaster channel + remote shell, so the heavy
   // /proc one-liner can take a few seconds on a busy box. 5s was too tight.
   const STATS_TIMEOUT_MS = 12_000;
+  // The 200ms CPU probe is intentionally responsive but a single cold-load
+  // sample can catch a short spike. Gather three startup samples quickly so
+  // the dashboard can switch to their median without waiting for 15s polls.
+  const BOOTSTRAP_SAMPLE_COUNT = 3;
+  const BOOTSTRAP_INTERVAL_MS = 750;
 
   return streamSSE(c, async (sseStream) => {
     serverIds.forEach((serverId) => sshManager.retain(serverId));
@@ -838,6 +843,7 @@ export async function monitorStream(c: Context) {
     sseStream.onAbort(() => ac.abort());
 
     try {
+      let sampleRound = 0;
       while (!ac.signal.aborted) {
         const samples = await Promise.all(
           serverIds.map(async (serverId) => {
@@ -867,6 +873,10 @@ export async function monitorStream(c: Context) {
             });
           }
         }
+        sampleRound += 1;
+        const nextDelay = sampleRound < BOOTSTRAP_SAMPLE_COUNT
+          ? BOOTSTRAP_INTERVAL_MS
+          : POLL_INTERVAL;
         // Abort-aware sleep
         await new Promise<void>((resolve) => {
           if (ac.signal.aborted) return resolve();
@@ -877,7 +887,7 @@ export async function monitorStream(c: Context) {
           const timer = setTimeout(() => {
             ac.signal.removeEventListener("abort", onAbort);
             resolve();
-          }, POLL_INTERVAL);
+          }, nextDelay);
           ac.signal.addEventListener("abort", onAbort, { once: true });
         });
       }

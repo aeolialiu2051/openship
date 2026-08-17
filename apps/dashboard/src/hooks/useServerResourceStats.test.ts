@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseBatchedServerStatsEvent } from "./server-stats-events";
+import { parseBatchedServerStatsEvent, stabilizeServerStats } from "./server-stats-events";
 
 const stats = {
   cpu: 12,
@@ -32,5 +32,22 @@ describe("parseBatchedServerStatsEvent", () => {
         JSON.stringify({ serverId: "server-1", stats: { ...stats, cpu: "unknown" } }),
       ),
     ).toBeNull();
+  });
+});
+
+describe("stabilizeServerStats", () => {
+  it("shows the first sample immediately", () => {
+    expect(stabilizeServerStats([{ ...stats, cpu: 50 }])?.cpu).toBe(50);
+  });
+
+  it("uses the median CPU after the three-sample bootstrap", () => {
+    const result = stabilizeServerStats([
+      { ...stats, cpu: 50 },
+      { ...stats, cpu: 5 },
+      { ...stats, cpu: 6, memUsed: 600 },
+    ]);
+
+    expect(result?.cpu).toBe(6);
+    expect(result?.memUsed).toBe(600);
   });
 });

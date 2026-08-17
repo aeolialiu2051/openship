@@ -257,6 +257,7 @@ function getCopy(locale: string) {
         totalCpu: "总 CPU",
         totalMemory: "总内存",
         measuredServers: "已统计 {measured} / {total} 台服务器",
+        sampling: "采样中",
         latestUpdate: "数据刷新时间",
         resourceOverview: "资源总览",
         all: "全部",
@@ -315,6 +316,7 @@ function getCopy(locale: string) {
         totalCpu: "Total CPU",
         totalMemory: "Total memory",
         measuredServers: "{measured} / {total} servers measured",
+        sampling: "Sampling",
         latestUpdate: "Last refreshed",
         resourceOverview: "Resource overview",
         all: "All",
@@ -467,6 +469,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
     statsByServer,
     updatedAt: serverStatsUpdatedAt,
     loading: serverStatsLoading,
+    stabilizing: serverStatsStabilizing,
     refresh: refreshServerStats,
   } = useServerResourceStats(serverIds, HOME_REFRESH_INTERVAL_MS);
   const labels = useMemo(() => getCopy(locale), [locale]);
@@ -755,7 +758,7 @@ export default function DashboardHomeClient({ initialData }: DashboardHomeClient
                 icon={Gauge}
                 label={labels.totalCpu}
                 value={`${(totalCpuPercent ?? 0).toFixed(1)}%`}
-                detail={interpolate(labels.measuredServers, { measured: String(serverStats.length), total: String(servers.length) })}
+                detail={`${interpolate(labels.measuredServers, { measured: String(serverStats.length), total: String(servers.length) })}${serverStatsStabilizing ? ` · ${labels.sampling}` : ""}`}
                 tone="cyan"
                 loading={serversLoading || serverStatsLoading}
                 chart={{ values: cpuHistory, color: "rgb(34 211 238)" }}
