@@ -32,11 +32,16 @@ export function useMonitorStream(
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bufferRef = useRef("");
   const enabledRef = useRef(enabled);
   enabledRef.current = enabled;
 
   const disconnect = useCallback(() => {
+    if (reconnectTimerRef.current) {
+      clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     if (abortRef.current) {
       abortRef.current.abort();
       abortRef.current = null;
@@ -129,6 +134,12 @@ export function useMonitorStream(
     } finally {
       if (!abort.signal.aborted) {
         setIsConnected(false);
+        // Long-lived streams are deliberately rotated by the proxy/API so a
+        // missed downstream close can never retain them forever.
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectTimerRef.current = null;
+          if (enabledRef.current) void connect();
+        }, 1_000);
       }
     }
   }, [disconnect, serverId]);

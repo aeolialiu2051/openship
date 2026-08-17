@@ -68,4 +68,35 @@ describe("API proxy streaming cancellation", () => {
 
     expect(forwardedSignal?.aborted).toBe(true);
   });
+
+  it("bounds an SSE upstream even when downstream cancellation is never reported", async () => {
+    vi.useFakeTimers();
+    process.env.NEXT_PUBLIC_API_PROXY = "true";
+    let forwardedSignal: AbortSignal | undefined;
+    const upstreamCancel = vi.fn();
+    globalThis.fetch = vi.fn(async (_input, init) => {
+      forwardedSignal = init?.signal ?? undefined;
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(": connected\n\n"));
+          },
+          cancel: upstreamCancel,
+        }),
+        { headers: { "content-type": "text/event-stream" } },
+      );
+    });
+
+    await GET(
+      new NextRequest("http://dashboard.test/api/proxy/api/system/monitor/stream"),
+      { params: Promise.resolve({ path: ["api", "system", "monitor", "stream"] }) },
+    );
+    expect(forwardedSignal?.aborted).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+    expect(forwardedSignal?.aborted).toBe(true);
+    expect(upstreamCancel).toHaveBeenCalledWith("SSE proxy lifetime elapsed");
+    vi.useRealTimers();
+  });
 });

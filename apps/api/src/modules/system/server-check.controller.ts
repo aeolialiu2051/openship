@@ -836,6 +836,11 @@ export async function monitorStream(c: Context) {
   // the dashboard can switch to their median without waiting for 15s polls.
   const BOOTSTRAP_SAMPLE_COUNT = 3;
   const BOOTSTRAP_INTERVAL_MS = 750;
+  // Defense in depth for runtimes/proxies that fail to propagate a downstream
+  // disconnect. A monitor stream must never retain its request context, SSH
+  // holds and polling loop forever. Clients reconnect after this bounded
+  // lifetime, which also refreshes stale transports naturally.
+  const MAX_STREAM_LIFETIME_MS = 5 * 60_000;
 
   return streamSSE(c, async (sseStream) => {
     serverIds.forEach((serverId) => sshManager.retain(serverId));
@@ -843,8 +848,9 @@ export async function monitorStream(c: Context) {
     sseStream.onAbort(() => ac.abort());
 
     try {
+      const expiresAt = Date.now() + MAX_STREAM_LIFETIME_MS;
       let sampleRound = 0;
-      while (!ac.signal.aborted) {
+      while (!ac.signal.aborted && Date.now() < expiresAt) {
         const samples = await Promise.all(
           serverIds.map(async (serverId) => {
             try {
@@ -887,7 +893,7 @@ export async function monitorStream(c: Context) {
           const timer = setTimeout(() => {
             ac.signal.removeEventListener("abort", onAbort);
             resolve();
-          }, nextDelay);
+          }, Math.min(nextDelay, Math.max(0, expiresAt - Date.now())));
           ac.signal.addEventListener("abort", onAbort, { once: true });
         });
       }

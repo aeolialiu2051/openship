@@ -56,6 +56,15 @@ const RESPONSE_HOP_BY_HOP = new Set([
   "content-length",
 ]);
 
+// A downstream disconnect is not reported reliably by every Next.js/Node
+// streaming path. In particular, a route-handler Response can remain readable
+// after the browser that owned it has gone away, so neither req.signal nor the
+// returned ReadableStream's cancel() callback is guaranteed to run. Never let
+// an upstream SSE fetch become immortal: rotate it periodically and let the
+// client hook reconnect. This bounds leaked proxy/API state even when the
+// runtime loses the downstream close notification entirely.
+const MAX_UPSTREAM_SSE_LIFETIME_MS = 5 * 60_000;
+
 function internalApiBase(): string {
   // INTERNAL_API_URL is the canonical knob (docker-compose, `vibrail up`).
   // Fall back to VIBRAIL_LOCAL_API_URL so the desktop app — which serves this
@@ -167,10 +176,22 @@ async function proxy(req: NextRequest, pathSegments: string[]): Promise<Response
 
   const upstreamBody = upstreamRes.body;
   const reader = upstreamBody?.getReader();
+  const isSse = upstreamRes.headers.get("content-type")?.toLowerCase().includes("text/event-stream") === true;
+  const lifetimeTimer = isSse
+    ? setTimeout(() => {
+        const reason = "SSE proxy lifetime elapsed";
+        upstreamAbort.abort(reason);
+        // AbortSignal propagation after fetch() has resolved varies by runtime;
+        // cancelling the body reader is the transport-level backstop.
+        void reader?.cancel(reason).catch(() => {});
+      }, MAX_UPSTREAM_SSE_LIFETIME_MS)
+    : null;
+  lifetimeTimer?.unref?.();
   let finished = false;
   const finish = () => {
     if (finished) return;
     finished = true;
+    if (lifetimeTimer) clearTimeout(lifetimeTimer);
     req.signal.removeEventListener("abort", abortUpstream);
   };
   const responseBody = reader

@@ -47,6 +47,7 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
     // connection pool at 5-6 servers, leaving Next.js RSC navigations queued
     // until a full reload closed the streams.
     let controller: AbortController | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
     const connect = () => {
       if (document.visibilityState !== "visible" || controller) return;
@@ -135,6 +136,12 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
         }
       } finally {
         if (controller === activeController) controller = null;
+        if (!activeController.signal.aborted && document.visibilityState === "visible") {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            connect();
+          }, 1_000);
+        }
       }
       })();
     };
@@ -143,6 +150,10 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
       if (document.visibilityState === "visible") {
         connect();
       } else {
+        if (reconnectTimer) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
         controller?.abort();
         controller = null;
         controllersRef.current = [];
@@ -154,6 +165,7 @@ export function useServerResourceStats(serverIds: string[], intervalMs = 15_000)
 
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       controller?.abort();
     };
   }, [stableServerIds, generation, intervalMs]);
